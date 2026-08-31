@@ -65,6 +65,8 @@
   -webkit-tap-highlight-color:transparent}
 #pg-back:active{transform:scale(.9)}
 @media all and (display-mode:standalone){#pg-back{display:flex}}
+#pg-ver{position:fixed;left:8px;bottom:calc(6px + env(safe-area-inset-bottom,0px));z-index:99998;
+  font-size:9px;color:rgba(140,160,200,.4);pointer-events:none;letter-spacing:.05em;font-family:monospace}
 </style>
 </head>
 <body>
@@ -380,6 +382,7 @@
   var swipeStart = null, activePointer = null;
   var SWIPE_MIN = 24;
   wrapBoard.addEventListener('pointerdown', function (e) {
+    if (e.pointerType === 'touch') return;              // M10：触屏走原生 touch 层
     if (e.target.closest && e.target.closest('#banner')) return;   // M1：横幅按钮不经捕获/劫持
     SFX.unlock();
     if (activePointer !== null) return;
@@ -389,6 +392,7 @@
     e.preventDefault();
   });
   wrapBoard.addEventListener('pointerup', function (e) {
+    if (e.pointerType === 'touch') return;
     if (e.pointerId !== activePointer) return;
     activePointer = null;
     if (!swipeStart) return;
@@ -404,9 +408,41 @@
     doMove(dir);
   });
   wrapBoard.addEventListener('pointercancel', function (e) {
+    if (e.pointerType === 'touch') return;
     if (e.pointerId !== activePointer) return;
     activePointer = null; swipeStart = null;
   });
+
+  /* ═══ 原生 touch 层（M10：微信 iOS 等 PE 派发不可靠环境兜底） ═══ */
+  var touchStart = null;                                 // {x,y,id}
+  wrapBoard.addEventListener('touchstart', function (e) {
+    if (e.target.closest && e.target.closest('#banner')) return;   // 横幅按钮走原生 click
+    SFX.unlock();
+    if (touchStart !== null) return;                     // 单指语义
+    var t = e.changedTouches[0];
+    touchStart = { x: t.clientX, y: t.clientY, id: t.identifier };
+    e.preventDefault();
+  }, { passive: false });
+  wrapBoard.addEventListener('touchmove', function (e) {
+    if (touchStart === null) return;
+    for (var i = 0; i < e.changedTouches.length; i++) if (e.changedTouches[i].identifier === touchStart.id) { e.preventDefault(); return; }
+  }, { passive: false });
+  function onTouchEnd(e) {
+    if (touchStart === null) return;
+    var t = null;
+    for (var i = 0; i < e.changedTouches.length; i++) if (e.changedTouches[i].identifier === touchStart.id) t = e.changedTouches[i];
+    if (!t) return;
+    var dx = t.clientX - touchStart.x, dy = t.clientY - touchStart.y;
+    touchStart = null;
+    var rect = wrapBoard.getBoundingClientRect();
+    if (t.clientX < rect.left || t.clientX > rect.right || t.clientY < rect.top || t.clientY > rect.bottom) { e.preventDefault(); return; }
+    if (Math.abs(dx) < SWIPE_MIN && Math.abs(dy) < SWIPE_MIN) return;   // 点按：不吞合成 click（音效钮等）
+    if (Math.abs(dx) > Math.abs(dy)) doMove(dx > 0 ? 1 : 3);
+    else doMove(dy > 0 ? 2 : 0);
+    e.preventDefault();
+  }
+  wrapBoard.addEventListener('touchend', onTouchEnd, { passive: false });
+  wrapBoard.addEventListener('touchcancel', function () { touchStart = null; });
   window.addEventListener('blur', function () { activePointer = null; swipeStart = null; });
   document.addEventListener('visibilitychange', function () { if (document.hidden) { activePointer = null; swipeStart = null; } });
   wrapBoard.addEventListener('contextmenu', function (e) { e.preventDefault(); });
@@ -449,53 +485,6 @@
 </script>
 <!--PG-PWA-BODY-->
 <a id="pg-back" href="../index.html" aria-label="返回游戏列表">&#8962;</a>
-<script>
-/* PG touch-bridge：PointerEvent 不派发环境的触屏兜底（原生 PE 正常时自动失效） */
-(function(){
-  if (!window.PointerEvent) return;
-  var lastNativePE = 0;
-  document.addEventListener('pointerdown', function(){ lastNativePE = performance.now(); }, true);
-  var bridgeOn = null;                                                   // null=首个touch时判定
-  var active = null;                                                     // 桥接管的手势 {target}
-  function fire(type, x, y, target){
-    target.dispatchEvent(new PointerEvent(type, {
-      bubbles: true, cancelable: true, composed: true,
-      pointerId: 9, pointerType: 'touch', isPrimary: true,
-      clientX: x, clientY: y, screenX: x, screenY: y,
-      button: 0, buttons: type === 'pointerup' || type === 'pointercancel' ? 0 : 1,
-      width: 1, height: 1, pressure: type === 'pointerdown' ? 0.5 : 0
-    }));
-  }
-  function interactive(el){
-    return !!(el && el.closest && el.closest('button, a, input, select, textarea, [role="button"], [contenteditable]'));
-  }
-  document.addEventListener('touchstart', function(e){
-    if (window.__forceTouchBridge !== true && (performance.now() - lastNativePE) < 120) return;  // 原生PE已处理本手势
-    if (bridgeOn === null) bridgeOn = true;
-    if (!bridgeOn) return;
-    if (interactive(e.target)) return;                 // 按钮走原生 click
-    if (active) return;                                // 单指语义
-    var t = e.changedTouches[0];
-    active = { target: e.target };
-    fire('pointerdown', t.clientX, t.clientY, e.target);
-    e.preventDefault();
-  }, { passive: false });
-  document.addEventListener('touchmove', function(e){
-    if (!active) return;
-    var t = e.changedTouches[0];
-    fire('pointermove', t.clientX, t.clientY, active.target);
-    e.preventDefault();
-  }, { passive: false });
-  function end(e){
-    if (!active) return;
-    var t = e.changedTouches[0];
-    fire(e.type === 'touchcancel' ? 'pointercancel' : 'pointerup', t.clientX, t.clientY, active.target);
-    active = null;
-    e.preventDefault();
-  }
-  document.addEventListener('touchend', end, { passive: false });
-  document.addEventListener('touchcancel', end, { passive: false });
-})();
-</script>
+<span id="pg-ver">v1.0.3</span>
 </body>
 </html>

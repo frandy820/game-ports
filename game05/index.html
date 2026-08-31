@@ -572,6 +572,8 @@
   -webkit-tap-highlight-color:transparent}
 #pg-back:active{transform:scale(.9)}
 @media all and (display-mode:standalone){#pg-back{display:flex}}
+#pg-ver{position:fixed;left:8px;bottom:calc(6px + env(safe-area-inset-bottom,0px));z-index:99998;
+  font-size:9px;color:rgba(140,160,200,.4);pointer-events:none;letter-spacing:.05em;font-family:monospace}
 </style>
 </head>
 <body>
@@ -1137,12 +1139,22 @@
   }
   var lastPtrTs = 0;                                    // M2：防 pointerdown+click 双触发（iOS 合成 click detail 恒 0）
   el.forge.addEventListener('pointerdown', function (e) {
+    if (e.pointerType === 'touch') return;              // M10：触屏走原生 touch 层
     lastPtrTs = Date.now();
     var rc = el.forge.getBoundingClientRect();
     var x = (e.clientX - rc.left) / rc.width * 100;
     var y = (e.clientY - rc.top) / rc.height * 100;
     forge(x, y);
   });
+  el.forge.addEventListener('touchstart', function (e) {
+    lastPtrTs = Date.now();                             // 抑制随后的合成 click（M2 同源防重）
+    var t = e.changedTouches[0];
+    var rc = el.forge.getBoundingClientRect();
+    var x = (t.clientX - rc.left) / rc.width * 100;
+    var y = (t.clientY - rc.top) / rc.height * 100;
+    forge(x, y);
+    e.preventDefault();                                 // 触屏必达，无需合成 click 兜底
+  }, { passive: false });
   el.forge.addEventListener('click', function () {
     if (Date.now() - lastPtrTs > 400) forge(null, null);   // 仅键盘等无 pointer 路径
   });
@@ -1435,8 +1447,16 @@
   }
   el.btnOpen.addEventListener('click', directOpen);
   el.btnCtrl.addEventListener('click', startCtrl);
-  el.ctrlLayer.addEventListener('pointerdown', function (e) { if (e.target === el.ctrlTrack || e.target.id === 'ctrl-pin' || e.target.classList.contains('ct-zone')) return; lockFire(); });
-  el.ctrlTrack.addEventListener('pointerdown', lockFire);
+  el.ctrlLayer.addEventListener('pointerdown', function (e) {
+    if (e.pointerType === 'touch') return;              // M10：触屏走原生 touch 层
+    if (e.target === el.ctrlTrack || e.target.id === 'ctrl-pin' || e.target.classList.contains('ct-zone')) return; lockFire();
+  });
+  el.ctrlTrack.addEventListener('pointerdown', function (e) { if (e.pointerType !== 'touch') lockFire(); });
+  el.ctrlLayer.addEventListener('touchstart', function (e) {
+    if (e.target === el.ctrlTrack || e.target.id === 'ctrl-pin' || e.target.classList.contains('ct-zone')) return;
+    lockFire(); e.preventDefault();
+  }, { passive: false });
+  el.ctrlTrack.addEventListener('touchstart', function (e) { lockFire(); e.preventDefault(); }, { passive: false });
   document.addEventListener('keydown', function (e) {      // Space 控火（激活时拦截滚动）
     if (ctrl && !ctrl.done && e.key === ' ') { e.preventDefault(); lockFire(); }
   });
@@ -2181,53 +2201,6 @@
 </script>
 <!--PG-PWA-BODY-->
 <a id="pg-back" href="../index.html" aria-label="返回游戏列表">&#8962;</a>
-<script>
-/* PG touch-bridge：PointerEvent 不派发环境的触屏兜底（原生 PE 正常时自动失效） */
-(function(){
-  if (!window.PointerEvent) return;
-  var lastNativePE = 0;
-  document.addEventListener('pointerdown', function(){ lastNativePE = performance.now(); }, true);
-  var bridgeOn = null;                                                   // null=首个touch时判定
-  var active = null;                                                     // 桥接管的手势 {target}
-  function fire(type, x, y, target){
-    target.dispatchEvent(new PointerEvent(type, {
-      bubbles: true, cancelable: true, composed: true,
-      pointerId: 9, pointerType: 'touch', isPrimary: true,
-      clientX: x, clientY: y, screenX: x, screenY: y,
-      button: 0, buttons: type === 'pointerup' || type === 'pointercancel' ? 0 : 1,
-      width: 1, height: 1, pressure: type === 'pointerdown' ? 0.5 : 0
-    }));
-  }
-  function interactive(el){
-    return !!(el && el.closest && el.closest('button, a, input, select, textarea, [role="button"], [contenteditable]'));
-  }
-  document.addEventListener('touchstart', function(e){
-    if (window.__forceTouchBridge !== true && (performance.now() - lastNativePE) < 120) return;  // 原生PE已处理本手势
-    if (bridgeOn === null) bridgeOn = true;
-    if (!bridgeOn) return;
-    if (interactive(e.target)) return;                 // 按钮走原生 click
-    if (active) return;                                // 单指语义
-    var t = e.changedTouches[0];
-    active = { target: e.target };
-    fire('pointerdown', t.clientX, t.clientY, e.target);
-    e.preventDefault();
-  }, { passive: false });
-  document.addEventListener('touchmove', function(e){
-    if (!active) return;
-    var t = e.changedTouches[0];
-    fire('pointermove', t.clientX, t.clientY, active.target);
-    e.preventDefault();
-  }, { passive: false });
-  function end(e){
-    if (!active) return;
-    var t = e.changedTouches[0];
-    fire(e.type === 'touchcancel' ? 'pointercancel' : 'pointerup', t.clientX, t.clientY, active.target);
-    active = null;
-    e.preventDefault();
-  }
-  document.addEventListener('touchend', end, { passive: false });
-  document.addEventListener('touchcancel', end, { passive: false });
-})();
-</script>
+<span id="pg-ver">v1.0.3</span>
 </body>
 </html>
