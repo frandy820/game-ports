@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>满格消除 · 离线版</title>
+<style>
+  :root {
+    --bg: #12141c; --panel: #1b1f2b; --line: #333a4d;
+    --ink: #e9edf8; --dim: #8b95b0;
+    --c1: #5ad1e6; --c2: #7dd87d; --c3: #ffd166; --c4: #ef7fb2; --c5: #a88bef;
+    --ok: #5ad1e6; --no: #8b95b0;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    background: radial-gradient(120% 90% at 50% 0%, #1c2130 0%, var(--bg) 60%);
+    color: var(--ink);
+    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    display: flex; justify-content: center; align-items: center;
+    overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  #wrap { width: min(96vw, 92vh - 20px, 430px); }
+  #hud {
+    display: flex; align-items: center; gap: 12px; padding: 8px 14px; margin-bottom: 10px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px; font-size: 15px;
+  }
+  #score { font-weight: 700; font-size: 20px; color: var(--c3); min-width: 3ch; }
+  #best { color: var(--dim); font-size: 13px; }
+  #mile { font-size: 16px; opacity: 0; transition: opacity .3s; filter: drop-shadow(0 0 5px #ffd166); }
+  #mile.on { opacity: 1; }
+  #btn-sound {
+    margin-left: auto; width: 44px; height: 44px; flex: 0 0 44px;
+    border: 1px solid var(--line); border-radius: 10px; background: transparent;
+    color: var(--dim); font-size: 18px; cursor: pointer;
+  }
+
+  #board-wrap { position: relative; }
+  #board {
+    display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 5px;
+    touch-action: none; aspect-ratio: 1;
+  }
+  .cell {
+    background: #232839; border-radius: 6px; position: relative;
+    transition: background .1s;
+  }
+  .cell.fill { border: none; }
+  .cell.proj-ok { outline: 2px solid var(--ok); outline-offset: -2px; background: rgba(90,209,230,.3); }
+  .cell.proj-no { outline: 2px dashed var(--no); outline-offset: -2px; background: rgba(139,149,176,.15); }
+  .cell.clearing { animation: flashout .12s ease-out, shrink .3s ease-in .12s forwards; }
+  @keyframes flashout { 0% { filter: brightness(3); } 100% { filter: brightness(1); } }
+  @keyframes shrink { 100% { transform: scale(0); } }
+
+  #tray {
+    display: flex; justify-content: space-around; align-items: center; gap: 8px;
+    margin-top: 14px; min-height: 110px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px;
+  }
+  .slot { min-width: 84px; min-height: 84px; display: flex; align-items: center; justify-content: center; touch-action: none; }
+  .piece { display: grid; gap: 3px; cursor: grab; }
+  .piece.used { opacity: 0; pointer-events: none; }
+  .pc { border-radius: 5px; width: 26px; height: 26px; }
+
+  /* 拖拽幽灵（跟随指针，触摸时上移 48px 防遮挡） */
+  #ghost {
+    position: fixed; left: 0; top: 0; display: grid; gap: 3px;
+    pointer-events: none; z-index: 90; opacity: .88;
+  }
+  #ghost.snap { opacity: 1; }
+  .float-txt {
+    position: absolute; font-weight: 800; font-size: 20px; color: var(--c3);
+    text-shadow: 0 0 10px rgba(255,209,102,.7); z-index: 80;
+    animation: rise7 .8s ease-out forwards; pointer-events: none; white-space: nowrap;
+  }
+  @keyframes rise7 {                                   /* m1：居中并入关键帧（动画 transform 覆盖内联） */
+    0% { opacity: 0; transform: translateX(-50%) translateY(0) scale(.7); }
+    15% { opacity: 1; transform: translateX(-50%) translateY(-10px) scale(1.15); }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-70px) scale(1); }
+  }
+
+  #overlay {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 10px;
+    background: rgba(14,17,26,.85); border-radius: 12px; z-index: 60;
+    transition: opacity .25s; text-align: center; padding: 20px;
+  }
+  #overlay.gone { opacity: 0; pointer-events: none; }
+  #overlay h2 { font-size: 28px; font-weight: 800; letter-spacing: 3px; color: var(--c1); }
+  #overlay p { color: var(--dim); font-size: 14px; line-height: 1.7; }
+  #overlay .go { color: var(--ink); animation: breath 1.6s infinite; margin-top: 4px; }
+  @keyframes breath { 50% { opacity: .4; } }
+  #tip { font-size: 12px; color: var(--dim); text-align: center; margin-top: 10px; }
+</style>
+<!--PG-PWA-->
+<link rel="manifest" href="../manifest.json">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<meta name="theme-color" content="#0d1322">
+<style>
+#pg-back{position:fixed;right:12px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:99999;
+  width:40px;height:40px;border-radius:50%;display:none;align-items:center;justify-content:center;
+  background:rgba(13,19,34,.55);border:1px solid rgba(180,200,255,.25);color:#cfe0ff;font-size:19px;
+  text-decoration:none;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);user-select:none;
+  -webkit-tap-highlight-color:transparent}
+#pg-back:active{transform:scale(.9)}
+@media all and (display-mode:standalone){#pg-back{display:flex}}
+</style>
+<a id="pg-back" href="../index.html" aria-label="返回游戏列表">&#8962;</a>
+</head>
+<body>
+<div id="wrap">
+  <div id="hud">
+    <span id="score">0</span>
+    <span id="best">最高 0</span>
+    <span id="mile">★</span>
+    <button id="btn-sound" title="音效开关">♪</button>
+  </div>
+  <div id="board-wrap">
+    <div id="board"></div>
+    <div id="overlay">
+      <h2>满格消除</h2>
+      <p id="ovp">拖动骨牌放入棋盘，行或列满即消除</p>
+      <p class="go">拖一块开始</p>
+    </div>
+  </div>
+  <div id="tray">
+    <div class="slot"></div><div class="slot"></div><div class="slot"></div>
+  </div>
+  <div id="tip"></div>
+</div>
+<div id="ghost" style="display:none"></div>
+<script>
+(function () {
+  'use strict';
+
+  /* ═══ 1. 常量 ═══ */
+  var N = 8, MILESTONE = 300;
+  var SHAPES = [
+    [[0, 0], [1, 0], [2, 0]],   // I3 横
+    [[0, 0], [0, 1], [0, 2]],   // I3 竖
+    [[0, 0], [1, 0], [0, 1]],   // L3
+    [[1, 0], [0, 1], [1, 1]],   // L3
+    [[0, 0], [0, 1], [1, 1]],   // L3
+    [[0, 0], [1, 0], [1, 1]]    // L3
+  ];
+  var PCOLORS = ['var(--c1)', 'var(--c2)', 'var(--c3)', 'var(--c4)', 'var(--c5)'];
+  var BKEY = 'mg_best_v1', SKEY = 'mg_state_v1';
+
+  /* ═══ 2. safeStorage ═══ */
+  var safeStorage = (function () {
+    var mem = {}, ok = false;
+    try { localStorage.setItem('__mg_t', '1'); localStorage.removeItem('__mg_t'); ok = true; } catch (e) {}
+    return {
+      get: function (k, d) { try { if (ok) { var v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } } catch (e) {} return k in mem ? mem[k] : d; },
+      set: function (k, v) { mem[k] = v; try { if (ok) localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+      del: function (k) { delete mem[k]; try { if (ok) localStorage.removeItem(k); } catch (e) {} }
+    };
+  })();
+
+  /* ═══ 3. SFXKit ═══ */
+  var SFX = (function () {
+    var ctx = null, muted = !!safeStorage.get('mg_muted', false);
+    function ac() { if (!ctx) { try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } return ctx; }
+    function tone(type, f0, f1, dur, vol) {
+      if (muted) return;
+      var c = ac(); if (!c) return;
+      if (c.state === 'suspended') c.resume();
+      var o = c.createOscillator(), g = c.createGain(), t = c.currentTime;
+      o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(1, f1), t + dur);
+      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + dur + 0.02);
+    }
+    return {
+      unlock: function () { var c = ac(); if (c && c.state === 'suspended') c.resume(); },
+      place: function () { tone('triangle', 260, 180, 0.08, 0.08); },
+      clear: function () { tone('sine', 660, 1320, 0.16, 0.1); },
+      multi: function () { tone('sine', 660, 1980, 0.28, 0.11); },
+      over: function () { tone('sawtooth', 280, 60, 0.4, 0.13); },
+      mile: function () { tone('sine', 523, 1047, 0.3, 0.1); },
+      toggle: function () { muted = !muted; safeStorage.set('mg_muted', muted); return muted; },
+      isMuted: function () { return muted; }
+    };
+  })();
+
+  /* ═══ 4. 状态 ═══ */
+  var board = [];                       // 0 空 / 颜色索引 1..5
+  var pieces = [];                      // [{shapeIdx,color,used}]×3
+  var score = 0, best = safeStorage.get(BKEY, 0), mile = safeStorage.get('mg_mile', 0);
+  var state = 'PLAYING';                // PLAYING / OVER
+  var firstRun = !safeStorage.get('mg_seen', 0);
+  var clearedTotal = 0;
+  function newBoard() { board = []; for (var i = 0; i < N * N; i++) board.push(0); }
+  function randPieces() {
+    pieces = [];
+    for (var i = 0; i < 3; i++) pieces.push({ shapeIdx: Math.floor(Math.random() * SHAPES.length), color: 1 + Math.floor(Math.random() * 5), used: false });
+  }
+
+  /* ═══ 5. DOM ═══ */
+  var $ = function (id) { return document.getElementById(id); };
+  var elBoard = $('board'), elScore = $('score'), elBest = $('best'), elMile = $('mile');
+  var elOverlay = $('overlay'), elOvp = $('ovp'), elTip = $('tip'), elTray = $('tray');
+  var elGhost = $('ghost'), btnSound = $('btn-sound');
+  var cells = [];
+  var slots = document.querySelectorAll('.slot');
+
+  function buildBoard() {
+    elBoard.innerHTML = ''; cells = [];
+    for (var i = 0; i < N * N; i++) {
+      var d = document.createElement('div');
+      d.className = 'cell';
+      elBoard.appendChild(d); cells.push(d);
+    }
+  }
+  function colorOf(ci) { return PCOLORS[ci - 1]; }
+  function renderBoard() {
+    for (var i = 0; i < N * N; i++) {
+      var c = cells[i];
+      if (c.classList.contains('clearing') && !board[i]) continue;  // m2：消行动画期不被重渲染截断
+      c.className = 'cell' + (board[i] ? ' fill' : '');
+      c.style.background = board[i] ? colorOf(board[i]) : '';
+    }
+  }
+  function renderTray() {
+    for (var s = 0; s < 3; s++) {
+      var slot = slots[s];
+      slot.innerHTML = '';
+      var p = pieces[s];
+      if (!p || p.used) continue;
+      var sh = SHAPES[p.shapeIdx];
+      var w = 1, h = 1;
+      sh.forEach(function (c) { w = Math.max(w, c[0] + 1); h = Math.max(h, c[1] + 1); });
+      var d = document.createElement('div');
+      d.className = 'piece';
+      d.style.gridTemplateColumns = 'repeat(' + w + ', 26px)';
+      d.style.gridTemplateRows = 'repeat(' + h + ', 26px)';
+      for (var r = 0; r < h; r++) for (var cc = 0; cc < w; cc++) {
+        var gd = document.createElement('div');
+        gd.className = 'pc';
+        var hit = sh.some(function (s2) { return s2[0] === cc && s2[1] === r; });
+        gd.style.background = hit ? colorOf(p.color) : 'transparent';
+        if (hit) gd.style.boxShadow = 'inset 0 -3px 0 rgba(0,0,0,.28)';
+        d.appendChild(gd);
+      }
+      d.dataset.slot = s;
+      slot.appendChild(d);
+    }
+  }
+  function renderHud() {
+    elScore.textContent = score;
+    elBest.textContent = '最高 ' + best;
+    elMile.classList.toggle('on', !!mile);
+    elTip.textContent = firstRun ? '拖动下方骨牌到棋盘 · 行或列填满即消除' : '累计消除 ' + clearedTotal + ' 行/列';
+  }
+
+  /* ═══ 6. 判定 ═══ */
+  function canPlace(shapeIdx, bc, br) {
+    var sh = SHAPES[shapeIdx];
+    for (var i = 0; i < sh.length; i++) {
+      var c = bc + sh[i][0], r = br + sh[i][1];
+      if (c < 0 || c >= N || r < 0 || r >= N) return false;
+      if (board[r * N + c]) return false;
+    }
+    return true;
+  }
+  function anyPlaceable() {
+    for (var s = 0; s < 3; s++) {
+      var p = pieces[s];
+      if (!p || p.used) continue;
+      for (var r = 0; r < N; r++) for (var c = 0; c < N; c++) if (canPlace(p.shapeIdx, c, r)) return true;
+    }
+    return false;
+  }
+  function allUsed() { return pieces.every(function (p) { return p.used; }); }
+  function refillIfNeeded() {                          // 三块用完 → 发新组
+    if (allUsed()) { randPieces(); renderTray(); }     // 修：randPieces 后必须重渲染托盘（曾漏→三块用完托盘空白）
+  }
+
+  /* ═══ 7. 放置与消除 ═══ */
+  function checkMile() {                                 // 统一入口（放置分/消行分都可能过线）
+    if (!mile && score >= MILESTONE) { mile = 1; safeStorage.set('mg_mile', 1); SFX.mile(); elMile.classList.add('on'); }
+  }
+  function place(slotIdx, bc, br) {
+    var p = pieces[slotIdx];
+    var sh = SHAPES[p.shapeIdx];
+    sh.forEach(function (s2) { board[(br + s2[1]) * N + bc + s2[0]] = p.color; });
+    p.used = true;
+    score += sh.length;                                 // 放置分=格数
+    SFX.place();
+    renderBoard(); renderTray(); renderHud();
+    checkMile();
+    var lines = findFullLines();
+    if (lines.rows.length || lines.cols.length) clearLines(lines);
+    afterMove();
+    saveState();
+    return true;
+  }
+  function findFullLines() {
+    var rows = [], cols = [];
+    for (var r = 0; r < N; r++) {
+      var full = true;
+      for (var c = 0; c < N; c++) if (!board[r * N + c]) { full = false; break; }
+      if (full) rows.push(r);
+    }
+    for (var c2 = 0; c2 < N; c2++) {
+      var full2 = true;
+      for (var r2 = 0; r2 < N; r2++) if (!board[r2 * N + c2]) { full2 = false; break; }
+      if (full2) cols.push(c2);
+    }
+    return { rows: rows, cols: cols };
+  }
+  function clearLines(lines) {
+    var total = lines.rows.length + lines.cols.length;
+    var gainPts = total * 10 * total;                   // 同消平方奖励：单消10 双消40 三消90
+    score += gainPts;
+    clearedTotal += total;
+    // 立即清数据（防 420ms 动画期内放置误判占用），动画纯视觉
+    lines.rows.forEach(function (r) { for (var c = 0; c < N; c++) board[r * N + c] = 0; });
+    lines.cols.forEach(function (c2) { for (var r2 = 0; r2 < N; r2++) board[r2 * N + c2] = 0; });
+    lines.rows.forEach(function (r) { for (var c = 0; c < N; c++) cells[r * N + c].classList.add('clearing'); });
+    lines.cols.forEach(function (c2) { for (var r2 = 0; r2 < N; r2++) cells[r2 * N + c2].classList.add('clearing'); });
+    var fl = document.createElement('div');
+    fl.className = 'float-txt';
+    fl.textContent = total > 1 ? total + ' 消! +' + gainPts : '+' + gainPts;
+    fl.style.left = '50%'; fl.style.top = '40%';
+    fl.style.transform = 'translateX(-50%)';
+    $('board-wrap').appendChild(fl);
+    setTimeout(function () { if (fl.parentNode) fl.parentNode.removeChild(fl); }, 850);
+    total > 1 ? SFX.multi() : SFX.clear();
+    setTimeout(function () {                                          // m2 收尾：先强制摘 clearing 类再重画
+      for (var i2 = 0; i2 < N * N; i2++) cells[i2].classList.remove('clearing');  // 类残留会令同格二次消行动画不重放
+      renderBoard();
+    }, 420);
+    checkMile();
+    renderHud();
+  }
+  function afterMove() {
+    refillIfNeeded();
+    if (!anyPlaceable()) {
+      randPieces();                                     // 无可放：重排一次
+      renderTray();
+      if (!anyPlaceable()) gameOver();
+    }
+  }
+  function gameOver() {
+    state = 'OVER';
+    SFX.over();
+    if (score > best) { best = score; safeStorage.set(BKEY, best); }
+    renderHud();
+    elOverlay.querySelector('h2').textContent = '无处可放';
+    elOvp.textContent = '本局 ' + score + ' 分 · 消除 ' + clearedTotal + ' 行/列';
+    elOverlay.classList.remove('gone');
+    safeStorage.del(SKEY);
+  }
+
+  /* ═══ 8. 存档（进行中状态） ═══ */
+  function saveState() {
+    if (state !== 'PLAYING') return;
+    safeStorage.set(SKEY, { board: board, pieces: pieces, score: score, cleared: clearedTotal });
+  }
+  function loadState() {
+    var d = safeStorage.get(SKEY, null);
+    if (!d || !Array.isArray(d.board) || d.board.length !== N * N || !Array.isArray(d.pieces) || d.pieces.length !== 3) return false;
+    for (var i = 0; i < N * N; i++) { var v = d.board[i]; if (!(v >= 0 && v <= 5 && Math.floor(v) === v)) return false; }
+    for (var j = 0; j < 3; j++) {
+      var p = d.pieces[j];
+      // M1：NaN 与非整数穿透（NaN<x 均为 false）会致 SHAPES[NaN]=undefined → init 崩溃
+      if (!p || typeof p.shapeIdx !== 'number' || !isFinite(p.shapeIdx) || Math.floor(p.shapeIdx) !== p.shapeIdx || p.shapeIdx < 0 || p.shapeIdx >= SHAPES.length) return false;
+    }
+    board = d.board.slice();
+    pieces = d.pieces.map(function (p) { return { shapeIdx: p.shapeIdx, color: Math.min(5, Math.max(1, p.color | 0)), used: !!p.used }; });
+    score = (typeof d.score === 'number' && isFinite(d.score) && d.score >= 0) ? d.score : 0;
+    clearedTotal = d.cleared | 0;
+    return true;
+  }
+
+  /* ═══ 9. 拖拽（Pointer Events 统一鼠标/触摸） ═══ */
+  var drag = null;                                      // {slot,pointerId,...,pe}
+  elTray.addEventListener('pointerdown', function (e) {
+    if (drag) return;                                   // m4：多指重入守卫（第二指抢占会致第一指静默失效）
+    var pe = e.target.closest('.piece');
+    if (!pe || state !== 'PLAYING') return;
+    SFX.unlock();
+    var slotIdx = +pe.dataset.slot;
+    var p = pieces[slotIdx];
+    var sh = SHAPES[p.shapeIdx];
+    var w = 1, h = 1;
+    sh.forEach(function (c) { w = Math.max(w, c[0] + 1); h = Math.max(h, c[1] + 1); });
+    // 幽灵格尺寸 = 棋盘实际格 px
+    var brect = elBoard.getBoundingClientRect();
+    // m3/m8：减 padding 5*2 + border 1*2 + gap 3*(N-1)；pad=5 padding+1 border。与 CSS #board/.cell 耦合，改样式须同步
+    var cellPx = (brect.width - 12 - (N - 1) * 3) / N;
+    var gap = 3, pad = 6;
+    elGhost.style.gridTemplateColumns = 'repeat(' + w + ', ' + cellPx + 'px)';
+    elGhost.style.gridTemplateRows = 'repeat(' + h + ', ' + cellPx + 'px)';
+    elGhost.style.gap = gap + 'px';
+    elGhost.innerHTML = '';
+    for (var r = 0; r < h; r++) for (var c2 = 0; c2 < w; c2++) {
+      var gd = document.createElement('div');
+      gd.style.borderRadius = '6px';
+      var hit = sh.some(function (s2) { return s2[0] === c2 && s2[1] === r; });
+      gd.style.background = hit ? colorOf(p.color) : 'transparent';
+      if (hit) gd.style.boxShadow = 'inset 0 -3px 0 rgba(0,0,0,.28)';
+      elGhost.appendChild(gd);
+    }
+    elGhost.style.display = 'grid';
+    var gw = w * cellPx + (w - 1) * gap, gh = h * cellPx + (h - 1) * gap;
+    var isTouch = e.pointerType === 'touch';
+    drag = {
+      slot: slotIdx, pointerId: e.pointerId, sh: sh, w: w, h: h,
+      gw: gw, gh: gh, cellPx: cellPx, gap: gap, pad: pad,
+      isTouch: isTouch, bc: -1, br: -1, ok: false, pe: pe
+    };
+    try { pe.setPointerCapture(e.pointerId); } catch (err) {}
+    pe.addEventListener('pointermove', onDragMove);
+    pe.addEventListener('pointerup', onDragEnd);
+    pe.addEventListener('pointercancel', onDragCancel);
+    moveGhost(e.clientX, e.clientY);
+    e.preventDefault();
+  });
+  function moveGhost(px, py) {
+    var gx = px - drag.gw / 2;
+    var gy = py - drag.gh / 2 - (drag.isTouch ? 48 : 0);     // 触摸上移 48px 防手指遮挡
+    elGhost.style.transform = 'translate(' + gx + 'px,' + gy + 'px)';
+    // 落点：幽灵第一格中心 → 最近棋盘格
+    var brect = elBoard.getBoundingClientRect();
+    var firstCx = gx + drag.cellPx / 2, firstCy = gy + drag.cellPx / 2;
+    var bc = Math.round((firstCx - brect.left - drag.pad - drag.cellPx / 2) / (drag.cellPx + drag.gap));
+    var br = Math.round((firstCy - brect.top - drag.pad - drag.cellPx / 2) / (drag.cellPx + drag.gap));
+    drag.bc = bc; drag.br = br;
+    drag.ok = canPlace(pieces[drag.slot].shapeIdx, bc, br);
+    // 落点在合理邻域才投影
+    var near = bc >= -1 && bc <= N && br >= -1 && br <= N;
+    elGhost.classList.toggle('snap', drag.ok);
+    elGhost.style.opacity = drag.ok ? '1' : (near ? '.5' : '.88');
+    renderProjection(near);
+  }
+  function renderProjection(show) {
+    for (var i = 0; i < N * N; i++) { cells[i].classList.remove('proj-ok', 'proj-no'); }
+    if (!show || state !== 'PLAYING') return;
+    var sh = drag.sh;
+    for (var k = 0; k < sh.length; k++) {
+      var c = drag.bc + sh[k][0], r = drag.br + sh[k][1];
+      if (c < 0 || c >= N || r < 0 || r >= N) continue;
+      cells[r * N + c].classList.add(drag.ok ? 'proj-ok' : 'proj-no');
+    }
+  }
+  function onDragMove(e) {
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    moveGhost(e.clientX, e.clientY);
+    e.preventDefault();
+  }
+  function cleanupDrag(pe) {
+    elGhost.style.display = 'none';
+    elGhost.innerHTML = '';
+    renderProjection(false);
+    var t = pe || (drag && drag.pe);                    // m5：blur 路径也摘监听
+    if (t) {
+      t.removeEventListener('pointermove', onDragMove);
+      t.removeEventListener('pointerup', onDragEnd);
+      t.removeEventListener('pointercancel', onDragCancel);
+    }
+    drag = null;
+  }
+  function onDragEnd(e) {
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    var pe = e.currentTarget;
+    var d = drag;
+    cleanupDrag(pe);
+    if (d.ok && state === 'PLAYING') place(d.slot, d.bc, d.br);
+  }
+  function onDragCancel(e) {
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    cleanupDrag(e.currentTarget);
+  }
+  window.addEventListener('blur', function () { if (drag) cleanupDrag(null); });
+
+  /* ═══ 10. 音效钮 / overlay 点击重开 ═══ */
+  btnSound.addEventListener('click', function () {
+    var m = SFX.toggle();
+    btnSound.textContent = m ? '×' : '♪';
+  });
+  elOverlay.addEventListener('pointerdown', function () {
+    if (state === 'OVER') restart();
+  });
+  function restart() {
+    newBoard(); randPieces();
+    score = 0; clearedTotal = 0; state = 'PLAYING';
+    elOverlay.querySelector('h2').textContent = '满格消除';
+    elOvp.textContent = '拖动骨牌放入棋盘，行或列满即消除';
+    elOverlay.classList.add('gone');
+    renderBoard(); renderTray(); renderHud();
+    saveState();
+  }
+
+  /* ═══ 11. Dev 钩子（构建剥离段） ═══ */
+  
+
+  /* ═══ 12. init ═══ */
+  buildBoard();
+  if (!loadState()) { newBoard(); randPieces(); }
+  else {
+    // 恢复局：若已无可放（存档时未触发终局），补判
+    if (!anyPlaceable()) { randPieces(); if (!anyPlaceable()) { gameOver(); } }
+  }
+  if (state === 'PLAYING') elOverlay.classList.add('gone');
+  renderBoard(); renderTray(); renderHud();
+  btnSound.textContent = SFX.isMuted() ? '×' : '♪';
+  safeStorage.set('mg_seen', 1);
+  // m7：首玩引导由 elTip（firstRun 文案）承载；overlay 开局即 gone，此处写入不可见，删
+})();
+</script>
+</body>
+</html>

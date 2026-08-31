@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>几何狂奔 · 离线版</title>
+<style>
+  :root{ --bg:#0b0f1a; --ink:#eceadf; --dim:#8d93a6; --gold:#f5a623; --danger:#e05a4e; --line:#2a3450; }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--ink);font-family:'Segoe UI',system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;overflow:hidden;
+    user-select:none;-webkit-user-select:none;touch-action:manipulation}
+  header{width:min(94vw,660px);display:flex;align-items:center;gap:12px}
+  header .title{font-size:17px;font-weight:700;letter-spacing:.06em;color:var(--gold);flex:1}
+  header .hud{display:flex;gap:16px;align-items:baseline}
+  header .score{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
+  header .best{font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums}
+  #btn-sound{width:44px;height:44px;border:1px solid var(--line);border-radius:10px;background:#141a2a;
+    color:var(--ink);font-size:18px;line-height:1;cursor:pointer;flex:none}
+  #btn-sound.off{color:var(--dim)}
+  #stage{position:relative;width:min(94vw,660px,72vh);aspect-ratio:12/7;touch-action:none}
+  canvas#game{width:100%;height:100%;display:block;border-radius:12px;background:#0d1322}
+  #overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+    border-radius:12px;z-index:5;transition:opacity .4s;background:rgba(11,15,26,.55)}
+  #overlay.gone{opacity:0;pointer-events:none}
+  #overlay h2{font-size:24px;color:var(--gold);letter-spacing:.12em}
+  #overlay p{font-size:14px;color:var(--ink)}
+  #overlay .sub{font-size:12.5px;color:var(--dim)}
+  #vignette{position:absolute;inset:0;border-radius:12px;pointer-events:none;z-index:4;opacity:0;
+    box-shadow:inset 0 0 90px 30px rgba(224,90,78,.85);transition:opacity .22s}
+  #vignette.flash{opacity:1}
+  #fx-layer{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:6}
+  .float-txt{position:absolute;font-weight:800;color:var(--gold);font-size:18px;transform:translate(-50%,-50%);
+    animation:floatUp .6s ease-out forwards;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+  @keyframes floatUp{from{opacity:1;margin-top:0}to{opacity:0;margin-top:-46px}}
+  footer{font-size:11px;color:var(--dim);opacity:.8;letter-spacing:.03em}
+</style>
+<!--PG-PWA-->
+<link rel="manifest" href="../manifest.json">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<meta name="theme-color" content="#0d1322">
+<style>
+#pg-back{position:fixed;right:12px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:99999;
+  width:40px;height:40px;border-radius:50%;display:none;align-items:center;justify-content:center;
+  background:rgba(13,19,34,.55);border:1px solid rgba(180,200,255,.25);color:#cfe0ff;font-size:19px;
+  text-decoration:none;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);user-select:none;
+  -webkit-tap-highlight-color:transparent}
+#pg-back:active{transform:scale(.9)}
+@media all and (display-mode:standalone){#pg-back{display:flex}}
+</style>
+<a id="pg-back" href="../index.html" aria-label="返回游戏列表">&#8962;</a>
+</head>
+<body>
+<header>
+  <span class="title">几何狂奔</span>
+  <div class="hud"><span class="score" id="score">0</span><span class="best" id="best">最高 0</span></div>
+  <button id="btn-sound" aria-label="音效开关">♪</button>
+</header>
+<div id="stage">
+  <canvas id="game"></canvas>
+  <div id="vignette"></div>
+  <div id="fx-layer"></div>
+  <div id="overlay">
+    <h2>几何狂奔</h2>
+    <p>点按或空格跳跃，越过一切障碍</p>
+    <p class="sub">得 100 分达成里程碑 · 撞上即终局 · 单击立刻重开</p>
+  </div>
+</div>
+<footer>离线可玩 · 纯本地运行 · 参考单键跑酷玩法原创重实现</footer>
+
+<script>
+(function () {
+  'use strict';
+  /* ═══ 1. CFG ═══ */
+  var W = 720, H = 420, GROUND_Y = 350;        // 逻辑坐标恒定
+  var DT = 1000 / 60, CLAMP = 50;              // dt clamp（防后台切回跳帧）
+  var GRAV = 0.62, JUMP_V = -12.6;
+  var SPEED0 = 6.2, SPEED_MAX = 12.5, SPEED_ACC = 0.0012;
+  var PLAYER_X = 120, PS = 34;                 // 玩家尺寸
+  var MILESTONE = 100;                         // 通关里程碑
+
+  /* ═══ 2. safeStorage ═══ */
+  var safeStorage = (function () {
+    var mem = {}, ok = false;
+    try { localStorage.setItem('__t', '1'); localStorage.removeItem('__t'); ok = true; } catch (e) { ok = false; }
+    return {
+      get: function (k, d) { try { if (ok) { var v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } } catch (e) {} return k in mem ? mem[k] : d; },
+      set: function (k, v) { try { if (ok) { localStorage.setItem(k, JSON.stringify(v)); return; } } catch (e) {} mem[k] = v; }
+    };
+  })();
+
+  /* ═══ 3. SFXKit ═══ */
+  var SFX = (function () {
+    var ctx = null, muted = !!safeStorage.get('jhk_muted', false);
+    function ensure() {
+      if (!ctx) { try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { ctx = null; } }
+      if (ctx && ctx.state === 'suspended') { ctx.resume().catch(function () {}); }
+      return !!ctx;
+    }
+    function tone(type, f0, f1, dur, vol) {
+      if (muted || !ensure()) return;
+      try {
+        var t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = type; o.frequency.setValueAtTime(f0, t);
+        if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur);
+        g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+        o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t + dur + 0.02);
+      } catch (e) {}
+    }
+    return {
+      unlock: ensure,
+      jump: function () { tone('square', 330, 660, 0.09, 0.08); },
+      score: function () { tone('sine', 880, 1175, 0.07, 0.08); },
+      hit: function () { tone('sawtooth', 220, 55, 0.28, 0.16); },
+      mile: function () { tone('sine', 523, 523, 0.13, 0.12); setTimeout(function () { tone('sine', 659, 659, 0.13, 0.12); }, 140); setTimeout(function () { tone('sine', 784, 1047, 0.3, 0.12); }, 280); },
+      toggle: function () { muted = !muted; safeStorage.set('jhk_muted', muted); return muted; },
+      isMuted: function () { return muted; }
+    };
+  })();
+
+  /* ═══ 4. DOM ═══ */
+  var canvas = document.getElementById('game'), ctx2d = canvas.getContext('2d');
+  var stage = document.getElementById('stage');
+  var elScore = document.getElementById('score'), elBest = document.getElementById('best');
+  var elOverlay = document.getElementById('overlay'), elVig = document.getElementById('vignette'), elFx = document.getElementById('fx-layer');
+  var btnSound = document.getElementById('btn-sound');
+  var dpr = 1, sx = 1, sy = 1;
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var rect = stage.getBoundingClientRect();
+    canvas.width = Math.round(rect.width * dpr); canvas.height = Math.round(rect.height * dpr);
+    sx = canvas.width / W; sy = canvas.height / H;
+  }
+  window.addEventListener('resize', resize);
+
+  /* ═══ 5. 游戏状态 ═══ */
+  var state = 'READY';                          // READY / PLAYING / DEAD
+  var py = GROUND_Y - PS, vy = 0, onGround = true;
+  var speed = SPEED0, dist = 0, score = 0, best = safeStorage.get('jhk_best', 0);
+  var mileDone = safeStorage.get('jhk_mile', 0);
+  var shakeT = 0;                               // 死亡震动帧计数
+  var obstacles = [];                           // 对象池：{x,w,h,type,live,scored}
+  var stars = [];                               // 视差星
+  for (var si = 0; si < 26; si++) stars.push({ x: Math.random() * W, y: Math.random() * (GROUND_Y - 40), s: Math.random() * 1.4 + 0.6, v: 0.18 + Math.random() * 0.5 });
+  var nextSpawn = 90;                           // 距下一障碍的px
+
+  function reset() {
+    py = GROUND_Y - PS; vy = 0; onGround = true;
+    speed = SPEED0; dist = 0; score = 0; shakeT = 0;
+    obstacles.length = 0; nextSpawn = 90;
+    state = 'READY';
+    elOverlay.classList.remove('gone');
+    elOverlay.querySelector('h2').textContent = '几何狂奔';
+    elOverlay.querySelector('p').textContent = '点按或空格跳跃，越过一切障碍';
+    updateHud();
+    draw();                                      // m2：静止态首帧
+  }
+  function updateHud() {
+    elScore.textContent = score; elBest.textContent = '最高 ' + best;
+  }
+  function start() { state = 'PLAYING'; elOverlay.classList.add('gone'); }
+  var jumpHeld = false, deathAt = -1e9;
+  function jump() {
+    if (state === 'PLAYING' && onGround) { vy = JUMP_V; onGround = false; jumpHeld = true; SFX.jump(); }
+  }
+  function releaseJump() {                       // M1(c)：可变跳高——提前松手截断上升
+    if (jumpHeld && vy < 0) { vy *= 0.45; }
+    jumpHeld = false;
+  }
+  function primaryAction() {                     // 单键：开始/跳/重开
+    SFX.unlock();
+    if (state === 'READY') { start(); jump(); }
+    else if (state === 'PLAYING') jump();
+    else if (state === 'DEAD') {
+      if (performance.now() - deathAt > 150) reset();   // m5：死亡瞬间误触守卫
+    }
+  }
+  function spawnObstacle() {
+    // 对象池复用
+    var ob = null;
+    for (var i = 0; i < obstacles.length; i++) if (!obstacles[i].live) { ob = obstacles[i]; break; }
+    if (!ob) { ob = {}; obstacles.push(ob); }
+    ob.live = true; ob.scored = false;
+    if (Math.random() < 0.32 && dist > 900) {   // 矮墙：贴地矩形，站立必撞，必须跳过（M2 修复）
+      ob.type = 'float'; ob.w = 40 + Math.random() * 26; ob.h = 26;
+      ob.x = W + 40; ob.y = GROUND_Y - 26 - Math.random() * 10;   // 块底距地 0-10px（站立 py+m=322 恒命中）
+    } else {
+      ob.type = 'spike'; ob.w = 26 + Math.random() * 22; ob.h = 30 + Math.random() * 26;
+      ob.x = W + 40; ob.y = GROUND_Y - ob.h;
+    }
+  }
+  function die() {
+    state = 'DEAD'; shakeT = 12; deathAt = performance.now(); SFX.hit();
+    elVig.classList.add('flash');
+    setTimeout(function () { elVig.classList.remove('flash'); }, 220);
+    if (score > best) { best = score; safeStorage.set('jhk_best', best); }
+    updateHud();
+    elOverlay.querySelector('h2').textContent = '撞上了';
+    elOverlay.querySelector('p').textContent = '本局 ' + score + ' 分 · 单击再来一局';
+    setTimeout(function () { if (state === 'DEAD') elOverlay.classList.remove('gone'); }, 260);
+  }
+  function floatScore(x, y) {
+    var el = document.createElement('div');
+    el.className = 'float-txt'; el.textContent = '+1';
+    el.style.left = (x / W * 100) + '%'; el.style.top = (y / H * 100) + '%';
+    elFx.appendChild(el);
+    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 650);
+  }
+  function step() {
+    if (state !== 'PLAYING') return;
+    if (graceSteps > 0) graceSteps--;           // m3：后台返回宽限递减
+    speed = Math.min(SPEED_MAX, speed + SPEED_ACC * speed);
+    dist += speed;
+    // 玩家物理
+    vy += GRAV; py += vy;
+    if (py >= GROUND_Y - PS) { py = GROUND_Y - PS; vy = 0; onGround = true; }
+    // 障碍
+    nextSpawn -= speed;
+    if (nextSpawn <= 0) {
+      spawnObstacle();
+      var gapMin = Math.max(200, speed * 28 + 40);         // 可解性（M1b）：跳跃水平占用≈speed*(提前9+滞空19)帧，间距须>占用，否则落地即在死区
+      nextSpawn = gapMin + Math.random() * 190;
+    }
+    for (var i = 0; i < obstacles.length; i++) {
+      var ob = obstacles[i];
+      if (!ob.live) continue;
+      ob.x -= speed;
+      if (ob.x + ob.w < -20) { ob.live = false; continue; }
+      // 计分：越过
+      if (!ob.scored && ob.x + ob.w < PLAYER_X) {
+        ob.scored = true; score++; updateHud(); SFX.score();
+        floatScore(PLAYER_X + 30, py - 6);
+        if (score >= MILESTONE && !mileDone) {
+          mileDone = 1; safeStorage.set('jhk_mile', 1); SFX.mile();
+          floatScore(PLAYER_X + 30, py - 50);
+        }
+      }
+      // AABB（宽容 18% 判定盒，手感友好）；宽限期跳过
+      var m = PS * 0.18;
+      var hit = PLAYER_X + m < ob.x + ob.w - 2 && PLAYER_X + PS - m > ob.x + 2 &&
+                py + m < ob.y + ob.h - 2 && py + PS - m > ob.y + 2;
+      if (hit && graceSteps <= 0) { die(); return; }
+    }
+  }
+
+  /* ═══ 6. 渲染 ═══ */
+  var t = 0;
+  function draw() {
+    t += 1;
+    ctx2d.setTransform(sx, 0, 0, sy, 0, 0);
+    // 死亡震动（12 帧 ±4px）
+    var ox = 0, oy = 0;
+    if (shakeT > 0) { ox = (Math.random() - 0.5) * 8; oy = (Math.random() - 0.5) * 8; shakeT--; }
+    ctx2d.save();
+    ctx2d.translate(ox, oy);
+    // 背景
+    ctx2d.fillStyle = '#0d1322'; ctx2d.fillRect(-8, -8, W + 16, H + 16);
+    // 视差星（形状：小方块，非纯点）
+    for (var i = 0; i < stars.length; i++) {
+      var st = stars[i];
+      if (state === 'PLAYING') { st.x -= st.v * speed * 0.25; if (st.x < -4) { st.x = W + 4; st.y = Math.random() * (GROUND_Y - 40); } }
+      ctx2d.fillStyle = 'rgba(220,228,255,.28)';
+      ctx2d.fillRect(st.x, st.y, st.s, st.s);
+    }
+    // 地面（双线+网格暗纹）
+    ctx2d.fillStyle = '#141a2a'; ctx2d.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+    ctx2d.strokeStyle = '#3a4664'; ctx2d.lineWidth = 2;
+    ctx2d.beginPath(); ctx2d.moveTo(0, GROUND_Y); ctx2d.lineTo(W, GROUND_Y); ctx2d.stroke();
+    ctx2d.strokeStyle = 'rgba(58,70,100,.35)'; ctx2d.lineWidth = 1;
+    var off = (dist * 1) % 48;
+    for (var gx = -off; gx < W; gx += 48) {
+      ctx2d.beginPath(); ctx2d.moveTo(gx, GROUND_Y + 4); ctx2d.lineTo(gx - 14, H); ctx2d.stroke();
+    }
+    // 障碍：形状+明度双编码（尖刺=亮红三角 / 浮块=亮框矩形，均带描边）
+    for (var k = 0; k < obstacles.length; k++) {
+      var ob = obstacles[k];
+      if (!ob.live) continue;
+      if (ob.type === 'spike') {
+        ctx2d.fillStyle = '#e05a4e';
+        ctx2d.beginPath();
+        ctx2d.moveTo(ob.x, ob.y + ob.h); ctx2d.lineTo(ob.x + ob.w / 2, ob.y); ctx2d.lineTo(ob.x + ob.w, ob.y + ob.h);
+        ctx2d.closePath(); ctx2d.fill();
+        ctx2d.strokeStyle = '#ffb0a8'; ctx2d.lineWidth = 1.5; ctx2d.stroke();
+      } else {
+        ctx2d.fillStyle = 'rgba(224,90,78,.25)';
+        ctx2d.fillRect(ob.x, ob.y, ob.w, ob.h);
+        ctx2d.strokeStyle = '#e05a4e'; ctx2d.lineWidth = 2.5;
+        ctx2d.strokeRect(ob.x, ob.y, ob.w, ob.h);
+      }
+    }
+    // 玩家：金色方块+内部高光+贴地光晕（不复刻任何既有角色造型）
+    var glow = onGround ? 1 : 0.6;
+    ctx2d.fillStyle = 'rgba(245,166,35,' + (0.22 * glow) + ')';
+    ctx2d.fillRect(PLAYER_X - 6, py - 6, PS + 12, PS + 12);
+    ctx2d.fillStyle = '#f5a623';
+    ctx2d.fillRect(PLAYER_X, py, PS, PS);
+    ctx2d.fillStyle = '#ffd98a';
+    ctx2d.fillRect(PLAYER_X + 4, py + 4, PS - 14, PS - 22);
+    // 跑动挤压感：着地呼吸
+    if (onGround && state === 'PLAYING') {
+      var sq = Math.sin(t * 0.35) * 2;
+      ctx2d.fillStyle = 'rgba(245,166,35,.35)';
+      ctx2d.fillRect(PLAYER_X - 2, py + PS - 3 + sq, PS + 4, 3);
+    }
+    ctx2d.restore();
+    // 里程碑星标（HUD 内，已达成为常亮）
+    if (mileDone) {
+      ctx2d.fillStyle = '#f5a623';
+      ctx2d.save(); ctx2d.translate(W - 30, 30); ctx2d.rotate(Math.PI / 4);
+      ctx2d.fillRect(-7, -7, 14, 14); ctx2d.restore();
+      ctx2d.fillStyle = '#0d1322'; ctx2d.font = 'bold 11px sans-serif'; ctx2d.textAlign = 'center';
+      ctx2d.fillText('100', W - 30, 34); ctx2d.textAlign = 'left';
+    }
+  }
+
+  /* ═══ 7. 主循环（固定步长） ═══ */
+  var last = performance.now(), acc = 0;
+  var stats = { frames: 0, dts: [], dtMax: 0 };
+  function frame(now) {
+    var dt = Math.min(now - last, CLAMP);       // 后台切回 clamp
+    last = now;
+    stats.frames++;
+    stats.dts.push(dt); if (stats.dts.length > 300) stats.dts.shift();
+    if (dt > stats.dtMax) stats.dtMax = dt;
+    acc += dt;
+    while (acc >= DT) { step(); acc -= DT; }
+    if (state === 'PLAYING' || shakeT > 0) draw();   // m2：静止态跳过重绘（省电）
+    requestAnimationFrame(frame);
+  }
+
+  /* ═══ 8. 输入 ═══ */
+  var activePointer = null;
+  stage.addEventListener('pointerdown', function (e) {
+    if (activePointer !== null) return;         // 多指取首
+    activePointer = e.pointerId;
+    primaryAction();
+    e.preventDefault();
+  });
+  stage.addEventListener('pointerup', function (e) { if (e.pointerId === activePointer) { activePointer = null; releaseJump(); } });
+  stage.addEventListener('pointercancel', function (e) { if (e.pointerId === activePointer) { activePointer = null; releaseJump(); } });
+  window.addEventListener('blur', function () { activePointer = null; releaseJump(); });
+  var graceSteps = 0;                           // m3：后台返回宽限
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) { activePointer = null; releaseJump(); }
+    else if (state === 'PLAYING') {
+      obstacles.forEach(function (o) { if (o.live && o.x < W * 0.75) o.live = false; });   // 清近场障碍
+      graceSteps = 60;                          // 1 秒无敌宽限
+    }
+  });
+  stage.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  window.addEventListener('keydown', function (e) {
+    if (e.repeat) { e.preventDefault(); return; }
+    if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'Enter') { e.preventDefault(); primaryAction(); }
+    else if (e.key === 'Shift') { e.preventDefault(); if (jumpHeld) releaseJump(); }
+  });
+  window.addEventListener('keyup', function (e) {
+    if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === 'Shift') releaseJump();
+  });
+  btnSound.addEventListener('click', function () {
+    var m = SFX.toggle();
+    this.textContent = m ? '✕' : '♪'; this.classList.toggle('off', m); this.blur();
+  });
+
+  /* ═══ 9. 初始化 ═══ */
+  resize(); updateHud(); draw();
+  if (SFX.isMuted()) { btnSound.textContent = '✕'; btnSound.classList.add('off'); }
+  requestAnimationFrame(function (ts) { last = ts; requestAnimationFrame(frame); });
+
+  /* ═══ 10. Dev 钩子（构建剥离段） ═══ */
+  
+})();
+</script>
+</body>
+</html>

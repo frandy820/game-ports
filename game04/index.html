@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>霓虹贪吃蛇 · 离线版</title>
+<style>
+  :root { --bg: #0a0e1a; --panel: #111827; --line: #2a3654; --ink: #e8edf8; --dim: #8a97b8; --hot: #53e6c4; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    background: radial-gradient(120% 90% at 50% 0%, #101830 0%, var(--bg) 60%);
+    color: var(--ink);
+    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  #wrap { width: min(96vw, 96vh - 8px); max-width: 560px; }
+  #hud {
+    display: flex; align-items: center; gap: 14px;
+    padding: 8px 14px; margin-bottom: 10px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    font-size: 15px; letter-spacing: .5px;
+  }
+  #score { font-weight: 700; font-size: 20px; color: var(--hot); min-width: 2ch; }
+  #best { color: var(--dim); font-size: 13px; }
+  #mile { font-size: 17px; opacity: 0; transition: opacity .3s; filter: drop-shadow(0 0 6px #ffd166); }
+  #mile.on { opacity: 1; }
+  #btn-sound {
+    margin-left: auto; width: 44px; height: 44px; flex: 0 0 44px;
+    border: 1px solid var(--line); border-radius: 10px;
+    background: transparent; color: var(--dim); font-size: 19px; cursor: pointer;
+  }
+  #btn-sound:hover { color: var(--ink); border-color: var(--hot); }
+  #stage { position: relative; }
+  #game {
+    display: block; width: 100%; aspect-ratio: 1 / 1;
+    background: #0b1120; border: 1px solid var(--line); border-radius: 12px;
+    cursor: pointer;
+  }
+  #overlay {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 10px;
+    background: rgba(8, 12, 24, .82); border-radius: 12px;
+    transition: opacity .25s; text-align: center; padding: 20px;
+  }
+  #overlay.gone { opacity: 0; pointer-events: none; }
+  #overlay h2 { font-size: 30px; font-weight: 800; letter-spacing: 4px; color: var(--hot); text-shadow: 0 0 18px rgba(83,230,196,.55); }
+  #overlay p { color: var(--dim); font-size: 14px; line-height: 1.7; }
+  #overlay .go { margin-top: 6px; color: var(--ink); font-size: 15px; animation: breath 1.6s ease-in-out infinite; }
+  @keyframes breath { 50% { opacity: .4; } }
+</style>
+<!--PG-PWA-->
+<link rel="manifest" href="../manifest.json">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<meta name="theme-color" content="#0d1322">
+<style>
+#pg-back{position:fixed;right:12px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:99999;
+  width:40px;height:40px;border-radius:50%;display:none;align-items:center;justify-content:center;
+  background:rgba(13,19,34,.55);border:1px solid rgba(180,200,255,.25);color:#cfe0ff;font-size:19px;
+  text-decoration:none;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);user-select:none;
+  -webkit-tap-highlight-color:transparent}
+#pg-back:active{transform:scale(.9)}
+@media all and (display-mode:standalone){#pg-back{display:flex}}
+</style>
+<a id="pg-back" href="../index.html" aria-label="返回游戏列表">&#8962;</a>
+</head>
+<body>
+<div id="wrap">
+  <div id="hud">
+    <span id="score">0</span>
+    <span id="best">最高 0</span>
+    <span id="mile">★</span>
+    <button id="btn-sound" title="音效开关">♪</button>
+  </div>
+  <div id="stage">
+    <canvas id="game"></canvas>
+    <div id="overlay">
+      <h2>霓虹贪吃蛇</h2>
+      <p id="tip">方向键 / 滑动 改变方向<br>吃到菱形光点变长，撞墙或咬到自己即终局</p>
+      <p class="go">单击或按任意方向键开始</p>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  'use strict';
+
+  /* ═══ 1. 常量 ═══ */
+  var GRID = 22;                        // 22x22 格
+  var CELL = 30;                        // 逻辑格 px（棋盘 660x660）
+  var PAD = 12;                         // 棋盘内边距
+  var BOARD = GRID * CELL;              // 660
+  var W = BOARD + PAD * 2, H = W;       // 684 逻辑
+  var DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+  var OPP = { up: 'down', down: 'up', left: 'right', right: 'left' };
+  var STEP0 = 150, STEP_MIN = 75, STEP_ACC = 1.5;   // ms/步，每食平滑加速
+  var MILESTONE = 50;
+
+  /* ═══ 2. safeStorage ═══ */
+  var safeStorage = (function () {
+    var mem = {};
+    var ok = false;
+    try { localStorage.setItem('__nss_t', '1'); localStorage.removeItem('__nss_t'); ok = true; } catch (e) {}
+    return {
+      get: function (k, d) { try { if (ok) { var v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } } catch (e) {} return k in mem ? mem[k] : d; },
+      set: function (k, v) { mem[k] = v; try { if (ok) localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+    };
+  })();
+
+  /* ═══ 3. SFXKit（WebAudio 程序化，零资产） ═══ */
+  var SFX = (function () {
+    var ctx = null, muted = !!safeStorage.get('nss_muted', false);
+    function ac() { if (!ctx) { try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } return ctx; }
+    function tone(type, f0, f1, dur, vol) {
+      if (muted) return;
+      var c = ac(); if (!c) return;
+      if (c.state === 'suspended') c.resume();
+      var o = c.createOscillator(), g = c.createGain(), t = c.currentTime;
+      o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(1, f1), t + dur);
+      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + dur + 0.02);
+    }
+    return {
+      unlock: function () { var c = ac(); if (c && c.state === 'suspended') c.resume(); },
+      eat: function () { tone('sine', 620, 990, 0.09, 0.09); },
+      die: function () { tone('sawtooth', 300, 48, 0.34, 0.14); },
+      mile: function () { tone('sine', 523, 523, 0.12, 0.1); setTimeout(function () { tone('sine', 784, 784, 0.12, 0.1); }, 130); setTimeout(function () { tone('sine', 1047, 1319, 0.26, 0.11); }, 260); },
+      toggle: function () { muted = !muted; safeStorage.set('nss_muted', muted); return muted; },
+      isMuted: function () { return muted; }
+    };
+  })();
+
+  /* ═══ 4. DOM ═══ */
+  var canvas = document.getElementById('game'), ctx2d = canvas.getContext('2d');
+  var stage = document.getElementById('stage');
+  var elScore = document.getElementById('score'), elBest = document.getElementById('best'), elMile = document.getElementById('mile');
+  var elOverlay = document.getElementById('overlay'), elTip = document.getElementById('tip');
+  var btnSound = document.getElementById('btn-sound');
+  var dpr = 1, sx = 1, sy = 1;
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var rect = stage.getBoundingClientRect();
+    canvas.width = Math.round(rect.width * dpr); canvas.height = Math.round(rect.width * dpr);
+    sx = canvas.width / W; sy = canvas.height / H;
+    if (segSprites.length) {                                   // sprite 就绪后才可重绘（init 首次 resize 时跳过）
+      buildSprites();                                          // dpr 变化重建 sprite
+      if (state !== 'PLAYING' && !vfxActive()) draw();
+    }
+  }
+  window.addEventListener('resize', resize);
+
+  /* ═══ 5. 状态 ═══ */
+  var state = 'READY';                  // READY / PLAYING / DEAD
+  var snake = [];                       // [{c,r}] 头在前
+  var dir = 'right', dirQueue = [];     // 实际移动方向 + 输入队列（≤2）
+  var food = null;                      // {c,r}
+  var score = 0, best = safeStorage.get('nss_best', 0);
+  var mileDone = safeStorage.get('nss_mile', 0);
+  var stepMs = STEP0;
+  var deathAt = -1e9;
+  var particles = [];                   // VFX
+  var headPulseT = 0;
+  var firstRun = !safeStorage.get('nss_seen', 0);
+
+  function reset() {
+    snake = [{ c: 8, r: 11 }, { c: 7, r: 11 }, { c: 6, r: 11 }];
+    dir = 'right'; dirQueue = [];
+    score = 0; stepMs = STEP0; particles = []; headPulseT = 0;
+    acc = 0;                                                // m1：清累积器，防重开瞬走
+    spawnFood();
+    state = 'READY';
+    elOverlay.classList.remove('gone');
+    elOverlay.querySelector('h2').textContent = '霓虹贪吃蛇';
+    elTip.innerHTML = firstRun ? '方向键 / 滑动 改变方向<br>吃到菱形光点变长，撞墙或咬到自己即终局' : '吃到菱形光点变长，别撞墙、别咬自己';
+    updateHud();
+    draw();
+  }
+  function updateHud() {
+    elScore.textContent = score;
+    elBest.textContent = '最高 ' + best;
+    elMile.classList.toggle('on', !!mileDone);
+  }
+  function start() {
+    state = 'PLAYING'; elOverlay.classList.add('gone');
+    if (firstRun) { safeStorage.set('nss_seen', 1); firstRun = false; }
+  }
+
+  function spawnFood(avoid) {
+    var occ = {};
+    for (var i = 0; i < snake.length; i++) occ[snake[i].c + ',' + snake[i].r] = 1;
+    if (avoid) occ[avoid.c + ',' + avoid.r] = 1;
+    var free = [];
+    for (var c = 0; c < GRID; c++) for (var r = 0; r < GRID; r++) if (!occ[c + ',' + r]) free.push({ c: c, r: r });
+    food = free.length ? free[Math.floor(Math.random() * free.length)] : null;
+  }
+
+  function queueDir(d) {
+    if (state === 'READY') { start(); }
+    if (state !== 'PLAYING') return;
+    if (dirQueue.length >= 2) return;                        // 深度上限 2
+    // 180° 反向忽略：基准 = 本步实际移动方向（队列末尾生效方向，无则当前 dir）
+    var base = dirQueue.length ? dirQueue[dirQueue.length - 1] : dir;
+    if (d === OPP[base]) return;
+    if (dirQueue.length && d === dirQueue[0]) return;        // 与队首重复不压栈
+    if (!dirQueue.length && d === dir) return;
+    dirQueue.push(d);
+  }
+
+  function step() {
+    if (state !== 'PLAYING') return;
+    if (dirQueue.length) { dir = dirQueue.shift(); }         // 出队即成为实际方向
+    var d = DIRS[dir];
+    var head = { c: snake[0].c + d[0], r: snake[0].r + d[1] };
+    // 四壁
+    if (head.c < 0 || head.c >= GRID || head.r < 0 || head.r >= GRID) { die(); return; }
+    // 自身：尾巴格本步会移开（不吃食时），排除尾格
+    var eating = food && head.c === food.c && head.r === food.r;
+    var bodyLen = eating ? snake.length : snake.length - 1;
+    for (var i = 0; i < bodyLen; i++) {
+      if (snake[i].c === head.c && snake[i].r === head.r) { die(); return; }
+    }
+    snake.unshift(head);
+    if (eating) {
+      score++;
+      stepMs = Math.max(STEP_MIN, stepMs - STEP_ACC);        // 平滑加速
+      burstAt(food.c, food.r, '255,209,102');
+      headPulseT = 150;
+      SFX.eat();
+      if (score >= MILESTONE && !mileDone) { mileDone = 1; safeStorage.set('nss_mile', 1); SFX.mile(); elMile.classList.add('on'); }
+      updateHud();
+      spawnFood();
+    } else {
+      snake.pop();
+    }
+  }
+
+  function die() {
+    state = 'DEAD'; deathAt = performance.now();
+    SFX.die();
+    // 蛇身碎裂粒子化闪烁
+    for (var i = 0; i < snake.length; i++) {
+      particles.push({ x: PAD + snake[i].c * CELL + CELL / 2, y: PAD + snake[i].r * CELL + CELL / 2, born: deathAt, col: i });
+    }
+    if (score > best) { best = score; safeStorage.set('nss_best', best); }
+    updateHud();
+    elOverlay.querySelector('h2').textContent = '撞毁了';
+    elTip.textContent = '本局 ' + score + ' 分 · 长度 ' + snake.length + ' · 单击再来一局';
+    setTimeout(function () { if (state === 'DEAD') elOverlay.classList.remove('gone'); }, 260);
+  }
+
+  function burstAt(c, r, color) {                            // 吃食爆散：四向短线
+    var x = PAD + c * CELL + CELL / 2, y = PAD + r * CELL + CELL / 2;
+    for (var k = 0; k < 8; k++) {
+      var a = Math.PI / 4 * k;
+      particles.push({ x: x, y: y, vx: Math.cos(a) * 2.4, vy: Math.sin(a) * 2.4, born: performance.now(), line: true, color: color });
+    }
+  }
+  function vfxActive() { return particles.length > 0 || headPulseT > 0; }
+
+  /* ═══ 6. glow sprite 预渲染（禁每帧 shadowBlur） ═══ */
+  var HUE0 = 158, HUE1 = 268, HUE_N = 24;
+  var segSprites = [];                                     // 蛇身色阶 sprite（每色一帧）
+  function mkSprite(size, hue, alpha) {
+    var cv = document.createElement('canvas');
+    var s = Math.ceil(size * dpr * 1.8);                   // 画布 1.8 倍：四周留光晕边距
+    cv.width = s; cv.height = s;
+    var c2 = cv.getContext('2d');
+    c2.scale(dpr, dpr);                                    // 坐标系只按 dpr 缩放（M1：若同乘 1.8 会抵消外扩，光晕全被裁）
+    var half = s / dpr / 2;
+    c2.shadowColor = 'hsla(' + hue + ',85%,62%,.9)';
+    c2.shadowBlur = size * 0.45;
+    c2.fillStyle = 'hsla(' + hue + ',85%,60%,' + alpha + ')';
+    roundRect(c2, half - size / 2, half - size / 2, size, size, size * 0.28);
+    c2.fill(); c2.fill();
+    return { cv: cv, s: s };
+  }
+  function roundRect(c, x, y, w, h, r) {
+    c.beginPath();
+    c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath();
+  }
+  function buildSprites() {
+    segSprites = [];
+    for (var i = 0; i < HUE_N; i++) {
+      var hue = HUE0 + (HUE1 - HUE0) * i / (HUE_N - 1);
+      segSprites.push(mkSprite(CELL - 5, hue, 0.92));
+    }
+  }
+  function drawSeg(cx, cy, idx, scale) {
+    var sp = segSprites[idx % HUE_N];
+    var s = sp.s / dpr * (scale || 1);                     // sprite 逻辑尺寸 = size*1.8（含光晕边距）
+    ctx2d.drawImage(sp.cv, cx - s / 2, cy - s / 2, s, s);
+  }
+
+  /* ═══ 7. 渲染 ═══ */
+  var tGlobal = 0;
+  function draw() {
+    tGlobal++;
+    ctx2d.setTransform(sx, 0, 0, sy, 0, 0);
+    ctx2d.fillStyle = '#0b1120'; ctx2d.fillRect(0, 0, W, H);
+    // 棋盘网格暗纹
+    ctx2d.strokeStyle = 'rgba(42,54,84,.32)'; ctx2d.lineWidth = 1;
+    for (var g = 1; g < GRID; g++) {
+      ctx2d.beginPath(); ctx2d.moveTo(PAD + g * CELL, PAD); ctx2d.lineTo(PAD + g * CELL, PAD + BOARD); ctx2d.stroke();
+      ctx2d.beginPath(); ctx2d.moveTo(PAD, PAD + g * CELL); ctx2d.lineTo(PAD + BOARD, PAD + g * CELL); ctx2d.stroke();
+    }
+    // 食物：菱形 + 呼吸闪烁（色+形双编码）
+    if (food && state !== 'DEAD') {
+      var fx = PAD + food.c * CELL + CELL / 2, fy = PAD + food.r * CELL + CELL / 2;
+      var breath = 0.85 + 0.15 * Math.sin(tGlobal * 0.12);
+      var a = 0.55 + 0.45 * Math.sin(tGlobal * 0.12);
+      ctx2d.save();
+      ctx2d.translate(fx, fy); ctx2d.rotate(Math.PI / 4); ctx2d.scale(breath, breath);
+      ctx2d.shadowColor = 'rgba(255,209,102,.95)'; ctx2d.shadowBlur = 16;
+      ctx2d.fillStyle = 'rgba(255,209,102,' + a.toFixed(3) + ')';
+      var fs = CELL * 0.44;
+      ctx2d.fillRect(-fs / 2, -fs / 2, fs, fs);
+      ctx2d.restore();
+    }
+    // 蛇
+    if (state !== 'DEAD') {
+      for (var i = snake.length - 1; i >= 0; i--) {
+        var cx = PAD + snake[i].c * CELL + CELL / 2, cy = PAD + snake[i].r * CELL + CELL / 2;
+        var scale = 1;
+        if (i === 0 && headPulseT > 0) {                    // 吃食头脉冲 150ms
+          var ph = 1 - headPulseT / 150;
+          scale = 1 + 0.25 * Math.sin(Math.PI * Math.min(1, ph * 2));
+        }
+        drawSeg(cx, cy, Math.floor((snake.length - 1 - i) / Math.max(1, snake.length / HUE_N)), scale);
+      }
+      // 头部朝向指示（眼睛点）
+      var hd = DIRS[dir], hx = PAD + snake[0].c * CELL + CELL / 2 + hd[0] * 5, hy = PAD + snake[0].r * CELL + CELL / 2 + hd[1] * 5;
+      ctx2d.fillStyle = '#0b1120';
+      ctx2d.beginPath(); ctx2d.arc(hx, hy, 3, 0, Math.PI * 2); ctx2d.fill();
+    }
+    // 粒子（吃食短线爆散 / 死亡碎裂闪烁）
+    var now = performance.now();
+    for (var p = particles.length - 1; p >= 0; p--) {
+      var pt = particles[p];
+      if (pt.line) {
+        var age1 = now - pt.born;
+        if (age1 > 220) { particles.splice(p, 1); continue; }
+        pt.x += pt.vx; pt.y += pt.vy;
+        var al = 1 - age1 / 220;
+        ctx2d.strokeStyle = 'rgba(' + pt.color + ',' + al.toFixed(3) + ')';   // m3：用粒子自带色
+        ctx2d.lineWidth = 2.5;
+        ctx2d.beginPath(); ctx2d.moveTo(pt.x - pt.vx * 3, pt.y - pt.vy * 3); ctx2d.lineTo(pt.x, pt.y); ctx2d.stroke();
+      } else {
+        var age2 = now - pt.born;
+        if (age2 > 300) { particles.splice(p, 1); continue; }
+        if (Math.floor(age2 / 60) % 2 === 0) {              // 闪烁
+          var hue2 = HUE0 + (HUE1 - HUE0) * ((pt.col || 0) / Math.max(1, snake.length));
+          ctx2d.fillStyle = 'hsla(' + hue2 + ',85%,65%,' + (1 - age2 / 300).toFixed(3) + ')';
+          var ps = 6 + 8 * (age2 / 300);
+          ctx2d.fillRect(pt.x - ps / 2, pt.y - ps / 2, ps, ps);
+        }
+      }
+    }
+  }
+
+  /* ═══ 8. 主循环（rAF + 累积器） ═══ */
+  var last = 0, acc = 0;
+  var dtRec = [];
+  function frame(ts) {
+    requestAnimationFrame(frame);
+    if (!last) last = ts;
+    var dt = ts - last; last = ts;
+    if (dt > 200) dt = 200;                                  // 后台返回防跳帧
+    dtRec.push(dt); if (dtRec.length > 300) dtRec.shift();
+    if (headPulseT > 0) headPulseT = Math.max(0, headPulseT - dt);
+    if (state === 'PLAYING') {
+      acc += dt;
+      while (acc >= stepMs && state === 'PLAYING') { step(); acc -= stepMs; }
+    }
+    if (state === 'PLAYING' || vfxActive()) draw();
+  }
+
+  /* ═══ 9. 输入 ═══ */
+  var KEYMAP = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', w: 'up', s: 'down', a: 'left', d: 'right' };
+  var swipe = null;                                          // {x0,y0,id}
+  stage.addEventListener('pointerdown', function (e) {
+    if (e.target.closest && e.target.closest('button')) return;      // 防御：按钮不劫持
+    SFX.unlock();
+    swipe = { x0: e.clientX, y0: e.clientY, id: e.pointerId };
+    e.preventDefault();
+  });
+  stage.addEventListener('pointermove', function (e) {
+    if (!swipe || e.pointerId !== swipe.id) return;
+    var dx = e.clientX - swipe.x0, dy = e.clientY - swipe.y0;
+    if (Math.abs(dx) < 24 && Math.abs(dy) < 24) return;               // 阈值 24px
+    var d = Math.abs(dx) >= Math.abs(dy)                              // 主轴 ±45° 判定
+      ? (dx > 0 ? 'right' : 'left')
+      : (dy > 0 ? 'down' : 'up');
+    queueDir(d);
+    swipe.x0 = e.clientX; swipe.y0 = e.clientY;                      // 连续转向：重置起点
+  });
+  function endSwipe(e) {
+    if (!swipe || e.pointerId !== swipe.id) return;
+    var dx = e.clientX - swipe.x0, dy = e.clientY - swipe.y0;
+    swipe = null;
+    // 位移不足阈值 = 点按语义（开始/重开）——不依赖合成 click（pointerdown preventDefault 可能吞掉）
+    if (Math.abs(dx) < 24 && Math.abs(dy) < 24) {
+      if (state === 'READY') { SFX.unlock(); start(); }
+      else if (state === 'DEAD' && performance.now() - deathAt > 150) reset();
+    }
+  }
+  stage.addEventListener('pointerup', endSwipe);
+  stage.addEventListener('pointercancel', endSwipe);
+  window.addEventListener('blur', function () { swipe = null; });
+  document.addEventListener('visibilitychange', function () { if (document.hidden) swipe = null; });
+  stage.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  window.addEventListener('keydown', function (e) {
+    var d = KEYMAP[e.key];
+    if (d) {
+      e.preventDefault();
+      if (state === 'DEAD') { if (performance.now() - deathAt > 150) reset(); return; }
+      SFX.unlock();
+      queueDir(d);
+      return;
+    }
+    if (e.key === ' ' || e.key === 'Enter') {
+      e.preventDefault();
+      SFX.unlock();
+      if (state === 'READY') start();
+      else if (state === 'DEAD' && performance.now() - deathAt > 150) reset();
+    }
+  });
+  // m2：点按职责由 pointerup tap 语义独占（pointerdown preventDefault 下合成 click 行为跨浏览器不一致，
+  // 双路径会在部分环境造成"一次点按=重开+立即开跑"，故不挂 click 监听）
+  btnSound.addEventListener('click', function (e) {
+    e.stopPropagation();
+    var m = SFX.toggle();
+    btnSound.textContent = m ? '×' : '♪';
+  });
+
+  /* ═══ 10. Dev 钩子（构建剥离段） ═══ */
+  
+
+  /* ═══ 11. init ═══ */
+  resize();
+  buildSprites();
+  reset();
+  btnSound.textContent = SFX.isMuted() ? '×' : '♪';
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

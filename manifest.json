@@ -1,0 +1,17 @@
+{
+  "name": "口袋游戏机 · 六合一",
+  "short_name": "口袋游戏",
+  "description": "6 款离线小游戏：引力合星 / 元素方阵 / 几何狂奔 / 霓虹贪吃蛇 / 炼丹炉 / 满格消除。装到桌面，随时开玩，无需联网。",
+  "lang": "zh-CN",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d1322",
+  "theme_color": "#0d1322",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
