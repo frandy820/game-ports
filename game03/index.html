@@ -50,6 +50,9 @@
 @media all and (display-mode:standalone){#pg-back{display:flex}}
 #pg-ver{position:fixed;left:8px;bottom:calc(6px + env(safe-area-inset-bottom,0px));z-index:99998;
   font-size:9px;color:rgba(140,160,200,.4);pointer-events:none;letter-spacing:.05em;font-family:monospace}
+#pg-diag{position:fixed;top:calc(2px + env(safe-area-inset-top,0px));left:0;right:0;z-index:999999;
+  text-align:center;font:10px/1.6 monospace;color:#ffd97e;background:rgba(10,14,26,.72);
+  padding:3px 6px;pointer-events:none;letter-spacing:.03em}
 </style>
 </head>
 <body>
@@ -358,6 +361,10 @@
     }
   }, { passive: false });
   stage.addEventListener('touchcancel', function () { activeTouch = null; releaseJump(); });
+
+  /* M11：click 兜底（Safari 真机实测 touch/pointer 双失效环境；touchstart 正常时其
+     preventDefault 会阻止合成 click，此监听天然不双触发——两路互补，谁通走谁） */
+  stage.addEventListener('click', function () { primaryAction(); });
   window.addEventListener('blur', function () { activePointer = null; releaseJump(); });
   var graceSteps = 0;                           // m3：后台返回宽限
   document.addEventListener('visibilitychange', function () {
@@ -392,6 +399,39 @@
 </script>
 <!--PG-PWA-BODY-->
 <a id="pg-back" href="../index.html" aria-label="返回游戏列表">&#8962;</a>
-<span id="pg-ver">v1.0.3</span>
+<span id="pg-ver">v1.0.4</span>
+<div id="pg-diag">&#9432;</div>
+<script>
+/* PG 事件探针（诊断真机输入链路；capture 级计数不受游戏 stopPropagation 影响） */
+(function(){
+  var d = { tD:0, tS:0, pD:0, pS:0, cD:0, cS:0, err:'-' };
+  var el = document.getElementById('pg-diag');
+  var m = navigator.userAgent.match(/OS (\d+[_.]\d+)/);
+  var ios = m ? 'iOS' + m[1].replace('_', '.') : '';
+  function up(){
+    el.textContent = '\u23c8 ' + ios + ' T:' + d.tD + '/' + d.tS + ' P:' + d.pD + '/' + d.pS +
+      ' C:' + d.cD + '/' + d.cS + (d.err !== '-' ? ' E:' + d.err : '');
+  }
+  window.addEventListener('error', function(ev){
+    if (d.err === '-') { d.err = String(ev.message || 'err').replace(/\s+/g, ' ').slice(0, 42); up(); }
+  });
+  ['touchstart', 'pointerdown', 'click'].forEach(function(t){
+    document.addEventListener(t, function(e){
+      if (t === 'touchstart') d.tD++;
+      else if (t === 'pointerdown') d.pD++;
+      else d.cD++;
+      var host = e.target && e.target.closest && e.target.closest(
+        '#stage, #wrap-board, #forge, #board, #tray, #overlay, #board-wrap');
+      if (host) {
+        if (t === 'touchstart') d.tS++;
+        else if (t === 'pointerdown') d.pS++;
+        else d.cS++;
+      }
+      up();
+    }, true);
+  });
+  up();
+})();
+</script>
 </body>
 </html>
