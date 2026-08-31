@@ -27,6 +27,9 @@
 - [ ] 用户真机验收：iPhone Safari 添加主屏幕（全屏/离线/存档），安卓 Chrome 安装
 - [ ] 触屏手感反馈修订
 
+## 修复记录
+- 2026-08-31 iPhone微信打开 hub 下半空白（6卡片+footer不渲染，guide正常显示）→ v1.0.1：卡片由 JS innerHTML 注入改为**静态 HTML 写死**（build_hub.py 生成），JS 仅剩引导条+SW注册；微信 iPhone UA 模拟验证 6卡全渲染。根因未定位（无法远程抓 iOS console），防御性重构。**注意：微信内可能缓存旧页约10分钟（Pages max-age=600），仍空白则下拉刷新/稍等**
+
 ## 回滚
 - 关 Pages：gh api repos/frandy820/game-ports/pages -X DELETE
 - 删 repo：gh repo delete game-ports --yes

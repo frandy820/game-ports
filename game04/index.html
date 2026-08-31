@@ -63,7 +63,6 @@
 #pg-back:active{transform:scale(.9)}
 @media all and (display-mode:standalone){#pg-back{display:flex}}
 </style>
-<a id="pg-back" href="../index.html" aria-label="返回游戏列表">&#8962;</a>
 </head>
 <body>
 <div id="wrap">
@@ -110,7 +109,7 @@
 
   /* ═══ 3. SFXKit（WebAudio 程序化，零资产） ═══ */
   var SFX = (function () {
-    var ctx = null, muted = !!safeStorage.get('nss_muted', false);
+    var ctx = null, muted = !!safeStorage.get('nss_muted', true);
     function ac() { if (!ctx) { try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } return ctx; }
     function tone(type, f0, f1, dur, vol) {
       if (muted) return;
@@ -443,6 +442,56 @@
   reset();
   btnSound.textContent = SFX.isMuted() ? '×' : '♪';
   requestAnimationFrame(frame);
+})();
+</script>
+<!--PG-PWA-BODY-->
+<a id="pg-back" href="../index.html" aria-label="返回游戏列表">&#8962;</a>
+<script>
+/* PG touch-bridge：PointerEvent 不派发环境的触屏兜底（原生 PE 正常时自动失效） */
+(function(){
+  if (!window.PointerEvent) return;
+  var lastNativePE = 0;
+  document.addEventListener('pointerdown', function(){ lastNativePE = performance.now(); }, true);
+  var bridgeOn = null;                                                   // null=首个touch时判定
+  var active = null;                                                     // 桥接管的手势 {target}
+  function fire(type, x, y, target){
+    target.dispatchEvent(new PointerEvent(type, {
+      bubbles: true, cancelable: true, composed: true,
+      pointerId: 9, pointerType: 'touch', isPrimary: true,
+      clientX: x, clientY: y, screenX: x, screenY: y,
+      button: 0, buttons: type === 'pointerup' || type === 'pointercancel' ? 0 : 1,
+      width: 1, height: 1, pressure: type === 'pointerdown' ? 0.5 : 0
+    }));
+  }
+  function interactive(el){
+    return !!(el && el.closest && el.closest('button, a, input, select, textarea, [role="button"], [contenteditable]'));
+  }
+  document.addEventListener('touchstart', function(e){
+    if (window.__forceTouchBridge !== true && (performance.now() - lastNativePE) < 120) return;  // 原生PE已处理本手势
+    if (bridgeOn === null) bridgeOn = true;
+    if (!bridgeOn) return;
+    if (interactive(e.target)) return;                 // 按钮走原生 click
+    if (active) return;                                // 单指语义
+    var t = e.changedTouches[0];
+    active = { target: e.target };
+    fire('pointerdown', t.clientX, t.clientY, e.target);
+    e.preventDefault();
+  }, { passive: false });
+  document.addEventListener('touchmove', function(e){
+    if (!active) return;
+    var t = e.changedTouches[0];
+    fire('pointermove', t.clientX, t.clientY, active.target);
+    e.preventDefault();
+  }, { passive: false });
+  function end(e){
+    if (!active) return;
+    var t = e.changedTouches[0];
+    fire(e.type === 'touchcancel' ? 'pointercancel' : 'pointerup', t.clientX, t.clientY, active.target);
+    active = null;
+    e.preventDefault();
+  }
+  document.addEventListener('touchend', end, { passive: false });
+  document.addEventListener('touchcancel', end, { passive: false });
 })();
 </script>
 </body>
