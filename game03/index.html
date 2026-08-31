@@ -333,38 +333,49 @@
     requestAnimationFrame(frame);
   }
 
-  /* ═══ 8. 输入 ═══ */
-  var activePointer = null;
-  stage.addEventListener('pointerdown', function (e) {
-    if (e.pointerType === 'touch') return;      // M10：触屏走原生 touch 层
-    if (activePointer !== null) return;         // 多指取首
-    activePointer = e.pointerId;
+  /* ═══ 8. 输入（M12 三通道：touch / pointer / click 并行监听 + 时间窗去重。
+     真机诊断（iOS17.5 Safari）：T/P 双双到达游戏容器但游戏不响应、click 为 0，
+     单通道归因已证不可靠——三通道谁活走谁，任一通道触发后 400ms 内其余通道忽略） ═══ */
+  var lastActAt = 0;
+  function actOnce() {                                    // 三通道去重入口
+    var now = performance.now();
+    if (now - lastActAt < 400) return;
+    lastActAt = now;
     primaryAction();
+  }
+  var activePtr = null, pressAt = 0;                      // 长按高跳状态（touch/pointer 共用）
+  stage.addEventListener('pointerdown', function (e) {
+    if (activePtr !== null) return;
+    activePtr = e.pointerId; pressAt = performance.now();
+    actOnce();
     e.preventDefault();
   });
-  stage.addEventListener('pointerup', function (e) { if (e.pointerType !== 'touch' && e.pointerId === activePointer) { activePointer = null; releaseJump(); } });
-  stage.addEventListener('pointercancel', function (e) { if (e.pointerType !== 'touch' && e.pointerId === activePointer) { activePointer = null; releaseJump(); } });
-
-  /* ═══ 8b. 原生 touch 层（M10：微信 iOS 等 PE 派发不可靠环境兜底） ═══ */
-  var activeTouch = null;
+  stage.addEventListener('pointerup', function (e) {
+    if (e.pointerId !== activePtr) return;
+    activePtr = null; releaseJump();
+  });
+  stage.addEventListener('pointercancel', function (e) {
+    if (e.pointerId !== activePtr) return;
+    activePtr = null; releaseJump();
+  });
+  var activeTouch = null, touchAt = 0;
   stage.addEventListener('touchstart', function (e) {
-    if (activeTouch !== null) return;           // 多指取首
-    activeTouch = e.changedTouches[0].identifier;
-    primaryAction();
-    e.preventDefault();                         // 阻止滚动/双击缩放/合成click（单键游戏吞掉无妨）
+    if (activeTouch !== null) return;
+    activeTouch = e.changedTouches[0].identifier; touchAt = performance.now();
+    actOnce();
+    e.preventDefault();
   }, { passive: false });
   stage.addEventListener('touchend', function (e) {
     for (var i = 0; i < e.changedTouches.length; i++) if (e.changedTouches[i].identifier === activeTouch) {
-      activeTouch = null; releaseJump();        // 提前松手截断跳高（M1(c) 同 pointer 路径）
+      activeTouch = null; releaseJump();
       e.preventDefault();
       return;
     }
   }, { passive: false });
   stage.addEventListener('touchcancel', function () { activeTouch = null; releaseJump(); });
-
-  /* M11：click 兜底（Safari 真机实测 touch/pointer 双失效环境；touchstart 正常时其
-     preventDefault 会阻止合成 click，此监听天然不双触发——两路互补，谁通走谁） */
-  stage.addEventListener('click', function () { primaryAction(); });
+  stage.addEventListener('click', function (e) {          // 第三通道（tap 合成；被 preventDefault 吞则无——不双触发）
+    actOnce();
+  }, false);
   window.addEventListener('blur', function () { activePointer = null; releaseJump(); });
   var graceSteps = 0;                           // m3：后台返回宽限
   document.addEventListener('visibilitychange', function () {
@@ -399,7 +410,7 @@
 </script>
 <!--PG-PWA-BODY-->
 <a id="pg-back" href="../index.html" aria-label="返回游戏列表">&#8962;</a>
-<span id="pg-ver">v1.0.4</span>
+<span id="pg-ver">v1.0.5</span>
 <div id="pg-diag">&#9432;</div>
 <script>
 /* PG 事件探针（诊断真机输入链路；capture 级计数不受游戏 stopPropagation 影响） */

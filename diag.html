@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>触摸测试 · 30秒诊断</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#0d1322;
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;color:#e8ecf8}
+  #cv{display:block;width:100vw;height:100vh;touch-action:none}
+  #bar{position:fixed;top:calc(6px + env(safe-area-inset-top,0px));left:0;right:0;
+    text-align:center;font-size:15px;line-height:1.9;color:#ffd97e;
+    background:rgba(10,14,26,.8);padding:6px;font-variant-numeric:tabular-nums}
+  #tip{position:fixed;bottom:calc(14px + env(safe-area-inset-bottom,0px));left:0;right:0;
+    text-align:center;font-size:13px;color:#8d99b8;line-height:1.7;padding:0 20px}
+  #tip b{color:#cfe0ff}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="bar">触摸T:0 &nbsp;指针P:0 &nbsp;点击C:0</div>
+<div id="tip"><b>用手指在屏幕任意位置点几下、再滑动几下</b><br>手指按到哪里就应该画出彩色的圆点和拖尾：绿=touch 蓝色=pointer 橙色=click<br>把最上面的数字和画面截图发回即可</div>
+<script>
+(function(){
+  var cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+  var bar = document.getElementById('bar');
+  function fit(){ var d = window.devicePixelRatio || 1;
+    cv.width = innerWidth * d; cv.height = innerHeight * d; ctx.setTransform(d,0,0,d,0,0); }
+  fit(); addEventListener('resize', fit);
+  var n = { t:0, p:0, c:0 };
+  var COLORS = { t:'#5be08f', p:'#6db4ff', c:'#ffb347' };
+  function dot(x, y, k, r){ ctx.fillStyle = COLORS[k];
+    ctx.beginPath(); ctx.arc(x, y, r || 14, 0, Math.PI*2); ctx.fill(); up(); }
+  function up(){ bar.textContent = '触摸T:' + n.t + '  指针P:' + n.p + '  点击C:' + n.c; }
+  function pos(e){ var x = e.clientX, y = e.clientY; return {x:x, y:y}; }
+
+  document.addEventListener('touchstart', function(e){
+    n.t++; var t = e.changedTouches[0]; dot(t.clientX, t.clientY, 't', 16);   // 不 preventDefault：让 click 也自然合成，三通道全测
+  }, { passive:false });
+  document.addEventListener('touchmove', function(e){
+    var t = e.changedTouches[0]; dot(t.clientX, t.clientY, 't', 5); e.preventDefault();
+  }, { passive:false });
+  document.addEventListener('pointerdown', function(e){ n.p++; dot(e.clientX, e.clientY, 'p', 11); });
+  document.addEventListener('click', function(e){ n.c++; dot(e.clientX, e.clientY, 'c', 7); });
+  up();
+  // 首屏欢迎圆（证明 canvas 渲染活着）
+  ctx.fillStyle = 'rgba(110,140,220,.35)';
+  ctx.beginPath(); ctx.arc(innerWidth/2, innerHeight/2, 42, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#cfe0ff'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('看到这个圈=画面渲染正常', innerWidth/2, innerHeight/2 + 62);
+})();
+</script>
+</body>
+</html>
