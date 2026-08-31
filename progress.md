@@ -29,6 +29,8 @@
 
 ## 修复记录
 - 2026-08-31 iPhone微信打开 hub 下半空白（6卡片+footer不渲染，guide正常显示）→ v1.0.1：卡片由 JS innerHTML 注入改为**静态 HTML 写死**（build_hub.py 生成），JS 仅剩引导条+SW注册；微信 iPhone UA 模拟验证 6卡全渲染。根因未定位（无法远程抓 iOS console），防御性重构。**注意：微信内可能缓存旧页约10分钟（Pages max-age=600），仍空白则下拉刷新/稍等**
+- 2026-08-31 游戏点开无法操作（iOS微信不派发触屏 PointerEvent，六款只监听 pointer*）→ v1.0.2：inject_pwa.py v3 注入 touch→PointerEvent 合成桥（touchstart 120ms 内无原生 pointerdown 即接管，touch 序列合成 pointerdown/move/up 派发到触点元素；按钮/链接跳过保留原生 click）。head 只插 link/meta/style，<a>返回键+桥 script 插 </body> 前（v2 塞 head 导致 DOM 挪位的结构修复）。六款音效默认改为关闭（safeStorage 默认值 true + 按钮 UI 同步）。
+- 2026-08-31 六款逐款触屏验证（Chrome 模拟 iPhone 微信 UA+touch，__forceTouchBridge 强制桥路径）：01 投放/瞄准/合成(score+8)✓ 02 滑动合并/2048通关(won+banner)✓ 03 开局/跳跃/计分(max5)/死亡重开✓ 04 开局/转向(质心上移)✓ 05 炼丹/经济闭环(买升级产值1→2)✓ 06 拖放/精确落点/消行(+10)✓。另发现：mcp 页面若在后台标签，rAF 暂停致游戏冻结（真机无此问题，前台玩）。
 
 ## 回滚
 - 关 Pages：gh api repos/frandy820/game-ports/pages -X DELETE
