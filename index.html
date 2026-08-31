@@ -144,7 +144,7 @@ footer .dot{margin:0 8px;opacity:.5}
   var standalone = false;
   try{ standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true }catch(e){}
   if(/MicroMessenger/i.test(UA)){
-    showGuide('当前在<b>微信内</b>，无法安装到桌面。<br>请点右上角 <b>···</b> → 选择「在浏览器打开」，再按下方指引安装。');
+    showGuide('当前在<b>微信内</b>——直接点卡片就能玩。<br>想全屏装到桌面：点右上角 <b>···</b> → 「在浏览器打开」（若浏览器内无法触摸，多为 Safari 个案，可回微信玩或换 Chrome）。');
   }else if(!standalone && !guideDone){
     if(/iphone|ipad|ipod/i.test(UA)){
       showGuide('把游戏机装到桌面：点底部 <b>分享</b> ⬆️ → 「添加到主屏幕」→ 添加。<br>之后从桌面图标进入，<b>全屏且离线可玩</b>。');
