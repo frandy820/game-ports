@@ -48,7 +48,7 @@
   #wrap-board.chain{animation:boardShake .26s ease-out}
   @keyframes boardShake{0%,100%{transform:translate(0,0)}25%{transform:translate(-2px,1px)}
     50%{transform:translate(2px,-1px)}75%{transform:translate(-1px,-1px)}}
-  .chain-txt{position:absolute;left:50%;top:36%;transform:translate(-50%,-50%);
+  .chain-txt{position:absolute;left:50%;top:31%;transform:translate(-50%,-50%);
     font-size:34px;font-weight:900;letter-spacing:.06em;white-space:nowrap;z-index:7;
     background:linear-gradient(180deg,#ffe9b8,#ffb347);-webkit-background-clip:text;background-clip:text;color:transparent;
     filter:drop-shadow(0 0 1.5px rgba(15,22,40,.9)) drop-shadow(0 1px 2px rgba(15,22,40,.8)) drop-shadow(0 3px 7px rgba(0,0,0,.6));
@@ -89,18 +89,18 @@
   #banner .bs b{color:var(--gold)}
   #banner button.go{margin-top:4px;padding:11px 38px;font-size:16px;font-weight:700;color:#16202f;background:var(--gold);
     border:none;border-radius:22px;cursor:pointer;box-shadow:0 4px 18px rgba(255,179,71,.3)}
-  #banner button.go.ghost{background:none;color:#e8a0aa;border:1.5px solid #b05563;box-shadow:none}
-  #banner button.go.ghost:active{background:rgba(232,88,107,.12)}
-  #banner .cf{position:absolute;top:-10px;width:6px;height:12px;border-radius:2px;opacity:0;
-    animation:cfFall 1.3s ease-in forwards}
+  #banner button.go.ghost{background:rgba(232,88,107,.08);color:#ef7586;border:2px solid #c9485e;box-shadow:none}
+  #banner button.go.ghost:active{background:rgba(232,88,107,.2)}
+  #banner .cf{position:absolute;top:-10px;width:8px;height:15px;border-radius:2px;opacity:0;
+    animation:cfFall 1.3s ease-in forwards;filter:drop-shadow(0 0 4px rgba(255,255,255,.4))}
   @keyframes cfFall{0%{opacity:0;transform:translateY(0) rotate(0)}10%{opacity:1}
-    100%{opacity:.85;transform:translateY(215px) rotate(200deg)}}   /* 终态保持可见（落定面板底部内侧） */
+    100%{opacity:1;transform:translateY(210px) rotate(200deg)}}   /* 终态满可见（落定面板底部内侧） */
   body.banner-open header,body.banner-open #goalbar-wrap{opacity:.3}
   header,#goalbar-wrap{transition:opacity .25s ease}
   #hint{width:min(92vw,460px);text-align:center;font-size:12.5px;color:var(--dim);line-height:1.7}
   footer{font-size:11px;color:var(--dim);opacity:.8;letter-spacing:.03em;margin-bottom:14px}
-  #hint{color:#8f9ab6}
-  footer{color:#8f9ab6}
+  #hint{color:#a8b3cf}
+  footer{color:#a8b3cf}
 </style>
 </head>
 <body>
@@ -154,7 +154,7 @@
   ];
   var SVG_TROPHY = '<svg viewBox="0 0 48 48"><path d="M14 8h20v4h8c0 9-5.5 14-11.2 15.2A8 8 0 0 1 26 31v5h6l2 6H14l2-6h6v-5a8 8 0 0 1-4.8-3.8C11.5 26 6 21 6 12h8V8z" fill="#ffb347" stroke="#8a5a17" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 13H9c.6 4.8 3.4 7.6 6.6 8.8A13 13 0 0 1 12 13zm24 0h3c-.6 4.8-3.4 7.6-6.6 8.8A13 13 0 0 0 36 13z" fill="#ffd97e"/><circle cx="24" cy="17" r="5" fill="#fff2cf" opacity=".85"/></svg>';
   var SVG_DROP = '<svg viewBox="0 0 48 48"><path d="M24 4c7 9 13 15.5 13 23a13 13 0 1 1-26 0c0-7.5 6-14 13-23z" fill="#5cb0ff" stroke="#1d4a94" stroke-width="1.8"/><path d="M18 28a6.5 6.5 0 0 0 5 8.5" stroke="#d9ecff" stroke-width="2.6" fill="none" stroke-linecap="round"/></svg>';
-  var SVG_SAND = '<svg viewBox="0 0 48 48"><path d="M12 6h24v6l-9 12 9 12v6H12v-6l9-12-9-12V6z" fill="#2a3a5e" stroke="#7f8aa6" stroke-width="2" stroke-linejoin="round"/><path d="M15.5 10h17l-8.5 10.6L15.5 10z" fill="#e8586b"/><path d="M20 36.5h8l-4 3.6-4-3.6z" fill="#e8586b"/><path d="M24 22.5l1.2 4.2-1.2 2-1.2-2 1.2-4.2z" fill="#e8586b" opacity=".8"/></svg>';
+  var SVG_SAND = '<svg viewBox="0 0 48 48"><path d="M12 6h24v6l-9 12 9 12v6H12v-6l9-12-9-12V6z" fill="#332430" stroke="#a05a68" stroke-width="2" stroke-linejoin="round"/><path d="M15 10h18l-9 11L15 10z" fill="#e8586b"/><path d="M17.5 12.5h13l-6.5 8L17.5 12.5z" fill="#f07d8d" opacity=".9"/><path d="M16.5 38h15l-7.5 3.8L16.5 38z" fill="#e8586b"/><path d="M24 22.4l1.3 4.6-1.3 2.2-1.3-2.2 1.3-4.6z" fill="#e8586b"/></svg>';
 
   /* ═══ 2. safeStorage ═══ */
   var safeStorage = (function () {
