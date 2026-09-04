@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0e1526">
+<title>成语六猜 · 离线版</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect x='4' y='4' width='18' height='18' rx='4' fill='%23a8ccf5'/%3E%3Crect x='26' y='4' width='18' height='18' rx='4' fill='%2396630f'/%3E%3Crect x='4' y='26' width='18' height='18' rx='4' fill='%23141a2e'/%3E%3Crect x='26' y='26' width='18' height='18' rx='4' fill='%23a8ccf5'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#0e1526; --panel:rgba(24,33,58,.92); --line:rgba(148,168,225,.22);
+    --ink:#e8ecf8; --dim:#a8b3cf; --gold:#ffb347; --danger:#e8586b;
+    /* 反馈三色：蓝(对位·最亮) / 橙(存在·中) / 灰(无·最暗)，两两对比度 ≥3:1 */
+    --c3:#a8ccf5; --c3-ink:#13233d;
+    --c2:#96630f; --c2-ink:#ffd9a3;
+    --c1:#141a2e; --c1-ink:#8a97b8;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{background:radial-gradient(1100px 700px at 50% -12%, #1a2444 0%, #0e1526 58%);
+    color:var(--ink);font-family:'Segoe UI',system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+    user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:manipulation;overflow:hidden}
+  header{width:min(92vw,366px);display:flex;align-items:center;gap:8px}
+  header .title{font-size:18px;font-weight:700;letter-spacing:.06em;color:var(--gold);flex:1}
+  header .title small{font-size:11px;color:var(--dim);font-weight:400;margin-left:6px;letter-spacing:.04em}
+  #remain{display:flex;flex-direction:column;align-items:center;background:var(--panel);
+    border:1px solid var(--line);border-radius:10px;padding:2px 12px;min-width:58px}
+  #remain .l{font-size:10px;color:var(--dim);letter-spacing:.08em}
+  #remain .v{font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--ink)}
+  #remain.low .v{color:var(--danger)}
+  #btn-sound,#btn-mode{width:42px;height:42px;border:1px solid var(--line);border-radius:10px;background:var(--panel);
+    color:var(--ink);font-size:15px;line-height:1;cursor:pointer;flex:none}
+  #btn-mode{width:auto;padding:0 12px;font-size:12.5px;font-weight:600}
+  #btn-sound.off{color:var(--dim)}
+  /* ── 棋盘：6 行 × 4 格 ── */
+  #board{display:flex;flex-direction:column;gap:6px;padding:9px;background:var(--panel);
+    border:1px solid var(--line);border-radius:14px}
+  .row{display:flex;gap:6px}
+  .cell{width:52px;height:52px;border-radius:9px;background:#101a30;border:1.5px solid rgba(148,168,225,.3);
+    display:flex;align-items:center;justify-content:center;font-size:27px;font-weight:800;color:var(--ink);
+    transition:border-color .15s}
+  .row.cur .cell.empty{border-color:rgba(255,179,71,.65);box-shadow:0 0 0 1px rgba(255,179,71,.22)}   /* 当前行醒目 */
+  .row.cur .cell.fill{border-color:rgba(168,204,245,.7);box-shadow:inset 0 0 0 1px rgba(168,204,245,.25)}
+  .cell.c3{background:var(--c3);border-color:transparent;color:var(--c3-ink);
+    box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.3)}           /* 蓝格同规格内描边，三格质感统一 */
+  .cell.c2{background:var(--c2);border-color:transparent;color:var(--c2-ink);
+    box-shadow:inset 0 0 0 1.5px rgba(255,190,90,.65)}           /* 橙格亮描边提存在感 */
+  .cell.c1{background:var(--c1);border-color:rgba(148,168,225,.2);color:var(--c1-ink)}
+  .cell.flip{animation:flipX .5s ease both}
+  @keyframes flipX{0%{transform:rotateX(0)}50%{transform:rotateX(90deg)}100%{transform:rotateX(0)}}
+  .row.winrow .cell{animation:winPulse 1.1s ease-in-out infinite}
+  @keyframes winPulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.3)}}
+  /* ── 键盘：8 列 × 7 行 = 56 键 ── */
+  #kbd{width:min(92vw,366px);display:flex;flex-direction:column;gap:6px}
+  #keys{display:grid;grid-template-columns:repeat(8,1fr);gap:1px}
+  .key{height:44px;border-radius:8px;border:1px solid var(--line);background:var(--panel);
+    color:var(--ink);font-size:19px;font-weight:600;line-height:1;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;transition:transform .06s,background .2s,border-color .2s}
+  .key:active{transform:scale(.92)}
+  .key.c3{background:var(--c3);border-color:transparent;color:var(--c3-ink)}
+  .key.c2{background:var(--c2);border-color:transparent;color:var(--c2-ink);
+    box-shadow:inset 0 0 0 1.5px rgba(255,190,90,.65)}
+  .key.c1{background:#0f1524;border-color:rgba(148,168,225,.06);color:#46547a}
+  #kops{display:flex;gap:6px;margin-top:2px}
+  #kops button{height:44px;border-radius:9px;border:1px solid var(--line);background:var(--panel);
+    color:var(--ink);font-size:15px;font-weight:700;cursor:pointer}
+  #btn-del{flex:2}
+  #btn-go{flex:3;background:var(--gold);color:#16202f;border:none;box-shadow:0 3px 14px rgba(255,179,71,.3)}
+  #btn-go:disabled{background:#333e5c;color:#6f7a96;border:1px solid #2a3350;box-shadow:none}
+  #btn-go:active{transform:scale(.97)}
+  /* ── 横幅（胜/负/说明）── */
+  #banner{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(10,15,28,.94);z-index:8;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+  #banner[hidden]{display:none}
+  #banner .bpanel{position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;gap:10px;
+    background:rgba(21,30,54,.97);border:1px solid rgba(255,179,71,.26);border-radius:18px;
+    padding:24px 32px 22px;box-shadow:0 22px 60px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.05)}
+  #banner .bicon{width:64px;height:64px}
+  #banner .bicon svg{width:100%;height:100%}
+  #banner .bicon.glow svg{filter:drop-shadow(0 0 14px rgba(255,179,71,.5))}
+  #banner .bt{font-size:22px;font-weight:800;letter-spacing:.12em}
+  #banner .bt.gold{color:var(--gold)}
+  #banner .bt.red{color:#c94553}
+  #banner .bs{font-size:14px;color:#a8b3cf;line-height:1.8;text-align:center}
+  #banner .bs b{color:var(--gold)}
+  #banner .bs .ans{font-size:20px;letter-spacing:.3em;color:var(--gold);font-weight:800}
+  #banner button.go{margin-top:4px;padding:11px 36px;font-size:15.5px;font-weight:700;color:#16202f;background:var(--gold);
+    border:none;border-radius:22px;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,.35)}
+  #banner .cf{position:absolute;top:-4px;width:8px;height:15px;border-radius:2px;opacity:0;
+    pointer-events:none;z-index:0;
+    animation:cfFall 1.3s ease-in forwards;filter:drop-shadow(0 0 4px rgba(255,255,255,.4))}
+  @keyframes cfFall{0%{opacity:0;transform:translateY(0) rotate(0)}10%{opacity:1}
+    100%{opacity:1;transform:translateY(var(--fall,56px)) rotate(var(--rot,200deg))}}   /* 只落上段(icon区)，避让文字与按钮 */
+  /* ── 首次提示 ── */
+  #intro{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(10,15,28,.94);z-index:9}
+  #intro[hidden]{display:none}
+  #intro .ipanel{display:flex;flex-direction:column;gap:14px;width:min(88vw,360px);
+    background:rgba(21,30,54,.97);border:1px solid rgba(148,168,225,.24);border-radius:18px;padding:26px 28px}
+  #intro .it{font-size:17px;font-weight:800;color:var(--gold);letter-spacing:.08em}
+  #intro .id{font-size:13.5px;color:#c6cfe4;line-height:1.9}
+  #intro .sw{display:flex;gap:10px;align-items:center}
+  #intro .sw i{display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:7px;
+    font-style:normal;font-size:15px;font-weight:800}
+  #intro .sw span{font-size:12.5px;color:var(--dim)}
+  #intro button{padding:11px 0;font-size:15px;font-weight:700;color:#16202f;background:var(--gold);
+    border:none;border-radius:12px;cursor:pointer}
+  footer{font-size:11px;color:var(--dim);opacity:.8;letter-spacing:.03em;margin-bottom:4px}
+  body.banner-open header,body.banner-open #board,body.banner-open #kbd{opacity:.3}
+  header,#board,#kbd{transition:opacity .25s ease}
+</style>
+</head>
+<body>
+  <header>
+    <button id="btn-sound" title="音效开关">♪</button>
+    <div class="title">成语六猜<small id="mode-tag">每日一题</small></div>
+    <div id="remain"><span class="l">剩余</span><span class="v" id="remain-v">6</span></div>
+    <button id="btn-mode" title="练习模式">练习</button>
+  </header>
+
+  <div id="board"></div>
+
+  <div id="kbd">
+    <div id="keys"></div>
+    <div id="kops">
+      <button id="btn-del">删</button>
+      <button id="btn-go" disabled>猜！</button>
+    </div>
+  </div>
+
+  <footer>完全离线 · 谜底每日一换</footer>
+
+  <div id="banner" hidden>
+    <div class="bpanel">
+      <div class="cfhost"></div>
+      <div class="bicon" id="b-icon"></div>
+      <div class="bt gold" id="b-title"></div>
+      <div class="bs" id="b-sub"></div>
+      <button class="go" id="b-go"></button>
+    </div>
+  </div>
+
+  <div id="intro" hidden>
+    <div class="ipanel">
+      <div class="it">怎么玩</div>
+      <div class="id">从下方键盘选字，填满 4 格后点「猜！」。每猜一次，格子会告诉你这 4 个字和谜底的关系，6 次机会内猜出四字成语。</div>
+      <div class="sw">
+        <i style="background:var(--c3);color:var(--c3-ink)">字</i><span>位置正确</span>
+        <i style="background:var(--c2);color:var(--c2-ink);box-shadow:inset 0 0 0 1.5px rgba(255,190,90,.5)">字</i><span>在谜底里，位置不对</span>
+        <i style="background:var(--c1);color:var(--c1-ink);border:1px solid rgba(148,168,225,.25)">字</i><span>不在谜底里</span>
+      </div>
+      <div class="id" style="font-size:12px;color:var(--dim)">键盘上的字也会同步染色，记住排除过的字。<br>每天一题，练习模式不限量。</div>
+      <button id="intro-ok">知道了，开猜</button>
+    </div>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+var WORDS = ["一以贯之","一心一意","一日三秋","一日千里","一马当先","一鸣惊人","万众一心","万无一失","万水千山","三心二意","三思而行","上下一心","上下其手","下落不明","不三不四","不可开交","不欢而散","不谋而合","为富不仁","举不胜举","举世无双","举世闻名","久别重逢","义薄云天","乐在其中","乐天知命","九死一生","九牛一毛","事在人为","二话不说","云开见日","人定胜天","人山人海","人来人往","仁至义尽","信以为真","信口开河","光明正大","全心全意","公正无私","公私分明","兵强马壮","出人头地","出生入死","出神入化","力争上游","千变万化","千言万语","千里之行","华而不实","取之不尽","变化无穷","口是心非","口若悬河","可想而知","可有可无","叶落归根","合情合理","吉人天相","名不虚传","四面八方","地动山摇","地广人稀","堂堂正正","备而不用","大公无私","大失所望","天下无双","天长地久","头头是道","如鱼得水","妙不可言","妙手回春","始于足下","安身立命","实事求是","实至名归","实话实说","尽善尽美","尽如人意","山穷水尽","山高水长","山高路远","年富力强","年深日久","广开言路","开门见山","异口同声","异想天开","强人所难","心中有数","心口不一","心安理得","心平气和","心惊胆战","心想事成","志同道合","志在四方","忘年之交","思前想后","息息相通","惊天动地","想入非非","意气风发","成事在天","成人之美","成千上万","成双成对","战无不胜","散兵游勇","数一数二","无能为力","日久天长","日新月异","明争暗斗","春华秋实","春花秋月","春风得意","是非分明","月下老人","有勇无谋","有眼无珠","来之不易","来日方长","止于至善","正大光明","气壮山河","水火无情","水落石出","流离失所","清风明月","满面春风","满面红光","牛头马面","牛鬼蛇神","理所当然","生生不息","用兵如神","用心良苦","百发百中","目中无人","相安无事","眉开眼笑","眉飞色舞","真心实意","石破天惊","神通广大","美中不足","耳目一新","胆小如鼠","胆战心惊","至理名言","若无其事","行云流水","行成于思","行若无事","见义勇为","言归正传","言而无信","言行一致","话中有话","语出惊人","语重心长","说一不二","说三道四","说长道短","谈笑风生","谋事在人","起死回生","路见不平","转危为安","远走高飞","通情达理","金玉满堂","金玉良言","金石为开","闻风而动","闻鸡起舞","难能可贵","非分之想","非同小可","飞短流长","马到成功","高山流水","龙争虎斗","龙飞凤舞","龙马精神"];
+var DPOOL = "不心无人一天风如为山而有水成明大之地行生口三言虎长意万道开来高千龙花事下义海出马飞可月神上手尽以相理安日名流难火金气乐目非百力云见二足分知重失于正平得实其中深落石光在所年动惊世化头穷里功命死鸡思忘四身声交全志苦乱胆想举后入清色美发语珠兵合离情说若善通子传玉远信春双业转前绝八胜五牛路争壮蛇鱼归舞鸣满红公息老取短散谈达眉步变和真众战国危眼秋当是求门毛回画凤立始谋多然强屈鬼面私新异同华方灵音外对耳仁至文妙致斗良用别到及往才精先己定九悬暗箭河针守鼠小欢望止叹夺途富能贵起稀古击破摇数话";
+
+  /* ═══ 1. 音效（程序化合成，默认静音，首次手势解锁）═══ */
+  var SFX = (function () {
+    var ctx = null, on = false;
+    function unlock() {
+      if (!ctx) { try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { ctx = null; } }
+      if (ctx && ctx.state === 'suspended') ctx.resume();
+    }
+    function beep(f, d, type, vol, when) {
+      if (!on || !ctx) return;
+      var t = ctx.currentTime + (when || 0);
+      var o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = type || 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(vol || .07, t);
+      g.gain.exponentialRampToValueAtTime(.0001, t + d);
+      o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t + d);
+    }
+    return {
+      unlock: unlock,
+      toggle: function () { on = !on; if (on) unlock(); return on; },
+      get on() { return on; },
+      key: function () { beep(640, .045, 'triangle', .045); },
+      flip: function (i) { beep(430 + i * 95, .09, 'sine', .055); },
+      win: function () { beep(523, .12, 'triangle', .08); beep(659, .12, 'triangle', .08, .12); beep(784, .22, 'triangle', .09, .24); },
+      fail: function () { beep(290, .18, 'sawtooth', .05); beep(215, .3, 'sawtooth', .05, .16); }
+    };
+  })();
+
+  /* ═══ 2. safeStorage ═══ */
+  var safeStorage = (function () {
+    var mem = {}, ok = false;
+    try { localStorage.setItem('mq_g09_t', '1'); localStorage.removeItem('mq_g09_t'); ok = true; } catch (e) {}
+    return {
+      get: function (k, d) {
+        try { var v = ok ? localStorage.getItem(k) : mem[k]; return v == null ? d : JSON.parse(v); }
+        catch (e) { return d; }
+      },
+      set: function (k, v) { try { var s = JSON.stringify(v); if (ok) localStorage.setItem(k, s); else mem[k] = s; } catch (e) {} },
+      persistent: ok
+    };
+  })();
+
+  /* ═══ 3. 种子与随机 ═══ */
+  function hashStr(s) {
+    var h = 2166136261;
+    for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+  }
+  function rng(seed) {
+    return function () {
+      seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+      var t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function shuffle(arr, r) {
+    for (var i = arr.length - 1; i > 0; i--) { var j = (r() * (i + 1)) | 0; var t = arr[i]; arr[i] = arr[j]; arr[j] = t; }
+    return arr;
+  }
+  function todayStr() {
+    var d = new Date();
+    return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+  }
+
+  /* ═══ 4. 谜题构造（每日同种子必同谜底同键盘）═══ */
+  function puzzleOfDate(dateStr) { return WORDS[hashStr(dateStr) % WORDS.length]; }
+  function keyboardOf(dateStr, answer) {
+    var r = rng(hashStr(dateStr + '-kb'));
+    var pool = [];
+    var add = function (ch) { if (pool.indexOf(ch) < 0) pool.push(ch); };
+    answer.split('').forEach(add);
+    /* 诱饵词：4 个与谜底零共字的词表词全字进键盘——防「键盘内唯一词表词=谜底」一线破 */
+    var words = shuffle(WORDS.slice(), r);
+    for (var i = 0; i < words.length && pool.length < 20; i++) {
+      var w = words[i];
+      if (w === answer) continue;
+      var overlap = w.split('').some(function (ch) { return answer.indexOf(ch) >= 0; });
+      if (!overlap) w.split('').forEach(add);
+    }
+    var cand = DPOOL.split('').filter(function (c) { return answer.indexOf(c) < 0; });
+    shuffle(cand, r);
+    for (var j = 0; j < cand.length && pool.length < 56; j++) add(cand[j]);
+    return shuffle(pool, r);
+  }
+
+  /* ═══ 5. 状态 ═══ */
+  var S = {
+    mode: 'daily', date: todayStr(), answer: '', kb: [],
+    rows: [],            /* [{guess:'XXXX', fb:[3,2,1,0]}] */
+    cur: '', done: false, won: false,
+    keyBest: {},         /* 字 -> 历史最佳反馈 3/2/1 */
+    busy: false, flipTotal: 0
+  };
+  var el = {
+    board: document.getElementById('board'), keys: document.getElementById('keys'),
+    remainV: document.getElementById('remain-v'), remain: document.getElementById('remain'),
+    btnGo: document.getElementById('btn-go'), btnDel: document.getElementById('btn-del'),
+    btnMode: document.getElementById('btn-mode'), modeTag: document.getElementById('mode-tag'),
+    btnSound: document.getElementById('btn-sound'),
+    banner: document.getElementById('banner'), bIcon: document.getElementById('b-icon'),
+    bTitle: document.getElementById('b-title'), bSub: document.getElementById('b-sub'),
+    bGo: document.getElementById('b-go'), cfHost: document.querySelector('#banner .cfhost'),
+    intro: document.getElementById('intro'), introOk: document.getElementById('intro-ok')
+  };
+  var SVG_WIN = '<svg viewBox="0 0 48 48"><path d="M14 8h20v4h8c0 9-5.5 14-11.2 15.2A8 8 0 0 1 26 31v5h6l2 6H14l2-6h6v-5a8 8 0 0 1-4.8-3.8C11.5 26 6 21 6 12h8V8z" fill="#ffb347" stroke="#8a5a17" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 13H9c.6 4.8 3.4 7.6 6.6 8.8A13 13 0 0 1 12 13zm24 0h3c-.6 4.8-3.4 7.6-6.6 8.8A13 13 0 0 0 36 13z" fill="#ffd97e"/><path d="M20 12h3v9c-2.2-.6-3-4.4-3-9z" fill="#fff" opacity=".4"/></svg>';
+  var SVG_LOSE = '<svg viewBox="0 0 48 48"><path d="M13 8h22M13 40h22" stroke="#d94f5c" stroke-width="3.5" stroke-linecap="round"/><path d="M15 9v4.5L24 23l9-9.5V9M15 39v-4.5L24 25l9 9.5V39" fill="none" stroke="#d94f5c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><path d="M18.5 13h11L24 20.5 18.5 13z" fill="#d94f5c" opacity=".7"/><path d="M18.5 33h11L24 26.5l-6.5 6.5z" fill="#d94f5c"/></svg>';
+
+  /* ═══ 6. 渲染 ═══ */
+  function buildBoard() {
+    el.board.innerHTML = '';
+    for (var r2 = 0; r2 < 6; r2++) {
+      var row = document.createElement('div');
+      row.className = 'row';
+      for (var c = 0; c < 4; c++) {
+        var cell = document.createElement('div');
+        cell.className = 'cell empty';
+        row.appendChild(cell);
+      }
+      el.board.appendChild(row);
+    }
+    renderRows();
+  }
+  function renderRows() {
+    var rows = el.board.children;
+    for (var r2 = 0; r2 < 6; r2++) {
+      var row = rows[r2];
+      var isCur = r2 === S.rows.length && !S.done;
+      row.classList.toggle('cur', isCur);
+      for (var c = 0; c < 4; c++) {
+        var cell = row.children[c];
+        /* 已提交行：静态显示反馈色 */
+        if (r2 < S.rows.length) {
+          var rd = S.rows[r2];
+          cell.textContent = rd.guess[c];
+          cell.className = 'cell c' + rd.fb[c];
+        } else if (isCur) {
+          cell.textContent = c < S.cur.length ? S.cur[c] : '';
+          cell.className = 'cell ' + (c < S.cur.length ? 'fill' : 'empty');
+        } else {
+          cell.textContent = '';
+          cell.className = 'cell empty';
+        }
+      }
+      row.classList.toggle('winrow', S.won && r2 === S.rows.length - 1);
+    }
+    el.remainV.textContent = Math.max(0, 6 - S.rows.length);
+    el.remain.classList.toggle('low', 6 - S.rows.length <= 2);
+  }
+  function buildKeys() {
+    el.keys.innerHTML = '';
+    S.kb.forEach(function (ch) {
+      var b = document.createElement('button');
+      b.className = 'key';
+      b.textContent = ch;
+      b.dataset.ch = ch;
+      b.addEventListener('pointerdown', function (e) {
+        if (e.pointerType === 'touch') return;   /* 触摸走 touch 层 */
+        SFX.unlock(); pressKey(ch);
+      });
+      b.addEventListener('touchstart', function (e) { e.preventDefault(); SFX.unlock(); pressKey(ch); }, { passive: false });
+      el.keys.appendChild(b);
+    });
+    paintKeys();
+  }
+  function paintKeys() {
+    [].forEach.call(el.keys.children, function (b) {
+      var best = S.keyBest[b.dataset.ch];
+      b.className = 'key' + (best ? ' c' + best : '');
+    });
+  }
+
+  /* ═══ 7. 输入与判定 ═══ */
+  function pressKey(ch) {
+    if (S.done || S.busy || S.cur.length >= 4) return;
+    S.cur += ch;
+    SFX.key();
+    renderRows();
+    syncOps();
+  }
+  function delKey() {
+    if (S.done || S.busy || !S.cur.length) return;
+    S.cur = S.cur.slice(0, -1);
+    renderRows();
+    syncOps();
+  }
+  function syncOps() { el.btnGo.disabled = !(S.cur.length === 4 && !S.done && !S.busy); }
+  function judge(guess, ans) {
+    var fb = [0, 0, 0, 0], used = [false, false, false, false];
+    for (var i = 0; i < 4; i++) if (guess[i] === ans[i]) { fb[i] = 3; used[i] = true; }
+    for (var i2 = 0; i2 < 4; i2++) {
+      if (fb[i2]) continue;
+      for (var j = 0; j < 4; j++) {
+        if (!used[j] && ans[j] === guess[i2]) { fb[i2] = 2; used[j] = true; break; }
+      }
+    }
+    for (var i3 = 0; i3 < 4; i3++) if (!fb[i3]) fb[i3] = 1;   /* 灰=1（c1）*/
+    return fb;
+  }
+  function submitGuess() {
+    if (S.done || S.busy || S.cur.length !== 4) return;
+    var guess = S.cur;
+    var fb = judge(guess, S.answer);
+    S.rows.push({ guess: guess, fb: fb });
+    S.cur = '';
+    S.busy = true;
+    syncOps();
+    /* 逐格 100ms 错峰翻转，250ms（半程换面）上色 */
+    var rowEl = el.board.children[S.rows.length - 1];
+    rowEl.classList.remove('cur');
+    for (var i = 0; i < 4; i++) {
+      (function (i2) {
+        setTimeout(function () {
+          var cell = rowEl.children[i2];
+          cell.textContent = guess[i2];
+          cell.classList.add('flip');
+          S.flipTotal++;
+          SFX.flip(i2);
+        }, i2 * 100);
+        setTimeout(function () {
+          var cell = rowEl.children[i2];
+          cell.className = 'cell c' + fb[i2] + (guess === S.answer ? ' flip' : '');
+          if (guess === S.answer) cell.classList.add('flip');
+        }, i2 * 100 + 250);
+      })(i);
+    }
+    /* 键盘染色（历史最佳）*/
+    for (var k = 0; k < 4; k++) {
+      var ch = guess[k];
+      S.keyBest[ch] = Math.max(S.keyBest[ch] || 0, fb[k]);
+    }
+    setTimeout(paintKeys, 500);
+    setTimeout(function () {
+      S.busy = false;
+      var won = guess === S.answer;
+      renderRows();
+      if (won || S.rows.length >= 6) endGame(won);
+      else syncOps();
+    }, 4 * 100 + 520);
+  }
+
+  /* ═══ 8. 终局与横幅 ═══ */
+  function statKey() { return S.mode === 'daily' ? 'mq_g09_stat' : 'mq_g09_pstat'; }
+  function endGame(won) {
+    S.done = true; S.won = won;
+    renderRows();
+    var st = safeStorage.get(statKey(), { games: 0, wins: 0, best: 0, streak: 0 });
+    st.games++;
+    if (won) { st.wins++; st.streak++; st.best = Math.max(st.best, S.rows.length); }
+    else st.streak = 0;
+    safeStorage.set(statKey(), st);
+    if (S.mode === 'daily') {
+      safeStorage.set('mq_g09_daily', { date: S.date, done: true, won: won, rows: S.rows.length, answer: S.answer });
+    }
+    if (won) { SFX.win(); showBanner(SVG_WIN, '猜中了！',
+      '用 <b>' + S.rows.length + '</b> 行猜破 · 连胜 <b>' + st.streak + '</b> 局' + (S.mode === 'daily' ? ' · 明天再来' : ''),
+      S.mode === 'daily' ? '回看盘面' : '再来一局', onBannerGo, { glow: true, confetti: true, cls: 'gold' });
+    } else {
+      SFX.fail();
+      showBanner(SVG_LOSE, '差一步', '谜底是<br><span class="ans">' + S.answer + '</span><br>' +
+        (S.mode === 'daily' ? '明天再来一题' : '再练一局？'),
+        S.mode === 'daily' ? '回看盘面' : '再来一局', onBannerGo, { cls: 'red' });
+    }
+  }
+  function onBannerGo() {
+    hideBanner();
+    if (S.mode === 'practice') startPractice();
+  }
+  function showBanner(icon, title, subHTML, btn, fn, opts) {
+    opts = opts || {};
+    el.bIcon.innerHTML = icon;
+    el.bIcon.className = 'bicon' + (opts.glow ? ' glow' : '');
+    el.bTitle.textContent = title;
+    el.bTitle.className = 'bt ' + (opts.cls || 'gold');
+    el.bSub.innerHTML = subHTML;
+    el.bGo.textContent = btn;
+    el.bGo.onclick = function () { this.blur(); fn(); };
+    el.cfHost.querySelectorAll('.cf').forEach(function (n) { n.remove(); });
+    document.body.classList.add('banner-open');
+    if (opts.confetti) {
+      var cols = ['#ffb347', '#ffd97e', '#a8ccf5', '#7ee0c3', '#f2a0c0'];
+      for (var c = 0; c < 14; c++) {
+        var sp = document.createElement('span');
+        sp.className = 'cf';
+        sp.style.left = (10 + Math.random() * 80) + '%';
+        sp.style.background = cols[c % cols.length];
+        sp.style.animationDelay = (Math.random() * .5) + 's';
+        sp.style.setProperty('--rot', ((120 + Math.random() * 260) | 0) + 'deg');
+        sp.style.setProperty('--fall', ((38 + Math.random() * 30) | 0) + 'px');
+        el.cfHost.appendChild(sp);
+      }
+    }
+    el.banner.hidden = false;
+  }
+  function hideBanner() { el.banner.hidden = true; document.body.classList.remove('banner-open'); }
+
+  /* ═══ 9. 开局 ═══ */
+  function startDaily(forceDate) {
+    S.mode = 'daily';
+    S.date = forceDate || todayStr();
+    S.answer = puzzleOfDate(S.date);
+    S.kb = keyboardOf(S.date, S.answer);
+    S.rows = []; S.cur = ''; S.done = false; S.won = false; S.keyBest = {}; S.busy = false;
+    el.modeTag.textContent = '每日一题';
+    el.btnMode.textContent = '练习';
+    buildBoard(); buildKeys(); syncOps();
+    var daily = safeStorage.get('mq_g09_daily', null);
+    if (daily && daily.date === S.date && daily.done) {
+      /* 今日已玩：直接展示结果横幅，盘面留空态 */
+      S.done = true;
+      renderRows();
+      showBanner(daily.won ? SVG_WIN : SVG_LOSE, daily.won ? '今日已猜中' : '今日已用完',
+        daily.won ? '用了 <b>' + daily.rows + '</b> 行 · 明天再来' : '谜底是<br><span class="ans">' + daily.answer + '</span><br>明天再来',
+        '回看盘面', hideBanner, { cls: daily.won ? 'gold' : 'red', glow: daily.won });
+    }
+  }
+  function startPractice() {
+    S.mode = 'practice';
+    var seed = 'p' + Date.now() + '-' + (Math.random() * 1e9 | 0);
+    S.answer = WORDS[hashStr(seed) % WORDS.length];
+    S.kb = keyboardOf(seed, S.answer);
+    S.rows = []; S.cur = ''; S.done = false; S.won = false; S.keyBest = {}; S.busy = false;
+    el.modeTag.textContent = '练习局';
+    el.btnMode.textContent = '回每日';
+    buildBoard(); buildKeys(); syncOps();
+  }
+  el.btnMode.addEventListener('click', function () {
+    SFX.unlock();
+    if (S.mode === 'daily') startPractice(); else startDaily();
+  });
+  el.btnDel.addEventListener('click', function () { SFX.unlock(); delKey(); });
+  el.btnGo.addEventListener('click', function () { SFX.unlock(); submitGuess(); });
+  el.btnSound.addEventListener('click', function () {
+    SFX.unlock();
+    var on = SFX.toggle();
+    el.btnSound.textContent = on ? '♪' : '♪';
+    el.btnSound.classList.toggle('off', !on);
+  });
+
+  /* ═══ 10. 首次提示与启动 ═══ */
+  el.introOk.addEventListener('click', function () {
+    el.intro.hidden = true;
+    safeStorage.set('mq_g09_intro', true);
+  });
+  buildBoard(); buildKeys(); startDaily();
+  if (!safeStorage.get('mq_g09_intro', false)) el.intro.hidden = false;
+
+
+})();
+</script>
+</body>
+</html>
