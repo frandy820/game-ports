@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0e1526">
+<title>圈地对抗 · 离线版</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect x='4' y='4' width='40' height='40' rx='8' fill='%230e1526'/%3E%3Cpath d='M10 24 h10 v-8 h12 v16 h-12 v4 h16' fill='none' stroke='%237ec8ff' stroke-width='4' stroke-linejoin='round'/%3E%3Ccircle cx='36' cy='16' r='4' fill='%23ffb347'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#0e1526; --panel:rgba(24,33,58,.92); --line:rgba(148,168,225,.22);
+    --ink:#e8ecf8; --dim:#a8b3cf; --gold:#ffb347; --danger:#e8586b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--ink);
+    font-family:'Segoe UI',system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
+    overflow:hidden;position:fixed;inset:0;touch-action:none;user-select:none;-webkit-user-select:none}
+  #cv{position:absolute;inset:0;width:100%;height:100%;display:block}
+  /* ── HUD：顶部占比对峙条 ── */
+  #hud{position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);left:12px;right:12px;
+    display:flex;flex-direction:column;gap:6px;pointer-events:none;z-index:4}
+  #titlebar{display:flex;align-items:center;justify-content:space-between}
+  #titlebar .t{font-size:14px;font-weight:700;letter-spacing:.05em;color:var(--gold)}
+  #titlebar .t small{font-size:10px;color:var(--dim);font-weight:400;margin-left:6px}
+  #btn-sound{pointer-events:auto;width:34px;height:34px;border:1px solid var(--line);border-radius:9px;
+    background:var(--panel);color:var(--ink);font-size:13px;line-height:1;cursor:pointer}
+  #btn-sound.off{color:var(--dim)}
+  #share-bar{height:14px;border-radius:7px;overflow:hidden;display:flex;position:relative;
+    border:1px solid rgba(148,168,225,.3);background:rgba(14,21,38,.8)}
+  #share-bar::after{content:'';position:absolute;left:50%;top:1.5px;bottom:1.5px;width:1.5px;
+    background:rgba(255,255,255,.6);pointer-events:none}
+  #share-bar .me,#share-bar .foe{height:100%;transition:width .3s ease;box-shadow:2px 0 0 #0b1120}
+  #share-bar .me{background:linear-gradient(180deg,#8fd0ff,#5aa8ee)}
+  #share-bar .foe{background:linear-gradient(180deg,#ffb347,#e8963f)}
+  #share-bar .rest{flex:1}
+  #nums{display:flex;justify-content:space-between;font-size:12.5px;font-variant-numeric:tabular-nums}
+  #nums .me{color:#8fd0ff;font-weight:700}
+  #nums .foe{color:#ffb347;font-weight:700}
+  #killfeed{position:absolute;top:calc(env(safe-area-inset-top,0px) + 84px);left:0;right:0;
+    text-align:center;font-size:12.5px;color:#cdd6ec;pointer-events:none;z-index:4;
+    text-shadow:0 1px 3px rgba(0,0,0,.8)}
+  #killfeed .kf{display:inline-block;background:rgba(14,21,38,.85);border:1px solid var(--line);
+    border-radius:99px;padding:3px 14px;margin:3px auto;animation:kfIn .25s ease both}
+  @keyframes kfIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+  /* ── 横幅（胜/负/说明）── */
+  #banner{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(10,15,28,.45);z-index:8;backdrop-filter:blur(1px);-webkit-backdrop-filter:blur(1px)}
+  #banner[hidden]{display:none}
+  #banner .bpanel{position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;gap:10px;
+    background:rgba(21,30,54,.97);border:1px solid rgba(255,179,71,.4);border-radius:18px;
+    padding:24px 32px 22px;box-shadow:0 26px 80px rgba(0,0,0,.75),0 0 0 1px rgba(255,255,255,.04),inset 0 1px 0 rgba(255,255,255,.05);
+    min-width:min(78vw,300px)}
+  #banner .bicon{width:64px;height:64px}
+  #banner .bicon svg{width:100%;height:100%}
+  #banner .bicon.glow svg{filter:drop-shadow(0 0 14px rgba(255,179,71,.5))}
+  #banner .bt{font-size:22px;font-weight:800;letter-spacing:.12em}
+  #banner .bt.gold{color:var(--gold)}
+  #banner .bt.red{color:#c94553}
+  #banner .bs{font-size:14px;color:#a8b3cf;line-height:1.8;text-align:center}
+  #banner .bs b{color:var(--gold)}
+  #banner .bs b.big{font-size:36px;line-height:1.35;letter-spacing:.02em}
+  #banner .bs .cause{color:#c94553}
+  #banner button.go2{margin-top:2px;padding:9px 26px;font-size:13px;font-weight:600;color:#c6cfe4;
+    background:rgba(148,168,225,.07);border:1px solid rgba(148,168,225,.55);border-radius:18px;cursor:pointer;
+    position:relative;z-index:1}
+  #banner button.go2:active{background:rgba(148,168,225,.12)}
+  #banner .cf{position:absolute;top:-4px;width:8px;height:15px;border-radius:2px;opacity:0;
+    pointer-events:none;z-index:0;
+    animation:cfFall 1.3s ease-in forwards;filter:drop-shadow(0 0 4px rgba(255,255,255,.4))}
+  @keyframes cfFall{0%{opacity:0;transform:translateY(0) rotate(0)}10%{opacity:1}
+    100%{opacity:1;transform:translateY(var(--fall,56px)) rotate(var(--rot,200deg))}}
+  #banner button.go{margin-top:4px;padding:11px 36px;font-size:15.5px;font-weight:700;color:#16202f;background:var(--gold);
+    border:none;border-radius:22px;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,.35);position:relative;z-index:1}
+  /* ── 首次教学 ── */
+  #intro{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(8,13,24,.985);z-index:9}
+  #intro[hidden]{display:none}
+  #intro .ipanel{display:flex;flex-direction:column;gap:14px;width:min(88vw,360px);
+    background:rgba(21,30,54,.98);border:1px solid rgba(148,168,225,.4);border-radius:18px;padding:26px 28px;
+    box-shadow:0 26px 80px rgba(0,0,0,.8),inset 0 1px 0 rgba(255,255,255,.05)}
+  #intro .it{font-size:17px;font-weight:800;color:var(--gold);letter-spacing:.08em}
+  #intro .id{font-size:13.5px;color:#c6cfe4;line-height:1.9}
+  #intro .demo{display:flex;align-items:center;justify-content:center;gap:18px;padding:6px 0}
+  #intro .demo svg{opacity:.95}
+  #intro button{padding:11px 0;font-size:15px;font-weight:700;color:#16202f;background:var(--gold);
+    border:none;border-radius:12px;cursor:pointer}
+  footer{position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);left:0;right:0;
+    text-align:center;font-size:11px;color:var(--dim);opacity:.75;letter-spacing:.03em;pointer-events:none;z-index:3;
+    transition:opacity .3s}
+  footer.hide{opacity:0}
+  #hud.dim #titlebar,#hud.dim #nums{opacity:.55;transition:opacity .4s}
+  #hud.dim #share-bar{opacity:.85;transition:opacity .4s}
+  #deathmark{position:absolute;z-index:9;width:36px;height:36px;border-radius:50%;
+    background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.55),0 0 0 2px #ff5a6e;
+    pointer-events:none;transform:translate(-50%,-50%);display:none;
+    font:800 21px/36px system-ui,sans-serif;color:#e33e52;text-align:center}
+  #deathmark.show{display:block;animation:dmPulse 1.2s ease-in-out infinite}
+  @keyframes dmPulse{50%{transform:translate(-50%,-50%) scale(1.15)}}
+  #hud.dim button{pointer-events:none;opacity:.4}
+  #deathline{position:absolute;z-index:7;height:2px;
+    background:linear-gradient(90deg,rgba(255,90,110,.78) 0,rgba(255,90,110,.78) 55%,rgba(255,90,110,0) 100%);
+    transform-origin:0 50%;pointer-events:none;display:none}
+  #deathline.show{display:block}
+</style>
+</head>
+<body>
+  <canvas id="cv"></canvas>
+
+  <div id="hud">
+    <div id="titlebar">
+      <div class="t">圈地对抗<small>单机 · vs AI</small></div>
+      <button id="btn-sound" title="音效开关">♪</button>
+    </div>
+    <div id="share-bar"><div class="rest"></div></div>
+    <div id="nums"><span class="me">我方 0%</span><span class="foe">AI 0%</span></div>
+  </div>
+  <div id="killfeed"></div>
+
+  <div id="banner" hidden>
+    <div class="bpanel">
+      <div class="cfhost"></div>
+      <div class="bicon" id="b-icon"></div>
+      <div class="bt" id="b-title"></div>
+      <div class="bs" id="b-sub"></div>
+      <button class="go" id="b-go"></button>
+      <button class="go2" id="b-go2" hidden></button>
+    </div>
+  </div>
+
+  <div id="intro" hidden>
+    <div class="ipanel">
+      <div class="it">怎么玩</div>
+      <div class="id">在屏幕上<b>朝任意方向滑动</b>转向（电脑用方向键）。恒速前进，从领地出发画出轨迹，<b>回到自己领地</b>，圈住的空地就归你。</div>
+      <div class="demo">
+        <svg width="140" height="72" viewBox="-4 0 148 72">
+          <rect x="6" y="46" width="44" height="22" rx="4" fill="rgba(126,200,255,.28)" stroke="#5aa8ee" stroke-width="1.4"/>
+          <text x="28" y="61" font-size="9" fill="#a8ccf5" text-anchor="middle">领地</text>
+          <path d="M16 46 V20 H96" fill="none" stroke="#8fd0ff" stroke-width="3" stroke-linejoin="round"/>
+          <path d="M96 20 V46 H54" fill="none" stroke="#8fd0ff" stroke-width="3" stroke-linejoin="round" stroke-dasharray="4 4" opacity=".6"/>
+          <path d="M54 42.5 l8 3.5 -8 3.5 z" fill="#8fd0ff" opacity=".95"/>
+          <circle cx="16" cy="46" r="4.5" fill="#8fd0ff"/>
+          <path d="M114 14 l9 6 -9 6 -9-6z" fill="#ffd97e"/>
+          <text x="114" y="45" font-size="13.5" font-weight="700" fill="#ffe9b8" text-anchor="middle">滑我</text>
+        </svg>
+      </div>
+      <div class="id" style="font-size:12px;color:var(--dim)">别撞别人的轨迹、别出边界——圈得越大越危险。<br>单机对抗 3 个 AI，占 60% 即胜。</div>
+      <button id="intro-ok">知道了，开圈</button>
+    </div>
+  </div>
+
+  <footer>轨迹圈地 · 单机 vs AI · 完全离线</footer>
+  <div id="deathmark">✕</div>
+  <div id="deathline"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ═══ 1. 常量与工具 ═══ */
+  var GRID = 64;                    /* 64×64 格 */
+  var STEP_MS = 92;                 /* ~11 格/秒 */
+  var LIMIT_MS = 180000;            /* 限时 180 秒，到时占比最高者胜 */
+  var WIN_SHARE = 60;               /* 占比胜利线（%） */
+  var SPAWN_PAD = 14;               /* 出生点距边 */
+  var START_SIZE = 7;               /* 初始领地 7×7 */
+  var DX = [0, 1, 0, -1];           /* 上右下左 */
+  var DY = [-1, 0, 1, 0];
+  var COLORS = {
+    1: { fill: 'rgba(96,150,235,.58)', edge: '#63aaf0', trail: '#8fd0ff', head: '#bfe2ff' },   /* 玩家：蓝 */
+    2: { fill: 'rgba(255,179,71,.40)', edge: '#e8963f', trail: '#ffb347', head: '#ffd97e' },   /* bot 金 */
+    3: { fill: 'rgba(197,139,255,.37)', edge: '#a86fe0', trail: '#d09bff', head: '#e2ccff' },  /* bot 紫 */
+    4: { fill: 'rgba(139,232,192,.35)', edge: '#4fc79a', trail: '#8be8c0', head: '#c8f5e0' }   /* bot 绿 */
+  };
+  var NAMES = { 1: '你', 2: '金 AI', 3: '紫 AI', 4: '绿 AI' };
+  var BOT_MODES = { 2: 'expand', 3: 'hunter', 4: 'shy' };
+
+  function hashInt(n) { n = (n ^ 61) ^ (n >>> 16); n = (n + (n << 3)) | 0; n = n ^ (n >>> 4); n = Math.imul(n, 0x27d4eb2d); n = n ^ (n >>> 15); return n >>> 0; }
+  function idx(x, y) { return y * GRID + x; }
+  function inMap(x, y) { return x >= 0 && x < GRID && y >= 0 && y < GRID; }
+  function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+
+  var safeStorage = {
+    get: function (k, d) { try { var v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set: function (k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  };
+
+  var SFX = (function () {
+    var ctx = null, on = safeStorage.get('mq_g10_sound', true);
+    function ac() {
+      if (!ctx) { try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+      if (ctx && ctx.state === 'suspended') ctx.resume();
+      return ctx;
+    }
+    function beep(freq, dur, type, vol) {
+      if (!on) return; var c = ac(); if (!c) return;
+      var o = c.createOscillator(), g = c.createGain();
+      o.type = type || 'triangle'; o.frequency.value = freq;
+      g.gain.setValueAtTime(vol || .08, c.currentTime);
+      g.gain.exponentialRampToValueAtTime(.0001, c.currentTime + dur);
+      o.connect(g); g.connect(c.destination);
+      o.start(); o.stop(c.currentTime + dur);
+    }
+    return {
+      unlock: function () { ac(); },
+      turn: function () { beep(300, .06, 'square', .04); },
+      close: function () { beep(520, .12, 'triangle', .09); setTimeout(function () { beep(780, .14, 'triangle', .08); }, 90); },
+      kill: function () { beep(180, .2, 'sawtooth', .08); },
+      die: function () { beep(220, .3, 'sawtooth', .1); setTimeout(function () { beep(140, .4, 'sawtooth', .1); }, 140); },
+      win: function () { [523, 659, 784, 1046].forEach(function (f, i) { setTimeout(function () { beep(f, .18, 'triangle', .09); }, i * 130); }); },
+      get on() { return on; },
+      toggle: function () { on = !on; safeStorage.set('mq_g10_sound', on); return on; }
+    };
+  })();
+
+  /* ═══ 2. 状态 ═══ */
+  var S = {
+    phase: 'playing',            /* playing | over */
+    seed: 0,
+    grid: new Uint8Array(GRID * GRID),     /* 领地 owner 0-4 */
+    trail: new Uint8Array(GRID * GRID),    /* 轨迹 owner 0-4 */
+    heads: [],                   /* {id,x,y,dir,alive,out,plan:[],wp:0,mode,birth} */
+    tick: 0,
+    lastStep: 0,
+    cam: { x: 0, y: 0 },         /* 摄像机中心（格坐标浮点） */
+    kills: [],                   /* [{tick,killer,victim}] */
+    killfeedTimer: 0,
+    coverage: { 1: 0, 2: 0, 3: 0, 4: 0 },
+    startAt: 0,
+    __camErrMax: 0,
+    __stepCb: null               /* dev：确定性推演回调 */
+  };
+
+  var el = {
+    cv: document.getElementById('cv'),
+    sound: document.getElementById('btn-sound'),
+    shareMe: null, shareFoe: null,
+    numsMe: document.querySelector('#nums .me'), numsFoe: document.querySelector('#nums .foe'),
+    killfeed: document.getElementById('killfeed'),
+    banner: document.getElementById('banner'), bIcon: document.getElementById('b-icon'),
+    bTitle: document.getElementById('b-title'), bSub: document.getElementById('b-sub'),
+    bGo: document.getElementById('b-go'), cfHost: document.querySelector('#banner .cfhost'),
+    intro: document.getElementById('intro'), introOk: document.getElementById('intro-ok')
+  };
+  var SVG_WIN = '<svg viewBox="0 0 48 48"><path d="M10 26 L10 12 Q10 8 14 8 L20 8 Q24 8 24 12 L24 26 Z" fill="none" stroke="#8fd0ff" stroke-width="3" stroke-linejoin="round"/><path d="M24 30 h14 v-6 h6 v14 h-20 z" fill="rgba(90,140,220,.4)" stroke="#5aa8ee" stroke-width="2.5" stroke-linejoin="round"/><circle cx="17" cy="37" r="3.4" fill="#bfe2ff"/><circle cx="41" cy="21" r="2.6" fill="#ffd97e"/><path d="M34 12 l2.2 4.6 4.6 2.2 -4.6 2.2 -2.2 4.6 -2.2-4.6 -4.6-2.2 4.6-2.2z" fill="#ffe9b8"/></svg>';
+  var SVG_LOSE = '<svg viewBox="0 0 48 48"><path d="M10 26 L10 12 Q10 8 14 8 L20 8 Q24 8 24 12 L24 26 Z" fill="none" stroke="#8fd0ff" stroke-width="3" stroke-linejoin="round" opacity=".5"/><path d="M8 38 h32" stroke="#c94553" stroke-width="3.5" stroke-linecap="round"/><path d="M30 20 l12 12 M42 20 l-12 12" stroke="#c94553" stroke-width="3" stroke-linecap="round"/><circle cx="17" cy="16" r="2.2" fill="#8fd0ff" opacity=".6"/></svg>';
+
+  var ctx2d = el.cv.getContext('2d');
+  var terrCv = document.createElement('canvas');   /* 领地离屏层：1 格 = 1px */
+  terrCv.width = GRID; terrCv.height = GRID;
+  var terrCtx = terrCv.getContext('2d');
+
+  /* ═══ 3. 开局 ═══ */
+  function spawnRect(x0, y0, id) {
+    for (var y = y0; y < y0 + START_SIZE; y++)
+      for (var x = x0; x < x0 + START_SIZE; x++) setTerr(x, y, id);
+  }
+  function setTerr(x, y, id) {
+    S.grid[idx(x, y)] = id; S.trail[idx(x, y)] = 0;
+    terrCtx.fillStyle = id ? COLORS[id].fill : 'rgba(14,21,38,0)';
+    terrCtx.clearRect(x, y, 1, 1);
+    if (id) terrCtx.fillRect(x, y, 1, 1);
+  }
+  function clearTerr(x, y) { setTerr(x, y, 0); }
+
+  function newGame(seed) {
+    S.seed = (seed == null ? (Math.random() * 1e9 | 0) : seed) >>> 0;
+    S.grid.fill(0); S.trail.fill(0);
+    terrCtx.clearRect(0, 0, GRID, GRID);
+    var cx = (GRID - START_SIZE) >> 1;
+    var spawns = [
+      { x: SPAWN_PAD, y: SPAWN_PAD }, { x: GRID - SPAWN_PAD - START_SIZE, y: SPAWN_PAD },
+      { x: SPAWN_PAD, y: GRID - SPAWN_PAD - START_SIZE }, { x: GRID - SPAWN_PAD - START_SIZE, y: GRID - SPAWN_PAD - START_SIZE }
+    ];
+    /* bot 出生点用种子洗牌（玩家恒第 1 个出生位） */
+    var r = S.seed;
+    for (var i = 3; i > 1; i--) { r = hashInt(r + i); var j = 1 + (r % i); var tmp = spawns[i]; spawns[i] = spawns[j]; spawns[j] = tmp; }
+    S.heads = [];
+    for (var p = 1; p <= 4; p++) {
+      var sp = spawns[p - 1];
+      spawnRect(sp.x, sp.y, p);
+      var cxx = sp.x + (START_SIZE >> 1), cyy = sp.y + (START_SIZE >> 1);
+      /* 朝地图中心出发 */
+      var dir = cxx < GRID / 2 ? 1 : 3;
+      if (p === 2 || p === 4) dir = cyy < GRID / 2 ? 2 : 0;
+      S.heads.push({ id: p, x: cxx, y: cyy, dir: dir, alive: true, out: false, plan: [], wp: 0, mode: BOT_MODES[p], birth: 0, wait: p === 1 });
+    }
+    S.tick = 0; S.kills = []; S.phase = 'playing'; S.startAt = performance.now(); S.__watch = false; S.__won = false;
+    document.querySelector('footer').classList.add('hide');
+    document.getElementById('hud').classList.remove('dim');
+    S.cam.x = S.heads[0].x; S.cam.y = S.heads[0].y;
+    recountCoverage();
+    hideBanner(); renderHUD();
+  }
+
+  /* ═══ 4. 围地（外部 flood fill）═══ */
+  var floodMark = new Uint8Array(GRID * GRID);
+  var floodQueue = new Int16Array(GRID * GRID);
+  function closeTerritory(h) {
+    /* 墙 = 自己轨迹 + 自己领地；从边界 flood 未被触达的 空格+自己轨迹 → 归己 */
+    var my = h.id, i, x, y;
+    floodMark.fill(0);
+    var qh = 0, qt = 0;
+    for (i = 0; i < GRID; i++) {
+      var edges = [idx(i, 0), idx(i, GRID - 1), idx(0, i), idx(GRID - 1, i)];
+      for (var e = 0; e < 4; e++) {
+        var gi = edges[e];
+        if (!floodMark[gi] && S.grid[gi] !== my && S.trail[gi] !== my) { floodMark[gi] = 1; floodQueue[qt++] = gi; }
+      }
+    }
+    while (qh < qt) {
+      var cur = floodQueue[qh++];
+      var cx2 = cur % GRID, cy2 = (cur / GRID) | 0;
+      for (var d = 0; d < 4; d++) {
+        var nx = cx2 + DX[d], ny = cy2 + DY[d];
+        if (!inMap(nx, ny)) continue;
+        var ni = idx(nx, ny);
+        if (!floodMark[ni] && S.grid[ni] !== my && S.trail[ni] !== my) { floodMark[ni] = 1; floodQueue[qt++] = ni; }
+      }
+    }
+    var captured = 0;
+    for (i = 0; i < GRID * GRID; i++) {
+      if (floodMark[i]) continue;
+      if (S.trail[i] === my || S.grid[i] === 0) {
+        var gx = i % GRID, gy = (i / GRID) | 0;
+        setTerr(gx, gy, my); captured++;
+      }
+    }
+    if (captured > 0) { recountCoverage(); SFX.close(); }
+    return captured;
+  }
+
+  function recountCoverage() {
+    var c = { 1: 0, 2: 0, 3: 0, 4: 0 };
+    for (var i = 0; i < GRID * GRID; i++) if (S.grid[i]) c[S.grid[i]]++;
+    S.coverage = c;
+  }
+
+  /* ═══ 5. AI（计数器状态机：出发段→横段→回家段）═══ */
+  function botPlan(h) {
+    var r = hashInt(S.seed + h.id * 977 + S.tick * 31);
+    var k = h.mode === 'shy' ? 4 + (r % 4) : 6 + (r % 7);
+    var m = h.mode === 'shy' ? 7 + (r % 5) : 10 + (r % 11);
+    /* 出发方向：朝地图中心偏置（保证 bot 相互逼近产生博弈） */
+    var toC = dirToward(h.x, h.y, GRID / 2, GRID / 2);
+    var outD = toC;
+    var sd = (outD + ((r >> 8) & 1 ? 1 : 3)) % 4;
+    h.leg = 0; h.legLeft = k; h.m = m; h.sd = sd; h.outD = outD; h.k0 = k;
+    h.out = true; h.birth = S.tick; h.huntT = 0;
+  }
+
+  function botStep(h) {
+    if (!h.out) { botPlan(h); return; }
+    var want = -1;
+    /* hunter：近距截击（限时，防无限追） */
+    if (h.mode === 'hunter' && h.huntT < 60) {
+      var tgt = null, bd = 1e9;
+      for (var i = 0; i < S.heads.length; i++) {
+        var o = S.heads[i];
+        if (o.id === h.id || !o.alive || !o.out) continue;
+        var dd = Math.abs(o.x - h.x) + Math.abs(o.y - h.y);
+        if (dd < bd) { bd = dd; tgt = o; }
+      }
+      if (tgt && bd < 20) {
+        h.huntT++;
+        want = dirToward(h.x, h.y, tgt.x + DX[tgt.dir] * 3, tgt.y + DY[tgt.dir] * 3);
+        h.leg = 2;   /* 截击途中随时可回家闭合 */
+      }
+    }
+    if (want < 0) {
+      if (h.huntT >= 60) h.leg = 2;
+      if (h.leg === 0) { want = h.outD; if (--h.legLeft <= 0) { h.leg = 1; h.legLeft = h.m; } }
+      else if (h.leg === 1) {
+        want = h.sd;
+        h.legLeft--;
+        if (h.legLeft <= 0) h.leg = 2;
+        /* shy：横段随机缩短（快回）由 plan 参数已控制 */
+      } else {
+        /* leg2：先沿出发反方向直线回家（保矩形形状）；走超 k+6 格仍没到家 → leg3 朝最近领地 */
+        if (h.leg === 2) {
+          if (h.legLeft == null || isNaN(h.legLeft)) h.legLeft = 0;
+          want = (h.outD + 2) % 4;
+          if (++h.legLeft > (h.k0 || 12) + 6) { h.leg = 3; want = -1; }
+        }
+        if (h.leg === 3 || want < 0) {
+          var hm = homeOf(h);
+          want = dirToward(h.x, h.y, hm[0], hm[1]);
+        }
+      }
+    }
+    /* 避障：危险则依次尝试 */
+    var order = [want, (want + 1) % 4, (want + 3) % 4, (want + 2) % 4];
+    for (var oi = 0; oi < 4; oi++) {
+      var d4 = order[oi];
+      var nx = h.x + DX[d4], ny = h.y + DY[d4];
+      if (fatalFor(h, nx, ny)) continue;
+      h.dir = d4; return;
+    }
+    h.dir = want;   /* 无路可走，认命 */
+  }
+  function homeX(h) { return homeOf(h)[0]; }
+  function homeY(h) { return homeOf(h)[1]; }
+  function homeOf(h) {   /* 最近己方领地格（全图扫描；4096 格遍历开销可忽略） */
+    var best = null, bd = 1e9;
+    for (var y = 0; y < GRID; y++)
+      for (var x = 0; x < GRID; x++)
+        if (S.grid[idx(x, y)] === h.id) { var d = Math.abs(x - h.x) + Math.abs(y - h.y); if (d < bd) { bd = d; best = [x, y]; } }
+    return best || [h.x, h.y];
+  }
+  function dirToward(x, y, tx, ty) {
+    var dx = tx - x, dy = ty - y;
+    return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 1 : 3) : (dy > 0 ? 2 : 0);
+  }
+  function fatalFor(h, nx, ny) {
+    if (!inMap(nx, ny)) return true;
+    var t = S.trail[idx(nx, ny)];
+    if (t && t !== h.id) return true;
+    return false;
+  }
+
+  /* ═══ 6. 推演一步（逻辑核，纯确定性：只依赖 S 与种子 hash）═══ */
+  function step() {
+    if (S.phase !== 'playing') return;
+    if (S.heads[0] && S.heads[0].wait) return;   /* 开局保护：首滑前全场冻结（bots 不偷跑、计时不走） */
+    S.tick++;
+    /* 6.1 决策 */
+    for (var i = 0; i < S.heads.length; i++) {
+      var h = S.heads[i];
+      if (!h.alive) continue;
+      if (h.id === 1) continue;               /* 玩家 dir 由输入控制 */
+      botStep(h);
+    }
+    /* 6.2 头对头预检（同格） */
+    var nexts = [];
+    for (var i2 = 0; i2 < S.heads.length; i2++) {
+      var h2 = S.heads[i2];
+      nexts.push(h2.alive && !h2.wait ? [h2.x + DX[h2.dir], h2.y + DY[h2.dir]] : null);
+    }
+    var headHits = {};
+    for (var i3 = 0; i3 < nexts.length; i3++) {
+      if (!nexts[i3]) continue;
+      var key = nexts[i3][0] + ',' + nexts[i3][1];
+      if (headHits[key] == null) headHits[key] = [];
+      headHits[key].push(i3);
+    }
+    var doomed = {};
+    for (var kk in headHits) {
+      if (headHits[kk].length > 1) headHits[kk].forEach(function (ix) { doomed[ix] = true; });
+    }
+    /* 换格交叉：A 的 next = B 的当前 且 B 的 next = A 的当前 → 双死 */
+    for (var a = 0; a < S.heads.length; a++) {
+      if (!nexts[a]) continue;
+      for (var b = a + 1; b < S.heads.length; b++) {
+        if (!nexts[b]) continue;
+        if (nexts[a][0] === S.heads[b].x && nexts[a][1] === S.heads[b].y &&
+            nexts[b][0] === S.heads[a].x && nexts[b][1] === S.heads[a].y) { doomed[a] = true; doomed[b] = true; }
+      }
+    }
+    /* 6.3 移动+死亡 */
+    for (var i4 = 0; i4 < S.heads.length; i4++) {
+      var h3 = S.heads[i4];
+      if (!h3.alive || h3.wait) continue;
+      var nx2 = nexts[i4][0], ny2 = nexts[i4][1];
+      if (doomed[i4]) { kill(h3, 0, '相撞'); continue; }
+      if (!inMap(nx2, ny2)) { kill(h3, 0, '出界'); continue; }
+      var t2 = S.trail[idx(nx2, ny2)];
+      if (t2 && t2 !== h3.id) { kill(h3, t2, '撞轨迹'); continue; }
+      /* 离开当前格：若在外且当前格非己领地 → 留轨迹 */
+      if (S.grid[idx(h3.x, h3.y)] !== h3.id) S.trail[idx(h3.x, h3.y)] = h3.id;
+      h3.x = nx2; h3.y = ny2;
+      var g = S.grid[idx(nx2, ny2)];
+      if (g === h3.id) {
+        /* 回家 → 闭合 */
+        if (h3.out) { closeTerritory(h3); h3.out = false; h3.plan = []; h3.wp = 0; }
+      } else {
+        h3.out = true;
+      }
+    }
+    /* 6.4 胜负 */
+    var alive = S.heads.filter(function (h4) { return h4.alive; });
+    var me = S.heads[0];
+    for (var i5 = 0; i5 < alive.length; i5++) {
+      var share = S.coverage[alive[i5].id] / (GRID * GRID) * 100;
+      if (share >= WIN_SHARE) { endGame(alive[i5].id === 1, alive[i5].id); return; }
+    }
+    if (!me.alive) { if (!S.__watch) { endGame(false, 0); return; } }   /* __watch：dev 推演不停机 */
+    if (alive.length === 1 && alive[0].id === 1) { endGame(true, 1); return; }
+    if (alive.length === 0) { endGame(false, 0); return; }
+    /* 限时到：占比最高者胜（并列算负，鼓励领先） */
+    if (S.tick * STEP_MS >= LIMIT_MS) {
+      var top = 0, topId = 0;
+      for (var i6 = 1; i6 <= 4; i6++) if (S.coverage[i6] > top) { top = S.coverage[i6]; topId = i6; }
+      endGame(topId === 1, topId);
+      return;
+    }
+    if (S.__stepCb) S.__stepCb();
+  }
+
+  function kill(h, killer, reason) {
+    if (!h.alive) return;
+    h.alive = false;
+    S.kills.push({ tick: S.tick, killer: killer || 0, victim: h.id, reason: reason });
+    feed(killer ? NAMES[killer] + ' 淘汰了 ' + NAMES[h.id] : NAMES[h.id] + ' ' + reason + '出局');
+    /* 领地+轨迹清空 */
+    for (var i = 0; i < GRID * GRID; i++) {
+      if (S.grid[i] === h.id) { S.grid[i] = 0; var gx = i % GRID, gy = (i / GRID) | 0; terrCtx.clearRect(gx, gy, 1, 1); }
+      if (S.trail[i] === h.id) S.trail[i] = 0;
+    }
+    recountCoverage();
+    if (h.id === 1) SFX.die(); else SFX.kill();
+  }
+  function feed(text) {
+    var div = document.createElement('div');
+    div.className = 'kf'; div.textContent = text;
+    el.killfeed.appendChild(div);
+    setTimeout(function () { div.remove(); }, 2400);
+  }
+
+  /* ═══ 7. 结束 ═══ */
+  function endGame(won, winnerId) {
+    S.phase = 'over'; S.__won = won;
+    var share = Math.round(S.coverage[1] / (GRID * GRID) * 1000) / 10;
+    var secs = Math.round((performance.now() - S.startAt) / 1000);
+    var myKills = S.kills.filter(function (k) { return k.killer === 1; }).length;
+    var best = safeStorage.get('mq_g10_best', { share: 0, kills: 0 });
+    var isBest = share > best.share;
+    if (isBest) safeStorage.set('mq_g10_best', { share: share, kills: Math.max(myKills, best.kills) });
+    if (won) SFX.win();
+    /* 玩家死因（从击杀记录反查） */
+    var myDeath = S.kills.filter(function (k) { return k.victim === 1; })[0];
+    var cause = '';
+    if (myDeath) {
+      cause = myDeath.reason === '出界' ? '冲出了边界'
+        : myDeath.reason === '相撞' ? '与对手迎面相撞'
+        : '撞上了' + NAMES[myDeath.killer] + '的轨迹';
+    }
+    document.getElementById('hud').classList.add('dim');
+    document.querySelector('footer').classList.add('hide');
+    renderHUD();   /* 终局数值刷新：HUD 与结算口径一致 */
+    showBanner(won ? SVG_WIN : SVG_LOSE, won ? '圈地称王' : '出局了',
+      (won ? '<b class="big">' + share + '%</b> 占地达成<br>击杀 <b>' + myKills + '</b> · 存活 <b>' + secs + '</b> 秒'
+           : '占地 <b>' + share + '%</b> · 击杀 <b>' + myKills + '</b> · 存活 <b>' + secs + '</b> 秒') +
+      (cause ? '<br><span class="cause">你' + cause + '</span>' : '') +
+      (S.kills.length > 1 ? '<br>本局共 ' + S.kills.length + ' 家出局' : '') +
+      (isBest ? '<br><b>新纪录！</b>' : '<br>历史最佳占地 ' + Math.max(best.share, share) + '%'),
+      '再来一局', function () { newGame(); },
+      { glow: won, confetti: won, cls: won ? 'gold' : 'red', second: { text: '回到封面', fn: function () {
+        hideBanner(); el.intro.hidden = false;
+      } } });
+  }
+  function showBanner(icon, title, subHTML, btn, fn, opts) {
+    opts = opts || {};
+    el.bIcon.innerHTML = icon;
+    el.bIcon.className = 'bicon' + (opts.glow ? ' glow' : '');
+    el.bTitle.textContent = title;
+    el.bTitle.className = 'bt ' + (opts.cls || 'gold');
+    el.bSub.innerHTML = subHTML;
+    el.bGo.textContent = btn;
+    el.bGo.onclick = function () { this.blur(); fn(); };
+    /* 次级按钮（回到封面等） */
+    var bGo2 = document.getElementById('b-go2');
+    if (opts.second) {
+      bGo2.hidden = false; bGo2.textContent = opts.second.text;
+      bGo2.onclick = function () { this.blur(); opts.second.fn(); };
+    } else bGo2.hidden = true;
+    el.cfHost.querySelectorAll('.cf').forEach(function (n) { n.remove(); });
+    document.body.classList.add('banner-open');
+    if (opts.confetti) {
+      var cols = ['#ffb347', '#ffd97e', '#a8ccf5', '#7ee0c3', '#f2a0c0'];
+      for (var c = 0; c < 14; c++) {
+        var sp = document.createElement('span');
+        sp.className = 'cf';
+        sp.style.left = (10 + Math.random() * 80) + '%';
+        sp.style.background = cols[c % cols.length];
+        sp.style.animationDelay = (Math.random() * .5) + 's';
+        sp.style.setProperty('--rot', ((120 + Math.random() * 260) | 0) + 'deg');
+        sp.style.setProperty('--fall', ((38 + Math.random() * 30) | 0) + 'px');
+        el.cfHost.appendChild(sp);
+      }
+    }
+    el.banner.hidden = false;
+  }
+  function hideBanner() { el.banner.hidden = true; document.body.classList.remove('banner-open'); }
+
+  /* ═══ 8. 输入（swipe + 键盘）═══ */
+  var touchStart = null;
+  var SWIPE_MIN = 22;
+  function turnTo(d) {
+    var me = S.heads[0];
+    if (!me || !me.alive) return;
+    if (me.wait) { me.wait = false; S.startAt = performance.now(); feed('出发！'); }   /* 首次输入才出发（开局保护） */
+    if ((d + 2) % 4 === me.dir) return;   /* 禁 180° 掉头 */
+    if (d === me.dir) return;
+    me.dir = d; SFX.turn();
+  }
+  el.cv.addEventListener('pointerdown', function (e) {
+    touchStart = { x: e.clientX, y: e.clientY };
+  });
+  el.cv.addEventListener('pointermove', function (e) {
+    if (!touchStart) return;
+    var dx = e.clientX - touchStart.x, dy = e.clientY - touchStart.y;
+    if (Math.abs(dx) < SWIPE_MIN && Math.abs(dy) < SWIPE_MIN) return;
+    turnTo(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 1 : 3) : (dy > 0 ? 2 : 0));
+    touchStart = { x: e.clientX, y: e.clientY };   /* 连续滑：重置基点 */
+  });
+  el.cv.addEventListener('pointerup', function () { touchStart = null; });
+  window.addEventListener('keydown', function (e) {
+    var map = { ArrowUp: 0, ArrowRight: 1, ArrowDown: 2, ArrowLeft: 3, w: 0, d: 1, s: 2, a: 3, W: 0, D: 1, S: 2, A: 3 };
+    if (map[e.key] != null) { e.preventDefault(); turnTo(map[e.key]); }
+  });
+
+  /* ═══ 9. 渲染 ═══ */
+  var CELL = 12;
+  function resize() {
+    var dpr = window.devicePixelRatio || 1;
+    el.cv.width = innerWidth * dpr; el.cv.height = innerHeight * dpr;
+    ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener('resize', resize); resize();
+
+  function render(now) {
+    var W = innerWidth, H = innerHeight;
+    /* 步进插值进度 */
+    var me = S.heads[0];
+    var t = clamp((now - S.lastStep) / STEP_MS, 0, 1);
+    /* 摄像机（lerp 0.1 追玩家头部插值位置） */
+    if (me) {
+      var hx = me.x + DX[me.dir] * t * 0;   /* 逻辑头已在新格，摄像机追逻辑头即可 */
+      S.cam.x += (me.x + .5 - S.cam.x) * .35;   /* 直线稳态滞后 ~6px；转向瞬态 <1.5 格 */
+      S.cam.y += (me.y + .5 - S.cam.y) * .35;
+    }
+    /* 地图坐标换算：视口中心=cam */
+    var scale = Math.min(W, H) / (GRID * CELL / 3.4);   /* 视口约见 3.4/10 地图 */
+    var viewW = W / scale, viewH = H / scale;
+    var camPx = S.cam.x * CELL, camPy = S.cam.y * CELL;
+    var ox = W / 2 - camPx * scale, oy = H / 2 - camPy * scale;
+    ctx2d.fillStyle = '#080d18'; ctx2d.fillRect(0, 0, W, H);
+    /* 地图底 */
+    ctx2d.imageSmoothingEnabled = false;
+    var mapPix = GRID * CELL;
+    ctx2d.fillStyle = '#101a30';
+    ctx2d.fillRect(ox, oy, mapPix * scale, mapPix * scale);
+    /* 领地层（离屏 1px/格 放大） */
+    ctx2d.drawImage(terrCv, ox, oy, mapPix * scale, mapPix * scale);
+    /* 格子底纹：细网格 + 每 8 格强调线（棋盘质感，领地叠其上） */
+    var gx0 = clamp(Math.floor((0 - ox) / (CELL * scale)) - 1, 0, GRID - 1);
+    var gx1 = clamp(Math.ceil((W - ox) / (CELL * scale)) + 1, 0, GRID);
+    var gy0 = clamp(Math.floor((0 - oy) / (CELL * scale)) - 1, 0, GRID - 1);
+    var gy1 = clamp(Math.ceil((H - oy) / (CELL * scale)) + 1, 0, GRID);
+    var cs = CELL * scale;
+    var mx0 = Math.max(ox, 0), mx1 = Math.min(ox + mapPix * scale, W);
+    var my0 = Math.max(oy, 0), my1 = Math.min(oy + mapPix * scale, H);
+    ctx2d.lineWidth = 1;
+    for (var pass = 0; pass < 2; pass++) {
+      ctx2d.strokeStyle = pass ? 'rgba(148,168,225,.38)' : 'rgba(148,168,225,.08)';
+      ctx2d.beginPath();
+      for (var gxL = gx0; gxL <= gx1; gxL++) {
+        if (pass && (gxL & 7)) continue;
+        var lx = Math.round(ox + gxL * cs) + .5;
+        if (lx < mx0 || lx > mx1) continue;
+        ctx2d.moveTo(lx, my0); ctx2d.lineTo(lx, my1);
+      }
+      for (var gyL = gy0; gyL <= gy1; gyL++) {
+        if (pass && (gyL & 7)) continue;
+        var ly = Math.round(oy + gyL * cs) + .5;
+        if (ly < my0 || ly > my1) continue;
+        ctx2d.moveTo(mx0, ly); ctx2d.lineTo(mx1, ly);
+      }
+      ctx2d.stroke();
+    }
+    /* 轨迹（视口内的格才画；1px 深描边与 8 格强调线分离） */
+    for (var gy = gy0; gy < gy1; gy++) {
+      for (var gx = gx0; gx < gx1; gx++) {
+        var tr = S.trail[idx(gx, gy)];
+        if (!tr) continue;
+        var trx = ox + gx * cs + cs * .18, tryy = oy + gy * cs + cs * .18, trs = cs * .64;
+        ctx2d.fillStyle = COLORS[tr].trail;
+        ctx2d.fillRect(trx, tryy, trs, trs);
+        ctx2d.lineWidth = 1;
+        ctx2d.strokeStyle = 'rgba(10,16,30,.6)';
+        ctx2d.strokeRect(trx + .5, tryy + .5, trs - 1, trs - 1);
+      }
+    }
+    /* 头部 */
+    for (var i = 0; i < S.heads.length; i++) {
+      var h = S.heads[i];
+      if (!h.alive) continue;
+      var px = ox + (h.x + .5) * cs, py = oy + (h.y + .5) * cs;
+      ctx2d.beginPath();
+      ctx2d.arc(px, py, cs * .46, 0, Math.PI * 2);
+      ctx2d.fillStyle = COLORS[h.id].head;
+      ctx2d.fill();
+      ctx2d.lineWidth = Math.max(1.5, cs * .1);
+      ctx2d.strokeStyle = COLORS[h.id].edge;
+      ctx2d.stroke();
+      /* 方向指示 */
+      ctx2d.beginPath();
+      ctx2d.arc(px + DX[h.dir] * cs * .2, py + DY[h.dir] * cs * .2, cs * .14, 0, Math.PI * 2);
+      ctx2d.fillStyle = 'rgba(14,21,38,.85)';
+      ctx2d.fill();
+    }
+    /* 地图边界（双线：外实内虚，警示边界） */
+    ctx2d.strokeStyle = 'rgba(148,168,225,.45)';
+    ctx2d.lineWidth = 2;
+    ctx2d.strokeRect(ox, oy, mapPix * scale, mapPix * scale);
+    ctx2d.strokeStyle = 'rgba(255,177,97,.22)';
+    ctx2d.lineWidth = 1;
+    ctx2d.setLineDash([6, 8]);
+    ctx2d.strokeRect(ox - 5, oy - 5, mapPix * scale + 10, mapPix * scale + 10);
+    ctx2d.setLineDash([]);
+    /* 小地图（右下角：全局态势，64×64 缩 62px；结算态 dim 不抢主视觉） */
+    var mmS = 62 / GRID, mmX = W - 74, mmY = H - 92;
+    if (S.phase === 'over') ctx2d.globalAlpha = .38;
+    ctx2d.fillStyle = 'rgba(9,14,26,.92)';
+    ctx2d.beginPath();
+    var mmr = 6;
+    ctx2d.moveTo(mmX + mmr, mmY);
+    ctx2d.arcTo(mmX + 62, mmY, mmX + 62, mmY + 62, mmr);
+    ctx2d.arcTo(mmX + 62, mmY + 62, mmX, mmY + 62, mmr);
+    ctx2d.arcTo(mmX, mmY + 62, mmX, mmY, mmr);
+    ctx2d.arcTo(mmX, mmY, mmX + 62, mmY, mmr);
+    ctx2d.closePath(); ctx2d.fill();
+    ctx2d.filter = 'contrast(1.35) saturate(1.25)';
+    ctx2d.drawImage(terrCv, mmX, mmY, 62, 62);
+    ctx2d.filter = 'none';
+    for (var mmi = 0; mmi < GRID * GRID; mmi++) {
+      var mt = S.trail[mmi];
+      if (!mt) continue;
+      ctx2d.fillStyle = COLORS[mt].head;
+      ctx2d.fillRect(mmX + (mmi % GRID) * mmS - .5, mmY + ((mmi / GRID) | 0) * mmS - .5, 2, 2);
+    }
+    for (var mmh = 0; mmh < S.heads.length; mmh++) {
+      var hh = S.heads[mmh];
+      if (!hh.alive) continue;
+      ctx2d.beginPath();
+      ctx2d.arc(mmX + (hh.x + .5) * mmS, mmY + (hh.y + .5) * mmS, 3.4, 0, Math.PI * 2);
+      ctx2d.fillStyle = COLORS[hh.id].head;
+      ctx2d.fill();
+      ctx2d.lineWidth = 1; ctx2d.strokeStyle = 'rgba(10,16,30,.9)'; ctx2d.stroke();
+    }
+    ctx2d.lineWidth = 1.5;
+    ctx2d.strokeStyle = 'rgba(148,168,225,.55)';
+    ctx2d.strokeRect(mmX - .5, mmY - .5, 63, 63);
+    ctx2d.strokeStyle = 'rgba(255,255,255,.8)';
+    ctx2d.lineWidth = 1.5;
+    ctx2d.strokeRect(mmX + gx0 * mmS, mmY + gy0 * mmS, (gx1 - gx0) * mmS, (gy1 - gy0) * mmS);
+    ctx2d.globalAlpha = 1;
+    /* 开局等待提示（呼吸圈+文字，首次 swipe 解除；仅头在己方领地内时显示） */
+    if (S.phase === 'playing' && me && me.wait && S.grid[idx(me.x, me.y)] === 1) {
+      var wx = ox + (me.x + .5) * cs, wy = oy + (me.y + .5) * cs;
+      var pulse = (Math.sin(now / 350) + 1) / 2;
+      ctx2d.beginPath();
+      ctx2d.arc(wx, wy, cs * (1.1 + pulse * .5), 0, Math.PI * 2);
+      ctx2d.lineWidth = 2; ctx2d.strokeStyle = 'rgba(143,208,255,' + (.35 + pulse * .4) + ')';
+      ctx2d.stroke();
+      ctx2d.font = '700 13px system-ui,sans-serif';
+      ctx2d.textAlign = 'center';
+      ctx2d.fillStyle = 'rgba(191,226,255,.95)';
+      ctx2d.fillText('滑动出发', wx, wy - cs * 2.2);
+      ctx2d.textAlign = 'left';
+    }
+    /* 死亡位置标记（失败态复盘：死点锚定 + 卡片避让——与弹窗文字恒 ≥12px 净距） */
+    var dm = document.getElementById('deathmark');
+    if (dm) {
+      if (S.phase === 'over' && !S.__won && me && !me.alive) {
+        dm.classList.add('show');
+        var dbx = ox + (me.x + .5) * cs, dby = oy + (me.y + .5) * cs, dR = 18;
+        var panel = document.querySelector('#banner .bpanel');
+        if (panel) {
+          var pr = panel.getBoundingClientRect();
+          if (dbx > pr.left - dR && dbx < pr.right + dR && dby > pr.top - dR && dby < pr.bottom + dR) {
+            var ddl = Math.abs((pr.left - dR) - dbx), ddr = Math.abs((pr.right + dR) - dbx);
+            var ddt = Math.abs((pr.top - dR) - dby), ddb = Math.abs((pr.bottom + dR) - dby);
+            var dmin = Math.min(ddl, ddr, ddt, ddb);
+            if (dmin === ddt) dby = pr.top - dR - 12;
+            else if (dmin === ddb) dby = pr.bottom + dR + 12;
+            else if (dmin === ddl) dbx = pr.left - dR - 12;
+            else dbx = pr.right + dR + 12;
+            /* 屏幕边界二次约束：左右放不下就改推上下（≥10px 屏缘安全距） */
+            if (dbx < dR + 10 || dbx > innerWidth - dR - 10) {
+              dbx = Math.max(Math.min(dbx, ox + (me.x + .5) * cs), dR + 10);
+              dbx = Math.min(dbx, innerWidth - dR - 10);
+              dby = dby < innerHeight / 2 ? pr.top - dR - 12 : pr.bottom + dR + 12;
+            }
+            if (dby < dR + 10) dby = pr.bottom + dR + 12;
+            if (dby > innerHeight - dR - 10) dby = pr.top - dR - 12;
+          }
+        }
+        dm.style.left = dbx + 'px';
+        dm.style.top = dby + 'px';
+        dm.textContent = '！';
+        /* 细线连回死点（锚定语义：徽章=死亡位置标记，非关闭按钮） */
+        var dln = document.getElementById('deathline');
+        if (dln) {
+          var tx2 = ox + (me.x + .5) * cs, ty2 = oy + (me.y + .5) * cs;
+          var dlx = tx2 - dbx, dly = ty2 - dby;
+          var dlen = Math.sqrt(dlx * dlx + dly * dly);
+          if (dlen > 24) {
+            dln.classList.add('show');
+            dln.style.left = dbx + 'px';
+            dln.style.top = dby + 'px';
+            dln.style.width = (dlen - 20) + 'px';
+            dln.style.transform = 'rotate(' + Math.atan2(dly, dlx) + 'rad)';
+          } else dln.classList.remove('show');
+        }
+      } else { dm.classList.remove('show'); var dl2 = document.getElementById('deathline'); if (dl2) dl2.classList.remove('show'); }
+    }
+    /* 摄像机偏差跟踪（dev） */
+    if (me) {
+      var cerr = Math.hypot((me.x + .5 - S.cam.x), (me.y + .5 - S.cam.y)) * CELL;
+      if (cerr > S.__camErrMax) S.__camErrMax = cerr;
+    }
+  }
+
+  function renderHUD() {
+    var total = GRID * GRID;
+    var meShare = S.coverage[1] / total * 100;
+    var foe = -1, foeId = 2;
+    for (var i = 2; i <= 4; i++) if (S.coverage[i] > foe) { foe = S.coverage[i]; foeId = i; }
+    var foeShare = Math.max(foe, 0) / total * 100;
+    if (!el.shareMe) {
+      el.shareMe = document.createElement('div'); el.shareMe.className = 'me';
+      el.shareFoe = document.createElement('div'); el.shareFoe.className = 'foe';
+      var bar = document.getElementById('share-bar');
+      bar.insertBefore(el.shareFoe, bar.firstChild);
+      bar.insertBefore(el.shareMe, el.shareFoe);   /* 我方在左 */
+    }
+    /* 对峙条按「我方 vs 最强 AI」相对占比分配（领先/落后一眼可判），数值仍显示绝对占比 */
+    var meCov = S.coverage[1];
+    /* 对峙条：双方都在时按相对占比+6%保底；一方归零则该段 0 宽（与像素一致） */
+    var duo = Math.max(meCov, 0) + Math.max(foe, 0);
+    var meW = duo > 0 ? (meCov > 0 && foe > 0 ? Math.max(meCov / duo * 100, 6) : meCov / duo * 100) : 0;
+    var foeW = duo > 0 ? (meCov > 0 && foe > 0 ? Math.max(foe / duo * 100, 6) : foe / duo * 100) : 0;
+    el.shareMe.style.width = meW + '%';
+    el.shareFoe.style.width = foeW + '%';
+    el.shareFoe.style.background = 'linear-gradient(180deg,' + COLORS[foeId].head + ',' + COLORS[foeId].edge + ')';
+    el.numsMe.textContent = '我方 ' + meShare.toFixed(1) + '%';
+    el.numsMe.style.color = '#a8dcff';
+    el.numsFoe.textContent = NAMES[foeId] + ' ' + foeShare.toFixed(1) + '%';
+    el.numsFoe.style.color = COLORS[foeId].head;
+  }
+
+  /* ═══ 10. 主循环 ═══ */
+  function loop(now) {
+    if (S.phase === 'playing' && now - S.lastStep >= STEP_MS) {
+      S.lastStep = now;
+      step();
+      renderHUD();
+    }
+    render(now);
+    requestAnimationFrame(loop);
+  }
+
+  /* ═══ 11. 事件 ═══ */
+  el.sound.addEventListener('click', function () {
+    var on = SFX.toggle();
+    el.sound.classList.toggle('off', !on);
+  });
+  el.sound.classList.toggle('off', !SFX.on);
+  el.introOk.addEventListener('click', function () {
+    el.intro.hidden = true;
+    safeStorage.set('mq_g10_intro', true);
+    SFX.unlock();
+  });
+
+  /* ═══ 12. dev 钩子 ═══ */
+  
+
+  /* ═══ 13. 启动 ═══ */
+  if (!safeStorage.get('mq_g10_intro', false)) el.intro.hidden = false;
+  newGame();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
