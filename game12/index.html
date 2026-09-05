@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0e1526">
+<title>气泡膜 · 离线版</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect x='4' y='4' width='40' height='40' rx='9' fill='%230e1526'/%3E%3Ccircle cx='19' cy='24' r='9' fill='rgba(235,242,252,.85)'/%3E%3Ccircle cx='33' cy='20' r='7' fill='rgba(235,242,252,.55)'/%3E%3Ccircle cx='16.5' cy='21' r='2.4' fill='%23fff'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#0e1526; --panel:rgba(24,33,58,.92); --line:rgba(148,168,225,.22);
+    --ink:#e8ecf8; --dim:#a8b3cf; --gold:#ffb347;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{background:radial-gradient(1000px 700px at 50% -14%, #1c2749 0%, var(--bg) 60%), var(--bg);
+    color:var(--ink);font-family:'Segoe UI',system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
+    overflow:hidden;position:fixed;inset:0;touch-action:none;user-select:none;-webkit-user-select:none}
+  #cv{position:absolute;inset:0;width:100%;height:100%;display:block}
+  /* ── 顶栏 ── */
+  #hud{position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);left:12px;right:12px;
+    display:flex;align-items:center;gap:10px;z-index:4;pointer-events:none}
+  #hud .t{flex:1;min-width:0}
+  #hud .t .nm{font-size:14px;font-weight:800;letter-spacing:.08em;color:var(--gold)}
+  #hud .t .nm small{font-size:10.5px;color:var(--dim);font-weight:400;margin-left:7px;letter-spacing:.05em}
+  #hud .t .ct{font-size:12px;color:var(--dim);margin-top:2px;font-variant-numeric:tabular-nums}
+  #hud .ct b{color:var(--ink)}
+  #hud .ct .combo{color:#ffd97e;font-weight:700}
+  #hud .ct .combo.hot{color:#ff8fb8}
+  #btn-new,#btn-sound{pointer-events:auto;width:38px;height:38px;border:1px solid var(--line);border-radius:11px;
+    background:var(--panel);color:var(--ink);font-size:15px;line-height:1;cursor:pointer;flex:none;
+    box-shadow:0 3px 8px rgba(0,0,0,.32)}
+  #btn-new{font-size:13px;font-weight:700}
+  #btn-new:active{transform:translateY(2px);box-shadow:0 1px 3px rgba(0,0,0,.3)}
+  #btn-sound.off{color:var(--dim)}
+  footer{position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + 20px);left:0;right:0;
+    text-align:center;font-size:11.5px;font-weight:600;color:#6d7a9e;letter-spacing:.05em;opacity:.9;pointer-events:none;z-index:3}
+  /* ── 说明层 ── */
+  #intro{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(8,13,24,.78);z-index:10}
+  #intro[hidden]{display:none}
+  #intro .ipanel{display:flex;flex-direction:column;gap:13px;width:min(86vw,340px);
+    background:rgba(21,30,54,.98);border:1px solid rgba(148,168,225,.4);border-radius:18px;padding:25px 26px;
+    box-shadow:0 26px 80px rgba(0,0,0,.8),inset 0 1px 0 rgba(255,255,255,.05)}
+  #intro .it{font-size:16.5px;font-weight:800;color:var(--gold);letter-spacing:.08em}
+  #intro .id{font-size:13.5px;color:#c6cfe4;line-height:1.9}
+  #intro .id b{color:#ffe9b8}
+  #intro .demo{display:flex;align-items:center;justify-content:center;gap:16px;padding:4px 0}
+  #intro button{padding:11px 0;font-size:15px;font-weight:700;color:#16202f;background:var(--gold);
+    border:none;border-radius:12px;cursor:pointer}
+</style>
+</head>
+<body>
+
+  <canvas id="cv"></canvas>
+
+  <div id="hud">
+    <div class="t">
+      <div class="nm">气泡膜<small>解压 · 无限戳</small></div>
+      <div class="ct"><span id="ct-sheet">本张 0 / 0</span> · 累计 <b id="ct-total">0</b> <span class="combo" id="ct-combo"></span></div>
+    </div>
+    <button id="btn-new" title="换一张">换</button>
+    <button id="btn-sound" title="音效开关">♪</button>
+  </div>
+
+  <footer>气泡膜 · 完全离线 · 想戳就戳</footer>
+
+  <div id="intro" hidden>
+    <div class="ipanel">
+      <div class="it">怎么玩</div>
+      <div class="id">这是一张<b>气泡膜</b>。<b>点一下</b>戳破一个泡，<b>按住滑动</b>可以一路连戳——没有目标、没有失败，戳到心情变好为止。</div>
+      <div class="demo">
+        <svg width="184" height="60" viewBox="0 0 184 60">
+          <defs>
+            <radialGradient id="dvmB" cx="38%" cy="34%" r="75%">
+              <stop offset="0" stop-color="rgba(248,251,255,.95)"/>
+              <stop offset=".55" stop-color="rgba(224,233,248,.55)"/>
+              <stop offset="1" stop-color="rgba(196,210,238,.28)"/>
+            </radialGradient>
+          </defs>
+          <ellipse cx="36" cy="49" rx="15" ry="5.5" fill="rgba(5,9,18,.3)"/>
+          <circle cx="36" cy="30" r="16" fill="url(#dvmB)" stroke="rgba(235,242,252,.45)" stroke-width="1.2"/>
+          <path d="M28.5 22.5 a11 11 0 0 1 12 -4.5" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="4" stroke-linecap="round"/>
+          <path d="M42.5 40 a11.5 11.5 0 0 0 7 -7" fill="none" stroke="rgba(150,190,255,.38)" stroke-width="2.6" stroke-linecap="round"/>
+          <path d="M66 30 h34 m-10 -10 l10 10 -10 10" stroke="#ffb347" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <ellipse cx="148" cy="49" rx="13" ry="5" fill="rgba(5,9,18,.3)"/>
+          <circle cx="148" cy="30" r="14.5" fill="rgba(13,20,38,.66)"/>
+          <g stroke="rgba(205,222,250,.3)" stroke-width="1">
+            <path d="M148 30 L141 22 M148 30 L157 24 M148 30 L151 41 M148 30 L139 36"/>
+          </g>
+          <path d="M148 17 a13.5 13.5 0 0 1 12 6.5" fill="none" stroke="rgba(240,246,255,.5)" stroke-width="1.7"/>
+          <path d="M148 43 a13.5 13.5 0 0 1 -12 -6.5" fill="none" stroke="rgba(96,118,160,.5)" stroke-width="1.7"/>
+        </svg>
+      </div>
+      <div class="id" style="font-size:14px;color:#e4d9c2"><b style="color:#ffd97e">金色泡</b>会引发连锁爆炸 · 整张戳完自动换新膜</div>
+      <button id="intro-ok">知道了，开戳</button>
+    </div>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ═══ 1. 常量 ═══ */
+  var BUBBLE_D = 46;            /* 泡直径 px（逻辑） */
+  var GOLD_MIN = 1, GOLD_MAX = 2;
+  var CASCADE_R = 3;            /* 金泡连爆半径（格距） */
+  var COMBO_WIN = 1200;         /* 连戳窗口 ms */
+
+  function hashInt(n) { n = (n ^ 61) ^ (n >>> 16); n = (n + (n << 3)) | 0; n = n ^ (n >>> 4); n = Math.imul(n, 0x27d4eb2d); n = n ^ (n >>> 15); return n >>> 0; }
+
+  var safeStorage = {
+    get: function (k, d) { try { var v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set: function (k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  };
+
+  var SFX = (function () {
+    var ctx = null, on = safeStorage.get('mq_g12_sound', true);
+    function ac() {
+      if (!ctx) { try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+      if (ctx && ctx.state === 'suspended') ctx.resume();
+      return ctx;
+    }
+    /* pop：短白噪 + 带通，pitch 随 combo 上行 + 随机抖动 */
+    function pop(combo, seedish) {
+      if (!on) return; var c = ac(); if (!c) return;
+      var dur = .06 + Math.random() * .03;
+      var buf = c.createBuffer(1, Math.ceil(c.sampleRate * dur), c.sampleRate);
+      var d = buf.getChannelData(0);
+      for (var i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 1.8);
+      var src = c.createBufferSource(); src.buffer = buf;
+      var bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1.4;
+      bp.frequency.value = 420 + Math.min(combo, 14) * 62 + (seedish || 0) * 160 + Math.random() * 120;
+      var g = c.createGain();
+      g.gain.setValueAtTime(.34, c.currentTime);
+      g.gain.exponentialRampToValueAtTime(.001, c.currentTime + dur);
+      src.connect(bp); bp.connect(g); g.connect(c.destination);
+      src.start();
+    }
+    var PENTA = [523, 587, 659, 784, 880, 1046, 1174, 1318];
+    function cascadeNote(step) {
+      if (!on) return; var c = ac(); if (!c) return;
+      var f = PENTA[Math.min(step, PENTA.length - 1)];
+      var o = c.createOscillator(), g = c.createGain();
+      o.type = 'triangle'; o.frequency.value = f;
+      g.gain.setValueAtTime(.09, c.currentTime);
+      g.gain.exponentialRampToValueAtTime(.001, c.currentTime + .22);
+      o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + .22);
+    }
+    function sheet() {   /* 换膜「哗」扫频 */
+      if (!on) return; var c = ac(); if (!c) return;
+      var buf = c.createBuffer(1, c.sampleRate * .5, c.sampleRate);
+      var d = buf.getChannelData(0);
+      for (var i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * .5 * (1 - i / d.length);
+      var src = c.createBufferSource(); src.buffer = buf;
+      var hp = c.createBiquadFilter(); hp.type = 'highpass';
+      hp.frequency.setValueAtTime(900, c.currentTime);
+      hp.frequency.exponentialRampToValueAtTime(3000, c.currentTime + .45);
+      var g = c.createGain(); g.gain.value = .16;
+      src.connect(hp); hp.connect(g); g.connect(c.destination); src.start();
+    }
+    return {
+      unlock: function () { ac(); },
+      pop: pop, cascadeNote: cascadeNote, sheet: sheet,
+      get on() { return on; },
+      toggle: function () { on = !on; safeStorage.set('mq_g12_sound', on); return on; }
+    };
+  })();
+
+  /* ═══ 2. 状态 ═══ */
+  var S = {
+    seed: 0,
+    bubbles: [],        /* {x,y(格),px,py(像素心),gold,st:intact|burst, bornAt} */
+    cols: 0, rows: 0,
+    total: 0, burstCount: 0,
+    grand: safeStorage.get('mq_g12_total', 0),
+    sheets: safeStorage.get('mq_g12_sheets', 0),
+    combo: 0, lastPopAt: 0,
+    particles: [],      /* {x,y,vx,vy,life,color} */
+    ripples: [],        /* {x,y,r,life,gold} */
+    flashes: [],        /* {x,y,r,life} 金泡爆闪 */
+    pointerDown: false,
+    sheetAt: 0,         /* 新膜淡入时刻 */
+    lastPopBub: null
+  };
+  var el = {
+    cv: document.getElementById('cv'),
+    ctSheet: document.getElementById('ct-sheet'), ctTotal: document.getElementById('ct-total'),
+    ctCombo: document.getElementById('ct-combo'),
+    sound: document.getElementById('btn-sound'), btnNew: document.getElementById('btn-new'),
+    intro: document.getElementById('intro'), introOk: document.getElementById('intro-ok')
+  };
+  var ctx2d = el.cv.getContext('2d');
+  var W = 0, H = 0, DPR = 1;
+
+  function resize() {
+    DPR = window.devicePixelRatio || 1;
+    W = innerWidth; H = innerHeight;
+    el.cv.width = W * DPR; el.cv.height = H * DPR;
+    ctx2d.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  window.addEventListener('resize', function () { resize(); layoutSheet(); });
+
+  /* ═══ 3. 布局与开张 ═══ */
+  var TOP_PAD = 74, BOT_PAD = 46;
+  function layoutSheet() {
+    var hexStepY = BUBBLE_D * 0.87;
+    var cellW = W / S.cols;
+    var usedH = (S.rows - 1) * hexStepY + BUBBLE_D;
+    var oy = TOP_PAD + Math.max(0, (H - TOP_PAD - BOT_PAD - usedH) / 2);
+    S.bubbles.forEach(function (b) {
+      b.px = (b.x + (b.y & 1 ? .5 : 0)) * cellW + cellW / 2;
+      b.py = oy + b.y * hexStepY + BUBBLE_D / 2;
+    });
+  }
+
+  function newSheet(seed) {
+    S.seed = (seed == null ? (Math.random() * 1e9 | 0) : seed) >>> 0;
+    S.bubbles = [];
+    S.burstCount = 0;
+    S.combo = 0;
+    var hexStepY = BUBBLE_D * 0.87;
+    S.cols = Math.max(4, Math.floor((W + 10) / BUBBLE_D));
+    S.rows = Math.max(6, Math.floor((H - TOP_PAD - BOT_PAD + hexStepY / 2) / hexStepY));
+    var cellW = W / S.cols;
+    var usedH = (S.rows - 1) * hexStepY + BUBBLE_D;
+    var oy = TOP_PAD + Math.max(0, (H - TOP_PAD - BOT_PAD - usedH) / 2);
+    S.total = 0;
+    for (var rr0 = 0; rr0 < S.rows; rr0++) S.total += (rr0 & 1) ? S.cols - 1 : S.cols;
+    /* 金泡 1-2 个（seeded；避开首尾行边缘） */
+    var r = S.seed;
+    var nGold = GOLD_MIN + (hashInt(r + 1) % (GOLD_MAX - GOLD_MIN + 1));
+    var goldSet = {};
+    for (var g = 0; g < nGold; g++) { r = hashInt(r + g * 331); goldSet[r % S.total] = true; }
+    var seq = 0;
+    for (var rr = 0; rr < S.rows; rr++)
+      for (var cc = 0; cc < S.cols; cc++) {
+        if ((rr & 1) && cc === S.cols - 1) continue;
+        var i = seq++;
+        S.bubbles.push({
+          x: cc, y: rr,
+          px: (cc + (rr & 1 ? .5 : 0)) * cellW + cellW / 2,
+          py: oy + rr * hexStepY + BUBBLE_D / 2,
+          gold: !!goldSet[i],
+          st: 'intact', bornDelay: (rr * 0.5 + (hashInt(S.seed + i) % 10) * 0.02),
+          jit: (hashInt(S.seed + i * 7) % 100) / 100   /* 每泡微差（高光/褶皱相位） */
+        });
+      }
+    S.sheetAt = performance.now();
+    SFX.sheet();
+    updateHUD();
+  }
+
+  function updateHUD() {
+    el.ctSheet.textContent = '本张 ' + S.burstCount + ' / ' + S.total;
+    el.ctTotal.textContent = S.grand;
+    if (S.combo >= 2) {
+      el.ctCombo.textContent = '连戳 ' + S.combo;
+      el.ctCombo.className = 'combo' + (S.combo >= 8 ? ' hot' : '');
+    } else { el.ctCombo.textContent = ''; el.ctCombo.className = 'combo'; }
+  }
+
+  /* ═══ 4. 戳破 ═══ */
+  function bubbleAt(px, py) {
+    /* 全量扫描（<150 泡，pointermove 频率下开销可忽略；蜂窝错位索引易错，直接扫最稳） */
+    var R2 = (BUBBLE_D / 2) * (BUBBLE_D / 2) * 1.15;
+    for (var i = 0; i < S.bubbles.length; i++) {
+      var b = S.bubbles[i];
+      if (b.st !== 'intact') continue;
+      var dx = px - b.px, dy = py - b.py;
+      if (dx * dx + dy * dy <= R2) return b;
+    }
+    return null;
+  }
+
+  function spawnBurstFX(b) {
+    var n = 11 + (Math.random() * 6 | 0);
+    for (var i = 0; i < n; i++) {
+      var a = Math.random() * Math.PI * 2, sp = 2 + Math.random() * 2.6;
+      S.particles.push({
+        x: b.px, y: b.py, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 1.2,
+        life: 1, gold: !!b.gold,
+        color: b.gold ? (i % 3 === 0 ? 'rgba(255,255,255,.95)' : (i % 2 ? '#ffd97e' : '#ffb347')) : (i % 3 ? 'rgba(235,242,252,.95)' : 'rgba(190,208,240,.9)')
+      });
+    }
+    S.ripples.push({ x: b.px, y: b.py, r: BUBBLE_D * .26, life: 1, gold: b.gold });
+    if (b.gold) S.flashes.push({ x: b.px, y: b.py, r: BUBBLE_D * .6, life: 1 });
+  }
+
+  function pop(b, fromCascade, cascadeStep) {
+    if (!b || b.st !== 'intact') return false;
+    b.st = 'burst';
+    b.popAt = performance.now();
+    S.burstCount++;
+    S.grand++;
+    var now = performance.now();
+    if (now - S.lastPopAt <= COMBO_WIN) S.combo++; else S.combo = 1;
+    S.lastPopAt = now;
+    spawnBurstFX(b);
+    if (navigator.vibrate) { try { navigator.vibrate(fromCascade ? 8 : 12); } catch (e) {} }
+    if (fromCascade) SFX.cascadeNote(cascadeStep || 0);
+    else SFX.pop(S.combo, b.x % 3);
+    /* 金泡：BFS 半径内连爆 */
+    if (b.gold && !fromCascade) {
+      var queue = [];
+      for (var i = 0; i < S.bubbles.length; i++) {
+        var o = S.bubbles[i];
+        if (o.st !== 'intact' || o === b) continue;
+        var dgrid = Math.hypot(o.x - b.x, (o.y - b.y) * 1.0);
+        var dpx = Math.hypot(o.px - b.px, o.py - b.py);
+        if (Math.min(dgrid, dpx / (BUBBLE_D * .95)) <= CASCADE_R) queue.push({ b: o, d: Math.min(dgrid, dpx / (BUBBLE_D * .95)) });
+      }
+      queue.sort(function (a, b2) { return a.d - b2.d; });
+      queue.forEach(function (q, qi) {
+        setTimeout(function () { pop(q.b, true, Math.min(qi, 7)); }, 90 + q.d * 85);
+      });
+    }
+    updateHUD();
+    if (S.burstCount >= S.total) {
+      S.sheets++;
+      safeStorage.set('mq_g12_sheets', S.sheets);
+      setTimeout(function () { newSheet(); }, 760);
+    }
+    return true;
+  }
+
+  function popAt(px, py) {
+    var b = bubbleAt(px, py);
+    return b ? pop(b) : false;
+  }
+
+  /* ═══ 5. 输入 ═══ */
+  function ptOf(e) { return { x: e.clientX, y: e.clientY }; }
+  el.cv.addEventListener('pointerdown', function (e) {
+    S.pointerDown = true;
+    var p = ptOf(e); popAt(p.x, p.y);
+  });
+  el.cv.addEventListener('pointermove', function (e) {
+    if (!S.pointerDown) return;
+    var p = ptOf(e); popAt(p.x, p.y);
+  });
+  window.addEventListener('pointerup', function () { S.pointerDown = false; });
+  window.addEventListener('pointercancel', function () { S.pointerDown = false; });
+  el.cv.addEventListener('click', function (e) {   /* 兜底（无 pointer 环境） */
+    if (e.detail === 0) return;
+    popAt(e.clientX, e.clientY);
+  });
+
+  /* ═══ 6. 渲染 ═══ */
+  function drawBubble(b, now) {
+    var R = BUBBLE_D / 2 - 3;
+    var fade = Math.min(1, (now - S.sheetAt) / 420 - (b.bornDelay || 0));
+    if (fade <= 0) return;
+    var alpha = Math.max(0, Math.min(1, fade));
+    var jx = (b.jit - .5) * R * .16, jy = (b.jit - .5) * R * .1;   /* 高光相位每泡微差 */
+    if (b.st === 'intact') {
+      var breath = b.gold ? .5 + .5 * Math.sin(now / 420 + b.x) : 0;
+      ctx2d.globalAlpha = alpha;
+      /* 软投影（泡下垫） */
+      ctx2d.beginPath();
+      ctx2d.ellipse(b.px, b.py + R * .74, R * .8, R * .3, 0, 0, Math.PI * 2);
+      ctx2d.fillStyle = 'rgba(5,9,18,.30)';
+      ctx2d.fill();
+      /* 膜体：径向渐变（左上光源） */
+      var grad = ctx2d.createRadialGradient(b.px - R * .3 + jx, b.py - R * .35 + jy, R * .1, b.px, b.py, R);
+      if (b.gold) {
+        grad.addColorStop(0, 'rgba(255,246,224,.96)');
+        grad.addColorStop(.55, 'rgba(255,224,168,.52)');
+        grad.addColorStop(1, 'rgba(236,196,130,.26)');
+      } else {
+        grad.addColorStop(0, 'rgba(248,251,255,.95)');
+        grad.addColorStop(.55, 'rgba(224,233,248,.5)');
+        grad.addColorStop(1, 'rgba(196,210,238,.24)');
+      }
+      ctx2d.beginPath(); ctx2d.arc(b.px, b.py, R, 0, Math.PI * 2);
+      ctx2d.fillStyle = grad; ctx2d.fill();
+      /* 下缘环境透光弧（rim light） */
+      ctx2d.beginPath();
+      ctx2d.arc(b.px, b.py, R * .84, Math.PI * .3, Math.PI * .78);
+      ctx2d.strokeStyle = 'rgba(150,190,255,.34)';
+      ctx2d.lineWidth = Math.max(2, R * .1);
+      ctx2d.lineCap = 'round';
+      ctx2d.stroke();
+      /* 月牙扫光（左上 120° 弧带） */
+      ctx2d.beginPath();
+      ctx2d.arc(b.px + jx, b.py + jy, R * .62, Math.PI * 1.02, Math.PI * 1.78);
+      ctx2d.strokeStyle = b.gold ? 'rgba(255,250,235,.6)' : 'rgba(255,255,255,.55)';
+      ctx2d.lineWidth = R * .2;
+      ctx2d.lineCap = 'round';
+      ctx2d.stroke();
+      /* 高光点（月牙端部） */
+      ctx2d.beginPath();
+      ctx2d.arc(b.px - R * .34 + jx, b.py - R * .3 + jy, R * .07 + 1, 0, Math.PI * 2);
+      ctx2d.fillStyle = 'rgba(255,255,255,.9)';
+      ctx2d.fill();
+      /* 描边 */
+      ctx2d.lineWidth = 1.2;
+      ctx2d.strokeStyle = b.gold ? 'rgba(255,205,130,.6)' : 'rgba(235,242,252,.42)';
+      ctx2d.beginPath(); ctx2d.arc(b.px, b.py, R, 0, Math.PI * 2); ctx2d.stroke();
+      if (b.gold) {
+        /* 呼吸发光（外光晕） */
+        ctx2d.save();
+        ctx2d.shadowColor = 'rgba(255,179,71,.75)';
+        ctx2d.shadowBlur = 7 + breath * 7;
+        ctx2d.lineWidth = 2.2;
+        ctx2d.strokeStyle = 'rgba(255,196,110,' + (.6 + breath * .35) + ')';
+        ctx2d.beginPath(); ctx2d.arc(b.px, b.py, R + 1.5, 0, Math.PI * 2); ctx2d.stroke();
+        ctx2d.restore();
+      }
+      ctx2d.globalAlpha = 1;
+    } else {
+      /* 破口：瘪泡残膜（暗基座 + 放射褶皱 + 双色卷边 + 残膜片） */
+      var t = Math.min(1, (now - (b.popAt || 0)) / 110);
+      ctx2d.globalAlpha = alpha * .94;
+      /* 基座 */
+      ctx2d.beginPath();
+      ctx2d.arc(b.px, b.py, R * (1 - t * .16), 0, Math.PI * 2);
+      ctx2d.fillStyle = 'rgba(13,20,38,.6)';
+      ctx2d.fill();
+      /* 放射褶皱线（中心向外的折痕） */
+      var cr = R * (.5 + t * .24);
+      for (var a = 0; a < 6; a++) {
+        var ang = a / 6 * Math.PI * 2 + b.jit * 2.1;
+        var rr2 = cr * (.6 + ((hashInt(b.x * 31 + b.y * 17 + a) % 100) / 100) * .55);
+        ctx2d.beginPath();
+        ctx2d.moveTo(b.px + Math.cos(ang) * cr * .12, b.py + Math.sin(ang) * cr * .12);
+        ctx2d.lineTo(b.px + Math.cos(ang) * rr2, b.py + Math.sin(ang) * rr2);
+        ctx2d.strokeStyle = 'rgba(205,222,250,.26)';
+        ctx2d.lineWidth = 1;
+        ctx2d.stroke();
+      }
+      /* 残膜片（2 片半透明白弧带，覆盖部分破口） */
+      for (var f = 0; f < 2; f++) {
+        var fa = b.jit * 3 + f * 2.7;
+        ctx2d.beginPath();
+        ctx2d.arc(b.px, b.py, cr * (.72 + f * .18), fa, fa + 1.15);
+        ctx2d.strokeStyle = 'rgba(230,240,254,.30)';
+        ctx2d.lineWidth = R * .16;
+        ctx2d.lineCap = 'round';
+        ctx2d.stroke();
+      }
+      /* 双色卷边：上亮下暗 */
+      ctx2d.beginPath();
+      ctx2d.arc(b.px, b.py, cr, Math.PI * 1.05, Math.PI * 1.95);
+      ctx2d.strokeStyle = 'rgba(240,246,255,.5)';
+      ctx2d.lineWidth = 1.6;
+      ctx2d.stroke();
+      ctx2d.beginPath();
+      ctx2d.arc(b.px, b.py, cr, Math.PI * .05, Math.PI * .95);
+      ctx2d.strokeStyle = 'rgba(96,118,160,.5)';
+      ctx2d.lineWidth = 1.6;
+      ctx2d.stroke();
+      ctx2d.globalAlpha = 1;
+    }
+  }
+
+  function render(now) {
+    ctx2d.clearRect(0, 0, W, H);
+    /* 膜底板（一张整体的暗垫，让泡更「浮」） */
+    var padTop = TOP_PAD - 14, padBot = H - BOT_PAD + 8;
+    ctx2d.fillStyle = 'rgba(16,25,47,.35)';
+    roundRect(6, padTop, W - 12, padBot - padTop, 18);
+    ctx2d.fill();
+    ctx2d.strokeStyle = 'rgba(148,168,225,.14)';
+    ctx2d.lineWidth = 1;
+    roundRect(6, padTop, W - 12, padBot - padTop, 18);
+    ctx2d.stroke();
+    for (var i = 0; i < S.bubbles.length; i++) drawBubble(S.bubbles[i], now);
+    /* 粒子（金泡粒子更大 + 白金混排 + 短拖尾） */
+    for (var p = S.particles.length - 1; p >= 0; p--) {
+      var pt = S.particles[p];
+      pt.x += pt.vx; pt.y += pt.vy; pt.vy += .1; pt.life -= .028;
+      if (pt.life <= 0) { S.particles.splice(p, 1); continue; }
+      var ps = (pt.gold ? 4.4 : 3.1) * pt.life + 1;
+      ctx2d.globalAlpha = pt.life * .55;
+      ctx2d.beginPath();
+      ctx2d.moveTo(pt.x - pt.vx * 2.4, pt.y - pt.vy * 2.4);
+      ctx2d.lineTo(pt.x, pt.y);
+      ctx2d.strokeStyle = pt.color;
+      ctx2d.lineWidth = ps * .8;
+      ctx2d.lineCap = 'round';
+      ctx2d.stroke();
+      ctx2d.globalAlpha = pt.life;
+      ctx2d.beginPath();
+      ctx2d.arc(pt.x, pt.y, ps, 0, Math.PI * 2);
+      ctx2d.fillStyle = pt.color;
+      ctx2d.fill();
+    }
+    ctx2d.globalAlpha = 1;
+    /* 涟漪（峰值 alpha .8、寿命 ~0.75s，确保像素级可见） */
+    for (var q = S.ripples.length - 1; q >= 0; q--) {
+      var rp = S.ripples[q];
+      rp.r += 2.2; rp.life -= .022;
+      if (rp.life <= 0) { S.ripples.splice(q, 1); continue; }
+      ctx2d.globalAlpha = rp.life * .8;
+      ctx2d.beginPath();
+      ctx2d.arc(rp.x, rp.y, rp.r, 0, Math.PI * 2);
+      ctx2d.lineWidth = 2.8;
+      ctx2d.strokeStyle = rp.gold ? 'rgba(255,196,110,.9)' : 'rgba(210,228,252,.8)';
+      ctx2d.stroke();
+    }
+    ctx2d.globalAlpha = 1;
+    /* 金泡爆闪（径向光斑） */
+    for (var f2 = S.flashes.length - 1; f2 >= 0; f2--) {
+      var fl = S.flashes[f2];
+      fl.r += 5.5; fl.life -= .05;
+      if (fl.life <= 0) { S.flashes.splice(f2, 1); continue; }
+      var fg = ctx2d.createRadialGradient(fl.x, fl.y, 0, fl.x, fl.y, fl.r);
+      fg.addColorStop(0, 'rgba(255,230,170,' + (.5 * fl.life) + ')');
+      fg.addColorStop(1, 'rgba(255,179,71,0)');
+      ctx2d.fillStyle = fg;
+      ctx2d.beginPath();
+      ctx2d.arc(fl.x, fl.y, fl.r, 0, Math.PI * 2);
+      ctx2d.fill();
+    }
+    requestAnimationFrame(render);
+  }
+  function roundRect(x, y, w, h, r) {
+    ctx2d.beginPath();
+    ctx2d.moveTo(x + r, y);
+    ctx2d.arcTo(x + w, y, x + w, y + h, r);
+    ctx2d.arcTo(x + w, y + h, x, y + h, r);
+    ctx2d.arcTo(x, y + h, x, y, r);
+    ctx2d.arcTo(x, y, x + w, y, r);
+    ctx2d.closePath();
+  }
+
+  /* ═══ 7. 事件 ═══ */
+  el.sound.addEventListener('click', function () {
+    var on2 = SFX.toggle();
+    el.sound.classList.toggle('off', !on2);
+  });
+  el.sound.classList.toggle('off', !SFX.on);
+  el.btnNew.addEventListener('click', function () { newSheet(); });
+  el.introOk.addEventListener('click', function () {
+    el.intro.hidden = true;
+    safeStorage.set('mq_g12_intro', true);
+    SFX.unlock();
+  });
+
+  /* ═══ 8. dev 钩子 ═══ */
+  
+
+  /* ═══ 9. 启动 ═══ */
+  resize();
+  if (!safeStorage.get('mq_g12_intro', false)) el.intro.hidden = false;
+  newSheet();
+  requestAnimationFrame(render);
+})();
+</script>
+</body>
+</html>
