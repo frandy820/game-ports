@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0d1322">
+<title>记忆翻牌 · 离线版</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect x='4' y='4' width='40' height='40' rx='9' fill='%230d1322'/%3E%3Cpath d='M24 12 l3 7 7.6 .8 -5.7 5.1 1.6 7.5 -6.5-3.8 -6.5 3.8 1.6-7.5 -5.7-5.1 7.6-.8z' fill='none' stroke='%23ffb347' stroke-width='2.6' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#0e1526; --panel:rgba(24,33,58,.92); --line:rgba(148,168,225,.22);
+    --ink:#e8ecf8; --dim:#a8b3cf; --gold:#ffb347; --danger:#e8586b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{background:radial-gradient(900px 600px at 50% -12%, #1a2444 0%, var(--bg) 58%);
+    color:var(--ink);font-family:'Segoe UI',system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
+    overflow:hidden;position:fixed;inset:0;touch-action:manipulation;user-select:none;-webkit-user-select:none;
+    display:flex;flex-direction:column}
+  /* ── 顶栏 HUD ── */
+  #hud{padding:calc(env(safe-area-inset-top,0px) + 12px) 14px 10px;display:flex;align-items:center;gap:10px;z-index:4}
+  #btn-back{width:36px;height:36px;border:1px solid var(--line);border-radius:10px;background:var(--panel);
+    color:var(--ink);font-size:16px;line-height:1;cursor:pointer;flex:none}
+  #hud .mid{flex:1;min-width:0}
+  #lvname{font-size:15px;font-weight:800;letter-spacing:.06em;color:var(--gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #lvname small{font-size:10.5px;color:var(--dim);font-weight:400;margin-left:7px;letter-spacing:.04em}
+  #stats{display:flex;gap:14px;margin-top:3px;font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums}
+  #stats b{color:var(--ink);font-weight:700}
+  #stats .combo b{color:#ffd97e;display:inline-block}
+  #stats .combo.hot b{color:#ff8fb8;text-shadow:0 0 8px rgba(255,143,184,.45)}
+  #stats .combo b.bump{animation:bump .3s ease}
+  @keyframes bump{40%{transform:scale(1.45)}100%{transform:scale(1)}}
+  #btn-sound{width:36px;height:36px;border:1px solid var(--line);border-radius:10px;background:var(--panel);
+    color:var(--ink);font-size:13px;line-height:1;cursor:pointer;flex:none}
+  #btn-sound.off{color:var(--dim)}
+  /* ── 牌面 ── */
+  #stage{flex:1;display:flex;align-items:center;justify-content:center;padding:6px 12px 16px;min-height:0}
+  #board{width:100%;max-width:430px;display:grid;gap:8px}
+  .card{position:relative;aspect-ratio:1/1;perspective:600px;cursor:pointer}
+  .card::before{content:'';position:absolute;inset:-4px;z-index:3}   /* 命中区外扩至 gap 中线（伪元素命中记入本牌），不改视觉 */
+  .card .inner{position:absolute;inset:0;transform-style:preserve-3d;transition:transform .35s cubic-bezier(.34,1.18,.44,1)}
+  .card.up .inner, .card.done .inner{transform:rotateY(180deg)}
+  .face{position:absolute;inset:0;border-radius:13%;backface-visibility:hidden;-webkit-backface-visibility:hidden;
+    display:flex;align-items:center;justify-content:center;overflow:hidden}
+  /* 背面：暗底+金菱纹 */
+  .back{background:linear-gradient(150deg,#1b2748,#141d36 60%,#101a30);
+    border:1px solid rgba(148,168,225,.24);box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 3px 10px rgba(0,0,0,.35)}
+  .back::before{content:'';position:absolute;inset:0;
+    background:
+      radial-gradient(80% 60% at 50% 34%, rgba(255,179,71,.10), transparent 70%),
+      repeating-linear-gradient(45deg, transparent 0 7px, rgba(148,168,225,.05) 7px 8px)}
+  .back .gem{width:34%;height:34%;opacity:.9}
+  /* 正面：面板底+图案 */
+  .front{transform:rotateY(180deg);background:linear-gradient(160deg,#1d2a4e,#182240);
+    border:1px solid rgba(148,168,225,.3)}
+  .front svg{width:58%;height:58%;filter:drop-shadow(0 2px 5px rgba(0,0,0,.4))}
+  .card.done .front{border-color:rgba(255,179,71,.55);
+    box-shadow:0 0 0 1px rgba(255,179,71,.3),0 0 16px rgba(255,179,71,.18),inset 0 1px 0 rgba(255,255,255,.05)}
+  .card.done .front svg{opacity:.88}
+  .card.done::after{content:'';position:absolute;top:6.5%;right:6.5%;width:22%;height:22%;border-radius:50%;
+    background:radial-gradient(circle at 32% 30%,#ffe9b8,#ffb347);box-shadow:0 1px 4px rgba(0,0,0,.45);
+    z-index:2;
+    -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6.5 12.5 l3.5 3.5 7-8' fill='none' stroke='black' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/68% no-repeat;
+    mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6.5 12.5 l3.5 3.5 7-8' fill='none' stroke='black' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/68% no-repeat}
+  .card.pop .inner{animation:pop .4s ease}
+  @keyframes pop{35%{transform:rotateY(180deg) scale(1.1)}100%{transform:rotateY(180deg) scale(1)}}
+  .card.shake{animation:shake .32s ease}
+  @keyframes shake{20%{transform:translateX(-5px)}45%{transform:translateX(4px)}70%{transform:translateX(-2.5px)}90%{transform:translateX(1.5px)}}
+  .card.wave .front{animation:waveGlow .55s ease both}
+  @keyframes waveGlow{40%{box-shadow:0 0 0 2px rgba(255,217,126,.75),0 0 22px rgba(255,179,71,.5)}}
+  /* ── 进度条 ── */
+  #progress{height:5px;margin:0 16px calc(env(safe-area-inset-bottom,0px)/2 + 4px);border-radius:3px;
+    background:rgba(148,168,225,.14);overflow:hidden;position:relative}
+  #progress::after{content:'';position:absolute;inset:0;pointer-events:none;
+    background:repeating-linear-gradient(90deg,transparent 0 calc(100%/var(--seg,8) - 1px),rgba(14,21,38,.85) calc(100%/var(--seg,8) - 1px) calc(100%/var(--seg,8)))}
+  #progress .fill{height:100%;width:0%;background:linear-gradient(90deg,#8fd0ff,#ffd97e);border-radius:3px;
+    transition:width .45s cubic-bezier(.3,1,.4,1)}
+  footer{padding:0 0 calc(env(safe-area-inset-bottom,0px) + 10px);text-align:center;font-size:10.5px;
+    color:#5c688a;letter-spacing:.05em;opacity:.8}
+  /* ── 封面（选关）── */
+  #cover{position:absolute;inset:0;z-index:9;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:14px;background:radial-gradient(900px 600px at 50% -12%, #1a2444 0%, var(--bg) 58%);padding:24px}
+  #cover[hidden]{display:none}
+  #cover h1{font-size:26px;font-weight:800;letter-spacing:.1em;color:var(--gold);text-align:center}
+  #cover .sub{font-size:12.5px;color:var(--dim);margin-top:-8px;letter-spacing:.06em}
+  #cover .brand{opacity:.95;margin-bottom:-2px}
+  #cover .cfoot{margin-top:6px;font-size:11px;color:#5c688a;letter-spacing:.08em}
+  #cover .lvls{display:flex;flex-direction:column;gap:11px;width:min(84vw,300px);margin-top:8px}
+  .lvl{position:relative;display:flex;align-items:center;gap:12px;padding:13px 16px;border-radius:15px;cursor:pointer;
+    background:linear-gradient(160deg,#1a2545,#151f3a);border:1px solid rgba(148,168,225,.26);
+    transition:transform .15s ease}
+  .lvl:active{transform:scale(.97)}
+  .lvl.locked{opacity:.45;cursor:default;filter:grayscale(.5)}
+  .lvl .num{width:34px;height:34px;border-radius:10px;background:rgba(255,179,71,.13);flex:none;
+    display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--gold);font-size:15px}
+  .lvl.locked .num{background:rgba(148,168,225,.1);color:var(--dim)}
+  .lvl .info{flex:1;min-width:0}
+  .lvl .nm{font-size:14.5px;font-weight:700}
+  .lvl .meta{font-size:11px;color:var(--dim);margin-top:2px}
+  .lvl .stars{display:flex;gap:2.5px;flex:none}
+  .lvl .stars svg{width:15px;height:15px}
+  /* ── 结算弹窗 ── */
+  #banner{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(10,15,28,.58);z-index:8;backdrop-filter:blur(2.5px);-webkit-backdrop-filter:blur(2.5px)}
+  #banner[hidden]{display:none}
+  #banner .bpanel{position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;gap:9px;
+    background:rgba(21,30,54,.97);border:1px solid rgba(255,179,71,.4);border-radius:18px;
+    padding:24px 30px 21px;box-shadow:0 26px 80px rgba(0,0,0,.75),0 0 0 1px rgba(255,255,255,.04),inset 0 1px 0 rgba(255,255,255,.05);
+    width:min(82vw,308px)}
+  #banner .stars{display:flex;gap:8px;margin:2px 0;align-items:center}
+  #banner .stars svg{width:37px;height:37px;opacity:0;transform:scale(.3)}
+  #banner .stars svg:nth-child(2){width:49px;height:49px}
+  #banner .stars svg.on{animation:starIn .45s cubic-bezier(.3,1.5,.5,1) forwards}
+  #banner .stars svg.off2{animation:starIn .3s ease forwards;opacity:.9}
+  @keyframes starIn{to{opacity:1;transform:scale(1)}}
+  #banner .bt{font-size:21px;font-weight:800;letter-spacing:.14em;color:var(--gold)}
+  #banner .bs{font-size:13.5px;color:#a8b3cf;line-height:1.85;text-align:center}
+  #banner .bs b{color:var(--gold);font-variant-numeric:tabular-nums}
+  #banner .bs .rec{color:#ff8fb8;font-weight:700}
+  #banner button.go{margin-top:5px;padding:11px 34px;font-size:15px;font-weight:700;color:#16202f;background:var(--gold);
+    border:none;border-radius:22px;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,.35);width:100%}
+  #banner .row2{display:flex;gap:9px;width:100%}
+  #banner button.go2{flex:1;padding:12px 0;font-size:12.5px;font-weight:600;color:#c6cfe4;
+    background:rgba(148,168,225,.07);border:1px solid rgba(148,168,225,.5);border-radius:18px;cursor:pointer}
+  #banner button.go2:active{background:rgba(148,168,225,.14)}
+  #banner .cf{position:absolute;top:-4px;width:8px;height:15px;border-radius:2px;opacity:0;
+    pointer-events:none;z-index:0;animation:cfFall 1.3s ease-in forwards;filter:drop-shadow(0 0 4px rgba(255,255,255,.4))}
+  @keyframes cfFall{0%{opacity:0;transform:translateY(0) rotate(0)}10%{opacity:1}
+    100%{opacity:1;transform:translateY(var(--fall,56px)) rotate(var(--rot,200deg))}}
+  /* ── 教学 ── */
+  #intro{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(8,13,24,.80);z-index:10}
+  #intro[hidden]{display:none}
+  #intro .ipanel{display:flex;flex-direction:column;gap:13px;width:min(86vw,340px);
+    background:rgba(21,30,54,.98);border:1px solid rgba(148,168,225,.4);border-radius:18px;padding:25px 26px;
+    box-shadow:0 26px 80px rgba(0,0,0,.8),inset 0 1px 0 rgba(255,255,255,.05)}
+  #intro .it{font-size:16.5px;font-weight:800;color:var(--gold);letter-spacing:.08em}
+  #intro .id{font-size:13.5px;color:#c6cfe4;line-height:1.9}
+  #intro .demo{display:flex;align-items:center;justify-content:center;gap:14px;padding:4px 0}
+  #intro button{padding:11px 0;font-size:15px;font-weight:700;color:#16202f;background:var(--gold);
+    border:none;border-radius:12px;cursor:pointer}
+</style>
+</head>
+<body>
+
+  <div id="hud">
+    <button id="btn-back" title="选关">‹</button>
+    <div class="mid">
+      <div id="lvname">—<small>—</small></div>
+      <div id="stats">
+        <span>步数 <b id="st-moves">0</b></span>
+        <span>用时 <b id="st-time">0:00</b></span>
+        <span class="combo" id="st-combo-box">连击 <b id="st-combo">0</b></span>
+      </div>
+    </div>
+    <button id="btn-sound" title="音效开关">♪</button>
+  </div>
+
+  <div id="stage"><div id="board"></div></div>
+
+  <div id="progress"><div class="fill" id="prog-fill"></div></div>
+  <footer>记忆翻牌 · 完全离线</footer>
+
+  <div id="banner" hidden>
+    <div class="bpanel">
+      <div class="cfhost"></div>
+      <div class="stars" id="b-stars"></div>
+      <div class="bt" id="b-title"></div>
+      <div class="bs" id="b-sub"></div>
+      <button class="go" id="b-go"></button>
+      <div class="row2">
+        <button class="go2" id="b-re"></button>
+        <button class="go2" id="b-cv"></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="cover" hidden>
+    <div class="brand">
+      <svg width="120" height="52" viewBox="0 0 120 52">
+        <rect x="6" y="8" width="36" height="36" rx="7" fill="#1b2748" stroke="rgba(148,168,225,.3)"/>
+        <g fill="none" stroke="rgba(255,179,71,.6)" stroke-width="1.5" stroke-linejoin="round"><path d="M24 18 L31 25 L24 32 L17 25 Z"/><path d="M24 21.5 L27.5 25 L24 28.5 L20.5 25 Z"/></g>
+        <rect x="47" y="8" width="36" height="36" rx="7" fill="#1d2a4e" stroke="rgba(148,168,225,.3)" transform="rotate(-8 65 26)"/>
+        <path d="M65 16.5 l2.6 6 6.4 .7 -4.8 4.3 1.4 6.4 -5.6-3.2 -5.6 3.2 1.4-6.4 -4.8-4.3 6.4-.7z" fill="none" stroke="#ffd97e" stroke-width="1.9" stroke-linejoin="round" transform="rotate(-8 65 26)"/>
+        <rect x="88" y="8" width="36" height="36" rx="7" fill="#1b2748" stroke="rgba(148,168,225,.3)" transform="rotate(8 106 26)"/>
+        <path d="M106 15 a9 9 0 1 0 5.5 16 a7.2 7.2 0 1 1 -5.5 -16z" fill="none" stroke="#b8a6ff" stroke-width="1.9" transform="rotate(8 106 26)"/>
+      </svg>
+    </div>
+    <h1>记忆翻牌</h1>
+    <div class="sub">翻开两张，图案相同即配对 · 全配对通关</div>
+    <div class="lvls" id="lvls"></div>
+    <div class="cfoot">口袋游戏机 · 系列 11 · 完全离线</div>
+  </div>
+
+  <div id="intro" hidden>
+    <div class="ipanel">
+      <div class="it">怎么玩</div>
+      <div class="id">点开一张牌记住图案，再点开第二张：<b>图案相同</b>即配对成功，不同则会被盖回去。把所有牌都配上对就过关。</div>
+      <div class="demo">
+        <svg width="150" height="64" viewBox="0 0 150 64">
+          <rect x="8" y="8" width="48" height="48" rx="8" fill="#1b2748" stroke="rgba(148,168,225,.3)"/>
+          <g fill="none" stroke="rgba(255,179,71,.6)" stroke-width="1.6" stroke-linejoin="round"><path d="M32 20 L41 29 L32 38 L23 29 Z"/><path d="M32 24.5 L36.5 29 L32 33.5 L27.5 29 Z"/></g>
+          <path d="M74 34 h20 m-7 -7 l7 7 -7 7" stroke="#ffb347" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="104" y="8" width="48" height="48" rx="8" fill="#1d2a4e" stroke="rgba(255,179,71,.5)"/>
+          <path d="M128 18 l3.2 7.4 8 .8 -6 5.4 1.7 8 -6.9-4 -6.9 4 1.7-8 -6-5.4 8-.8z" fill="#ffd97e" opacity=".92"/>
+        </svg>
+      </div>
+      <div class="id" style="font-size:13px;color:#d8dff0">连续配对成功攒连击 · 步数越少星级越高</div>
+      <button id="intro-ok">知道了，开翻</button>
+    </div>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ═══ 1. 常量与关卡 ═══ */
+  var LEVELS = [
+    { name: '启程', cols: 4, rows: 4, pairs: 8,  brief: '8 对 · 热身' },
+    { name: '进阶', cols: 5, rows: 4, pairs: 10, brief: '10 对 · 考验' },
+    { name: '大师', cols: 6, rows: 5, pairs: 15, brief: '15 对 · 挑战' }
+  ];
+  var GEM = '<svg viewBox="0 0 48 48"><g fill="none" stroke="rgba(255,179,71,.62)" stroke-width="1.7" stroke-linejoin="round"><path d="M24 13 L35 24 L24 35 L13 24 Z"/><path d="M24 18.5 L29.5 24 L24 29.5 L18.5 24 Z"/></g><circle cx="24" cy="24" r="2" fill="rgba(255,217,126,.8)"/></svg>';
+  var STAR_ON = '<svg viewBox="0 0 48 48"><path d="M24 7 l4.9 11.4 12.3 1.2 -9.2 8.3 2.6 12.1 -10.6-6.2 -10.6 6.2 2.6-12.1 -9.2-8.3 12.3-1.2z" fill="#ffb347" stroke="#ffd97e" stroke-width="2" stroke-linejoin="round"/></svg>';
+  var STAR_OFF = '<svg viewBox="0 0 48 48"><path d="M24 7 l4.9 11.4 12.3 1.2 -9.2 8.3 2.6 12.1 -10.6-6.2 -10.6 6.2 2.6-12.1 -9.2-8.3 12.3-1.2z" fill="rgba(148,168,225,.17)" stroke="rgba(148,168,225,.48)" stroke-width="2" stroke-linejoin="round"/></svg>';
+
+  /* 18 种自绘图案（星象万物系）：形+色双编码，杜绝「太像误配」 */
+  var MOTIFS = [
+    { k: 'star',  c: '#ffd97e', svg: '<path d="M24 8 l4.6 10.6 11.4 1.1 -8.6 7.7 2.4 11.2 -9.8-5.7 -9.8 5.7 2.4-11.2 -8.6-7.7 11.4-1.1z" fill="none" stroke="{C}" stroke-width="2.6" stroke-linejoin="round"/>' },
+    { k: 'moon',  c: '#b8a6ff', svg: '<path d="M31 6 a18 18 0 1 0 11 32 a14.5 14.5 0 1 1 -11 -32z" fill="none" stroke="{C}" stroke-width="2.7" stroke-linejoin="round"/><path d="M35 14 l1.4 3 3 1.4 -3 1.4 -1.4 3 -1.4-3 -3-1.4 3-1.4z" fill="{C}" opacity=".8"/>' },
+    { k: 'sun',   c: '#ff9d5c', svg: '<circle cx="24" cy="24" r="9.5" fill="none" stroke="{C}" stroke-width="3"/><path d="M24 5.5 v6.5 M24 36 v6.5 M5.5 24 h6.5 M36 24 h6.5 M11 11 l4.6 4.6 M32.4 32.4 l4.6 4.6 M37 11 l-4.6 4.6 M15.6 32.4 l-4.6 4.6" stroke="{C}" stroke-width="3.2" stroke-linecap="round"/>' },
+    { k: 'mount', c: '#8be8c0', svg: '<path d="M6 36 L18 14 L26 27 L31 19 L42 36 Z" fill="none" stroke="{C}" stroke-width="2.6" stroke-linejoin="round"/><circle cx="36" cy="11" r="2.6" fill="none" stroke="{C}" stroke-width="2"/>' },
+    { k: 'wave',  c: '#4da3ff', svg: '<path d="M6 17 q4.5 -6.5 9 0 t9 0 t9 0 t9 0" fill="none" stroke="{C}" stroke-width="2.7" stroke-linecap="round"/><path d="M6 27 q4.5 -6.5 9 0 t9 0 t9 0 t9 0 M6 37 q4.5 -6.5 9 0 t9 0 t9 0 t9 0" fill="none" stroke="{C}" stroke-width="2.7" stroke-linecap="round" opacity=".62"/><circle cx="12" cy="11.5" r="1.4" fill="{C}" opacity=".7"/><circle cx="35" cy="11.5" r="1.4" fill="{C}" opacity=".7"/>' },
+    { k: 'fire',  c: '#ff8a76', svg: '<path d="M24 6 C31 14 36 18 36 27 a12 12 0 0 1 -24 0 C12 21 17 17 17 10 c3 3 5 5 7 4.5 C23.5 12 23 9 24 6z" fill="none" stroke="{C}" stroke-width="2.6" stroke-linejoin="round"/>' },
+    { k: 'wind',  c: '#a8dcff', svg: '<path d="M7 14 h13 a6.5 6.5 0 1 0 -6.5 -6.5 M7 24 h19 a6.5 6.5 0 1 1 -6.5 6.5 M7 34 h9 a5 5 0 1 1 -5 5" fill="none" stroke="{C}" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round"/>' },
+    { k: 'bolt',  c: '#d8dde8', svg: '<path d="M27 5 L13 27 h8 L21 43 L36 20 h-8.5 z" fill="none" stroke="{C}" stroke-width="2.6" stroke-linejoin="round"/>' },
+    { k: 'flower',c: '#f2a0c0', svg: '<circle cx="24" cy="24" r="4.6" fill="{C}" opacity=".85"/><g fill="none" stroke="{C}" stroke-width="2.4"><circle cx="24" cy="11.5" r="5"/><circle cx="35" cy="18.8" r="5"/><circle cx="30.8" cy="31.6" r="5"/><circle cx="17.2" cy="31.6" r="5"/><circle cx="13" cy="18.8" r="5"/></g>' },
+    { k: 'leaf',  c: '#8be8c0', svg: '<path d="M10 38 C10 18 26 8 40 9 C39 24 30 39 12 38 M12 36 C18 28 26 20 36 13" fill="none" stroke="{C}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>' },
+    { k: 'fish',  c: '#6fd0b8', svg: '<path d="M8 24 C14 15 24 12 33 16 c4 2 6 5 6 8 s-2 6 -6 8 C24 36 14 33 8 24z M39 24 l7 -7 v14z" fill="none" stroke="{C}" stroke-width="2.5" stroke-linejoin="round"/><circle cx="16" cy="22" r="1.8" fill="{C}"/>' },
+    { k: 'bird',  c: '#c58bff', svg: '<path d="M8 26 q8 -12 16 -4 q2 -9 10 -10 q-2 6 1 9 q5 1 7 5 M24 22 q4 8 12 8" fill="none" stroke="{C}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="34" cy="15.5" r="1.4" fill="{C}"/>' },
+    { k: 'boat',  c: '#ffd97e', svg: '<path d="M12 32 h24 l-4.5 7 h-15z" fill="none" stroke="{C}" stroke-width="2.5" stroke-linejoin="round"/><path d="M24 30 V9 M24 11 l9 8 h-9 M24 15 l-7 6 h7" fill="none" stroke="{C}" stroke-width="2.2" stroke-linejoin="round"/><path d="M7 41 h34" stroke="{C}" stroke-width="2.2" stroke-linecap="round" opacity=".55"/>' },
+    { k: 'bell',  c: '#ff8fb8', svg: '<path d="M24 8 c7 0 11 5.5 11 12 0 6 1.8 8.5 3.5 10 H9.5 C11.2 28.5 13 26 13 20 c0-6.5 4-12 11-12z" fill="none" stroke="{C}" stroke-width="2.5" stroke-linejoin="round"/><path d="M20.5 34 a3.5 3.5 0 0 0 7 0" fill="none" stroke="{C}" stroke-width="2.4"/><circle cx="24" cy="36.8" r="2" fill="{C}"/><path d="M24 8 V5" stroke="{C}" stroke-width="2.4" stroke-linecap="round"/>' },
+    { k: 'jar',   c: '#8fd0ff', svg: '<path d="M19 11 h10 M17 11 c-6.5 4 -9.5 9 -9.5 15.5 a16.5 13 0 0 0 30 0 c0-6.5 -3-11.5 -9.5-15.5" fill="none" stroke="{C}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M17 11 c1.2 2.6 3.2 4 7 4 s5.8-1.4 7-4" fill="none" stroke="{C}" stroke-width="2" opacity=".75"/><path d="M16.5 27 q7.5 5 15 0" fill="none" stroke="{C}" stroke-width="2" opacity=".6"/>' },
+    { k: 'mirror',c: '#a8dcff', svg: '<circle cx="24" cy="19" r="11" fill="none" stroke="{C}" stroke-width="2.6"/><circle cx="24" cy="19" r="5.5" fill="none" stroke="{C}" stroke-width="2" opacity=".6"/><path d="M24 30 v10 M18.5 40 h11 M24 34.5 l0 .01" stroke="{C}" stroke-width="2.6" stroke-linecap="round"/>' },
+    { k: 'beads', c: '#6fd8d0', svg: '<path d="M13 35 a11 11 0 0 1 22 0" fill="none" stroke="{C}" stroke-width="2" opacity=".55"/><circle cx="24" cy="11" r="4.4" fill="none" stroke="{C}" stroke-width="2.5"/><circle cx="15.5" cy="27" r="4.4" fill="none" stroke="{C}" stroke-width="2.5"/><circle cx="32.5" cy="27" r="4.4" fill="none" stroke="{C}" stroke-width="2.5"/><circle cx="24" cy="38" r="3" fill="{C}" opacity=".85"/>' },
+    { k: 'fan',   c: '#ffd97e', svg: '<path d="M24 40 L14 14 a14 14 0 0 1 20 0z" fill="none" stroke="{C}" stroke-width="2.5" stroke-linejoin="round"/><path d="M24 40 L19 12.2 M24 40 L29 12.2 M24 40 V11" stroke="{C}" stroke-width="1.8" opacity=".65"/><path d="M18 43 h12" stroke="{C}" stroke-width="2.6" stroke-linecap="round"/>' }
+  ];
+
+  function motifSVG(m) { return '<svg viewBox="0 0 48 48">' + m.svg.split('{C}').join(m.c) + '</svg>'; }
+
+  function hashInt(n) { n = (n ^ 61) ^ (n >>> 16); n = (n + (n << 3)) | 0; n = n ^ (n >>> 4); n = Math.imul(n, 0x27d4eb2d); n = n ^ (n >>> 15); return n >>> 0; }
+
+  var safeStorage = {
+    get: function (k, d) { try { var v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set: function (k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+    del: function (k) { try { localStorage.removeItem(k); } catch (e) {} }
+  };
+
+  var SFX = (function () {
+    var ctx = null, on = safeStorage.get('mq_g11_sound', true);
+    function ac() {
+      if (!ctx) { try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+      if (ctx && ctx.state === 'suspended') ctx.resume();
+      return ctx;
+    }
+    function beep(freq, dur, type, vol, delay) {
+      if (!on) return; var c = ac(); if (!c) return;
+      var t0 = c.currentTime + (delay || 0);
+      var o = c.createOscillator(), g = c.createGain();
+      o.type = type || 'triangle'; o.frequency.value = freq;
+      g.gain.setValueAtTime(vol || .07, t0);
+      g.gain.exponentialRampToValueAtTime(.0001, t0 + dur);
+      o.connect(g); g.connect(c.destination);
+      o.start(t0); o.stop(t0 + dur);
+    }
+    return {
+      unlock: function () { ac(); },
+      flip: function () { beep(360, .05, 'square', .03); },
+      match: function (combo) {
+        var base = 520 + Math.min(combo, 8) * 46;
+        beep(base, .1, 'triangle', .08); beep(base * 1.5, .13, 'triangle', .06, .08);
+      },
+      miss: function () { beep(200, .12, 'sine', .05); beep(150, .14, 'sine', .04, .09); },
+      win: function () { [523, 659, 784, 1046, 1318].forEach(function (f, i) { beep(f, .2, 'triangle', .08, i * .12); }); },
+      get on() { return on; },
+      toggle: function () { on = !on; safeStorage.set('mq_g11_sound', on); return on; }
+    };
+  })();
+
+  /* ═══ 2. 状态 ═══ */
+  var S = {
+    phase: 'cover',          /* cover | playing | over */
+    level: 0,
+    seed: 0,
+    cards: [],               /* {motif(索引), st:'cover'|'up'|'done', el} */
+    revealed: [],            /* 已翻开未结算的牌下标 */
+    lock: false,
+    moves: 0,
+    matched: 0,
+    combo: 0,
+    maxCombo: 0,
+    startAt: 0,
+    timerId: 0
+  };
+  var el = {
+    board: document.getElementById('board'), stage: document.getElementById('stage'),
+    lvname: document.getElementById('lvname'),
+    stMoves: document.getElementById('st-moves'), stTime: document.getElementById('st-time'),
+    stCombo: document.getElementById('st-combo'), stComboBox: document.getElementById('st-combo-box'),
+    prog: document.getElementById('prog-fill'),
+    cover: document.getElementById('cover'), lvls: document.getElementById('lvls'),
+    banner: document.getElementById('banner'), bStars: document.getElementById('b-stars'),
+    bTitle: document.getElementById('b-title'), bSub: document.getElementById('b-sub'),
+    bGo: document.getElementById('b-go'), bRe: document.getElementById('b-re'), bCv: document.getElementById('b-cv'),
+    cfHost: document.querySelector('#banner .cfhost'),
+    intro: document.getElementById('intro'), introOk: document.getElementById('intro-ok'),
+    sound: document.getElementById('btn-sound'), back: document.getElementById('btn-back')
+  };
+
+  function fmtTime(s) { var m = (s / 60) | 0; return m + ':' + ('0' + (s % 60)).slice(-2); }
+  function fmtTimeBest(s) { return s < 1 ? '＜1秒' : fmtTime(s); }
+  function fmtTimeMs(ms) { var m = (ms / 60000) | 0, s = ((ms % 60000) / 1000); return m + ':' + (s < 10 ? '0' : '') + s.toFixed(1); }
+  function bestKey(lv) { return 'mq_g11_best_' + lv; }
+
+  /* ═══ 3. 开局 ═══ */
+  function shuffle(arr, seed) {
+    var r = seed;
+    for (var i = arr.length - 1; i > 0; i--) {
+      r = hashInt(r + i * 2654435761);
+      var j = r % (i + 1);
+      var t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+    }
+    return arr;
+  }
+
+  function buildDeck(pairs, seed) {
+    /* 图案抽取：seeded 不重复抽 pairs 种 → 成对 → 洗牌 */
+    var idxs = [];
+    for (var i = 0; i < MOTIFS.length; i++) idxs.push(i);
+    shuffle(idxs, seed ^ 0x9e3779b9);
+    var deck = [];
+    for (var p = 0; p < pairs; p++) { deck.push(idxs[p]); deck.push(idxs[p]); }
+    shuffle(deck, seed);
+    return deck;
+  }
+
+  function newGame(level, seed) {
+    if (level == null) level = 0;
+    var L = LEVELS[level];
+    S.level = level;
+    S.seed = (seed == null ? (Math.random() * 1e9 | 0) : seed) >>> 0;
+    S.cards = [];
+    S.revealed = []; S.lock = false;
+    S.moves = 0; S.matched = 0; S.combo = 0; S.maxCombo = 0;
+    S.phase = 'playing';
+    if (S.timerId) { clearInterval(S.timerId); S.timerId = 0; }
+    S.startAt = performance.now();
+    S.timerId = setInterval(tickTime, 500);
+
+    var deck = buildDeck(L.pairs, S.seed);
+    el.board.innerHTML = '';
+    el.board.style.gridTemplateColumns = 'repeat(' + L.cols + ',1fr)';
+    for (var i = 0; i < deck.length; i++) {
+      (function (ci, motifIdx) {
+        var c = document.createElement('div');
+        c.className = 'card';
+        c.innerHTML = '<div class="inner"><div class="face back">' + GEM + '</div>' +
+          '<div class="face front">' + motifSVG(MOTIFS[motifIdx]) + '</div></div>';
+        c.addEventListener('pointerup', function (ev) { ev.preventDefault(); tap(ci); });
+        c.addEventListener('click', function (ev) { if (!c.__ped) { c.__ped = 1; tap(ci); setTimeout(function () { c.__ped = 0; }, 450); } });
+        el.board.appendChild(c);
+        S.cards.push({ motif: motifIdx, st: 'cover', el: c });
+      })(i, deck[i]);
+    }
+    el.lvname.innerHTML = '第' + '一二三'[level] + '关 · ' + L.name + '<small>' + L.brief + '</small>';
+    el.prog.parentElement.style.setProperty('--seg', L.pairs);
+    updateHUD();
+    el.cover.hidden = true;
+    hideBanner();
+    S.startAt = performance.now();   /* 以建盘完成时刻计 */
+  }
+
+  function tickTime() {
+    if (S.phase !== 'playing') return;
+    el.stTime.textContent = fmtTime(((performance.now() - S.startAt) / 1000) | 0);
+  }
+
+  function updateHUD() {
+    el.stMoves.textContent = S.moves;
+    if (el.stCombo.textContent !== String(S.combo)) {
+      el.stCombo.textContent = S.combo;
+      el.stCombo.classList.remove('bump'); void el.stCombo.offsetWidth; el.stCombo.classList.add('bump');
+    }
+    el.stComboBox.classList.toggle('hot', S.combo >= 3);
+    var L = LEVELS[S.level];
+    el.prog.style.width = (S.matched / L.pairs * 100) + '%';
+  }
+
+  /* ═══ 4. 翻牌状态机 ═══ */
+  function tap(i) {
+    if (S.phase !== 'playing' || S.lock) return;
+    var c = S.cards[i];
+    if (!c || c.st !== 'cover') return;
+    c.st = 'up'; c.el.classList.add('up');
+    S.revealed.push(i);
+    SFX.flip();
+    if (S.revealed.length < 2) return;
+
+    /* 第二张：结算 */
+    S.moves++;
+    var a = S.cards[S.revealed[0]], b = S.cards[S.revealed[1]];
+    if (a.motif === b.motif) {
+      a.st = 'done'; b.st = 'done';
+      a.el.classList.remove('up'); b.el.classList.remove('up');
+      a.el.classList.add('done', 'pop'); b.el.classList.add('done', 'pop');
+      setTimeout(function () { a.el.classList.remove('pop'); b.el.classList.remove('pop'); }, 420);
+      S.matched++; S.combo++;
+      if (S.combo > S.maxCombo) S.maxCombo = S.combo;
+      S.revealed = [];
+      SFX.match(S.combo);
+      updateHUD();
+      if (S.matched === LEVELS[S.level].pairs) setTimeout(function () {
+        /* 重校验：期间被 newGame 重开（matched 已清零）则不结算 */
+        if (S.matched === LEVELS[S.level].pairs && S.phase === 'playing') win();
+      }, 620);
+    } else {
+      S.combo = 0;
+      S.lock = true;
+      a.el.classList.add('shake'); b.el.classList.add('shake');
+      SFX.miss();
+      updateHUD();
+      var ra = S.revealed.slice();
+      setTimeout(function () {
+        a.el.classList.remove('shake'); b.el.classList.remove('shake');
+        a.st = 'cover'; b.st = 'cover';
+        a.el.classList.remove('up'); b.el.classList.remove('up');
+        S.revealed = []; S.lock = false;
+      }, 900);
+      void ra;
+    }
+  }
+
+  /* ═══ 5. 胜利 ═══ */
+  function starOf(moves, pairs) {
+    if (moves <= Math.ceil(pairs * 1.6)) return 3;
+    if (moves <= Math.ceil(pairs * 2.2)) return 2;
+    return 1;
+  }
+  function win() {
+    if (S.phase !== 'playing') return;
+    S.phase = 'over';
+    if (S.timerId) { clearInterval(S.timerId); S.timerId = 0; }
+    var L = LEVELS[S.level];
+    var ms = performance.now() - S.startAt;
+    var secs = (ms / 1000) | 0;
+    var stars = starOf(S.moves, L.pairs);
+    var best = safeStorage.get(bestKey(S.level), null);
+    var isRec = !best || S.moves < best.moves || (S.moves === best.moves && secs < best.secs);
+    if (isRec) safeStorage.set(bestKey(S.level), { moves: S.moves, secs: secs, stars: Math.max(stars, best ? best.stars : 0) });
+    else if (stars > best.stars) safeStorage.set(bestKey(S.level), { moves: best.moves, secs: best.secs, stars: stars });
+    /* 解锁下一关 */
+    var unlocked = safeStorage.get('mq_g11_unlock', 1);
+    if (S.level + 2 > unlocked) safeStorage.set('mq_g11_unlock', Math.min(S.level + 2, LEVELS.length));
+    SFX.win();
+    /* 全盘波浪 */
+    S.cards.forEach(function (c, i) { setTimeout(function () { c.el.classList.add('wave'); }, i * 55); });
+
+    var last = S.level === LEVELS.length - 1;
+    showBanner(stars,
+      last ? '全部通关' : '配对完成',
+      '步数 <b>' + S.moves + '</b> · 用时 <b>' + fmtTimeMs(ms) + '</b><br>最高连击 <b>' + S.maxCombo + '</b> 连' +
+      (isRec ? '<br><span class="rec">新纪录！</span>' : ''),
+      last ? '再玩一遍' : '下一关',
+      function () { newGame(last ? S.level : S.level + 1); },
+      '重玩本关', function () { newGame(S.level); },
+      '选关', function () { hideBanner(); showCover(); });
+  }
+
+  function showBanner(stars, title, subHTML, goTxt, goFn, reTxt, reFn, cvTxt, cvFn) {
+    el.bStars.innerHTML = '';
+    for (var i = 0; i < 3; i++) {
+      var sp = document.createElement('span');
+      sp.innerHTML = i < stars ? STAR_ON : STAR_OFF;
+      var sv = sp.firstChild;
+      sv.style.animationDelay = (0.15 + i * 0.22) + 's';
+      sv.classList.add(i < stars ? 'on' : 'off2');
+      el.bStars.appendChild(sv);
+    }
+    el.bTitle.textContent = title;
+    el.bSub.innerHTML = subHTML;
+    el.bGo.textContent = goTxt; el.bGo.onclick = function () { this.blur(); goFn(); };
+    el.bRe.textContent = reTxt; el.bRe.onclick = function () { this.blur(); reFn(); };
+    el.bCv.textContent = cvTxt; el.bCv.onclick = function () { this.blur(); cvFn(); };
+    el.cfHost.querySelectorAll('.cf').forEach(function (n) { n.remove(); });
+    var cols = ['#ffb347', '#ffd97e', '#a8ccf5', '#7ee0c3', '#f2a0c0'];
+    for (var c = 0; c < 16; c++) {
+      var sp2 = document.createElement('span');
+      sp2.className = 'cf';
+      sp2.style.left = (8 + Math.random() * 84) + '%';
+      sp2.style.background = cols[c % cols.length];
+      sp2.style.animationDelay = (Math.random() * .5) + 's';
+      sp2.style.setProperty('--rot', ((120 + Math.random() * 260) | 0) + 'deg');
+      sp2.style.setProperty('--fall', ((44 + Math.random() * 44) | 0) + 'px');
+      el.cfHost.appendChild(sp2);
+    }
+    el.banner.hidden = false;
+  }
+  function hideBanner() { el.banner.hidden = true; }
+
+  /* ═══ 6. 封面（选关）═══ */
+  function showCover() {
+    S.phase = 'cover';
+    if (S.timerId) { clearInterval(S.timerId); S.timerId = 0; }
+    var unlocked = safeStorage.get('mq_g11_unlock', 1);
+    el.lvls.innerHTML = '';
+    LEVELS.forEach(function (L, i) {
+      var locked = i + 1 > unlocked;
+      var best = safeStorage.get(bestKey(i), null);
+      var d = document.createElement('div');
+      d.className = 'lvl' + (locked ? ' locked' : '');
+      var st = best ? best.stars : 0;
+      var starsHTML = '';
+      for (var s = 0; s < 3; s++) starsHTML += s < st ? STAR_ON : STAR_OFF;
+      d.innerHTML = '<div class="num">' + (locked ? '🔒' : (i + 1)) + '</div>' +
+        '<div class="info"><div class="nm">' + L.name + '</div>' +
+        '<div class="meta">' + (best ? '最佳 ' + best.moves + ' 步 · ' + fmtTimeBest(best.secs) : '未挑战 · ' + L.brief.replace(' · ', '，')) + '</div></div>' +
+        '<div class="stars">' + starsHTML + '</div>';
+      if (!locked) d.addEventListener('click', function () { SFX.unlock(); newGame(i); });
+      el.lvls.appendChild(d);
+    });
+    el.cover.hidden = false;
+  }
+
+  /* ═══ 7. 事件 ═══ */
+  el.sound.addEventListener('click', function () {
+    var on2 = SFX.toggle();
+    el.sound.classList.toggle('off', !on2);
+  });
+  el.sound.classList.toggle('off', !SFX.on);
+  el.back.addEventListener('click', function () { hideBanner(); showCover(); });
+  el.introOk.addEventListener('click', function () {
+    el.intro.hidden = true;
+    safeStorage.set('mq_g11_intro', true);
+    SFX.unlock();
+  });
+
+  /* ═══ 8. dev 钩子 ═══ */
+  
+
+  /* ═══ 9. 启动 ═══ */
+  if (!safeStorage.get('mq_g11_intro', false)) el.intro.hidden = false;
+  showCover();
+})();
+</script>
+</body>
+</html>
