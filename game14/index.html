@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0e1526">
+<title>开关灯谜题 · 离线版</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect x='4' y='4' width='40' height='40' rx='9' fill='%230e1526'/%3E%3Ccircle cx='17' cy='17' r='6.5' fill='%23ffb347'/%3E%3Ccircle cx='31' cy='17' r='6.5' fill='%23ffb347'/%3E%3Ccircle cx='17' cy='31' r='6.5' fill='%23ffb347'/%3E%3Ccircle cx='31' cy='31' r='6.5' fill='rgba(148,168,225,.25)' stroke='rgba(148,168,225,.5)' stroke-dasharray='2 2'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#0e1526; --panel:rgba(24,33,58,.92); --line:rgba(148,168,225,.22);
+    --ink:#e8ecf8; --dim:#a8b3cf; --gold:#ffb347;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{background:radial-gradient(1000px 700px at 50% -14%, #1c2749 0%, var(--bg) 60%), var(--bg);
+    color:var(--ink);font-family:'Segoe UI',system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
+    overflow:hidden;position:fixed;inset:0;touch-action:none;user-select:none;-webkit-user-select:none}
+  /* ── 顶栏 ── */
+  #hud{position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);left:12px;right:12px;
+    display:flex;align-items:center;gap:10px;z-index:4}
+  #hud .t{flex:1;min-width:0}
+  #hud .t .nm{font-size:14px;font-weight:800;letter-spacing:.08em;color:var(--gold)}
+  #hud .t .nm small{font-size:10.5px;color:var(--dim);font-weight:400;margin-left:7px;letter-spacing:.05em}
+  #hud .t .ct{font-size:12px;color:var(--dim);margin-top:2px;font-variant-numeric:tabular-nums}
+  #hud .ct b{color:var(--ink)}
+  #hud .ct .lv{color:#ffd97e;font-weight:700}
+  #seg{display:flex;border:1px solid var(--line);border-radius:11px;overflow:hidden;background:var(--panel);flex:none;
+    box-shadow:0 3px 8px rgba(0,0,0,.32)}
+  #seg button{width:34px;height:38px;border:none;background:transparent;color:var(--dim);font-size:13px;font-weight:700;cursor:pointer}
+  #seg button.on{background:rgba(255,179,71,.18);color:var(--gold);
+    box-shadow:0 2px 5px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.16)}
+  /* ── 灯阵 ── */
+  #board{position:absolute;left:50%;transform:translateX(-50%);
+    background:linear-gradient(160deg,rgba(10,16,32,.9),rgba(13,20,40,.9));
+    border:1px solid var(--line);border-radius:16px;
+    box-shadow:0 18px 50px rgba(0,0,0,.5), inset 0 2px 8px rgba(0,0,0,.5)}
+  .lamp{position:absolute;border-radius:22%;cursor:pointer;
+    transform:translate(var(--tx,0px),var(--ty,0px));
+    background:radial-gradient(130% 130% at 34% 22%, rgba(76,92,132,.55) 0%, rgba(20,28,50,.94) 64%);
+    box-shadow:0 2px 6px rgba(3,7,16,.55),
+      inset 0 3px 7px rgba(0,0,0,.62),
+      inset 0 -2px 4px rgba(148,168,225,.1),
+      inset 0 1px 0 rgba(148,168,225,.18);
+    transition:background .12s ease, box-shadow .12s ease, transform .12s ease}
+  .lamp::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+    background:radial-gradient(72% 60% at 50% 46%, transparent 54%, rgba(0,0,0,.34) 100%)}
+  .lamp::before{content:"";position:absolute;left:26%;right:26%;top:38%;bottom:38%;border-radius:50%;
+    border:1.5px solid rgba(148,168,225,.2);pointer-events:none;transition:border-color .12s ease}
+  .lamp.on{
+    background:radial-gradient(85% 85% at 36% 28%, #fff8e4 0%, #ffe0a0 30%, #ffb347 62%, #cf7d15 100%);
+    box-shadow:0 0 9px rgba(255,200,110,.55), 0 0 26px rgba(255,179,71,.3),
+      inset 0 2px 5px rgba(255,255,255,.85), inset 0 -4px 8px rgba(190,110,18,.5),
+      inset 0 0 18px rgba(255,230,170,.35)}
+  .lamp.on::after{background:radial-gradient(46% 40% at 36% 28%, rgba(255,255,255,.88) 0%, rgba(255,255,255,0) 72%)}
+  .lamp.on::before{border-color:rgba(255,250,232,.6)}
+  .lamp.pop{animation:lpop .19s ease}
+  @keyframes lpop{
+    0%{transform:translate(var(--tx,0px),var(--ty,0px)) scale(1)}
+    42%{transform:translate(var(--tx,0px),var(--ty,0px)) scale(.88)}
+    100%{transform:translate(var(--tx,0px),var(--ty,0px)) scale(1)}}
+  .lamp.hint{outline:3px solid rgba(255,217,126,.92);outline-offset:2px;animation:hintp 1.2s ease}
+  @keyframes hintp{0%,100%{outline-offset:2px}50%{outline-offset:6px}}
+  #board.glow{animation:bglow 1.6s ease}
+  @keyframes bglow{
+    0%,100%{box-shadow:0 18px 50px rgba(0,0,0,.5), inset 0 2px 8px rgba(0,0,0,.5)}
+    38%{box-shadow:0 0 38px rgba(255,196,100,.55), 0 0 90px rgba(255,179,71,.3),
+      0 18px 50px rgba(0,0,0,.5), inset 0 2px 8px rgba(0,0,0,.5)}}
+  /* ── 底栏 ── */
+  #bar{position:absolute;left:14px;right:14px;display:flex;gap:10px;z-index:4}
+  #bar button{flex:1;height:42px;border:1px solid var(--line);border-radius:12px;background:var(--panel);
+    color:var(--ink);font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 3px 8px rgba(0,0,0,.32)}
+  #bar button:active{transform:translateY(2px);box-shadow:0 1px 3px rgba(0,0,0,.3)}
+  #bar #btn-hint em{font-style:normal;color:var(--gold)}
+  #bar #btn-hint[disabled]{opacity:.45;cursor:default}
+  footer{position:absolute;left:0;right:0;text-align:center;font-size:11.5px;font-weight:600;color:#6d7a9e;
+    letter-spacing:.05em;opacity:.9;pointer-events:none;z-index:3}
+  /* ── 说明 / 胜利层 ── */
+  .layer{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(8,13,24,.8);z-index:10}
+  .layer[hidden]{display:none}
+  .lpanel{display:flex;flex-direction:column;gap:13px;width:min(86vw,340px);
+    background:rgba(21,30,54,.98);border:1px solid rgba(148,168,225,.4);border-radius:18px;padding:25px 26px;
+    box-shadow:0 26px 80px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.05)}
+  .lt{font-size:16.5px;font-weight:800;color:var(--gold);letter-spacing:.08em;text-align:center}
+  .ld{font-size:13.5px;color:#c6cfe4;line-height:1.9}
+  .ld b{color:#ffe9b8}
+  .layer button{padding:11px 0;font-size:15px;font-weight:700;color:#16202f;background:var(--gold);
+    border:none;border-radius:12px;cursor:pointer}
+  #win .big{font-size:38px;font-weight:800;color:var(--gold);text-align:center;letter-spacing:.06em;
+    text-shadow:0 4px 24px rgba(255,179,71,.4)}
+  #win .stats{display:flex;justify-content:center;gap:26px;font-size:14px;color:var(--dim)}
+  #win .stats b{color:var(--ink);font-size:17px}
+  #win .rec{display:none;text-align:center;font-size:12.5px;color:#ffd97e;font-weight:700;letter-spacing:.1em}
+  #win .rec.show{display:block;animation:recpop .6s ease both}
+  @keyframes recpop{0%{transform:scale(.4);opacity:0}70%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+</style>
+</head>
+<body>
+
+  <div id="hud">
+    <div class="t">
+      <div class="nm">开关灯谜题<small>全灭 · 逻辑</small></div>
+      <div class="ct">步数 <b id="ct-steps">0</b> · 亮灯 <span class="lv" id="ct-lit">0</span> · 参考 <b id="ct-par">0</b></div>
+    </div>
+    <div id="seg">
+      <button data-n="5" class="on">5</button>
+      <button data-n="6">6</button>
+      <button data-n="7">7</button>
+    </div>
+  </div>
+
+  <div id="board"></div>
+
+  <div id="bar">
+    <button id="btn-retry">重开本局</button>
+    <button id="btn-hint">提示 <em>×3</em></button>
+    <button id="btn-help">玩法</button>
+  </div>
+
+  <footer>开关灯谜题 · 完全离线 · 一切从全灭开始</footer>
+
+  <div id="intro" class="layer" hidden>
+    <div class="lpanel">
+      <div class="lt">怎么玩</div>
+      <div class="ld">点亮一盘灯，用最少的点击把它<b>全部熄灭</b>。
+        每点一盏灯，它与<b>上下左右</b>的十字邻居会一起翻转——亮变灭、灭变亮。</div>
+      <div class="demo" style="display:flex;justify-content:center;padding:2px 0">
+        <svg width="216" height="86" viewBox="0 0 216 86">
+          <defs>
+            <radialGradient id="onG" cx=".38" cy=".3" r=".95">
+              <stop offset="0" stop-color="#fff4d8"/><stop offset=".34" stop-color="#ffda92"/>
+              <stop offset=".68" stop-color="#ffb347"/><stop offset="1" stop-color="#d9881e"/>
+            </radialGradient>
+            <radialGradient id="offG" cx=".34" cy=".22" r="1.1">
+              <stop offset="0" stop-color="#4c5c84" stop-opacity=".55"/>
+              <stop offset=".64" stop-color="#141c32" stop-opacity=".94"/>
+            </radialGradient>
+          </defs>
+          <g>
+            <rect x="58" y="38" width="22" height="22" rx="5" fill="url(#onG)"/>
+            <rect x="36" y="38" width="22" height="22" rx="5" fill="url(#onG)" opacity=".28"/>
+            <rect x="80" y="38" width="22" height="22" rx="5" fill="url(#onG)" opacity=".28"/>
+            <rect x="58" y="16" width="22" height="22" rx="5" fill="url(#onG)" opacity=".28"/>
+            <rect x="58" y="60" width="22" height="22" rx="5" fill="url(#onG)" opacity=".28"/>
+          </g>
+          <g stroke="#ffb347" stroke-width="2.6" fill="none" stroke-linecap="round">
+            <path d="M42 49 h-26 m9 -9 l-9 9 l9 9"/>
+            <path d="M96 49 h26 m-9 -9 l9 9 -9 9"/>
+          </g>
+          <text x="152" y="44" font-size="9.5" fill="#c6cfe4" font-weight="600">点中间这盏</text>
+          <text x="152" y="58" font-size="9.5" fill="#c6cfe4" font-weight="600">十字五盏全翻</text>
+          <g>
+            <rect x="160" y="14" width="22" height="22" rx="5" fill="url(#offG)"/>
+            <rect x="160" y="14" width="22" height="22" rx="5" fill="none" stroke="rgba(148,168,225,.3)"/>
+            <path d="M167 25 a4.5 4.5 0 0 1 8 0 m-8 0 a4.5 4.5 0 0 0 8 0" stroke="rgba(148,168,225,.35)" stroke-width="1.4" fill="none"/>
+          </g>
+        </svg>
+      </div>
+      <div class="ld" style="font-size:14px;color:#e4d9c2">每盏灯<b style="color:#ffd97e">最多只需要点一次</b>——点两下等于没点。参考步数就是最优解。</div>
+      <button id="intro-ok">知道了，开点</button>
+    </div>
+  </div>
+
+  <div id="win" class="layer" hidden>
+    <div class="lpanel">
+      <div class="big">全灭！</div>
+      <div class="rec" id="win-rec">★ 新纪录 ★</div>
+      <div class="stats"><span>步数<br><b id="win-steps">0</b></span><span>参考<br><b id="win-par">0</b></span><span>规格<br><b id="win-n">5×5</b></span></div>
+      <div class="ld" id="win-verdict" style="text-align:center"></div>
+      <button id="win-ok">再来一局</button>
+    </div>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  function mulberry(seed) { var t = seed >>> 0; return function () { t += 0x6D2B79F5; var r2 = Math.imul(t ^ (t >>> 15), 1 | t); r2 ^= r2 + Math.imul(r2 ^ (r2 >>> 7), 61 | r2); return ((r2 ^ (r2 >>> 14)) >>> 0) / 4294967296; }; }
+
+  var safeStorage = {
+    get: function (k, d) { try { var v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set: function (k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+    del: function (k) { try { localStorage.removeItem(k); } catch (e) {} }
+  };
+
+  var SFX = (function () {
+    var ctx = null, on = safeStorage.get('mq_g14_sound', true);
+    function ac() {
+      if (!ctx) { try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+      if (ctx && ctx.state === 'suspended') ctx.resume();
+      return ctx;
+    }
+    /* 翻转「嗒」：方波短促；亮起音高高些、熄灭低沉 */
+    function clack(onNow) {
+      if (!on) return; var c = ac(); if (!c) return;
+      var o = c.createOscillator(), g = c.createGain();
+      o.type = 'square'; o.frequency.value = onNow ? 660 : 340;
+      g.gain.setValueAtTime(.09, c.currentTime);
+      g.gain.exponentialRampToValueAtTime(.001, c.currentTime + .07);
+      o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + .08);
+    }
+    var ARP = [392, 494, 587, 784];
+    function winArp() {
+      if (!on) return; var c = ac(); if (!c) return;
+      ARP.forEach(function (f, i) {
+        var o = c.createOscillator(), g = c.createGain();
+        o.type = 'triangle'; o.frequency.value = f;
+        var t0 = c.currentTime + i * .1;
+        g.gain.setValueAtTime(0, t0);
+        g.gain.linearRampToValueAtTime(.11, t0 + .015);
+        g.gain.exponentialRampToValueAtTime(.001, t0 + .32);
+        o.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0 + .34);
+      });
+    }
+    return {
+      unlock: function () { ac(); }, clack: clack, winArp: winArp,
+      get on() { return on; },
+      toggle: function () { on = !on; safeStorage.set('mq_g14_sound', on); return on; }
+    };
+  })();
+
+  /* ═══ 2. 状态 ═══ */
+  var S = {
+    n: 5,                /* 规格 */
+    grid: [],            /* 布尔：亮/灭 */
+    solSet: {},          /* 当前最优解集合（点 i 时对称翻转成员） */
+    seed: 0, par: 0,
+    steps: 0, hints: 3,
+    startedAt: 0, elapsed: 0, timerId: 0,
+    won: false
+  };
+  var el = {
+    board: document.getElementById('board'),
+    steps: document.getElementById('ct-steps'), lit: document.getElementById('ct-lit'),
+    par: document.getElementById('ct-par'), seg: document.getElementById('seg'),
+    btnRetry: document.getElementById('btn-retry'), btnHint: document.getElementById('btn-hint'),
+    btnHelp: document.getElementById('btn-help'),
+    intro: document.getElementById('intro'), introOk: document.getElementById('intro-ok'),
+    win: document.getElementById('win'), winOk: document.getElementById('win-ok'),
+    winSteps: document.getElementById('win-steps'), winPar: document.getElementById('win-par'),
+    winN: document.getElementById('win-n'), winRec: document.getElementById('win-rec'),
+    winVerdict: document.getElementById('win-verdict')
+  };
+  var lamps = [];
+  var BS = 0, TS = 0, GAP = 6, PAD = 8;
+
+  function bestKey() { return 'mq_g14_best' + S.n; }
+  function fmt(t) { var s = Math.floor(t / 1000); return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); }
+
+  /* ═══ 3. 布局 ═══ */
+  function layout() {
+    var topH = 96, botH = 128;
+    BS = Math.min(innerWidth - 28, innerHeight - topH - botH, 460);
+    BS = Math.max(BS, 220);
+    TS = (BS - PAD * 2 - GAP * (S.n - 1)) / S.n;
+    el.board.style.width = BS + 'px';
+    el.board.style.height = BS + 'px';
+    el.board.style.top = topH + Math.max(0, (innerHeight - topH - botH - BS) / 2) - 8 + 'px';
+    document.getElementById('bar').style.bottom = 'calc(env(safe-area-inset-bottom,0px) + 44px)';
+    document.querySelector('footer').style.bottom = 'calc(env(safe-area-inset-bottom,0px) + 16px)';
+  }
+  window.addEventListener('resize', function () { layout(); placeAll(); });
+
+  function cellXY(i) {
+    var r = Math.floor(i / S.n), c = i % S.n;
+    return { x: PAD + c * (TS + GAP), y: PAD + r * (TS + GAP) };
+  }
+  function placeLamp(i) {
+    var L = lamps[i], p = cellXY(i);
+    if (!L) return;
+    L.style.setProperty('--tx', p.x + 'px');
+    L.style.setProperty('--ty', p.y + 'px');
+    L.style.width = TS + 'px'; L.style.height = TS + 'px';
+  }
+  function placeAll() { for (var i = 0; i < S.n * S.n; i++) placeLamp(i); }
+
+  /* ═══ 4. 逻辑 ═══ */
+  function neighbors(i) {
+    var n = S.n, r = Math.floor(i / n), c = i % n, out = [i];
+    if (r > 0) out.push(i - n);
+    if (r < n - 1) out.push(i + n);
+    if (c > 0) out.push(i - 1);
+    if (c < n - 1) out.push(i + 1);
+    return out;
+  }
+  function toggleAt(i) {
+    neighbors(i).forEach(function (j) { S.grid[j] = !S.grid[j]; });
+  }
+  function countLit() { var k = 0; for (var i = 0; i < S.grid.length; i++) if (S.grid[i]) k++; return k; }
+  function allOut() { return countLit() === 0; }
+
+  function buildBoard() {
+    el.board.innerHTML = '';
+    lamps = [];
+    var total = S.n * S.n;
+    for (var i = 0; i < total; i++) {
+      var L = document.createElement('div');
+      L.className = 'lamp' + (S.grid[i] ? ' on' : '');
+      (function (ii) {
+        L.addEventListener('pointerdown', function (e) { e.stopPropagation(); clickIndex(ii); });
+      })(i);
+      el.board.appendChild(L);
+      lamps.push(L);
+    }
+    placeAll();
+  }
+
+  function syncSeg() {
+    Array.prototype.forEach.call(el.seg.children, function (x) { x.classList.toggle('on', +x.dataset.n === S.n); });
+  }
+
+  function newGame(seed, keepN) {
+    if (seed == null) seed = (Math.random() * 1e9 | 0);
+    S.seed = seed >>> 0;
+    syncSeg();
+    var rnd = mulberry(S.seed);
+    S.grid = new Array(S.n * S.n);
+    for (var i = 0; i < S.grid.length; i++) S.grid[i] = false;
+    S.steps = 0; S.hints = 3; S.won = false; S.elapsed = 0; S.startedAt = 0;
+    clearInterval(S.timerId); S.timerId = 0;
+    el.win.hidden = true;
+    /* 生成：从全灭态点 K 个不同格（逆序列=最优解） */
+    var kMin = S.n === 5 ? 5 : S.n === 6 ? 8 : 12;
+    var kMax = S.n === 5 ? 7 : S.n === 6 ? 12 : 18;
+    var K = kMin + Math.floor(rnd() * (kMax - kMin + 1));
+    S.solSet = {};
+    var guard = 0;
+    var picked = 0;
+    while (picked < K && guard < K * 30) {
+      guard++;
+      var j = Math.floor(rnd() * S.n * S.n);
+      if (S.solSet[j]) continue;
+      S.solSet[j] = 1; picked++;
+      toggleAt(j);
+    }
+    /* 防全灭开局（概率极低）：补点一格 */
+    if (allOut()) {
+      var extra = 0;
+      while (S.solSet[extra]) extra++;
+      S.solSet[extra] = 1; toggleAt(extra);
+    }
+    S.par = Object.keys(S.solSet).length;
+    buildBoard();
+    updateHUD();
+  }
+
+  function clickIndex(i) {
+    if (S.won) return false;
+    toggleAt(i);
+    if (S.solSet[i]) delete S.solSet[i]; else S.solSet[i] = 1;   /* 解集对称更新 */
+    S.steps++;
+    if (!S.startedAt) { S.startedAt = performance.now(); S.timerId = setInterval(tick, 500); }
+    neighbors(i).forEach(function (j) {
+      var L = lamps[j];
+      if (!L) return;
+      L.classList.toggle('on', S.grid[j]);
+      L.classList.remove('pop');
+      void L.offsetWidth;
+      L.classList.add('pop');
+    });
+    SFX.clack(S.grid[i]);
+    if (navigator.vibrate) { try { navigator.vibrate(6); } catch (e) {} }
+    updateHUD();
+    if (allOut()) winGame();
+    return true;
+  }
+
+  function tick() { S.elapsed = performance.now() - S.startedAt; }
+
+  function hint() {
+    if (S.won || S.hints <= 0) return null;
+    var keys = Object.keys(S.solSet);
+    if (!keys.length) return null;
+    var i = +keys[Math.floor(Math.random() * keys.length)];
+    S.hints--;
+    var L = lamps[i];
+    L.classList.remove('hint'); void L.offsetWidth; L.classList.add('hint');
+    setTimeout(function () { L.classList.remove('hint'); }, 1250);
+    updateHUD();
+    return i;
+  }
+
+  function winGame() {
+    S.won = true;
+    clearInterval(S.timerId);
+    S.elapsed = performance.now() - S.startedAt;
+    var best = safeStorage.get(bestKey(), null);
+    var rec = best == null || S.steps < best;
+    if (rec) safeStorage.set(bestKey(), S.steps);
+    el.winSteps.textContent = S.steps;
+    el.winPar.textContent = S.par;
+    el.winN.textContent = S.n + '×' + S.n;
+    el.winVerdict.textContent = S.steps === S.par ? '恰好参考步数——最优解达成' :
+      (S.steps < S.par ? '低于参考！发现了更短的解' : '超出参考 ' + (S.steps - S.par) + ' 步（同一盏点两下会抵消）');
+    el.winRec.classList.toggle('show', rec);
+    el.board.classList.remove('glow'); void el.board.offsetWidth; el.board.classList.add('glow');
+    SFX.winArp();
+    setTimeout(function () { if (S.won) el.win.hidden = false; }, 720);
+    if (navigator.vibrate) { try { navigator.vibrate([30, 60, 30]); } catch (e) {} }
+  }
+
+  function updateHUD() {
+    el.steps.textContent = S.steps;
+    el.lit.textContent = countLit();
+    el.par.textContent = S.par;
+    el.btnHint.innerHTML = '提示 <em>×' + S.hints + '</em>';
+    el.btnHint.disabled = S.hints <= 0;
+  }
+
+  /* ═══ 5. 事件 ═══ */
+  Array.prototype.forEach.call(el.seg.children, function (b) {
+    b.addEventListener('click', function () {
+      var n2 = +b.dataset.n;
+      if (n2 === S.n) return;
+      S.n = n2;
+      layout(); newGame(null, true);
+    });
+  });
+  el.btnRetry.addEventListener('click', function () { newGame(S.seed, true); });
+  el.btnHint.addEventListener('click', function () { hint(); });
+  el.btnHelp.addEventListener('click', function () { el.intro.hidden = false; });
+  el.introOk.addEventListener('click', function () { el.intro.hidden = true; safeStorage.set('mq_g14_intro', true); SFX.unlock(); });
+  el.winOk.addEventListener('click', function () { el.win.hidden = true; newGame(null, true); });
+
+  /* ═══ 6. dev 钩子 ═══ */
+  
+
+  /* ═══ 7. 启动 ═══ */
+  layout();
+  if (!safeStorage.get('mq_g14_intro', false)) el.intro.hidden = false;
+  newGame();
+})();
+</script>
+</body>
+</html>
