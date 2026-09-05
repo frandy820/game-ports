@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#141024">
+<title>悠然垂钓 · 离线版</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect x='4' y='4' width='40' height='40' rx='9' fill='%23141024'/%3E%3Cpath d='M8 26 q8 -4 16 0 t16 0' stroke='%237ec8ff' stroke-width='2' fill='none' opacity='.6'/%3E%3Ccircle cx='24' cy='24' r='4' fill='%23ffb347'/%3E%3Cpath d='M24 24 v10' stroke='%23e8ecf8' stroke-width='1.4'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#141024; --panel:rgba(26,22,40,.94); --line:rgba(148,168,225,.22);
+    --ink:#e8ecf8; --dim:#a8b3cf; --gold:#ffb347; --aqua:#7ec8ff; --red:#e05268;
+    --waterline:40%;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    /* 黄昏湖面：上半天光，下半湖水 */
+    background:linear-gradient(180deg,#1a1626 0%,#332038 16%,#59394a 30%,#7a4a4e 37%,#2a3550 40%,#0d2233 41%,#123044 100%);
+    color:var(--ink);font-family:'Segoe UI',system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
+    overflow:hidden;position:fixed;inset:0;touch-action:none;user-select:none;-webkit-user-select:none}
+  /* 落日 + 远山 + 归鸟 + 微星（纯装饰背景层） */
+  #sky{position:absolute;inset:0 0 60% 0;pointer-events:none;overflow:hidden}
+  #sun{position:absolute;left:64%;bottom:-14px;width:88px;height:88px;border-radius:50%;
+    background:radial-gradient(circle at 42% 38%, #ffe9c0 0%, #ffc06b 45%, #e8875c 78%, transparent 80%);
+    box-shadow:0 0 42px rgba(255,190,110,.4), 0 0 110px rgba(255,170,90,.18)}
+  .hill{position:absolute;bottom:-2px;width:180px;height:70px;
+    background:linear-gradient(180deg,#2c2036,#221828);border-radius:50% 50% 0 0 / 100% 100% 0 0}
+  .hill.h1{left:-40px;transform:scaleY(.55)}
+  .hill.h2{right:-70px;transform:scaleY(.8)}
+  /* 归鸟：V 形双弧剪影（深色逆光），足够粗才可见 */
+  .bird{position:absolute;width:27px;height:13px;
+    background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 19 9'%3E%3Cpath d='M1 7.4 Q5 2.6 9.5 5.2 Q14 2.6 18 7.4' fill='none' stroke='%231b1226' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat center/contain;
+    animation:birdfly 5.5s ease-in-out infinite}
+  .bird.b2{width:20px;height:10px;animation-delay:-2.6s;opacity:.9}
+  @keyframes birdfly{0%{transform:translate(0,0)}50%{transform:translate(-8px,3.5px)}100%{transform:translate(0,0)}}
+  /* 微星：提亮+呼吸闪烁 */
+  .star{position:absolute;width:3px;height:3px;border-radius:50%;background:#f0e2cc;
+    box-shadow:0 0 5px rgba(240,226,204,.9);opacity:.8;animation:twk 3.2s ease-in-out infinite}
+  .star.s2{animation-delay:-1.2s}.star.s3{animation-delay:-2.2s}
+  .star.s4{animation-delay:-.6s}.star.s5{animation-delay:-1.8s}
+  @keyframes twk{0%,100%{opacity:.35}50%{opacity:.95}}
+
+  /* ── 顶栏 ── */
+  #hud{position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);left:14px;right:14px;z-index:6;
+    display:flex;align-items:center;gap:10px}
+  #hud .nm{font-size:13px;font-weight:800;letter-spacing:.08em;color:var(--gold)}
+  #hud .nm small{font-size:10.5px;color:var(--dim);font-weight:400;margin-left:6px;letter-spacing:.05em}
+  #hud .ct{font-size:12px;color:var(--dim);margin-top:2px;font-variant-numeric:tabular-nums}
+  #hud .ct b{color:var(--ink)}
+  #btn-dex{margin-left:auto;width:38px;height:38px;border:1px solid var(--line);border-radius:11px;
+    background:var(--panel);color:var(--ink);cursor:pointer;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 3px 8px rgba(0,0,0,.32)}
+  #btn-dex:active{transform:translateY(2px)}
+  #btn-snd{width:38px;height:38px;border:1px solid var(--line);border-radius:11px;margin-left:8px;
+    background:var(--panel);color:var(--ink);cursor:pointer;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 3px 8px rgba(0,0,0,.32)}
+  #btn-snd:active{transform:translateY(2px)}
+  #btn-snd.off{opacity:.55}
+
+  /* ── 湖区 ── */
+  #lake{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + 74px);
+    bottom:calc(env(safe-area-inset-bottom,0px) + 96px);z-index:2}
+  /* 水面线微光 */
+  #waterline{position:absolute;left:0;right:0;top:var(--waterline);height:3px;pointer-events:none;
+    background:linear-gradient(90deg,transparent,rgba(255,196,120,.5) 30%,rgba(160,210,255,.45) 60%,transparent);
+    box-shadow:0 0 14px rgba(255,190,110,.25)}
+  /* 提示小字（浮标上方） */
+  #tip{position:absolute;left:50%;top:calc(var(--waterline) - 60px);transform:translateX(-50%);
+    font-size:12.5px;font-weight:700;color:var(--dim);letter-spacing:.06em;white-space:nowrap;
+    text-shadow:0 2px 6px rgba(0,0,0,.55);transition:opacity .25s ease;z-index:5;pointer-events:none}
+  #tip.hot{color:#fff;background:rgba(224,82,104,.34);border:1px solid rgba(255,132,148,.55);
+    border-radius:99px;padding:4px 13px;font-size:14px;font-weight:800;animation:tipblink .3s step-end infinite}
+  #tip.good{color:#ffd97e}
+  @keyframes tipblink{50%{opacity:.4}}
+  /* 浮标：外层定位 / 内层动画（红线：keyframe 全帧写 transform）。
+     wrap 上移 40px：纺锤主体骑在水面线上（上半露天上、下半入水） */
+  #floatWrap{position:absolute;left:50%;top:calc(var(--waterline) - 40px);width:44px;height:64px;
+    transform:translateX(-50%);z-index:4;pointer-events:none}
+  #float{position:absolute;left:0;bottom:6px;width:100%;animation:bob 2.2s ease-in-out infinite}
+  @keyframes bob{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-3px) rotate(2deg)}}
+  #floatWrap.bite #float{animation:bite .18s ease-in forwards}
+  @keyframes bite{from{transform:translateY(0) rotate(0)}to{transform:translateY(24px) rotate(12deg)}}
+  #floatWrap.gone #float{animation:floatgone .5s ease forwards}
+  @keyframes floatgone{from{transform:translateY(15px) rotate(10deg)}to{transform:translateY(0) rotate(0)}}
+  /* 鱼影（渐近）：外层定位，内层微摆 */
+  #shadowWrap{position:absolute;left:calc(50% - 26px);top:calc(var(--waterline) + 30px);width:52px;height:30px;
+    z-index:3;opacity:0;transform:scale(.4);transition:opacity 1.6s ease, transform 1.6s ease;pointer-events:none}
+  #shadowWrap.near{opacity:.8;transform:scale(1)}
+  #shadowWrap.here{opacity:1;transform:scale(1.08);transition:opacity .4s ease, transform .4s ease}
+  #shadowWrap.here .sk{box-shadow:0 0 10px rgba(4,9,18,.65)}
+  #shadowWrap .sk{width:100%;height:100%;border-radius:50%;
+    background:radial-gradient(60% 70% at 46% 46%, rgba(4,9,18,.92), rgba(4,9,18,.3) 74%, transparent 80%);
+    filter:blur(1.5px);animation:sksway 1.8s ease-in-out infinite}
+  @keyframes sksway{0%,100%{transform:translateX(-3px)}50%{transform:translateX(3px)}}
+  /* ── 水下生态层（光路/光斑/气泡/水草；纯 CSS，全在鱼影之下） ── */
+  #under{position:absolute;inset:0;pointer-events:none;z-index:1}
+  /* 落日光路：太阳正下方向下渐隐的竖向波光带，顺带柔化水面线 */
+  .sunray{position:absolute;left:calc(64% - 26px);top:calc(var(--waterline) - 2px);width:52px;height:130px;
+    background:linear-gradient(180deg, rgba(255,190,110,.34), rgba(255,190,110,.10) 46%, transparent 88%);
+    clip-path:polygon(38% 0, 62% 0, 100% 100%, 0 100%);opacity:.8;
+    animation:raybr 4.2s ease-in-out infinite}
+  @keyframes raybr{0%,100%{opacity:.62}50%{opacity:.95}}
+  /* 水下光斑：落日透射的大椭圆微光，缓慢明暗 */
+  .glowpool{position:absolute;border-radius:50%;
+    background:radial-gradient(closest-side, rgba(255,196,120,.13), transparent 72%)}
+  .glowpool.p1{left:8%;top:calc(var(--waterline) + 58px);width:150px;height:64px;animation:poolbr 6.5s ease-in-out infinite}
+  .glowpool.p2{right:4%;top:calc(var(--waterline) + 138px);width:120px;height:52px;animation:poolbr 8s ease-in-out -3s infinite}
+  @keyframes poolbr{0%,100%{opacity:.45}50%{opacity:1}}
+  /* 气泡：水下缓慢上升渐隐 */
+  .bub{position:absolute;border-radius:50%;width:5px;height:5px;
+    border:1.4px solid rgba(160,210,255,.4);background:rgba(160,210,255,.08);
+    animation:rise linear infinite}
+  .bub.b1{left:22%;top:calc(var(--waterline) + 90px);animation-duration:7.5s}
+  .bub.b2{left:71%;top:calc(var(--waterline) + 66px);animation-duration:9s;animation-delay:-4s;transform:scale(.8)}
+  .bub.b3{left:47%;top:calc(var(--waterline) + 170px);animation-duration:8.5s;animation-delay:-2s;transform:scale(1.25)}
+  .bub.b4{left:86%;top:calc(var(--waterline) + 190px);animation-duration:10s;animation-delay:-6s;transform:scale(.7)}
+  .bub.b5{left:63%;top:calc(var(--waterline) + 108px);animation-duration:8.8s;animation-delay:-1s;transform:scale(.9)}
+  @keyframes rise{0%{transform:translateY(0);opacity:0}12%{opacity:.8}82%{opacity:.5}100%{transform:translateY(-118px);opacity:0}}
+  /* 水草：底部两丛剪影，缓慢摇曳 */
+  .weed{position:absolute;bottom:0;width:56px;height:74px;transform-origin:50% 100%;animation:weedsway 5s ease-in-out infinite}
+  .weed.w1{left:7%}
+  .weed.w2{right:10%;animation-delay:-2.4s;transform:scale(.72)}
+  @keyframes weedsway{0%,100%{transform:rotate(-3.5deg)}50%{transform:rotate(3.5deg)}}
+  .weed.w2{animation-name:weedsway2}
+  @keyframes weedsway2{0%,100%{transform:scale(.72) rotate(3deg)}50%{transform:scale(.72) rotate(-3deg)}}
+
+  /* 涟漪（抛竿落水） */
+  .ripple{position:absolute;width:14px;height:8px;border:1.6px solid rgba(180,220,255,.55);border-radius:50%;
+    pointer-events:none;z-index:3;animation:rip .9s ease-out forwards}
+  @keyframes rip{from{opacity:.9;transform:scale(.5)}to{opacity:0;transform:scale(4)}}
+  /* 钓线 + 上钩鱼（HOOK 态）：外层定位，内层挣扎 */
+  #lineV{position:absolute;left:calc(50% - .8px);top:calc(var(--waterline) + 18px);width:1.6px;height:0;
+    background:linear-gradient(180deg,rgba(232,236,248,.75),rgba(232,236,248,.35));z-index:3;pointer-events:none;
+    transition:height .22s ease}
+  #hookedWrap{position:absolute;left:calc(50% - 30px);width:60px;z-index:4;pointer-events:none;
+    transition:top .22s ease;opacity:0}
+  #hookedWrap.show{opacity:1}
+  #hookedWrap .bd{animation:wig .3s ease-in-out infinite}
+  @keyframes wig{0%,100%{transform:rotate(-9deg)}50%{transform:rotate(9deg)}}
+  #hookedWrap.tense .bd{animation:wigt .12s ease-in-out infinite}
+  @keyframes wigt{0%,100%{transform:rotate(-16deg) scale(1.04)}50%{transform:rotate(16deg) scale(1.04)}}
+
+  /* ── 主按钮 ── */
+  #btn{position:absolute;left:22px;right:22px;bottom:calc(env(safe-area-inset-bottom,0px) + 46px);z-index:6;
+    height:52px;border:none;border-radius:15px;cursor:pointer;
+    font-size:16.5px;font-weight:800;letter-spacing:.12em;
+    color:#16202f;background:linear-gradient(160deg,#ffd97e,var(--gold));
+    box-shadow:0 10px 26px rgba(255,170,80,.28), inset 0 1.5px 0 rgba(255,255,255,.5);
+    transition:transform .12s ease}
+  #btn:active{transform:translateY(3px)}
+  #btn.wait{color:var(--dim);background:rgba(26,32,52,.9);border:1px solid var(--line);
+    box-shadow:0 6px 16px rgba(0,0,0,.35);letter-spacing:.06em;font-weight:600}
+  #btn.bite{color:#fff;background:linear-gradient(160deg,#ff8494,var(--red));
+    box-shadow:0 10px 30px rgba(224,82,104,.45);animation:btnp .34s ease-in-out infinite}
+  @keyframes btnp{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}
+  #btn.hook{color:#fff;background:linear-gradient(160deg,#9fd8ff,#5aa8ee);
+    box-shadow:0 10px 26px rgba(90,168,238,.35)}
+
+  /* ── 层（收获 / 图鉴） ── */
+  .layer{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(10,12,24,.8);z-index:20}
+  .layer[hidden]{display:none}
+  .lpanel{display:flex;flex-direction:column;gap:13px;width:min(86vw,340px);
+    background:rgba(24,20,38,.98);border:1px solid rgba(148,168,225,.4);border-radius:18px;padding:24px 26px;
+    box-shadow:0 26px 80px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.05)}
+  .lt{font-size:16.5px;font-weight:800;color:var(--gold);letter-spacing:.08em;text-align:center}
+  /* 收获卡 */
+  #land .fishbox{display:flex;justify-content:center;padding:6px 0 2px;min-height:110px;align-items:center}
+  #land .fishbox svg{filter:drop-shadow(0 6px 14px rgba(0,0,0,.5))}
+  #land .fname{font-size:19px;font-weight:800;text-align:center;color:var(--ink)}
+  #land .flen{font-size:14px;color:var(--dim);text-align:center;margin-top:3px;font-variant-numeric:tabular-nums}
+  #land .flen b{color:var(--aqua);font-size:17px}
+  .stars5{text-align:center;font-size:13px;letter-spacing:.22em;color:#ffd97e}
+  .badge{display:none;text-align:center;font-size:12.5px;font-weight:700;letter-spacing:.1em}
+  .badge.new{display:block;color:#8be8c0}
+  .badge.rec{display:block;color:#ffd97e}
+  .layer button{padding:11px 0;font-size:15px;font-weight:700;color:#16202f;background:var(--gold);
+    border:none;border-radius:12px;cursor:pointer}
+  /* 传说金闪 */
+  body.legendflash::after{content:"";position:absolute;inset:0;background:rgba(255,217,126,.16);
+    pointer-events:none;z-index:30;animation:lgd .8s ease forwards}
+  @keyframes lgd{from{opacity:1}to{opacity:0}}
+  /* 图鉴 */
+  #dex .dh{display:flex;align-items:baseline;justify-content:space-between}
+  #dex .dh .pct{font-size:13px;color:var(--aqua);font-weight:700;font-variant-numeric:tabular-nums}
+  #dexgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;max-height:46vh;overflow-y:auto;padding:2px}
+  .dcell{border:1px solid var(--line);border-radius:12px;padding:9px 6px 8px;text-align:center;
+    background:rgba(16,20,36,.65)}
+  .dcell .dv{height:44px;display:flex;align-items:center;justify-content:center}
+  .dcell .dn{font-size:10.5px;color:var(--ink);margin-top:5px;font-weight:600;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dcell .dl{font-size:9.5px;color:var(--dim);margin-top:1.5px;font-variant-numeric:tabular-nums}
+  .dcell.caught{border-color:rgba(255,179,71,.42)}
+  .dcell.miss .dn{color:var(--dim)}
+  .rarity-tag{font-size:9px;letter-spacing:.08em;padding:1px 6px;border-radius:99px;display:inline-block;margin-top:3px}
+  .r0{color:#a8b3cf;background:rgba(168,179,207,.12)}
+  .r1{color:#8be8c0;background:rgba(139,232,192,.12)}
+  .r2{color:#7ec8ff;background:rgba(126,200,255,.13)}
+  .r3{color:#ffd97e;background:rgba(255,217,126,.14)}
+  /* 稀有/传说光晕环缓旋（收获卡+图鉴） */
+  .glowring{transform-box:fill-box;transform-origin:center;animation:ringrot 14s linear infinite}
+  @keyframes ringrot{to{transform:rotate(360deg)}}
+  footer{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 4px);
+    text-align:center;font-size:11.5px;font-weight:600;color:#8d99b8;letter-spacing:.05em;
+    opacity:.95;pointer-events:none;z-index:1;transition:opacity .3s ease}
+  footer.hide{opacity:0}
+</style>
+</head>
+<body>
+
+  <div id="sky">
+    <div id="sun"></div>
+    <div class="hill h1"></div>
+    <div class="hill h2"></div>
+    <div class="bird b1" style="left:17%;top:21%"></div>
+    <div class="bird b2" style="left:26%;top:28%"></div>
+    <div class="star" style="left:10%;top:7%"></div>
+    <div class="star s2" style="left:43%;top:4%"></div>
+    <div class="star s3" style="left:87%;top:9%"></div>
+    <div class="star s4" style="left:27%;top:13%"></div>
+    <div class="star s5" style="left:68%;top:5%"></div>
+  </div>
+
+  <div id="hud">
+    <div class="t">
+      <div class="nm">悠然垂钓<small>解压 · 收集</small></div>
+      <div class="ct">图鉴 <b id="ct-dex">0</b>/<span id="ct-all">12</span> · 累计 <b id="ct-total">0</b> 条</div>
+    </div>
+    <button id="btn-snd" aria-label="声音开关"></button>
+    <button id="btn-dex" aria-label="图鉴">
+      <svg width="20" height="20" viewBox="0 0 20 20"><rect x="2.5" y="3.5" width="15" height="13" rx="2.5" fill="none" stroke="#a8b3cf" stroke-width="1.6"/><path d="M2.5 8 h15" stroke="#a8b3cf" stroke-width="1.6"/><circle cx="6" cy="5.8" r=".9" fill="#ffb347"/><path d="M6.5 11.2 q1.7 -1.3 3.4 0 t3.4 0" stroke="#7ec8ff" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+
+  <div id="lake">
+    <div id="under">
+      <div class="sunray"></div>
+      <div class="glowpool p1"></div>
+      <div class="glowpool p2"></div>
+      <div class="bub b1"></div><div class="bub b2"></div><div class="bub b3"></div><div class="bub b4"></div><div class="bub b5"></div>
+      <svg class="weed w1" viewBox="0 0 56 74"><path d="M28 74 C24 52 12 46 8 30 C16 40 22 46 24 58 C20 40 10 34 10 18 C19 30 24 38 25 52 C24 34 20 24 24 8 C29 24 29 36 27 54 C31 40 36 32 46 24 C40 38 33 46 30 60 C36 50 44 46 52 42 C44 50 34 56 30 74z" fill="#0a1a2c" opacity=".9"/></svg>
+      <svg class="weed w2" viewBox="0 0 56 74"><path d="M28 74 C24 52 12 46 8 30 C16 40 22 46 24 58 C20 40 10 34 10 18 C19 30 24 38 25 52 C24 34 20 24 24 8 C29 24 29 36 27 54 C31 40 36 32 46 24 C40 38 33 46 30 60 C36 50 44 46 52 42 C44 50 34 56 30 74z" fill="#0c2036" opacity=".85"/></svg>
+    </div>
+    <div id="waterline"></div>
+    <div id="shadowWrap"><div class="sk"></div></div>
+    <div id="lineV"></div>
+    <div id="hookedWrap"><div class="bd" id="hookedBody"></div></div>
+    <div id="floatWrap"><div id="float"></div></div>
+    <div id="tip"></div>
+  </div>
+
+  <button id="btn">抛 竿</button>
+  <footer>悠然垂钓 · 完全离线 · 慢慢钓，没有输赢</footer>
+
+  <div id="land" class="layer" hidden>
+    <div class="lpanel">
+      <div class="lt">渔获</div>
+      <div class="fishbox" id="land-svg"></div>
+      <div class="fname" id="land-name">—</div>
+      <div class="stars5" id="land-star">★</div>
+      <div class="flen" id="land-len">体长 <b>0</b> cm</div>
+      <div class="badge new" id="land-new">✦ 新收录 ✦</div>
+      <div class="badge rec" id="land-rec">★ 最长纪录 ★</div>
+      <button id="land-ok">继续钓</button>
+    </div>
+  </div>
+
+  <div id="dex" class="layer" hidden>
+    <div class="lpanel">
+      <div class="dh"><div class="lt">图鉴</div><div class="pct" id="dex-pct">0%</div></div>
+      <div id="dexgrid"></div>
+      <button id="dex-ok">回去钓鱼</button>
+    </div>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  function mulberry(seed) { var t = seed >>> 0; return function () { t += 0x6D2B79F5; var r2 = Math.imul(t ^ (t >>> 15), 1 | t); r2 ^= r2 + Math.imul(r2 ^ (r2 >>> 7), 61 | r2); return ((r2 ^ (r2 >>> 14)) >>> 0) / 4294967296; }; }
+
+  var safeStorage = {
+    get: function (k, d) { try { var v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set: function (k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+    del: function (k) { try { localStorage.removeItem(k); } catch (e) {} }
+  };
+
+  var SFX = (function () {
+    var ctx = null, on = safeStorage.get('mq_g16_sound', true);
+    function ac() {
+      if (!ctx) { try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+      if (ctx && ctx.state === 'suspended') ctx.resume();
+      return ctx;
+    }
+    function tone(type, f0, f1, t, vol, when) {
+      var c = ac(); if (!c) return;
+      var o = c.createOscillator(), g = c.createGain();
+      var t0 = c.currentTime + (when || 0);
+      o.type = type; o.frequency.setValueAtTime(f0, t0);
+      if (f1) o.frequency.exponentialRampToValueAtTime(f1, t0 + t);
+      g.gain.setValueAtTime(vol, t0);
+      g.gain.exponentialRampToValueAtTime(.001, t0 + t + .02);
+      o.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0 + t + .04);
+    }
+    function noise(t, vol) {
+      var c = ac(); if (!c) return;
+      var buf = c.createBuffer(1, Math.floor(22050 * t), 22050), d = buf.getChannelData(0);
+      for (var i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+      var n = c.createBufferSource(), g = c.createGain();
+      n.buffer = buf; g.gain.value = vol;
+      n.connect(g); g.connect(c.destination); n.start();
+    }
+    return {
+      unlock: function () { ac(); },
+      /* 抛竿落水「咚」：正弦下滑 + 一点水花噪声 */
+      plop: function () { if (!on) return; tone('sine', 520, 180, .16, .1); noise(.1, .05); },
+      /* 咬钩「叮咚」：高频短促双音 */
+      ding: function () { if (!on) return; tone('sine', 990, 0, .09, .13); tone('sine', 1320, 0, .12, .09, .07); },
+      /* 收线「嗒」：方波三音阶 */
+      reel: function (n) { if (!on) return; tone('square', 200 + n * 60, 0, .05, .07); },
+      /* 出水「啵」：上滑 + 水花 */
+      splash: function () { if (!on) return; tone('sine', 260, 620, .18, .11); noise(.14, .07); },
+      /* 传说琶音 */
+      legend: function () { if (!on) return; [392, 494, 587, 784, 988].forEach(function (f, i) { tone('triangle', f, 0, .3, .1, i * .09); }); },
+      /* 惊鱼/跑鱼：低哑短音 */
+      away: function () { if (!on) return; tone('sine', 220, 140, .14, .06); },
+      get on() { return on; },
+      toggle: function () { on = !on; safeStorage.set('mq_g16_sound', on); return on; }
+    };
+  })();
+
+  /* ═══ 鱼种表（12 种 × 4 稀有度） ═══ */
+  var RAR = [
+    { id: 'c', p: .60, star: 1, label: '常见' },
+    { id: 'u', p: .25, star: 2, label: '少见' },
+    { id: 'r', p: .12, star: 3, label: '稀有' },
+    { id: 'l', p: .03, star: 5, label: '传说' }
+  ];
+  var FISH = [
+    { id: 'f01', name: '小银鱼', rar: 0, min: 8, max: 15, c1: '#b8c6d8', c2: '#8d99b8', pat: 'plain' },
+    { id: 'f02', name: '柳叶鱼', rar: 0, min: 10, max: 18, c1: '#9fd8c8', c2: '#6fbfa8', pat: 'stripe' },
+    { id: 'f03', name: '红鲫', rar: 0, min: 12, max: 22, c1: '#e88a7a', c2: '#c94553', pat: 'plain' },
+    { id: 'f04', name: '青虾虎', rar: 0, min: 8, max: 14, c1: '#8fb8c8', c2: '#5a8fa8', pat: 'dot' },
+    { id: 'f05', name: '五彩鳉', rar: 0, min: 10, max: 16, c1: '#f2a0c0', c2: '#8fd0ff', pat: 'patch' },
+    { id: 'f06', name: '锦鲤', rar: 1, min: 18, max: 34, c1: '#ffb347', c2: '#f2e8ee', pat: 'patch' },
+    { id: 'f07', name: '斑鳜', rar: 1, min: 22, max: 40, c1: '#a8b87a', c2: '#5a6b3a', pat: 'dot' },
+    { id: 'f08', name: '长须鲶', rar: 1, min: 25, max: 40, c1: '#b8a688', c2: '#7a6b52', pat: 'plain', whisker: true },
+    { id: 'f09', name: '月光鳗', rar: 2, min: 30, max: 55, c1: '#c8d8ff', c2: '#8898c8', pat: 'stripe', glow: true, eel: true },
+    { id: 'f10', name: '琥珀龙睛', rar: 2, min: 20, max: 35, c1: '#ffb86b', c2: '#c97b2e', pat: 'dot', glow: true, bigEye: true },
+    { id: 'f11', name: '鎏金锦鲤王', rar: 3, min: 55, max: 88, c1: '#ffd97e', c2: '#ff9d5c', pat: 'patch', glow: true, crown: true, ink: true },
+    { id: 'f12', name: '深渊湖主', rar: 3, min: 50, max: 80, c1: '#5a6bd8', c2: '#2e3a8a', pat: 'stripe', glow: true, angler: true }
+  ];
+  var FBYID = {};
+  FISH.forEach(function (f) { FBYID[f.id] = f; });
+
+  /* 纯函数：seed → {id,name,rar,star,len}（CAST 时确定，同 seed 复现） */
+  function fishOf(seed) {
+    var r = mulberry(seed >>> 0);
+    var x = r(), acc = 0, rar = 0;
+    for (var i = 0; i < RAR.length; i++) { acc += RAR[i].p; if (x < acc) { rar = i; break; } }
+    var pool = FISH.filter(function (f) { return f.rar === rar; });
+    var f = pool[Math.floor(r() * pool.length)];
+    var len = +(f.min + r() * (f.max - f.min)).toFixed(1);
+    return { id: f.id, name: f.name, rar: rar, star: RAR[rar].star, len: len };
+  }
+
+  /* ═══ 程序化鱼 SVG（viewBox 0 0 120 70；sp=展示缩放比；silhouette=图鉴剪影） ═══ */
+  function fishSVG(fishId, opts) {
+    var f = FBYID[fishId];
+    var o = opts || {};
+    var c1 = o.silhouette ? '#232a44' : f.c1;
+    var c2 = o.silhouette ? '#1a2138' : f.c2;
+    var eyeW = o.silhouette ? '#232a44' : '#fff';
+    var eyeB = o.silhouette ? '#1a2138' : '#232f52';
+    var w = 120, h = 70;
+    var bodyRx = f.eel ? 44 : 36, bodyRy = f.eel ? 12 : 20;
+    var s = '';
+    s += '<svg viewBox="0 0 ' + w + ' ' + h + '" width="' + (o.width || 120) + '" height="' + (o.height || 70) + '">';
+    if (f.glow && !o.silhouette) {
+      s += '<ellipse cx="58" cy="34" rx="' + (bodyRx + 12) + '" ry="' + (bodyRy + 10) + '" fill="none" stroke="' + (f.rar === 3 ? 'rgba(255,217,126,.6)' : 'rgba(160,200,255,.42)') + '" stroke-width="2" stroke-dasharray="2 6 11 5" stroke-linecap="round" class="glowring"/>';
+    }
+    /* 尾鳍 */
+    s += '<path d="M' + (96) + ' 34 L' + (114) + ' ' + (34 - (f.eel ? 12 : 18)) + ' Q' + (106) + ' 34 ' + (114) + ' ' + (34 + (f.eel ? 12 : 18)) + ' Z" fill="' + c2 + '"/>';
+    /* 身体 */
+    s += '<ellipse cx="58" cy="34" rx="' + bodyRx + '" ry="' + bodyRy + '" fill="' + c1 + '"/>';
+    /* 背鳍 */
+    s += '<path d="M44 ' + (34 - bodyRy + 2) + ' Q56 ' + (34 - bodyRy - (f.eel ? 4 : 10)) + ' 72 ' + (34 - bodyRy + 3) + ' L70 ' + (34 - bodyRy + 6) + ' Q56 ' + (34 - bodyRy - 2) + ' 46 ' + (34 - bodyRy + 5) + ' Z" fill="' + c2 + '"/>';
+    /* 腹鳍 */
+    s += '<path d="M52 ' + (34 + bodyRy - 2) + ' q6 8 12 1 l-2 -4 z" fill="' + c2 + '"/>';
+    /* 花纹 */
+    var i;
+    if (f.pat === 'stripe') {
+      for (i = 0; i < 3; i++) s += '<path d="M' + (46 + i * 13) + ' ' + (34 - bodyRy + 4) + ' q3 ' + bodyRy + ' 0 ' + (bodyRy * 2 - 8) + '" stroke="' + c2 + '" stroke-width="4.5" fill="none" stroke-linecap="round" opacity=".8"/>';
+    } else if (f.pat === 'dot') {
+      var dots = [[46, 28], [58, 24], [68, 30], [52, 40], [64, 42], [74, 36]];
+      for (i = 0; i < dots.length; i++) s += '<circle cx="' + dots[i][0] + '" cy="' + dots[i][1] + '" r="3.2" fill="' + c2 + '" opacity=".85"/>';
+    } else if (f.pat === 'patch') {
+      s += '<path d="M40 26 q14 -8 24 2 q8 8 -4 12 q-16 6 -22 -4 q-2 -6 2 -10z" fill="' + c2 + '" opacity=".9"/>';
+      s += '<circle cx="70" cy="40" r="5.5" fill="' + c2 + '" opacity=".75"/>';
+      /* 鎏金锦鲤王：深墨斑压阵（金+墨双色才有"王"的贵气） */
+      if (f.ink && !o.silhouette) {
+        s += '<path d="M50 24 q12 -6 20 2 q6 6 -2 10 q-12 5 -18 -2 q-3 -5 0 -10z" fill="#3a2430" opacity=".82"/>';
+        s += '<circle cx="74" cy="26" r="4.2" fill="#3a2430" opacity=".75"/>';
+      }
+    }
+    /* 眼（bigEye=龙睛凸眼） */
+    var er = f.bigEye ? 6.5 : 4.2;
+    s += '<circle cx="34" cy="30" r="' + er + '" fill="' + eyeW + '"/>';
+    s += '<circle cx="35.5" cy="30" r="' + (er * .55) + '" fill="' + eyeB + '"/>';
+    /* 嘴 */
+    s += '<path d="M22 38 q4 2.5 8 .5" stroke="' + eyeB + '" stroke-width="2" fill="none" stroke-linecap="round"' + (o.silhouette ? ' opacity="0"' : '') + '/>';
+    /* 长须 */
+    if (f.whisker) {
+      s += '<path d="M24 38 q-8 6 -6 12 M28 40 q-4 8 -1 13" stroke="' + c2 + '" stroke-width="2.2" fill="none" stroke-linecap="round"' + (o.silhouette ? ' opacity=".5"' : '') + '/>';
+    }
+    /* 提灯（深渊湖主） */
+    if (f.angler && !o.silhouette) {
+      s += '<path d="M30 22 Q18 8 10 14" stroke="' + c1 + '" stroke-width="2.4" fill="none" stroke-linecap="round"/>';
+      s += '<circle cx="10" cy="14" r="4.5" fill="#9fd8ff" class="lamp"/><circle cx="10" cy="14" r="2" fill="#fff" opacity=".9"/>';
+    }
+    /* 王冠（鎏金锦鲤王）：22 宽三尖冠+冠带+红宝石高光，脱离鱼身 1px 间隙 */
+    if (f.crown && !o.silhouette) {
+      var cy0 = 34 - bodyRy - 1;   /* 冠带底 = 身顶上浮 1px */
+      s += '<path d="M46 ' + cy0 + ' l5 -11 6 8 6 -8 5 11 z" fill="#ffd97e" stroke="#8a4f1d" stroke-width="1.8" stroke-linejoin="round"/>';
+      s += '<rect x="45.5" y="' + cy0 + '" width="23" height="3" rx="1.4" fill="#e8b45a" stroke="#8a4f1d" stroke-width="1"/>';
+      s += '<circle cx="57" cy="' + (cy0 - 6) + '" r="3" fill="#ff4d64" stroke="#8a4f1d" stroke-width=".9"/>';
+      s += '<circle cx="56.1" cy="' + (cy0 - 6.9) + '" r="1" fill="#fff" opacity=".95"/>';
+    }
+    s += '</svg>';
+    return s;
+  }
+
+  /* 浮标 SVG：纺锤主体骑水面线；水下钓线两段渐隐（替代原「图钉」底座） */
+  var FLOAT_SVG =
+    '<svg viewBox="0 0 44 64" width="44" height="64">' +
+    '<path d="M22 44 v8" stroke="rgba(232,236,248,.5)" stroke-width="1.5"/>' +
+    '<path d="M22 52 v8" stroke="rgba(232,236,248,.22)" stroke-width="1.3"/>' +
+    '<path d="M22 2 q10 8 8 20 q-2 12 -8 20 q-6 -8 -8 -20 q-2 -12 8 -20z" fill="#ff8494"/>' +
+    '<path d="M22 12 q5 6 4.6 13 q-.4 7 -4.6 13 q-4.2 -6 -4.6 -13 q-.4 -7 4.6 -13z" fill="#f2e8ee"/>' +
+    '<circle cx="22" cy="8" r="2.6" fill="#ffd97e"/>' +
+    '<ellipse cx="18" cy="16" rx="2" ry="5" fill="rgba(255,255,255,.55)" transform="rotate(-14 18 16)"/>' +
+    '</svg>';
+
+  /* ═══ 状态 ═══ */
+  var S = {
+    phase: 'IDLE',            /* IDLE CAST WAIT BITE HOOK LAND */
+    fishSeed: 0, seedCounter: 1,
+    cur: null,                /* {id,name,rar,star,len} */
+    lineTaps: 0,
+    dex: safeStorage.get('mq_g16_dex', {}),
+    total: safeStorage.get('mq_g16_total', 0),
+    timers: [],
+    devCastSeed: null
+  };
+  var el = {
+    btn: document.getElementById('btn'), lake: document.getElementById('lake'),
+    floatWrap: document.getElementById('floatWrap'), float: document.getElementById('float'),
+    shadowWrap: document.getElementById('shadowWrap'), lineV: document.getElementById('lineV'),
+    hookedWrap: document.getElementById('hookedWrap'), hookedBody: document.getElementById('hookedBody'),
+    tip: document.getElementById('tip'),
+    ctDex: document.getElementById('ct-dex'), ctTotal: document.getElementById('ct-total'),
+    land: document.getElementById('land'), landSvg: document.getElementById('land-svg'),
+    landName: document.getElementById('land-name'), landStar: document.getElementById('land-star'),
+    landLen: document.getElementById('land-len'), landNew: document.getElementById('land-new'),
+    landRec: document.getElementById('land-rec'), landOk: document.getElementById('land-ok'),
+    dex: document.getElementById('dex'), dexGrid: document.getElementById('dexgrid'),
+    dexPct: document.getElementById('dex-pct'), dexOk: document.getElementById('dex-ok'),
+    btnDex: document.getElementById('btn-dex'), btnSnd: document.getElementById('btn-snd')
+  };
+
+  /* 声音开关（图标态随 SFX.on） */
+  var SND_ON =
+    '<svg width="20" height="20" viewBox="0 0 20 20">' +
+    '<path d="M3 8 h3 l4 -3.4 v10.8 L6 12 H3z" fill="#ffb347"/>' +
+    '<path d="M13 7 q2 3 0 6 M15.5 5 q3.2 5 0 10" stroke="#7ec8ff" stroke-width="1.7" fill="none" stroke-linecap="round"/>' +
+    '</svg>';
+  var SND_OFF =
+    '<svg width="20" height="20" viewBox="0 0 20 20">' +
+    '<path d="M3 8 h3 l4 -3.4 v10.8 L6 12 H3z" fill="#8d99b8"/>' +
+    '<path d="M13 7.5 l5 5 M18 7.5 l-5 5" stroke="#ff8494" stroke-width="1.9" stroke-linecap="round"/>' +
+    '</svg>';
+  function sndIcon() {
+    el.btnSnd.innerHTML = SFX.on ? SND_ON : SND_OFF;
+    el.btnSnd.classList.toggle('off', !SFX.on);
+  }
+
+  function T(fn, ms) { var id = setTimeout(fn, ms); S.timers.push(id); return id; }
+  function clearTimers() { S.timers.forEach(clearTimeout); S.timers = []; }
+
+  function tip(txt, cls) {
+    el.tip.textContent = txt;
+    el.tip.className = cls || '';
+    el.tip.style.opacity = txt ? '1' : '0';
+  }
+  function ripple() {
+    var r = document.createElement('div');
+    r.className = 'ripple';
+    r.style.left = 'calc(50% - 7px)';
+    r.style.top = 'calc(40% - 4px)';
+    el.lake.appendChild(r);
+    setTimeout(function () { if (r.parentNode) r.parentNode.removeChild(r); }, 950);
+  }
+
+  function updateHUD() {
+    var n = Object.keys(S.dex).length;
+    el.ctDex.textContent = n;
+    document.getElementById('ct-all').textContent = FISH.length;
+    el.ctTotal.textContent = S.total;
+  }
+
+  /* 渲染各态的主按钮/浮标/鱼影/线 */
+  var elFt = document.querySelector('footer');
+  function renderPhase() {
+    var p = S.phase;
+    el.btn.className = '';
+    el.floatWrap.className = '';
+    el.shadowWrap.className = '';
+    el.hookedWrap.className = '';
+    el.lineV.style.height = '0';
+    elFt.className = (p === 'BITE' || p === 'HOOK') ? 'hide' : '';   /* 急迫态藏闲适文案 */
+    if (p === 'IDLE') {
+      el.btn.textContent = '抛 竿';
+      el.float.style.opacity = '1';   /* 待机浮标常显（CAST 被中断时也复位） */
+      tip('', '');
+    } else if (p === 'CAST') {
+      el.btn.className = 'wait';
+      el.btn.textContent = '落水中…';
+      tip('', '');
+    } else if (p === 'WAIT') {
+      el.btn.className = 'wait';
+      el.btn.textContent = '等 鱼 上 钩';
+      tip('水面好像有动静…', '');
+    } else if (p === 'BITE') {
+      el.btn.className = 'bite';
+      el.btn.textContent = '拉 杆 ！';
+      el.floatWrap.className = 'bite';
+      el.shadowWrap.className = 'here';
+      tip('咬钩了！快拉！', 'hot');
+    } else if (p === 'HOOK') {
+      el.btn.className = 'hook';
+      el.btn.textContent = '收 线 ！ 连 点';
+      tip('上钩了！连点收线（' + S.lineTaps + '/3）', 'good');
+      el.shadowWrap.className = 'here';
+    } else if (p === 'LAND') {
+      el.btn.className = 'wait';
+      el.btn.textContent = '查 看 渔 获';
+    }
+  }
+
+  function to(p) {
+    clearTimers();
+    S.phase = p;
+    renderPhase();
+  }
+
+  /* 等待期编排（CAST 落水后进入；skipAnim 时由 cast 直接调用） */
+  function enterWait() {
+    el.float.style.opacity = '1';
+    to('WAIT');
+    /* 鱼影渐近（200ms 即开始 1.6s 渐显，快局也来得及预告；BITE 时切 here） */
+    T(function () { if (S.phase === 'WAIT') el.shadowWrap.className = 'near'; }, 200);
+    var waitMs = 1500 + mulberry((S.fishSeed ^ 0x9e37) >>> 0)() * 3000;
+    /* BITE 不走 to()（to 会清 timers 吞掉后续转移）——进态后再登记超时，同 doHook 模式 */
+    T(function () {
+      if (S.phase !== 'WAIT') return;
+      S.phase = 'BITE'; renderPhase(); SFX.ding();
+      if (navigator.vibrate) { try { navigator.vibrate([30, 40, 30]); } catch (e) {} }
+      T(function () { if (S.phase === 'BITE') fishAway('鱼跑了…再抛一次'); }, 620);
+    }, waitMs);
+  }
+
+  /* 抛竿：此刻定鱼（seed 注入 or 递增）；skipAnim=跳过落水动画直入 WAIT（dev/verify 用） */
+  function doCast(skipAnim) {
+    if (S.phase !== 'IDLE') return false;
+    if (S.devCastSeed != null) { S.fishSeed = S.devCastSeed >>> 0; S.devCastSeed = null; }
+    else { S.fishSeed = S.seedCounter >>> 0; S.seedCounter++; }   /* 真实抛竿：seed 递增，每竿不同的鱼 */
+    S.cur = fishOf(S.fishSeed);
+    S.lineTaps = 0;
+    ripple();
+    SFX.plop();
+    if (navigator.vibrate) { try { navigator.vibrate(8); } catch (e) {} }
+    if (skipAnim) { enterWait(); return true; }
+    to('CAST');
+    el.float.style.opacity = '0';
+    T(enterWait, 620);
+    return true;
+  }
+
+  function fishAway(msg) {
+    el.floatWrap.className = 'gone';
+    el.shadowWrap.className = '';
+    SFX.away();
+    to('IDLE');
+    tip(msg, '');
+  }
+
+  /* 拉杆（BITE 内点击）→ HOOK */
+  function doHook() {
+    if (S.phase !== 'BITE') return false;
+    to('HOOK');
+    el.hookedWrap.className = 'show';
+    el.hookedWrap.style.top = 'calc(40% + 6px)';
+    el.hookedBody.innerHTML = fishSVG(S.cur.id, { width: 60, height: 35 });
+    el.lineV.style.height = '18px';
+    S.lineTaps = 0;
+    /* 收线超时：脱钩 */
+    T(function () {
+      if (S.phase === 'HOOK') {
+        el.hookedWrap.className = '';
+        fishAway('脱钩了，它带走了诱饵…');
+      }
+    }, 3500);
+    return true;
+  }
+
+  /* 收线一击 */
+  function tapLine() {
+    if (S.phase !== 'HOOK') return false;
+    S.lineTaps++;
+    SFX.reel(S.lineTaps);
+    el.hookedWrap.className = 'show tense';
+    setTimeout(function () { if (S.phase === 'HOOK' && S.lineTaps < 3) el.hookedWrap.className = 'show'; }, 130);
+    var steps = [18, 34, 50];
+    el.lineV.style.height = steps[Math.min(S.lineTaps - 1, 2)] + 'px';
+    el.hookedWrap.style.top = 'calc(40% + ' + (26 - S.lineTaps * 8) + 'px)';
+    tip('上钩了！连点收线（' + S.lineTaps + '/3）', 'good');
+    if (navigator.vibrate) { try { navigator.vibrate(6); } catch (e) {} }
+    if (S.lineTaps >= 3) { landFish(); }   /* 第三击同步出水（verify 可同步断言） */
+    return true;
+  }
+
+  /* 落鱼收获 */
+  function landFish() {
+    var isNew = !(S.cur.id in S.dex);
+    var isRec = !isNew && S.cur.len > S.dex[S.cur.id];
+    S.dex[S.cur.id] = isNew ? S.cur.len : Math.max(S.dex[S.cur.id], S.cur.len);
+    S.total++;
+    safeStorage.set('mq_g16_dex', S.dex);
+    safeStorage.set('mq_g16_total', S.total);
+    updateHUD();
+    el.hookedWrap.className = '';
+    el.shadowWrap.className = '';
+    el.floatWrap.className = 'gone';
+    to('LAND');
+    el.landSvg.innerHTML = fishSVG(S.cur.id, { width: 168, height: 98 });
+    el.landName.textContent = S.cur.name;
+    el.landStar.textContent = new Array(S.cur.star + 1).join('★');
+    el.landLen.innerHTML = '体长 <b>' + S.cur.len + '</b> cm';
+    el.landNew.className = 'badge' + (isNew ? ' new' : '');
+    el.landRec.className = 'badge' + (isRec ? ' rec' : '');
+    SFX.splash();
+    if (S.cur.rar === 3) {
+      SFX.legend();
+      document.body.classList.remove('legendflash');
+      void document.body.offsetWidth;
+      document.body.classList.add('legendflash');
+      setTimeout(function () { document.body.classList.remove('legendflash'); }, 900);
+    }
+    if (navigator.vibrate) { try { navigator.vibrate([20, 40, 20]); } catch (e) {} }
+    el.land.hidden = false;
+  }
+
+  /* 主点击：按状态分派 */
+  function tap() {
+    var p = S.phase;
+    if (p === 'IDLE') return doCast();
+    if (p === 'WAIT') {   /* 惊鱼 */
+      fishAway('太急了，把鱼吓跑了…');
+      return true;
+    }
+    if (p === 'BITE') return doHook();
+    if (p === 'HOOK') return tapLine();
+    if (p === 'LAND') { el.land.hidden = false; return false; }
+    return false;
+  }
+
+  /* 图鉴渲染 */
+  function renderDex() {
+    var n = Object.keys(S.dex).length;
+    el.dexPct.textContent = Math.round(n / FISH.length * 100) + '%（' + n + '/' + FISH.length + '）';
+    var g = el.dexGrid;
+    g.innerHTML = '';
+    FISH.forEach(function (f) {
+      var caught = f.id in S.dex;
+      var d = document.createElement('div');
+      d.className = 'dcell ' + (caught ? 'caught' : 'miss');
+      d.innerHTML =
+        '<div class="dv">' + fishSVG(f.id, { width: 62, height: 36, silhouette: !caught }) + '</div>' +
+        '<div class="dn">' + (caught ? f.name : '？？？') + '</div>' +
+        '<div class="dl">' + (caught ? '最长 ' + S.dex[f.id] + ' cm' : '尚未捕获') + '</div>' +
+        '<span class="rarity-tag r' + f.rar + '">' + RAR[f.rar].label + '</span>';
+      g.appendChild(d);
+    });
+  }
+
+  /* ═══ 事件 ═══ */
+  el.btn.addEventListener('pointerdown', function (e) { e.preventDefault(); SFX.unlock(); tap(); });
+  el.lake.addEventListener('pointerdown', function (e) {
+    e.preventDefault(); SFX.unlock();
+    tap();
+  });
+  el.landOk.addEventListener('click', function () { el.land.hidden = true; to('IDLE'); });
+  el.btnDex.addEventListener('click', function () { renderDex(); el.dex.hidden = false; });
+  el.btnSnd.addEventListener('click', function () { SFX.toggle(); sndIcon(); });
+  el.dexOk.addEventListener('click', function () { el.dex.hidden = true; });
+
+  /* ═══ dev 钩子 ═══ */
+  
+
+  /* ═══ 启动 ═══ */
+  el.float.innerHTML = FLOAT_SVG;
+  sndIcon();
+  updateHUD();
+  renderPhase();
+})();
+</script>
+</body>
+</html>
