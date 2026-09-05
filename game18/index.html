@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0e1424">
+<title>纸鸢渡云 · 离线版</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect x='4' y='4' width='40' height='40' rx='9' fill='%230e1424'/%3E%3Cpath d='M24 8 L34 24 L24 38 L14 24 Z' fill='%23ffb347'/%3E%3Ccircle cx='24' cy='24' r='3' fill='%23fff2d8'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#0e1424; --panel:rgba(20,27,46,.94); --line:rgba(148,168,225,.22);
+    --ink:#e8ecf8; --dim:#a8b3cf; --gold:#ffb347; --red:#ff6b7d; --bamboo:#8be8c0;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{background:linear-gradient(180deg,#0a0f1e 0%,#0e1424 45%,#141d38 100%);
+    color:var(--dim);font-family:'Segoe UI',system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
+    overflow:hidden;position:fixed;inset:0;touch-action:none;user-select:none;-webkit-user-select:none}
+  /* 夜空静态装饰：星子 + 顶部云带（不参与判定） */
+  body::before{content:"";position:absolute;inset:0;pointer-events:none;
+    background:
+      radial-gradient(1.4px 1.4px at 12% 8%,rgba(232,236,248,.85) 50%,transparent 51%),
+      radial-gradient(1.1px 1.1px at 66% 4%,rgba(232,236,248,.5) 50%,transparent 51%),
+      radial-gradient(1.6px 1.6px at 88% 12%,rgba(255,217,126,.7) 50%,transparent 51%),
+      radial-gradient(1.2px 1.2px at 34% 15%,rgba(232,236,248,.4) 50%,transparent 51%),
+      radial-gradient(1.3px 1.3px at 52% 9%,rgba(232,236,248,.55) 50%,transparent 51%),
+      radial-gradient(1.1px 1.1px at 78% 20%,rgba(232,236,248,.35) 50%,transparent 51%),
+      radial-gradient(1.3px 1.3px at 8% 26%,rgba(232,236,248,.45) 50%,transparent 51%),
+      radial-gradient(1px 1px at 44% 28%,rgba(232,236,248,.3) 50%,transparent 51%);
+  }
+  body::after{content:"";position:absolute;left:-10%;right:-10%;top:0;height:120px;pointer-events:none;
+    background:radial-gradient(60px 30px at 20% 0%,rgba(46,58,92,.55),transparent 70%),
+      radial-gradient(80px 34px at 55% -6px,rgba(38,50,84,.5),transparent 70%),
+      radial-gradient(70px 28px at 85% 2px,rgba(52,64,100,.45),transparent 70%);
+    filter:blur(2px)}
+  #cv{position:absolute;inset:0;width:100%;height:100%;z-index:2}
+
+  /* ── 顶栏 ── */
+  #hud{position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);left:14px;right:14px;z-index:6;
+    display:flex;align-items:center;gap:10px;pointer-events:none}
+  #hud .t{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:5px 12px;
+    box-shadow:0 3px 10px rgba(0,0,0,.35)}
+  #hud .nm{font-size:12px;font-weight:800;letter-spacing:.08em;color:var(--gold)}
+  #hud .nm small{font-size:10px;color:var(--dim);font-weight:400;margin-left:5px}
+  #hud .ct{font-size:11.5px;margin-top:1px;font-variant-numeric:tabular-nums;color:var(--dim)}
+  #hud .ct b{color:var(--ink)}
+  #lives{font-size:13px;letter-spacing:2px;color:var(--red);background:var(--panel);
+    border:1px solid var(--line);border-radius:11px;padding:7px 10px;box-shadow:0 3px 10px rgba(0,0,0,.35)}
+  #lives .h.dead{opacity:.45;filter:grayscale(1)}
+  #score{margin-left:auto;font-size:22px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;
+    background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:3px 12px;
+    box-shadow:0 3px 10px rgba(0,0,0,.35)}
+  #btn-snd{width:38px;height:38px;border:1px solid var(--line);border-radius:11px;background:var(--panel);
+    cursor:pointer;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 3px 8px rgba(0,0,0,.32);pointer-events:auto}
+  #btn-snd:active{transform:translateY(2px)}
+  #btn-snd.off{opacity:.55}
+
+  footer{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 4px);
+    text-align:center;font-size:10.5px;font-weight:600;color:#6a7798;letter-spacing:.05em;
+    pointer-events:none;z-index:3}
+
+  /* ── 层 ── */
+  .layer{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(8,11,20,.88);z-index:20}
+  .layer[hidden]{display:none}
+  .lpanel{display:flex;flex-direction:column;gap:13px;width:min(86vw,340px);
+    background:rgba(20,26,42,.98);border:1px solid rgba(148,168,225,.4);border-radius:18px;padding:24px 26px;
+    box-shadow:0 26px 80px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.05)}
+  .lt{font-size:16.5px;font-weight:800;color:var(--gold);letter-spacing:.08em;text-align:center}
+  .ld{font-size:13.5px;color:#c6cfe4;line-height:1.9;text-align:center}
+  .ld b{color:#ffe9b8}
+  .ld .gd{color:var(--gold);font-weight:700}
+  .ld .no{color:var(--red);font-weight:700}
+  .layer button{padding:11px 0;font-size:15px;font-weight:700;color:#16202f;background:var(--gold);
+    border:none;border-radius:12px;cursor:pointer}
+  .layer button.ghost{background:transparent;color:var(--dim);border:1px solid var(--line)}
+  #menu .bestrow{font-size:13px;color:var(--dim);text-align:center}
+  #menu .bestrow b{color:var(--ink)}
+  #end .big{font-size:34px;font-weight:800;color:var(--gold);text-align:center;letter-spacing:.04em;
+    text-shadow:0 4px 24px rgba(255,179,71,.4)}
+  #end .grade{font-size:15px;font-weight:800;text-align:center;letter-spacing:.2em}
+  #end .stats{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;font-size:13px;color:var(--dim)}
+  #end .stats b{color:var(--ink);font-size:16px;font-variant-numeric:tabular-nums}
+  #end .rec{display:none;text-align:center;font-size:12.5px;color:#ffd97e;font-weight:700;letter-spacing:.1em}
+  #end .rec.show{display:block;animation:rpop .6s ease both}
+  @keyframes rpop{0%{transform:scale(.4);opacity:0}70%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+</style>
+</head>
+<body>
+  <canvas id="cv"></canvas>
+
+  <div id="hud">
+    <div class="t">
+      <div class="nm">纸鸢渡云<small>弹幕生存</small></div>
+      <div class="ct">波次 <b id="ct-wave">1</b> · <span id="ct-graze">擦弹 0</span></div>
+    </div>
+    <div id="lives">♥♥♥</div>
+    <div id="score">0</div>
+    <button id="btn-snd" aria-label="声音开关"></button>
+  </div>
+
+  <footer>纸鸢渡云 · 完全离线 · 贴着流星擦过有奖励</footer>
+
+  <div id="menu" class="layer">
+    <div class="lpanel">
+      <div class="lt">纸鸢渡云</div>
+      <div class="ld">手指拖动放风筝，在流星弹幕里<b>活下来</b>。<br>
+        贴着流星 <span class="gd">擦身而过</span> = <span class="gd">+15 分</span>，擦得越多次数越漂亮。<br>
+        <span class="no">撞上扣一颗心</span>，三心用尽收线；撑满 5 分 20 秒渡云成功。</div>
+      <div class="bestrow">最佳 <b id="menu-best">0</b> 分 · 最多擦弹 <b id="menu-graze">0</b></div>
+      <button id="menu-ok">起风 · 放鸢</button>
+    </div>
+  </div>
+
+  <div id="end" class="layer" hidden>
+    <div class="lpanel">
+      <div class="lt" id="end-title">三心用尽</div>
+      <div class="big" id="end-score">0</div>
+      <div class="grade" id="end-grade"></div>
+      <div class="stats">
+        <span>存活<br><b id="end-time">0s</b></span>
+        <span>擦弹<br><b id="end-graze">0</b></span>
+        <span>波次<br><b id="end-wave">1</b></span>
+        <span>历史最佳<br><b id="end-best">0</b></span>
+      </div>
+      <div class="rec" id="end-rec">★ 新纪录 ★</div>
+      <button id="end-ok">再放一次</button>
+      <button id="end-menu" class="ghost">回菜单</button>
+    </div>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  function mulberry(seed) { var t = seed >>> 0; return function () { t += 0x6D2B79F5; var r2 = Math.imul(t ^ (t >>> 15), 1 | t); r2 ^= r2 + Math.imul(r2 ^ (r2 >>> 7), 61 | r2); return ((r2 ^ (r2 >>> 14)) >>> 0) / 4294967296; }; }
+
+  var safeStorage = {
+    get: function (k, d) { try { var v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set: function (k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+    del: function (k) { try { localStorage.removeItem(k); } catch (e) {} }
+  };
+
+  var SFX = (function () {
+    var ctx = null, on = safeStorage.get('mq_g18_sound', true);
+    function ac() {
+      if (!ctx) { try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+      if (ctx && ctx.state === 'suspended') ctx.resume();
+      return ctx;
+    }
+    function tone(type, f0, f1, t, vol, when) {
+      var c = ac(); if (!c) return;
+      var o = c.createOscillator(), g = c.createGain();
+      var t0 = c.currentTime + (when || 0);
+      o.type = type; o.frequency.setValueAtTime(f0, t0);
+      if (f1) o.frequency.exponentialRampToValueAtTime(f1, t0 + t);
+      g.gain.setValueAtTime(vol, t0);
+      g.gain.exponentialRampToValueAtTime(.001, t0 + t + .02);
+      o.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0 + t + .04);
+    }
+    return {
+      unlock: function () { ac(); },
+      graze: function (n) { if (!on) return; tone('sine', 1180 + Math.min(n, 12) * 40, 0, .07, .06); },
+      hit: function () { if (!on) return; tone('sine', 200, 90, .22, .12); tone('sawtooth', 120, 60, .16, .05); },
+      wave: function () { if (!on) return; [523, 659, 784].forEach(function (f, i) { tone('triangle', f, 0, .18, .08, i * .07); }); },
+      win: function () { if (!on) return; [392, 494, 587, 784, 988].forEach(function (f, i) { tone('triangle', f, 0, .3, .1, i * .09); }); },
+      lose: function () { if (!on) return; tone('sine', 330, 110, .5, .1); },
+      get on() { return on; },
+      toggle: function () { on = !on; safeStorage.set('mq_g18_sound', on); return on; }
+    };
+  })();
+
+  /* ═══ 波次参数表（每波 16s；8 波后维持 W8 到 320s 渡云终点） ═══ */
+  var WAVE_MS = 16000, T_END = 320000, MAXW = 8;
+  var WT = [ /* rate顶雨/s | side间隔 | fan间隔 | spiral间隔 | homing间隔 | 弹速 */
+    null,
+    { rate: 1.3, side: 0, fan: 0, spiral: 0, home: 0, spd: 130 },
+    { rate: 1.7, side: 3200, fan: 0, spiral: 0, home: 0, spd: 150 },
+    { rate: 2.1, side: 2800, fan: 4500, spiral: 0, home: 0, spd: 170 },
+    { rate: 2.5, side: 2500, fan: 4000, spiral: 0, home: 0, spd: 195 },
+    { rate: 2.9, side: 2200, fan: 3600, spiral: 6500, home: 0, spd: 220 },
+    { rate: 3.3, side: 2000, fan: 3300, spiral: 5500, home: 8500, spd: 245 },
+    { rate: 3.8, side: 1800, fan: 3000, spiral: 5000, home: 7500, spd: 275 },
+    { rate: 4.4, side: 1600, fan: 2700, spiral: 4500, home: 6500, spd: 310 }
+  ];
+  var W = 375, H = 812;
+  var HIT_R = 16;        /* 命中：弹心距玩家心 < 16（判10+弹6） */
+  var GRAZE_R = 30;      /* 擦弹：16 ≤ 距离 < 30 */
+  var CLEAR_R = 110;     /* 受击近身清弹半径 */
+
+  /* ═══ 时间线预生成（seeded，bot 可预知） ═══ */
+  function genTimeline(seed) {
+    var rnd = mulberry(seed >>> 0);
+    var evs = [], seq = 0;
+    function waveAt(t) { return Math.min(MAXW, Math.floor(t / WAVE_MS) + 1); }
+    /* 顶雨：各波 rate 段内均匀撒点 */
+    for (var t = 800; t < T_END; ) {
+      var wv = waveAt(t), P = WT[wv];
+      evs.push({ at: Math.round(t), seq: seq++, k: 'top', x: 14 + rnd() * (W - 28), dx: (rnd() - .5) * 60, spd: P.spd * (.9 + rnd() * .25) });
+      t += 1000 / P.rate * (.7 + rnd() * .6);
+    }
+    /* 侧幕/扇形/螺旋/追踪：间隔游标推进 */
+    var modes = ['side', 'fan', 'spiral', 'home'];
+    for (var mi = 0; mi < modes.length; mi++) {
+      var k = modes[mi];
+      for (var t2 = WAVE_MS; t2 < T_END; ) {   /* W2 起才有首个非顶雨模式 */
+        var wv2 = waveAt(t2), P2 = WT[wv2];
+        var gap = P2[k]; if (!gap) { /* 该波未解锁 → 快进到解锁波起点 */ t2 = Math.ceil(wv2 / 1) * 0 + (wv2) * WAVE_MS; if (t2 <= wv2 * WAVE_MS - WAVE_MS) t2 = wv2 * WAVE_MS; var nw = wv2 + 1; while (nw <= MAXW && !WT[nw][k]) nw++; if (nw > MAXW) break; t2 = Math.max(t2, (nw - 1) * WAVE_MS); continue; }
+        if (k === 'side') {
+          var left = rnd() < .5;
+          evs.push({ at: Math.round(t2), seq: seq++, k: 'side', left: left, y: 120 + rnd() * 480, dy: (rnd() - .5) * 30, spd: P2.spd * .85 });
+        } else if (k === 'fan') {
+          evs.push({ at: Math.round(t2), seq: seq++, k: 'fan', x: 60 + rnd() * (W - 120), y: 70 + rnd() * 60, base: (rnd() - .5) * .5, spd: P2.spd * .8 });
+        } else if (k === 'spiral') {
+          evs.push({ at: Math.round(t2), seq: seq++, k: 'spiral', x: 90 + rnd() * (W - 180), y: 160 + rnd() * 80, a0: rnd() * Math.PI * 2, spd: P2.spd * .7 });
+        } else {
+          evs.push({ at: Math.round(t2), seq: seq++, k: 'home', x: 60 + rnd() * (W - 120), spd: 95 });
+        }
+        t2 += gap * (.85 + rnd() * .3);
+      }
+    }
+    evs.sort(function (a, b) { return a.at - b.at || a.seq - b.seq; });
+    return evs;
+  }
+
+  /* ═══ 状态 ═══ */
+  var S = {
+    running: false, over: true, won: false,
+    seed: 0, t: 0, t0: 0, wave: 1,
+    px: W / 2, py: H * .72, tilt: 0,
+    lives: 3, invulnUntil: -1, god: false,
+    liveScore: 0, graze: 0, waveBonus: 0,
+    tl: [], tlIdx: 0,
+    bullets: [],        /* {x,y,vx,vy,type('n'|'r'),grazed,phase} */
+    parts: [],          /* 粒子 */
+    pops: [],           /* 飘字 */
+    stats: { spawned: 0, recycled: 0 },
+    raf: 0, lastSpawnT: 0
+  };
+  var el = {
+    cv: document.getElementById('cv'), hud: document.getElementById('hud'),
+    lives: document.getElementById('lives'), score: document.getElementById('score'),
+    ctWave: document.getElementById('ct-wave'), ctGraze: document.getElementById('ct-graze'),
+    menu: document.getElementById('menu'), menuOk: document.getElementById('menu-ok'),
+    menuBest: document.getElementById('menu-best'), menuGraze: document.getElementById('menu-graze'),
+    end: document.getElementById('end'), endTitle: document.getElementById('end-title'),
+    endScore: document.getElementById('end-score'), endGrade: document.getElementById('end-grade'),
+    endTime: document.getElementById('end-time'), endGraze: document.getElementById('end-graze'),
+    endWave: document.getElementById('end-wave'), endBest: document.getElementById('end-best'),
+    endRec: document.getElementById('end-rec'), endOk: document.getElementById('end-ok'),
+    endMenu: document.getElementById('end-menu'), btnSnd: document.getElementById('btn-snd')
+  };
+  var ctx2d = el.cv.getContext('2d');
+  var DPR = Math.min(window.devicePixelRatio || 1, 2);
+  el.cv.width = W * DPR; el.cv.height = H * DPR;
+  ctx2d.scale(DPR, DPR);
+
+  /* ── sprite 预渲染 ── */
+  function makeSprite(size, draw) {
+    var c = document.createElement('canvas');
+    c.width = size * 2; c.height = size * 2;
+    var g = c.getContext('2d');
+    g.translate(size, size);
+    draw(g, size);
+    return c;
+  }
+  var SPR_N = makeSprite(9, function (g) {   /* 金白流星 */
+    var rg = g.createRadialGradient(0, 0, 0, 0, 0, 9);
+    rg.addColorStop(0, 'rgba(255,250,235,1)'); rg.addColorStop(.45, 'rgba(255,214,130,.9)');
+    rg.addColorStop(1, 'rgba(255,179,71,0)');
+    g.fillStyle = rg; g.beginPath(); g.arc(0, 0, 9, 0, 7); g.fill();
+  });
+  var SPR_R = makeSprite(9, function (g) {   /* 红流星（追踪弹） */
+    var rg = g.createRadialGradient(0, 0, 0, 0, 0, 9);
+    rg.addColorStop(0, 'rgba(255,235,235,1)'); rg.addColorStop(.45, 'rgba(255,130,140,.9)');
+    rg.addColorStop(1, 'rgba(224,82,104,0)');
+    g.fillStyle = rg; g.beginPath(); g.arc(0, 0, 9, 0, 7); g.fill();
+  });
+  var SPR_KITE = makeSprite(22, function (g) {  /* 纸鸢本体 */
+    g.rotate(Math.PI / 4);
+    var lg = g.createLinearGradient(-14, -14, 14, 14);
+    lg.addColorStop(0, '#ffd98c'); lg.addColorStop(.55, '#ffb347'); lg.addColorStop(1, '#e8963f');
+    g.fillStyle = lg;
+    g.beginPath(); g.moveTo(0, -15); g.lineTo(15, 0); g.lineTo(0, 15); g.lineTo(-15, 0); g.closePath(); g.fill();
+    g.strokeStyle = 'rgba(120,80,30,.55)'; g.lineWidth = 1.2;
+    g.beginPath(); g.moveTo(0, -15); g.lineTo(0, 15); g.moveTo(-15, 0); g.lineTo(15, 0); g.stroke();
+    g.strokeStyle = 'rgba(255,246,224,.8)'; g.lineWidth = 1.6;
+    g.strokeRect(-15, -15, 30, 30);
+  });
+
+  /* ═══ 事件 → 弹幕 ═══ */
+  function spawnFrom(ev) {
+    function add(x, y, vx, vy, type) {
+      S.bullets.push({ x: x, y: y, vx: vx, vy: vy, type: type || 'n', grazed: false });
+      S.stats.spawned++;
+    }
+    if (ev.k === 'top') add(ev.x, -16, ev.dx, ev.spd);
+    else if (ev.k === 'side') { var vx = ev.left ? ev.spd : -ev.spd; add(ev.left ? -16 : W + 16, ev.y, vx, ev.dy); }
+    else if (ev.k === 'fan') { for (var i = -2; i <= 2; i++) { var a = Math.PI / 2 + ev.base + i * .34; add(ev.x, ev.y, Math.cos(a) * ev.spd, Math.sin(a) * ev.spd); } }
+    else if (ev.k === 'spiral') { for (var j = 0; j < 12; j++) { var a2 = ev.a0 + j * .52; add(ev.x, ev.y, Math.cos(a2) * ev.spd, Math.sin(a2) * ev.spd); } }
+    else if (ev.k === 'home') { for (var k = -1; k <= 1; k++) add(ev.x + k * 44, -16, k * 26, 95, 'r'); }
+  }
+
+  /* ═══ 帧推进（纯逻辑，dt 毫秒；step 与 rAF 共用 → 确定性） ═══ */
+  function stepOnce(dt, force) {
+    if (!S.running && !force) return;
+    S.t += dt;
+    /* 波次 */
+    var wv = Math.min(MAXW, Math.floor(S.t / WAVE_MS) + 1);
+    if (wv > S.wave) { S.wave = wv; S.waveBonus += 200; SFX.wave(); }
+    /* 存活分 */
+    S.liveScore += dt * 10 / 1000;
+    /* spawn */
+    while (S.tlIdx < S.tl.length && S.tl[S.tlIdx].at <= S.t) { spawnFrom(S.tl[S.tlIdx]); S.tlIdx++; }
+    /* 弹幕推进 */
+    var invuln = S.t < S.invulnUntil;
+    for (var i = S.bullets.length - 1; i >= 0; i--) {
+      var b = S.bullets[i];
+      if (b.type === 'r') {   /* 追踪弹：每帧最多转 0.055rad */
+        var ang = Math.atan2(S.py - b.y, S.px - b.x);
+        var cur = Math.atan2(b.vy, b.vx);
+        var d = ang - cur;
+        while (d > Math.PI) d -= Math.PI * 2;
+        while (d < -Math.PI) d += Math.PI * 2;
+        var turn = Math.max(-.055, Math.min(.055, d));
+        var sp = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+        var na = cur + turn;
+        b.vx = Math.cos(na) * sp; b.vy = Math.sin(na) * sp;
+      }
+      b.x += b.vx * dt / 1000; b.y += b.vy * dt / 1000;
+      if (b.x < -40 || b.x > W + 40 || b.y < -40 || b.y > H + 40) {
+        S.bullets.splice(i, 1); S.stats.recycled++; continue;
+      }
+      var dx = b.x - S.px, dy = b.y - S.py;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      if (!invuln && !S.god && dist < HIT_R) { hitPlayer(i); i = S.bullets.length; continue; }   /* 清弹缩短数组→重置游标防越界 */
+      if (!b.grazed && !invuln && dist < GRAZE_R) {
+        b.grazed = true; S.graze++; SFX.graze(S.graze);
+        S.pops.push({ x: b.x, y: b.y, txt: '+15', t: 0, gold: true });
+      }
+    }
+    /* 粒子/飘字 */
+    for (var p = S.parts.length - 1; p >= 0; p--) { var pt = S.parts[p]; pt.t += dt; pt.x += pt.vx * dt / 1000; pt.y += pt.vy * dt / 1000; if (pt.t > pt.life) S.parts.splice(p, 1); }
+    for (var q = S.pops.length - 1; q >= 0; q--) { var pp = S.pops[q]; pp.t += dt; if (pp.t > 700) S.pops.splice(q, 1); }
+    /* 终局 */
+    if (S.lives <= 0) { endGame(false); return; }
+    if (S.t >= T_END) { S.waveBonus += 1000; endGame(true); return; }
+  }
+
+  function hitPlayer(bi) {
+    S.lives--;
+    S.invulnUntil = S.t + 1200;
+    var b = S.bullets[bi];
+    SFX.hit();
+    if (navigator.vibrate) { try { navigator.vibrate([40, 30, 40]); } catch (e) {} }
+    /* 近身清弹 → 光尘 */
+    for (var i = S.bullets.length - 1; i >= 0; i--) {
+      var o = S.bullets[i];
+      var dd = Math.sqrt((o.x - S.px) * (o.x - S.px) + (o.y - S.py) * (o.y - S.py));
+      if (dd < CLEAR_R) {
+        for (var j = 0; j < 3; j++) S.parts.push({ x: o.x, y: o.y, vx: (Math.random() - .5) * 120, vy: (Math.random() - .5) * 120, t: 0, life: 420 });
+        S.bullets.splice(i, 1); S.stats.recycled++;
+      }
+    }
+    if (b) S.pops.push({ x: S.px, y: S.py - 26, txt: '撞上！', t: 0, gold: false });
+    updateHUD();
+  }
+
+  function score() { return Math.floor(S.liveScore) + S.graze * 15 + S.waveBonus; }
+
+  /* ═══ 渲染 ═══ */
+  var tailPhase = 0;
+  function render() {
+    ctx2d.clearRect(0, 0, W, H);
+    tailPhase += .06;
+    /* 弹幕 */
+    for (var i = 0; i < S.bullets.length; i++) {
+      var b = S.bullets[i];
+      var sp = Math.sqrt(b.vx * b.vx + b.vy * b.vy) || 1;
+      var tx = -b.vx / sp, ty = -b.vy / sp;
+      ctx2d.globalAlpha = .45;
+      ctx2d.strokeStyle = b.type === 'r' ? 'rgba(255,130,140,.8)' : 'rgba(255,214,130,.8)';
+      ctx2d.lineWidth = 3;
+      ctx2d.beginPath(); ctx2d.moveTo(b.x, b.y); ctx2d.lineTo(b.x + tx * 24, b.y + ty * 24); ctx2d.stroke();
+      ctx2d.globalAlpha = b.grazed ? .75 : 1;
+      ctx2d.drawImage(b.type === 'r' ? SPR_R : SPR_N, b.x - 9, b.y - 9);
+    }
+    ctx2d.globalAlpha = 1;
+    /* 粒子 */
+    for (var p = 0; p < S.parts.length; p++) {
+      var pt = S.parts[p];
+      ctx2d.globalAlpha = Math.max(0, 1 - pt.t / pt.life) * .8;
+      ctx2d.fillStyle = '#ffe9b8';
+      ctx2d.beginPath(); ctx2d.arc(pt.x, pt.y, 2.6, 0, 7); ctx2d.fill();
+    }
+    ctx2d.globalAlpha = 1;
+    /* 玩家（无敌闪烁） */
+    if (S.running || S.over === false) {
+      var blink = S.t < S.invulnUntil ? (Math.floor(S.t / 100) % 2 ? .3 : 1) : 1;
+      ctx2d.globalAlpha = blink;
+      var tilt = Math.max(-.35, Math.min(.35, S.tilt));
+      ctx2d.save(); ctx2d.translate(S.px, S.py); ctx2d.rotate(tilt);
+      /* 尾带两条 */
+      for (var rb = 0; rb < 2; rb++) {
+        ctx2d.beginPath(); ctx2d.moveTo(0, 22);
+        var sw = Math.sin(tailPhase + rb * 1.7) * 10;
+        ctx2d.quadraticCurveTo(sw, 38, -sw * .6 + rb * 4, 54);
+        ctx2d.strokeStyle = rb ? 'rgba(139,232,192,.75)' : 'rgba(255,179,71,.8)';
+        ctx2d.lineWidth = 2; ctx2d.stroke();
+      }
+      ctx2d.drawImage(SPR_KITE, -22, -22);
+      /* 核心判定点 */
+      ctx2d.fillStyle = '#fff2d8';
+      ctx2d.beginPath(); ctx2d.arc(0, 0, 3, 0, 7); ctx2d.fill();
+      ctx2d.restore();
+      ctx2d.globalAlpha = 1;
+    }
+    /* 飘字 */
+    for (var q = 0; q < S.pops.length; q++) {
+      var pp = S.pops[q];
+      var pr = pp.t / 700;
+      ctx2d.globalAlpha = 1 - pr;
+      ctx2d.font = (pp.gold ? '800 13px' : '800 14px') + " 'Segoe UI',sans-serif";
+      ctx2d.fillStyle = pp.gold ? '#ffd97e' : '#ff8494';
+      ctx2d.textAlign = 'center';
+      ctx2d.fillText(pp.txt, pp.x, pp.y - pr * 26);
+    }
+    ctx2d.globalAlpha = 1;
+  }
+
+  /* ═══ HUD ═══ */
+  function updateHUD() {
+    el.ctWave.textContent = S.wave;
+    el.ctGraze.textContent = '擦弹 ' + S.graze;
+    var h = '';
+    for (var i = 0; i < 3; i++) h += '<span class="h' + (i < S.lives ? '' : ' dead') + '">♥</span>';
+    el.lives.innerHTML = h;
+    el.score.textContent = score();
+  }
+
+  /* ═══ 主循环 ═══ */
+  var lastRAF = 0;
+  function loop(now) {
+    if (!S.running) return;
+    var dt = Math.min(40, now - (lastRAF || now));   /* 后台回来钳制 40ms */
+    lastRAF = now;
+    stepOnce(dt);
+    render();
+    if (S.t >= 160 && Math.floor(S.t / 250) !== Math.floor((S.t - dt) / 250)) updateHUD();
+    if (S.running) S.raf = requestAnimationFrame(loop);
+  }
+
+  function startGame(seed) {
+    if (seed == null) seed = (Math.random() * 1e9 | 0);
+    S.seed = seed >>> 0;
+    S.tl = genTimeline(S.seed); S.tlIdx = 0;
+    S.t = 0; S.wave = 1; S.running = true; S.over = false; S.won = false;
+    S.px = W / 2; S.py = H * .72; S.tilt = 0;
+    S.lives = 3; S.invulnUntil = -1; S.god = false;
+    S.liveScore = 0; S.graze = 0; S.waveBonus = 0;
+    S.bullets = []; S.parts = []; S.pops = [];
+    S.stats = { spawned: 0, recycled: 0 };
+    el.menu.hidden = true; el.end.hidden = true;
+    lastRAF = 0;
+    updateHUD(); render();
+    S.raf = requestAnimationFrame(loop);
+  }
+
+  function gradeOf(sc, won) {
+    if (won) return '渡云成功';
+    return sc >= 5000 ? '御风而行' : sc >= 3000 ? '穿云燕子' : sc >= 1500 ? '纸鸢初飞' : '风筝断线';
+  }
+  function endGame(won) {
+    S.running = false; S.over = true; S.won = won;
+    cancelAnimationFrame(S.raf);
+    var sc = score();
+    var best = safeStorage.get('mq_g18_best', null);
+    var rec = best == null || sc > best;
+    if (rec) safeStorage.set('mq_g18_best', sc);
+    if (S.graze > (safeStorage.get('mq_g18_graze', 0) || 0)) safeStorage.set('mq_g18_graze', S.graze);
+    el.endTitle.textContent = won ? '渡云成功' : '三心用尽';
+    el.endTitle.style.color = won ? 'var(--gold)' : 'var(--red)';
+    el.endScore.textContent = sc;
+    el.endGrade.textContent = gradeOf(sc, won);
+    el.endGrade.style.color = won ? '#ffd97e' : '#a8b3cf';
+    el.endTime.textContent = (S.t / 1000).toFixed(1) + 's';
+    el.endGraze.textContent = S.graze;
+    el.endWave.textContent = S.wave;
+    el.endBest.textContent = rec ? sc : (best == null ? sc : best);
+    el.endRec.classList.toggle('show', rec);
+    el.end.hidden = false;
+    won ? SFX.win() : SFX.lose();
+    if (navigator.vibrate) { try { navigator.vibrate([30, 60, 30]); } catch (e) {} }
+  }
+
+  /* ═══ 输入：相对拖动（手指不遮鸢） ═══ */
+  var drag = null;
+  window.addEventListener('pointerdown', function (e) {
+    if (!S.running) return;
+    if (e.target && e.target.closest && e.target.closest('#btn-snd')) return;   /* 声音按钮不触发拖动 */
+    drag = { x: e.clientX, y: e.clientY };
+  }, { passive: true });
+  window.addEventListener('pointermove', function (e) {
+    if (!S.running || !drag) return;
+    var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    drag = { x: e.clientX, y: e.clientY };
+    S.px = Math.max(18, Math.min(W - 18, S.px + dx));
+    S.py = Math.max(60, Math.min(H - 30, S.py + dy));
+    S.tilt = S.tilt * .8 + dx * .015;
+  }, { passive: true });
+  window.addEventListener('pointerup', function () { drag = null; S.tilt = 0; }, { passive: true });
+  window.addEventListener('pointercancel', function () { drag = null; S.tilt = 0; }, { passive: true });
+
+  /* ── 声音开关 ── */
+  var SND_ON =
+    '<svg width="20" height="20" viewBox="0 0 20 20">' +
+    '<path d="M3 8 h3 l4 -3.4 v10.8 L6 12 H3z" fill="#ffb347"/>' +
+    '<path d="M13 7 q2 3 0 6 M15.5 5 q3.2 5 0 10" stroke="#7ec8ff" stroke-width="1.7" fill="none" stroke-linecap="round"/>' +
+    '</svg>';
+  var SND_OFF =
+    '<svg width="20" height="20" viewBox="0 0 20 20">' +
+    '<path d="M3 8 h3 l4 -3.4 v10.8 L6 12 H3z" fill="#8d99b8"/>' +
+    '<path d="M13 7.5 l5 5 M18 7.5 l-5 5" stroke="#ff8494" stroke-width="1.9" stroke-linecap="round"/>' +
+    '</svg>';
+  function sndIcon() {
+    el.btnSnd.innerHTML = SFX.on ? SND_ON : SND_OFF;
+    el.btnSnd.classList.toggle('off', !SFX.on);
+  }
+  el.btnSnd.addEventListener('click', function () { SFX.toggle(); sndIcon(); });
+
+  function showMenu() {
+    el.end.hidden = true;
+    el.menuBest.textContent = safeStorage.get('mq_g18_best', 0);
+    el.menuGraze.textContent = safeStorage.get('mq_g18_graze', 0);
+    el.menu.hidden = false;
+  }
+
+  el.menuOk.addEventListener('click', function () { SFX.unlock(); startGame(); });
+  el.endOk.addEventListener('click', function () { startGame(); });
+  el.endMenu.addEventListener('click', showMenu);
+
+  /* ═══ dev 钩子 ═══ */
+  
+
+  /* ═══ 启动 ═══ */
+  sndIcon();
+  showMenu();
+})();
+</script>
+</body>
+</html>
