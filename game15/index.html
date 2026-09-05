@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0e1526">
+<title>打地鼠急停 · 离线版</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect x='4' y='4' width='40' height='40' rx='9' fill='%230e1526'/%3E%3Cellipse cx='24' cy='34' rx='13' ry='5' fill='%23161f38'/%3E%3Ccircle cx='24' cy='24' r='10' fill='%23ffb347'/%3E%3Ccircle cx='20.5' cy='22' r='1.8' fill='%23232f52'/%3E%3Ccircle cx='27.5' cy='22' r='1.8' fill='%23232f52'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#0e1526; --panel:rgba(24,33,58,.94); --line:rgba(148,168,225,.22);
+    --ink:#e8ecf8; --dim:#a8b3cf; --gold:#ffb347; --dirt1:#1a2440; --dirt2:#232f52; --red:#c94553;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{background:linear-gradient(180deg,#0e1526 0%,#0e1526 30%,var(--dirt1) 30%,var(--dirt2) 100%);
+    color:var(--ink);font-family:'Segoe UI',system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
+    overflow:hidden;position:fixed;inset:0;touch-action:none;user-select:none;-webkit-user-select:none}
+  body::before{content:"";position:absolute;inset:0;pointer-events:none;  /* 星空（上半） */
+    background:radial-gradient(1.4px 1.4px at 12% 6%,rgba(232,236,248,.8) 50%,transparent 51%),
+      radial-gradient(1.2px 1.2px at 68% 3%,rgba(232,236,248,.55) 50%,transparent 51%),
+      radial-gradient(1.6px 1.6px at 86% 11%,rgba(255,217,126,.7) 50%,transparent 51%),
+      radial-gradient(1.2px 1.2px at 32% 13%,rgba(232,236,248,.45) 50%,transparent 51%),
+      radial-gradient(1.2px 1.2px at 52% 7%,rgba(232,236,248,.5) 50%,transparent 51%);
+    height:30%}
+  body.shake{animation:shk .3s ease}
+  @keyframes shk{0%,100%{transform:translate(0,0)}20%{transform:translate(-7px,3px)}40%{transform:translate(6px,-4px)}60%{transform:translate(-4px,2px)}80%{transform:translate(3px,-2px)}}
+  body.bombflash::after{content:"";position:absolute;inset:0;background:rgba(201,69,83,.22);pointer-events:none;z-index:30;animation:bfl .35s ease forwards}
+  @keyframes bfl{from{opacity:1}to{opacity:0}}
+
+  /* ── 顶栏 ── */
+  #hud{position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);left:14px;right:14px;z-index:5}
+  #hud .row1{display:flex;align-items:baseline;gap:10px}
+  #hud .nm{font-size:13px;font-weight:800;letter-spacing:.08em;color:var(--gold)}
+  #hud .nm small{font-size:10.5px;color:var(--dim);font-weight:400;margin-left:6px;letter-spacing:.05em}
+  #hud .score{margin-left:auto;font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;
+    color:var(--ink);text-shadow:0 3px 14px rgba(0,0,0,.5);line-height:1}
+  #hud .score.neg{color:#e0798a}
+  #tbar{margin-top:9px;height:8px;border-radius:99px;background:rgba(10,16,32,.85);
+    border:1px solid var(--line);overflow:hidden;box-shadow:0 3px 8px rgba(0,0,0,.32)}
+  #tfill{height:100%;width:100%;border-radius:99px;background:linear-gradient(90deg,#ffd97e,var(--gold));
+    box-shadow:0 0 8px rgba(255,179,71,.5)}
+  #tfill.low{background:linear-gradient(90deg,#ff8494,#e05268);box-shadow:0 0 8px rgba(224,82,104,.55)}
+  #hud .row2{display:flex;align-items:center;gap:8px;margin-top:7px}
+  #combo{font-size:15px;font-weight:800;color:var(--dim);letter-spacing:.05em;font-variant-numeric:tabular-nums;
+    transition:color .15s ease}
+  #combo.hot{color:var(--gold);animation:cpop .18s ease}
+  @keyframes cpop{0%{transform:scale(1)}45%{transform:scale(1.22)}100%{transform:scale(1)}}
+  #clock{margin-left:auto;font-size:14px;font-weight:800;color:var(--dim);font-variant-numeric:tabular-nums}
+  #clock.low{color:#ff8494;animation:blink .5s step-end infinite}
+  @keyframes blink{50%{opacity:.35}}
+
+  /* ── 洞阵 ── */
+  #field{position:absolute;left:10px;right:10px;top:calc(env(safe-area-inset-top,0px) + 96px);
+    bottom:calc(env(safe-area-inset-bottom,0px) + 20px);display:grid;
+    grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:6px;z-index:2}
+  /* 泥土层质感：低透明度暗斑/草根点阵（纯装饰性纹理，不参与判定） */
+  #field::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
+    background:
+      radial-gradient(2.2px 1.6px at 14% 22%, rgba(8,12,24,.55) 50%, transparent 51%),
+      radial-gradient(1.8px 1.4px at 78% 12%, rgba(8,12,24,.45) 50%, transparent 51%),
+      radial-gradient(2.6px 1.8px at 88% 64%, rgba(8,12,24,.4) 50%, transparent 51%),
+      radial-gradient(1.6px 1.2px at 6% 55%, rgba(8,12,24,.45) 50%, transparent 51%),
+      radial-gradient(2px 1.5px at 44% 80%, rgba(8,12,24,.4) 50%, transparent 51%),
+      radial-gradient(1.7px 1.3px at 62% 38%, rgba(8,12,24,.35) 50%, transparent 51%),
+      radial-gradient(2.4px 1.7px at 28% 48%, rgba(8,12,24,.35) 50%, transparent 51%),
+      radial-gradient(1.9px 1.4px at 92% 30%, rgba(8,12,24,.4) 50%, transparent 51%)}
+  .hole{position:relative;display:flex;align-items:flex-end;justify-content:center;cursor:pointer}
+  .hole .pit{position:absolute;bottom:12%;width:88%;height:34%;border-radius:50%;
+    background:radial-gradient(60% 76% at 50% 38%, #060a16 0%, #0b1224 68%, transparent 72%);
+    box-shadow:0 5px 12px rgba(0,0,0,.45), inset 0 4px 8px rgba(0,0,0,.75)}
+  .hole .rim{position:absolute;bottom:10.5%;width:92%;height:36%;border-radius:50%;pointer-events:none;
+    border:1.5px solid rgba(148,168,225,.16);
+    box-shadow:0 -1.5px 0 rgba(148,168,225,.1), 0 2px 0 rgba(6,10,22,.8)}
+  .hole .mound{position:absolute;bottom:26%;width:70%;height:26%;border-radius:50%;
+    background:radial-gradient(70% 90% at 50% 20%, rgba(58,72,116,.5), rgba(35,47,82,.15) 70%, transparent 75%);
+    pointer-events:none}
+  /* 怪容器：溢出裁切模拟从洞里冒出；内层 .body 承担压扁等动画（定位与动画分层，防 keyframe 覆盖） */
+  .hole .crop{position:absolute;bottom:calc(12% + 2px);width:76%;height:88%;overflow:hidden;pointer-events:none}
+  .mole{position:absolute;bottom:0;left:50%;width:100%;transform:translateX(-50%) translateY(100%);pointer-events:none}
+  .mole.up{animation:rise .16s cubic-bezier(.2,.9,.3,1.2) forwards}
+  .mole.dn{animation:sink .14s ease-in forwards}
+  @keyframes rise{from{transform:translateX(-50%) translateY(100%)}to{transform:translateX(-50%) translateY(4%)}}
+  @keyframes sink{from{transform:translateX(-50%) translateY(4%)}to{transform:translateX(-50%) translateY(100%)}}
+  .mole .body{position:relative;width:100%;transition:transform .1s ease}
+  .mole.hit .body{animation:squash .16s ease forwards}
+  @keyframes squash{0%{transform:scaleY(1)}40%{transform:scaleY(.28) scaleX(1.28)}100%{transform:scaleY(.2) scaleX(1.3);opacity:0}}
+  .mole.boom .body{animation:boom .3s ease forwards}
+  @keyframes boom{0%{transform:scale(1)}35%{transform:scale(1.3);filter:brightness(1.9)}100%{transform:scale(.1);opacity:0}}
+  /* 普通毛怪 */
+  .mole .svg{display:block;width:100%;height:auto;filter:drop-shadow(0 3px 5px rgba(3,7,16,.5))}
+  /* 禁打怪禁止圈（🚫 语义：红环+45°斜线，出场即示、脉冲提醒） */
+  .hole.warn::before{content:"";position:absolute;bottom:9%;left:50%;width:96%;height:44%;
+    transform:translateX(-50%);border-radius:50%;
+    border:2.5px solid rgba(224,82,104,.85);
+    background:linear-gradient(45deg, transparent 46.5%, rgba(224,82,104,.85) 46.5%, rgba(224,82,104,.85) 53.5%, transparent 53.5%);
+    animation:warnp 1s ease-in-out infinite;pointer-events:none;z-index:1}
+  @keyframes warnp{0%,100%{opacity:.45;transform:translateX(-50%) scale(.94)}50%{opacity:1;transform:translateX(-50%) scale(1.04)}}
+  /* 命中反馈飘字 */
+  .pop{position:absolute;font-size:15px;font-weight:800;color:var(--gold);pointer-events:none;z-index:6;
+    text-shadow:0 2px 6px rgba(0,0,0,.6);animation:ppop .55s ease forwards;font-variant-numeric:tabular-nums}
+  .pop.bad{color:#ff8494;font-size:14px}
+  @keyframes ppop{0%{opacity:0;transform:translate(-50%,0) scale(.6)}20%{opacity:1;transform:translate(-50%,-12px) scale(1.12)}100%{opacity:0;transform:translate(-50%,-34px) scale(1)}}
+  .stars{position:absolute;pointer-events:none;z-index:6;width:34px;height:34px;left:50%;transform:translateX(-50%);
+    animation:starp .5s ease forwards}
+  @keyframes starp{from{opacity:1;transform:translateX(-50%) scale(.4) rotate(0)}to{opacity:0;transform:translateX(-50%) scale(1.35) rotate(70deg)}}
+
+  /* ── 层（开始/结算/说明） ── */
+  .layer{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(8,13,24,.82);z-index:20}
+  .layer[hidden]{display:none}
+  .lpanel{display:flex;flex-direction:column;gap:13px;width:min(86vw,340px);
+    background:rgba(21,30,54,.98);border:1px solid rgba(148,168,225,.4);border-radius:18px;padding:25px 26px;
+    box-shadow:0 26px 80px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.05)}
+  .lt{font-size:16.5px;font-weight:800;color:var(--gold);letter-spacing:.08em;text-align:center}
+  .ld{font-size:13.5px;color:#c6cfe4;line-height:1.9}
+  .ld b{color:#ffe9b8}
+  .ld .no{color:#ff8494;font-weight:700}
+  .layer button{padding:11px 0;font-size:15px;font-weight:700;color:#16202f;background:var(--gold);
+    border:none;border-radius:12px;cursor:pointer}
+  #end .big{font-size:34px;font-weight:800;color:var(--gold);text-align:center;letter-spacing:.04em;
+    text-shadow:0 4px 24px rgba(255,179,71,.4)}
+  #end .grade{font-size:56px;font-weight:800;text-align:center;line-height:1;margin:2px 0 4px}
+  #end .stats{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;font-size:13px;color:var(--dim)}
+  #end .stats b{color:var(--ink);font-size:16px;font-variant-numeric:tabular-nums}
+  #end .rec{display:none;text-align:center;font-size:12.5px;color:#ffd97e;font-weight:700;letter-spacing:.1em}
+  #end .rec.show{display:block;animation:rpop .6s ease both}
+  @keyframes rpop{0%{transform:scale(.4);opacity:0}70%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+  footer{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 4px);
+    text-align:center;font-size:11.5px;font-weight:600;color:#8d99b8;letter-spacing:.05em;
+    opacity:.95;pointer-events:none;z-index:1}
+</style>
+</head>
+<body>
+
+  <div id="hud">
+    <div class="row1">
+      <div class="nm">打地鼠急停<small>60 秒 · 反应</small></div>
+      <div class="score" id="score">0</div>
+    </div>
+    <div id="tbar"><div id="tfill"></div></div>
+    <div class="row2">
+      <div id="combo">连击 ×0</div>
+      <div id="clock">60</div>
+    </div>
+  </div>
+
+  <div id="field"></div>
+
+  <footer>打地鼠急停 · 完全离线 · 看到红刺球，立刻停手</footer>
+
+  <div id="start" class="layer">
+    <div class="lpanel">
+      <div class="lt">怎么玩</div>
+      <div class="ld">60 秒内，毛怪从洞里冒头就<b>立刻点它</b>：连击越高，得分越高。<br>
+        <span class="no">红刺球是禁打怪</span>——点了会 <b>-150 分</b>、连击清零。看到它，<b>停手</b>。<br>
+        点空地也会断连击，出手要准。</div>
+      <div style="display:flex;justify-content:center;gap:18px;padding:4px 0 2px">
+        <svg width="72" height="66" viewBox="0 0 72 66">
+          <ellipse cx="36" cy="56" rx="30" ry="9" fill="#0b1224"/>
+          <ellipse cx="36" cy="55" rx="31" ry="9.5" fill="none" stroke="rgba(148,168,225,.22)" stroke-width="1.4"/>
+          <g>
+            <ellipse cx="36" cy="30" rx="20" ry="21" fill="#ffb347"/>
+            <ellipse cx="36" cy="40" rx="14" ry="11" fill="#ffcf87"/>
+            <circle cx="29" cy="26" r="3.4" fill="#232f52"/><circle cx="43" cy="26" r="3.4" fill="#232f52"/>
+            <circle cx="30" cy="25" r="1.1" fill="#fff"/><circle cx="44" cy="25" r="1.1" fill="#fff"/>
+            <path d="M33 34 q3 2.6 6 0" stroke="#232f52" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <ellipse cx="24.5" cy="33" rx="3" ry="2" fill="rgba(255,120,120,.5)"/>
+            <ellipse cx="47.5" cy="33" rx="3" ry="2" fill="rgba(255,120,120,.5)"/>
+            <path d="M30 10 q-2 -6 3 -7 M42 10 q2 -6 -3 -7" stroke="#ffcf87" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+          </g>
+          <text x="58" y="16" font-size="12" fill="#8be8c0" font-weight="800">+100</text>
+        </svg>
+        <svg width="72" height="66" viewBox="0 0 72 66">
+          <ellipse cx="36" cy="56" rx="30" ry="9" fill="#0b1224"/>
+          <ellipse cx="36" cy="55" rx="31" ry="9.5" fill="none" stroke="rgba(148,168,225,.22)" stroke-width="1.4"/>
+          <g>
+            <circle cx="36" cy="32" r="19" fill="#c94553"/>
+            <g stroke="#ff6b7d" stroke-width="3.4" stroke-linecap="round">
+              <path d="M36 10 v-6"/><path d="M36 54 v6"/><path d="M14 32 h-6"/><path d="M58 32 h6"/>
+              <path d="M20 16 l-4.5 -4.5"/><path d="M52 16 l4.5 -4.5"/><path d="M20 48 l-4.5 4.5"/><path d="M52 48 l4.5 4.5"/>
+            </g>
+            <g stroke="#ffe1e6" stroke-width="2.6" stroke-linecap="round">
+              <path d="M29 27 l5 5 M34 27 l-5 5"/><path d="M38 27 l5 5 M43 27 l-5 5"/>
+            </g>
+            <path d="M40 12 q5 -5 9 -1" stroke="#ffd97e" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <circle cx="49.6" cy="10.4" r="2.2" fill="#ffd97e"/>
+          </g>
+          <circle cx="36" cy="32" r="27" fill="none" stroke="rgba(224,82,104,.95)" stroke-width="3"/>
+          <line x1="17" y1="51" x2="55" y2="13" stroke="rgba(224,82,104,.95)" stroke-width="3" stroke-linecap="round"/>
+          <text x="1" y="8" font-size="10.5" fill="#ff8494" font-weight="800">-150</text>
+        </svg>
+      </div>
+      <button id="start-ok">开始 · 60 秒</button>
+    </div>
+  </div>
+
+  <div id="end" class="layer" hidden>
+    <div class="lpanel">
+      <div class="lt">时间到</div>
+      <div class="grade" id="end-grade">A</div>
+      <div class="big" id="end-score">0</div>
+      <div class="rec" id="end-rec">★ 新纪录 ★</div>
+      <div class="stats">
+        <span>最高连击<br><b id="end-combo">0</b></span>
+        <span>命中率<br><b id="end-acc">0%</b></span>
+        <span>命中 / 禁打<br><b id="end-hits">0 / 0</b></span>
+        <span>历史最佳<br><b id="end-best">0</b></span>
+      </div>
+      <button id="end-ok">再来一局</button>
+    </div>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  function mulberry(seed) { var t = seed >>> 0; return function () { t += 0x6D2B79F5; var r2 = Math.imul(t ^ (t >>> 15), 1 | t); r2 ^= r2 + Math.imul(r2 ^ (r2 >>> 7), 61 | r2); return ((r2 ^ (r2 >>> 14)) >>> 0) / 4294967296; }; }
+
+  var safeStorage = {
+    get: function (k, d) { try { var v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set: function (k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+    del: function (k) { try { localStorage.removeItem(k); } catch (e) {} }
+  };
+
+  var SFX = (function () {
+    var ctx = null, on = safeStorage.get('mq_g15_sound', true);
+    function ac() {
+      if (!ctx) { try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+      if (ctx && ctx.state === 'suspended') ctx.resume();
+      return ctx;
+    }
+    var PENTA = [523, 587, 659, 784, 880, 1046, 1175, 1318];
+    /* 命中「啵」：正弦短音，音高随 combo 沿五声音阶爬升 */
+    function bonk(combo) {
+      if (!on) return; var c = ac(); if (!c) return;
+      var f = PENTA[Math.min(combo, PENTA.length * 3) % PENTA.length] * (combo >= PENTA.length ? 2 : 1);
+      var o = c.createOscillator(), g = c.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(.14, c.currentTime);
+      g.gain.exponentialRampToValueAtTime(.001, c.currentTime + .12);
+      o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + .13);
+    }
+    /* 禁打「轰」：低频锯齿+噪声脉冲 */
+    function boom() {
+      if (!on) return; var c = ac(); if (!c) return;
+      var o = c.createOscillator(), g = c.createGain();
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(150, c.currentTime);
+      o.frequency.exponentialRampToValueAtTime(46, c.currentTime + .22);
+      g.gain.setValueAtTime(.2, c.currentTime);
+      g.gain.exponentialRampToValueAtTime(.001, c.currentTime + .26);
+      o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + .27);
+      var buf = c.createBuffer(1, 2205, 22050), d = buf.getChannelData(0);
+      for (var i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+      var n = c.createBufferSource(), ng = c.createGain();
+      n.buffer = buf; ng.gain.value = .1;
+      n.connect(ng); ng.connect(c.destination); n.start();
+    }
+    function miss() {
+      if (!on) return; var c = ac(); if (!c) return;
+      var o = c.createOscillator(), g = c.createGain();
+      o.type = 'sine'; o.frequency.value = 190;
+      g.gain.setValueAtTime(.05, c.currentTime);
+      g.gain.exponentialRampToValueAtTime(.001, c.currentTime + .06);
+      o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + .07);
+    }
+    function tick() {
+      if (!on) return; var c = ac(); if (!c) return;
+      var o = c.createOscillator(), g = c.createGain();
+      o.type = 'square'; o.frequency.value = 990;
+      g.gain.setValueAtTime(.05, c.currentTime);
+      g.gain.exponentialRampToValueAtTime(.001, c.currentTime + .05);
+      o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + .06);
+    }
+    var ARP = [392, 494, 587, 784];
+    function endArp() {
+      if (!on) return; var c = ac(); if (!c) return;
+      ARP.forEach(function (f, i) {
+        var o = c.createOscillator(), g = c.createGain();
+        o.type = 'triangle'; o.frequency.value = f;
+        var t0 = c.currentTime + i * .1;
+        g.gain.setValueAtTime(0, t0);
+        g.gain.linearRampToValueAtTime(.11, t0 + .015);
+        g.gain.exponentialRampToValueAtTime(.001, t0 + .32);
+        o.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0 + .34);
+      });
+    }
+    return {
+      unlock: function () { ac(); }, bonk: bonk, boom: boom, miss: miss, tick: tick, endArp: endArp,
+      get on() { return on; },
+      toggle: function () { on = !on; safeStorage.set('mq_g15_sound', on); return on; }
+    };
+  })();
+
+  /* ═══ 毛怪 SVG ═══ */
+  var MOLE_SVG =
+    '<svg viewBox="0 0 100 104">' +
+    '<ellipse cx="50" cy="96" rx="30" ry="7" fill="rgba(3,7,16,.4)"/>' +
+    '<ellipse cx="50" cy="52" rx="34" ry="38" fill="#ffb347"/>' +
+    '<ellipse cx="50" cy="70" rx="24" ry="19" fill="#ffcf87"/>' +
+    '<circle cx="38" cy="45" r="5.6" fill="#232f52"/><circle cx="62" cy="45" r="5.6" fill="#232f52"/>' +
+    '<circle cx="39.8" cy="43.2" r="1.9" fill="#fff"/><circle cx="63.8" cy="43.2" r="1.9" fill="#fff"/>' +
+    '<path d="M45 59 q5 4.4 10 0" stroke="#232f52" stroke-width="3.2" fill="none" stroke-linecap="round"/>' +
+    '<ellipse cx="30" cy="57" rx="5" ry="3.4" fill="rgba(255,120,120,.5)"/>' +
+    '<ellipse cx="70" cy="57" rx="5" ry="3.4" fill="rgba(255,120,120,.5)"/>' +
+    '<path d="M42 17 q-3.4 -10 5 -11 M58 17 q3.4 -10 -5 -11" stroke="#ffcf87" stroke-width="4" fill="none" stroke-linecap="round"/>' +
+    '</svg>';
+  var BOMB_SVG =
+    '<svg viewBox="0 0 100 104">' +
+    '<g stroke="#ff6b7d" stroke-width="5.4" stroke-linecap="round">' +
+    '<path d="M50 6 v-0"/><path d="M50 12 v-7"/><path d="M50 92 v7"/><path d="M8 52 h-7"/><path d="M92 52 h7"/>' +
+    '<path d="M20 22 l-5 -5"/><path d="M80 22 l5 -5"/><path d="M20 82 l-5 5"/><path d="M80 82 l5 5"/></g>' +
+    '<circle cx="50" cy="52" r="33" fill="#c94553"/>' +
+    '<circle cx="40" cy="42" r="8" fill="rgba(255,225,230,.28)"/>' +
+    '<g stroke="#ffe1e6" stroke-width="4" stroke-linecap="round">' +
+    '<path d="M39 44 l8 8 M47 44 l-8 8"/><path d="M53 44 l8 8 M61 44 l-8 8"/></g>' +
+    '<path d="M57 16 q8 -8 14 -1.6" stroke="#ffd97e" stroke-width="3.4" fill="none" stroke-linecap="round"/>' +
+    '<circle cx="71.6" cy="13.6" r="3.6" fill="#ffd97e" class="spark"/>' +
+    '</svg>';
+
+  /* ═══ 2. 状态 ═══ */
+  var DUR = 60000;
+  var PHASES = [
+    { until: 20000, maxAlive: 2, stay: 1100, gap: 900, bombP: .18 },
+    { until: 40000, maxAlive: 3, stay: 850, gap: 650, bombP: .22 },
+    { until: 60001, maxAlive: 4, stay: 620, gap: 430, bombP: .28 }
+  ];
+  var S = {
+    running: false, over: true,
+    seed: 0, t0: 0,
+    score: 0, combo: 0, bestCombo: 0,
+    hits: 0, misses: 0, bombsHit: 0, spawned: 0,
+    tl: [],            /* 预生成时间线 [{at, hole, type, stay}] */
+    tlIdx: 0,
+    alive: {},         /* hole -> {el, type, at, stay, hit} */
+    raf: 0, lastTickSec: -1
+  };
+  var el = {
+    field: document.getElementById('field'), score: document.getElementById('score'),
+    tfill: document.getElementById('tfill'), combo: document.getElementById('combo'),
+    clock: document.getElementById('clock'), start: document.getElementById('start'),
+    startOk: document.getElementById('start-ok'), end: document.getElementById('end'),
+    endOk: document.getElementById('end-ok'), endScore: document.getElementById('end-score'),
+    endCombo: document.getElementById('end-combo'), endAcc: document.getElementById('end-acc'),
+    endHits: document.getElementById('end-hits'), endBest: document.getElementById('end-best'),
+    endGrade: document.getElementById('end-grade'), endRec: document.getElementById('end-rec')
+  };
+  var holes = [];
+
+  function buildField() {
+    el.field.innerHTML = '';
+    holes = [];
+    for (var i = 0; i < 9; i++) {
+      var h = document.createElement('div');
+      h.className = 'hole';
+      h.innerHTML = '<div class="pit"></div><div class="mound"></div><div class="rim"></div><div class="crop"></div>';
+      el.field.appendChild(h);
+      holes.push(h);
+    }
+  }
+
+  /* ═══ 3. 时间线生成（seeded，bot 可预知） ═══ */
+  function genTimeline(seed) {
+    var rnd = mulberry(seed >>> 0);
+    var out = [];
+    var t = 800;                       /* 开局缓冲 */
+    var phase = 0;
+    var freeAt = [0, 0, 0, 0, 0, 0, 0, 0, 0];   /* 每洞下次可用时刻（stay+160 缩回动画余量） */
+    while (t < DUR - 300) {
+      while (phase < PHASES.length - 1 && t >= PHASES[phase].until) phase++;
+      var P = PHASES[phase];
+      /* 全扫当前时刻活着的怪（尾部 break 会因 stay 不同漏计） */
+      var aliveNow = 0;
+      for (var k = 0; k < out.length; k++) {
+        if (t - out[k].at < out[k].stay) aliveNow++;
+      }
+      if (aliveNow < P.maxAlive && t + P.stay <= DUR - 60) {
+        var free = [];
+        for (var h2 = 0; h2 < 9; h2++) if (freeAt[h2] <= t) free.push(h2);
+        if (free.length) {
+          var hole = free[Math.floor(rnd() * free.length)];
+          var type = rnd() < P.bombP ? 'bomb' : 'mole';
+          out.push({ at: Math.round(t), hole: hole, type: type, stay: P.stay });
+          freeAt[hole] = t + P.stay + 160;
+        }
+      }
+      t += P.gap * (0.75 + rnd() * 0.5);
+    }
+    return out;
+  }
+
+  /* ═══ 4. 游戏循环 ═══ */
+  function phaseOf(t) {
+    for (var i = 0; i < PHASES.length; i++) if (t < PHASES[i].until) return i;
+    return PHASES.length - 1;
+  }
+
+  function spawnMole(item) {
+    var h = holes[item.hole];
+    if (!h || h.querySelector('.mole')) return;   /* 洞被占（时间线重试窗口兜底） */
+    var m = document.createElement('div');
+    m.className = 'mole up';
+    m.innerHTML = '<div class="body"><div class="svg">' + (item.type === 'bomb' ? BOMB_SVG : MOLE_SVG) + '</div></div>';
+    h.querySelector('.crop').appendChild(m);
+    if (item.type === 'bomb') h.classList.add('warn');
+    S.alive[item.hole] = { el: m, type: item.type, at: item.at, stay: item.stay, hit: false };
+    S.spawned++;
+  }
+  function despawn(hole) {
+    var a = S.alive[hole];
+    if (!a) return;
+    delete S.alive[hole];
+    var h = holes[hole];
+    h.classList.remove('warn');
+    var m = a.el;
+    if (m.classList.contains('up')) {
+      m.classList.remove('up'); m.classList.add('dn');
+      setTimeout(function () { if (m.parentNode) m.parentNode.removeChild(m); }, 160);
+    } else {
+      setTimeout(function () { if (m.parentNode) m.parentNode.removeChild(m); }, 360);
+    }
+  }
+
+  function hitMole(hole) {
+    var a = S.alive[hole];
+    if (!a || a.hit) return null;
+    a.hit = true;
+    var h = holes[hole];
+    if (a.type === 'bomb') {
+      S.score = Math.max(-9999, S.score - 150);
+      S.combo = 0; S.bombsHit++;
+      a.el.classList.remove('up'); a.el.classList.add('boom');
+      h.classList.remove('warn');
+      setTimeout(function () { if (a.el.parentNode) a.el.parentNode.removeChild(a.el); delete S.alive[hole]; }, 320);
+      popText(h, '-150', true);
+      document.body.classList.remove('shake', 'bombflash');
+      void document.body.offsetWidth;
+      document.body.classList.add('shake', 'bombflash');
+      setTimeout(function () { document.body.classList.remove('shake', 'bombflash'); }, 380);
+      SFX.boom();
+      if (navigator.vibrate) { try { navigator.vibrate([40, 30, 40]); } catch (e) {} }
+    } else {
+      var mult = Math.min(S.combo, 20) * 0.1 + 1;
+      var pts = Math.round(100 * mult);
+      S.score += pts;
+      S.combo++;
+      S.hits++;
+      if (S.combo > S.bestCombo) S.bestCombo = S.combo;
+      a.el.classList.remove('up'); a.el.classList.add('hit');
+      h.classList.remove('warn');
+      setTimeout(function () { if (a.el.parentNode) a.el.parentNode.removeChild(a.el); delete S.alive[hole]; }, 180);
+      popText(h, '+' + pts, false);
+      popStars(h);
+      SFX.bonk(S.combo);
+      if (navigator.vibrate) { try { navigator.vibrate(8); } catch (e) {} }
+    }
+    updateHUD();
+    return a.type;
+  }
+
+  function missAt(x, y) {
+    if (!S.running) return;
+    S.combo = 0; S.misses++;
+    SFX.miss();
+    updateHUD();
+  }
+
+  function popText(h, txt, bad) {
+    var p = document.createElement('div');
+    p.className = 'pop' + (bad ? ' bad' : '');
+    p.textContent = txt;
+    p.style.left = '50%';
+    p.style.top = '30%';
+    h.appendChild(p);
+    setTimeout(function () { if (p.parentNode) p.parentNode.removeChild(p); }, 580);
+  }
+  function popStars(h) {
+    var s = document.createElement('div');
+    s.className = 'stars';
+    s.style.top = '18%';
+    s.innerHTML = '<svg viewBox="0 0 34 34">' +
+      '<path d="M17 4 l3 7.6 7.6 3 -7.6 3 -3 7.6 -3 -7.6 -7.6 -3 7.6 -3z" fill="#ffe9b8"/>' +
+      '<path d="M26 20 l1.6 4 4 1.6 -4 1.6 -1.6 4 -1.6 -4 -4 -1.6 4 -1.6z" fill="#ffd97e" opacity=".8"/>' +
+      '</svg>';
+    h.appendChild(s);
+    setTimeout(function () { if (s.parentNode) s.parentNode.removeChild(s); }, 520);
+  }
+
+  function updateHUD() {
+    el.score.textContent = S.score;
+    el.score.classList.toggle('neg', S.score < 0);
+    if (S.combo > 0) {
+      el.combo.textContent = '连击 ×' + S.combo;
+      if (S.combo >= 5) {
+        if (!el.combo.classList.contains('hot')) el.combo.classList.add('hot');
+        else { el.combo.classList.remove('hot'); void el.combo.offsetWidth; el.combo.classList.add('hot'); }
+      }
+    } else {
+      el.combo.textContent = '连击 ×0';
+      el.combo.classList.remove('hot');
+    }
+  }
+
+  function loop(now) {
+    if (!S.running) return;
+    var t = now - S.t0;
+    /* 时间线推进 */
+    while (S.tlIdx < S.tl.length && S.tl[S.tlIdx].at <= t) {
+      spawnMole(S.tl[S.tlIdx]);
+      S.tlIdx++;
+    }
+    /* 缩回 */
+    Object.keys(S.alive).forEach(function (k) {
+      var a = S.alive[+k];
+      if (!a.hit && t - a.at >= a.stay) despawn(+k);
+    });
+    /* 计时条 */
+    var left = Math.max(0, DUR - t);
+    el.tfill.style.width = (left / DUR * 100) + '%';
+    el.tfill.classList.toggle('low', left <= 10000);
+    var sec = Math.ceil(left / 1000);
+    el.clock.textContent = sec;
+    el.clock.classList.toggle('low', left <= 10000);
+    if (left <= 10500 && left > 0) {
+      var whole = Math.floor(left / 1000);
+      if (whole !== S.lastTickSec) { S.lastTickSec = whole; SFX.tick(); }
+    }
+    if (t >= DUR) { endGame(); return; }
+    S.raf = requestAnimationFrame(loop);
+  }
+
+  function startGame(seed) {
+    if (seed == null) seed = (Math.random() * 1e9 | 0);
+    S.seed = seed >>> 0;
+    S.tl = genTimeline(S.seed);
+    S.tlIdx = 0;
+    S.score = 0; S.combo = 0; S.bestCombo = 0;
+    S.hits = 0; S.misses = 0; S.bombsHit = 0; S.spawned = 0;
+    S.alive = {}; S.lastTickSec = -1;
+    buildField();
+    el.end.hidden = true;
+    el.start.hidden = true;
+    updateHUD();
+    S.over = false; S.running = true;
+    S.t0 = performance.now();
+    S.raf = requestAnimationFrame(loop);
+  }
+
+  function gradeOf(sc) { return sc >= 6000 ? 'S' : sc >= 4200 ? 'A' : sc >= 2800 ? 'B' : sc >= 1600 ? 'C' : 'D'; }
+
+  function endGame() {
+    S.running = false; S.over = true;
+    cancelAnimationFrame(S.raf);
+    Object.keys(S.alive).forEach(function (k) { despawn(+k); });
+    var best = safeStorage.get('mq_g15_best', null);
+    var rec = best == null || S.score > best;
+    if (rec) safeStorage.set('mq_g15_best', S.score);
+    if (S.bestCombo > (safeStorage.get('mq_g15_bestCombo', 0) || 0)) safeStorage.set('mq_g15_bestCombo', S.bestCombo);
+    el.endScore.textContent = S.score;
+    el.endCombo.textContent = '×' + S.bestCombo;
+    var taken = S.hits + S.misses + S.bombsHit;
+    el.endAcc.textContent = (taken ? Math.round(S.hits / taken * 100) : 0) + '%';
+    el.endHits.textContent = S.hits + ' / ' + S.bombsHit;
+    el.endBest.textContent = rec ? S.score : (best == null ? S.score : best);
+    var g = gradeOf(S.score);
+    el.endGrade.textContent = g;
+    el.endGrade.style.color = g === 'S' ? '#ffd97e' : g === 'A' ? '#8be8c0' : g === 'B' ? '#7ec8ff' : g === 'C' ? '#c58bff' : '#ff8494';
+    el.endRec.classList.toggle('show', rec);
+    el.end.hidden = false;
+    SFX.endArp();
+    if (navigator.vibrate) { try { navigator.vibrate([30, 60, 30]); } catch (e) {} }
+  }
+
+  /* ═══ 5. 事件（pointerdown 即判定——反应游戏不等 up） ═══ */
+  el.field.addEventListener('pointerdown', function (e) {
+    e.preventDefault();
+    if (!S.running) return;
+    var r = el.field.getBoundingClientRect();
+    var cx = e.clientX - r.left, cy = e.clientY - r.top;
+    var col = Math.floor(cx / (r.width / 3)), row = Math.floor(cy / (r.height / 3));
+    col = Math.max(0, Math.min(2, col)); row = Math.max(0, Math.min(2, row));
+    var hole = row * 3 + col;
+    var a = S.alive[hole];
+    if (a && !a.hit) hitMole(hole);
+    else missAt(e.clientX, e.clientY);
+  }, { passive: false });
+  el.startOk.addEventListener('click', function () { el.start.hidden = true; SFX.unlock(); startGame(); });
+  el.endOk.addEventListener('click', function () { startGame(); });
+
+  /* ═══ 6. dev 钩子 ═══ */
+  
+
+  /* ═══ 7. 启动 ═══ */
+  buildField();
+  updateHUD();
+})();
+</script>
+</body>
+</html>
