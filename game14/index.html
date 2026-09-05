@@ -27,6 +27,11 @@
   #hud .ct .lv{color:#ffd97e;font-weight:700}
   #seg{display:flex;border:1px solid var(--line);border-radius:11px;overflow:hidden;background:var(--panel);flex:none;
     box-shadow:0 3px 8px rgba(0,0,0,.32)}
+  #btn-snd{flex:none;width:38px;height:38px;margin-left:8px;border:1px solid var(--line);border-radius:11px;
+    background:var(--panel);cursor:pointer;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 3px 8px rgba(0,0,0,.32)}
+  #btn-snd:active{transform:translateY(2px)}
+  #btn-snd.off{opacity:.55}
   #seg button{width:34px;height:38px;border:none;background:transparent;color:var(--dim);font-size:13px;font-weight:700;cursor:pointer}
   #seg button.on{background:rgba(255,179,71,.18);color:var(--gold);
     box-shadow:0 2px 5px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.16)}
@@ -108,6 +113,7 @@
       <button data-n="6">6</button>
       <button data-n="7">7</button>
     </div>
+    <button id="btn-snd" aria-label="声音开关"></button>
   </div>
 
   <div id="board"></div>
@@ -409,6 +415,18 @@
   }
 
   /* ═══ 5. 事件 ═══ */
+
+  /* ── 声音开关（图标态随 SFX.on） ── */
+  var SND_ON = '<svg width="20" height="20" viewBox="0 0 20 20"><path d="M3 8 h3 l4 -3.4 v10.8 L6 12 H3z" fill="#ffb347"/><path d="M13 7 q2 3 0 6 M15.5 5 q3.2 5 0 10" stroke="#7ec8ff" stroke-width="1.7" fill="none" stroke-linecap="round"/></svg>';
+  var SND_OFF = '<svg width="20" height="20" viewBox="0 0 20 20"><path d="M3 8 h3 l4 -3.4 v10.8 L6 12 H3z" fill="#8d99b8"/><path d="M13 7.5 l5 5 M18 7.5 l-5 5" stroke="#ff8494" stroke-width="1.9" stroke-linecap="round"/></svg>';
+  var btnSnd = document.getElementById('btn-snd');
+  function sndIcon() {
+    btnSnd.innerHTML = SFX.on ? SND_ON : SND_OFF;
+    btnSnd.classList.toggle('off', !SFX.on);
+  }
+  btnSnd.addEventListener('click', function () { SFX.toggle(); sndIcon(); });
+  sndIcon();
+
   Array.prototype.forEach.call(el.seg.children, function (b) {
     b.addEventListener('click', function () {
       var n2 = +b.dataset.n;

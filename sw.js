@@ -1,5 +1,5 @@
 /* 口袋游戏机 ServiceWorker · stale-while-revalidate：离线立开，改动后台更新 */
-const VERSION = 'v1.0.15';
+const VERSION = 'v1.0.16';
 const CACHE = 'pocket-games-' + VERSION;
 const PRECACHE = [
   './',

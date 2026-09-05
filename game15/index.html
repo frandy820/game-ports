@@ -48,6 +48,11 @@
   @keyframes cpop{0%{transform:scale(1)}45%{transform:scale(1.22)}100%{transform:scale(1)}}
   #clock{margin-left:auto;font-size:14px;font-weight:800;color:var(--dim);font-variant-numeric:tabular-nums}
   #clock.low{color:#ff8494;animation:blink .5s step-end infinite}
+  #btn-snd{width:30px;height:30px;margin-left:8px;border:1px solid var(--line);border-radius:9px;
+    background:rgba(10,16,32,.7);cursor:pointer;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 2px 6px rgba(0,0,0,.3)}
+  #btn-snd:active{transform:translateY(2px)}
+  #btn-snd.off{opacity:.55}
   @keyframes blink{50%{opacity:.35}}
 
   /* ── 洞阵 ── */
@@ -142,6 +147,7 @@
     <div class="row2">
       <div id="combo">连击 ×0</div>
       <div id="clock">60</div>
+    <button id="btn-snd" aria-label="声音开关"></button>
     </div>
   </div>
 
@@ -572,6 +578,18 @@
   }
 
   /* ═══ 5. 事件（pointerdown 即判定——反应游戏不等 up） ═══ */
+
+  /* ── 声音开关（图标态随 SFX.on） ── */
+  var SND_ON = '<svg width="20" height="20" viewBox="0 0 20 20"><path d="M3 8 h3 l4 -3.4 v10.8 L6 12 H3z" fill="#ffb347"/><path d="M13 7 q2 3 0 6 M15.5 5 q3.2 5 0 10" stroke="#7ec8ff" stroke-width="1.7" fill="none" stroke-linecap="round"/></svg>';
+  var SND_OFF = '<svg width="20" height="20" viewBox="0 0 20 20"><path d="M3 8 h3 l4 -3.4 v10.8 L6 12 H3z" fill="#8d99b8"/><path d="M13 7.5 l5 5 M18 7.5 l-5 5" stroke="#ff8494" stroke-width="1.9" stroke-linecap="round"/></svg>';
+  var btnSnd = document.getElementById('btn-snd');
+  function sndIcon() {
+    btnSnd.innerHTML = SFX.on ? SND_ON : SND_OFF;
+    btnSnd.classList.toggle('off', !SFX.on);
+  }
+  btnSnd.addEventListener('click', function () { SFX.toggle(); sndIcon(); });
+  sndIcon();
+
   el.field.addEventListener('pointerdown', function (e) {
     e.preventDefault();
     if (!S.running) return;
