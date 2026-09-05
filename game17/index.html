@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#12151d">
+<title>成语接龙闯关 · 离线版</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect x='4' y='4' width='40' height='40' rx='9' fill='%2312151d'/%3E%3Crect x='9' y='12' width='30' height='22' rx='3' fill='%23ece5d3'/%3E%3Ctext x='24' y='28' font-size='12' text-anchor='middle' fill='%23c94553' font-family='serif' font-weight='700'%3E成语%3C/text%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#12151d; --paper:#ece5d3; --paper2:#e2d8c0; --ink:#2b2a26; --dim:#a8b3cf;
+    --red:#c94553; --bamboo:#8ba888; --gold:#ffb347; --line:rgba(148,168,225,.22);
+    --panel:rgba(24,28,40,.94);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{background:radial-gradient(900px 600px at 50% -10%, #1c2233 0%, var(--bg) 60%), var(--bg);
+    color:var(--dim);font-family:'Segoe UI',system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
+    overflow:hidden;position:fixed;inset:0;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+  /* ── 顶栏 ── */
+  #hud{position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);left:14px;right:14px;z-index:6;
+    display:flex;align-items:center;gap:10px}
+  #hud .nm{font-size:13px;font-weight:800;letter-spacing:.08em;color:var(--gold)}
+  #hud .nm small{font-size:10.5px;color:var(--dim);font-weight:400;margin-left:6px;letter-spacing:.05em}
+  #hud .ct{font-size:12px;margin-top:2px;font-variant-numeric:tabular-nums}
+  #hud .ct b{color:#e8ecf8}
+  #lives{font-size:13px;letter-spacing:2px;color:var(--red)}
+  #lives .dead{opacity:.45;filter:grayscale(1)}
+  #combo{font-size:12px;font-weight:800;color:var(--bamboo)}
+  #combo.hot{color:var(--gold)}
+  #btn-snd{margin-left:auto;width:38px;height:38px;border:1px solid var(--line);border-radius:11px;
+    background:var(--panel);cursor:pointer;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 3px 8px rgba(0,0,0,.32)}
+  #btn-snd:active{transform:translateY(2px)}
+  #btn-snd.off{opacity:.55}
+
+  /* ── 主区 ── */
+  #main{position:absolute;left:14px;right:14px;top:calc(env(safe-area-inset-top,0px) + 92px);
+    bottom:calc(env(safe-area-inset-bottom,0px) + 74px);z-index:2}
+  .paper{position:relative;background:linear-gradient(165deg,var(--paper) 0%,var(--paper2) 100%);
+    border-radius:14px;box-shadow:0 16px 40px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.5), inset 0 -4px 12px rgba(120,100,70,.18)}
+  .paper::before{content:"";position:absolute;inset:7px;border:1.5px solid rgba(150,110,80,.25);border-radius:9px;pointer-events:none}
+  #curbox{padding:22px 16px 16px;text-align:center;min-height:158px}
+  #curw{font-family:'KaiTi','STKaiti','FZKai-Z03S',serif;font-size:44px;font-weight:700;color:var(--ink);
+    letter-spacing:.12em;line-height:1.25;display:flex;justify-content:center;gap:6px}
+  #curw .c{position:relative;padding:0 2px}
+  #curw .c.tail::after{content:"";position:absolute;left:8%;right:8%;bottom:-7px;height:11px;
+    border:2.5px solid var(--red);border-radius:50%;transform:rotate(-4deg)}
+  #curm{font-size:12.5px;color:#6b6353;margin-top:12px;line-height:1.7;min-height:22px}
+  #linkhint{text-align:center;font-size:12px;color:var(--dim);margin:14px 0 10px;letter-spacing:.05em}
+  #linkhint b{color:#ff6b7d;font-size:15px}   /* 深底上的关键提示字提亮（宣纸卡上朱砂不动） */
+  #opts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .opt{position:relative;padding:15px 6px;border-radius:12px;cursor:pointer;text-align:center;
+    background:linear-gradient(160deg,#1d2334,#171c2b);border:1px solid var(--line);
+    font-family:'KaiTi','STKaiti',serif;font-size:19px;font-weight:700;color:#e8ecf8;letter-spacing:.1em;
+    box-shadow:0 4px 12px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.06);
+    transition:transform .1s ease, background .12s ease}
+  .opt:active{transform:translateY(2px)}
+  .opt .fst{color:var(--gold)}
+  .opt.right{background:linear-gradient(160deg,#2c4a3a,#1e362a);border-color:rgba(139,232,192,.5)}
+  .opt.wrong{animation:ojk .3s ease;background:linear-gradient(160deg,#4a2730,#36202a);border-color:rgba(224,82,104,.55)}
+  @keyframes ojk{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}55%{transform:translateX(5px)}80%{transform:translateX(-3px)}}
+  .opt.hintglow{outline:2.5px solid rgba(255,217,126,.9);outline-offset:2px;animation:hintp 1s ease 3}
+  @keyframes hintp{50%{outline-offset:6px}}
+  /* 翻页动画（词卡） */
+  #curbox.swapA{animation:swout .22s ease both}
+  @keyframes swout{to{opacity:0;transform:translateY(-14px)}}
+  #curbox.swapB{animation:swin .26s ease both}
+  @keyframes swin{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+  /* 生命碎裂 */
+  #lives .h.pop{animation:hpop .4s ease}
+  @keyframes hpop{0%{transform:scale(1)}40%{transform:scale(1.5) rotate(14deg)}100%{transform:scale(1)}}
+
+  /* ── 底栏 ── */
+  #bar{position:absolute;left:16px;right:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);z-index:6;
+    display:flex;align-items:center;gap:10px}
+  #btn-hint{height:40px;padding:0 16px;border:1px solid var(--line);border-radius:11px;background:var(--panel);
+    color:#e8ecf8;font-size:13.5px;font-weight:700;cursor:pointer;box-shadow:0 3px 8px rgba(0,0,0,.32)}
+  #btn-hint:active{transform:translateY(2px)}
+  #btn-hint[disabled]{opacity:.4;cursor:default}
+  #btn-hint em{font-style:normal;color:var(--gold)}
+  #score{margin-left:auto;font-size:21px;font-weight:800;color:#e8ecf8;font-variant-numeric:tabular-nums}
+  footer{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 2px);
+    text-align:center;font-size:10.5px;font-weight:600;color:#5c688a;letter-spacing:.05em;
+    pointer-events:none;z-index:1}
+
+  /* ── 层 ── */
+  .layer{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(8,11,20,.88);z-index:20}
+  .layer[hidden]{display:none}
+  .lpanel{display:flex;flex-direction:column;gap:13px;width:min(86vw,340px);
+    background:rgba(22,26,38,.98);border:1px solid rgba(148,168,225,.4);border-radius:18px;padding:24px 26px;
+    box-shadow:0 26px 80px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.05)}
+  .lt{font-size:16.5px;font-weight:800;color:var(--gold);letter-spacing:.08em;text-align:center}
+  #lose .lt{color:#ff8494}   /* 失败标题不用奖励金（语义歧义），走系列错误色 */
+  .ld{font-size:13.5px;color:#c6cfe4;line-height:1.9;text-align:center}
+  .ld b{color:#ffe9b8}
+  .layer button{padding:11px 0;font-size:15px;font-weight:700;color:#16202f;background:var(--gold);
+    border:none;border-radius:12px;cursor:pointer}
+  .layer button + button{margin-top:2px}
+  .layer button.ghost{background:transparent;color:var(--dim);border:1px solid var(--line)}
+  #menu .bestrow{font-size:13px;color:var(--dim);text-align:center}
+  #menu .bestrow b{color:#e8ecf8}
+  #win .stars{font-size:30px;letter-spacing:.3em;text-indent:.3em;color:var(--gold);text-align:center;text-shadow:0 3px 14px rgba(255,179,71,.35)}
+  #win .stats{display:flex;justify-content:center;gap:24px;font-size:13px;color:var(--dim)}
+  #win .stats b{color:#e8ecf8;font-size:17px;font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+
+  <div id="hud">
+    <div class="t">
+      <div class="nm">成语接龙闯关<small>词链 · 闯关</small></div>
+      <div class="ct">第 <b id="ct-lv">1</b> 关 · <span id="ct-prog">0/8</span></div>
+    </div>
+    <div id="lives">♥♥♥</div>
+    <div id="combo">连击 ×0</div>
+    <button id="btn-snd" aria-label="声音开关"></button>
+  </div>
+
+  <div id="main">
+    <div id="curbox" class="paper">
+      <div id="curw"></div>
+      <div id="curm"></div>
+    </div>
+    <div id="linkhint"></div>
+    <div id="opts"></div>
+  </div>
+
+  <div id="bar">
+    <button id="btn-hint">提示 <em>×1</em></button>
+    <div id="score">0</div>
+  </div>
+  <footer>成语接龙闯关 · 完全离线 · 词表自建</footer>
+
+  <div id="menu" class="layer">
+    <div class="lpanel">
+      <div class="lt">成语接龙闯关</div>
+      <div class="ld">接住上一条成语的<b>尾字</b>，从 4 个选项里挑出唯一能接上的那条。<br>一关接满 8 条，选错扣一颗心，三心用尽重来。</div>
+      <div class="bestrow">最高 <b id="menu-lv">Lv 1</b> · 最佳 <b id="menu-best">0</b> 分</div>
+      <button id="menu-ok">开始闯关</button>
+      <button id="menu-go" class="ghost" style="display:none">继续第 N 关</button>
+    </div>
+  </div>
+
+  <div id="win" class="layer" hidden>
+    <div class="lpanel">
+      <div class="lt">过关</div>
+      <div class="stars" id="win-star">★★★</div>
+      <div class="stats"><span>本关得分<br><b id="win-score">0</b></span><span>连击峰值<br><b id="win-max">×0</b></span></div>
+      <button id="win-ok">下一关</button>
+      <button id="win-menu" class="ghost">回菜单</button>
+    </div>
+  </div>
+
+  <div id="lose" class="layer" hidden>
+    <div class="lpanel">
+      <div class="lt">三心用尽</div>
+      <div class="ld">接到 <b id="lose-n">0</b> / 8 条，差一点点。<br>换个思路，重新接一遍！</div>
+      <button id="lose-ok">再试本关</button>
+      <button id="lose-menu" class="ghost">回菜单</button>
+    </div>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  function mulberry(seed) { var t = seed >>> 0; return function () { t += 0x6D2B79F5; var r2 = Math.imul(t ^ (t >>> 15), 1 | t); r2 ^= r2 + Math.imul(r2 ^ (r2 >>> 7), 61 | r2); return ((r2 ^ (r2 >>> 14)) >>> 0) / 4294967296; }; }
+
+  var safeStorage = {
+    get: function (k, d) { try { var v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set: function (k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+    del: function (k) { try { localStorage.removeItem(k); } catch (e) {} }
+  };
+
+  var SFX = (function () {
+    var ctx = null, on = safeStorage.get('mq_g17_sound', true);
+    function ac() {
+      if (!ctx) { try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+      if (ctx && ctx.state === 'suspended') ctx.resume();
+      return ctx;
+    }
+    function tone(type, f0, f1, t, vol, when) {
+      var c = ac(); if (!c) return;
+      var o = c.createOscillator(), g = c.createGain();
+      var t0 = c.currentTime + (when || 0);
+      o.type = type; o.frequency.setValueAtTime(f0, t0);
+      if (f1) o.frequency.exponentialRampToValueAtTime(f1, t0 + t);
+      g.gain.setValueAtTime(vol, t0);
+      g.gain.exponentialRampToValueAtTime(.001, t0 + t + .02);
+      o.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0 + t + .04);
+    }
+    var PENTA = [523, 587, 659, 784, 880];
+    return {
+      unlock: function () { ac(); },
+      right: function (combo) { if (!on) return; tone('sine', PENTA[Math.min(combo, 20) % 5], 0, .14, .12); tone('sine', PENTA[Math.min(combo, 20) % 5] * 2, 0, .1, .05, .05); },
+      wrong: function () { if (!on) return; tone('sine', 220, 130, .18, .09); },
+      hint: function () { if (!on) return; tone('triangle', 700, 0, .09, .07); },
+      winArp: function () { if (!on) return; [392, 494, 587, 784].forEach(function (f, i) { tone('triangle', f, 0, .3, .1, i * .1); }); },
+      lose: function () { if (!on) return; tone('sine', 330, 110, .5, .1); },
+      get on() { return on; },
+      toggle: function () { on = !on; safeStorage.set('mq_g17_sound', on); return on; }
+    };
+  })();
+
+  /* ═══ 词表（自建，链式衔接编写） ═══ */
+  var WORDS = [
+    /* 一链 */
+    { w: '一心一意', m: '心思专一，没有杂念' }, { w: '意气风发', m: '精神饱满，气概豪迈' },
+    { w: '发扬光大', m: '使好的作风、传统得到发展和提高' }, { w: '大显身手', m: '充分显露自己的本领' },
+    { w: '手到擒来', m: '做事毫不费力，一伸手就能办到' }, { w: '来日方长', m: '未来的日子还很长' },
+    { w: '长年累月', m: '形容经历很多年月，时间漫长' }, { w: '月下老人', m: '主管婚姻的神，代指媒人' },
+    { w: '人山人海', m: '形容聚集的人非常多' }, { w: '海阔天空', m: '形容天地广阔，也比喻说话无拘无束' },
+    { w: '空前绝后', m: '以前没有过，以后也不会有' }, { w: '后来居上', m: '后来的人或事物超过了先前的' },
+    { w: '上下一心', m: '上级与下级思想行动完全一致' }, { w: '心想事成', m: '心里想的事都能办成' },
+    { w: '成人之美', m: '成全别人的好事' }, { w: '美中不足', m: '虽然很好，但还有缺陷' },
+    { w: '足智多谋', m: '智谋很多，善于料事和用计' }, { w: '谋事在人', m: '事情能否成功在于人的努力' },
+    /* 二链 */
+    { w: '天长地久', m: '像天地一样长久，形容时间永恒' }, { w: '久别重逢', m: '分别很久以后又相见' },
+    { w: '逢凶化吉', m: '遇到凶险转化为吉祥' }, { w: '吉祥如意', m: '诸事吉利，符合心意' },
+    { w: '意犹未尽', m: '兴致还没有完全得到满足' }, { w: '尽善尽美', m: '完美到没有一点缺陷' },
+    { w: '美不胜收', m: '美好的东西太多，一时看不过来' }, { w: '收回成命', m: '撤销已经发出的命令' },
+    { w: '命途多舛', m: '一生经历坎坷，遭遇不好' }, { w: '吹毛求疵', m: '故意挑剔别人的毛病' },
+    /* 三链 */
+    { w: '十全十美', m: '各方面都完美，没有缺陷' }, { w: '美轮美奂', m: '形容房屋高大华丽' },
+    { w: '焕然一新', m: '面貌完全改变，呈现崭新气象' }, { w: '欣欣向荣', m: '草木茂盛，比喻事业蓬勃发展' },
+    { w: '新陈代谢', m: '新事物不断产生，旧事物不断淘汰' }, { w: '谢天谢地', m: '表示非常感激或庆幸' },
+    { w: '地大物博', m: '土地广大，物产丰富' }, { w: '博古通今', m: '对古代和现代的事都知道很多' },
+    { w: '今非昔比', m: '现在不是过去能比得上的' }, { w: '比翼双飞', m: '夫妻恩爱，并肩前行' },
+    { w: '飞黄腾达', m: '官职地位上升得很快' }, { w: '达官贵人', m: '地位高的官吏和尊贵显赫的人物' },
+    /* 四链 */
+    { w: '水到渠成', m: '条件成熟，事情自然成功' }, { w: '成千上万', m: '形容数量非常多' },
+    { w: '万紫千红', m: '形容百花齐放，色彩艳丽' }, { w: '红颜薄命', m: '旧指美貌女子大多命运不好' },
+    { w: '酒足饭饱', m: '吃得饱喝得足' }, { w: '饱经风霜', m: '形容经历过很多艰难困苦' },
+    { w: '双管齐下', m: '两件事同时进行或两种方法同时采用' }, { w: '下不为例', m: '下次不能援例，表示只通融这一次' },
+    { w: '例行公事', m: '按照惯例处理的公事，指走过场' }, { w: '事半功倍', m: '费力小而收效大' },
+    { w: '倍感荣幸', m: '感到非常幸运和光荣' }, { w: '兴高采烈', m: '兴致高，情绪热烈' },
+    { w: '烈火真金', m: '烈火中炼出的真金，比喻经得起考验的人' }, { w: '金玉良言', m: '像黄金美玉一样珍贵的劝告' },
+    { w: '言而有信', m: '说话靠得住，有信用' }, { w: '信手拈来', m: '写文章时词汇材料丰富，随手可用' },
+    { w: '来之不易', m: '得到很不容易' }, { w: '易如反掌', m: '容易得像翻一下手掌' },
+    /* 五链 */
+    { w: '山清水秀', m: '风景优美，山水清丽' }, { w: '秀外慧中', m: '外表秀丽，内心聪明' },
+    { w: '中流砥柱', m: '起支柱作用的坚强人物' }, { w: '助人为乐', m: '把帮助别人当作快乐' },
+    { w: '乐不思蜀', m: '在新环境中得到乐趣，不再想回去' }, { w: '蜀犬吠日', m: '少见多怪' },
+    { w: '日新月异', m: '发展变化快，不断出现新事物' }, { w: '异口同声', m: '不同的嘴说出相同的话' },
+    { w: '声东击西', m: '表面攻打东边，实际攻打西边' }, { w: '西风落叶', m: '秋天的景象，衰败飘零' },
+    { w: '叶落归根', m: '事物有一定的归宿，多指客居他乡的人终要回到故土' }, { w: '根深蒂固', m: '基础牢固，不可动摇' },
+    { w: '固若金汤', m: '城池防守坚固' }, { w: '糖衣炮弹', m: '裹着糖衣的炮弹，比喻腐蚀拉拢人的手段' },
+    /* 六链 */
+    { w: '龙飞凤舞', m: '形容书法笔势有力，灵活舒展' }, { w: '舞文弄墨', m: '玩弄文字技巧' },
+    { w: '墨守成规', m: '因循守旧，不肯改进' }, { w: '规行矩步', m: '举动合乎规矩，比喻墨守成规' },
+    { w: '步步高升', m: '职位不断上升' }, { w: '升堂入室', m: '学问技能由浅入深，达到高水平' },
+    { w: '室迩人远', m: '思念远方的人，盼与其相聚' }, { w: '远走高飞', m: '摆脱不利环境，跑到远地方去' },
+    { w: '飞蛾扑火', m: '自取灭亡' }, { w: '火树银花', m: '形容灯火或烟火绚烂的夜景' },
+    { w: '花好月圆', m: '比喻美好圆满的生活' }, { w: '圆木警枕', m: '用圆木做枕头，睡着易醒，形容勤奋自励' },
+    /* 七链 */
+    { w: '马到成功', m: '事情顺利，一开始就取得成功' }, { w: '功成名就', m: '功业建立了，名声也有了' },
+    { w: '就事论事', m: '按照事情本身来评论是非' }, { w: '事过境迁', m: '事情已经过去，境况也改变了' },
+    { w: '事在人为', m: '事情能否成功取决于人的努力' }, { w: '为富不仁', m: '有钱而心狠，不讲仁德' },
+    { w: '仁至义尽', m: '对人的帮助和原谅已经到了最大限度' }, { w: '尽人皆知', m: '所有的人都知道' },
+    { w: '知难而进', m: '明知困难，仍然迎着困难上' }, { w: '进退两难', m: '前进和后退都难，处境尴尬' },
+    { w: '难能可贵', m: '难得的不容易做到的事，非常可贵' }, { w: '贵在坚持', m: '最难得的是能够长期坚持下去' },
+    /* 八链 */
+    { w: '风和日丽', m: '微风和畅，阳光明丽' }, { w: '丽句清词', m: '华丽清新的诗文词句' },
+    { w: '词不达意', m: '词语不能确切表达出意思' }, { w: '意味深长', m: '含意深刻，耐人寻味' },
+    { w: '长驱直入', m: '军队长距离地快速进军' }, { w: '入木三分', m: '分析深刻，描写生动' },
+    { w: '分秒必争', m: '抓紧时间，一分一秒也不放松' }, { w: '争先恐后', m: '争着向前，唯恐落后' },
+    { w: '后起之秀', m: '后辈中成长起来的优秀人物' }, { w: '后继有人', m: '有后人继承前人的事业' },
+    { w: '人定胜天', m: '人类凭借智慧和力量能够战胜自然' }, { w: '天壤之别', m: '差别极大，像天和地一样' },
+    { w: '别开生面', m: '开展新的局面或创造新的形式' }, { w: '面面俱到', m: '各方面都照顾到，没有遗漏' },
+    { w: '到此为止', m: '以这里为终点，不再继续' },
+    /* 九链 */
+    { w: '百发百中', m: '射术高明，百次瞄准百次命中' }, { w: '中庸之道', m: '不偏不倚、调和折中的处世态度' },
+    { w: '道听途说', m: '没有根据的传闻' }, { w: '说一不二', m: '说话算数，说到做到' },
+    { w: '二话不说', m: '没有任何话表示，毫不犹豫' }, { w: '说三道四', m: '随意乱加评论' },
+    { w: '四海为家', m: '任何地方都可以当作自己的家' }, { w: '家喻户晓', m: '家家户户都知道' },
+    { w: '小题大做', m: '把小事情当作大事情来处理' }, { w: '做贼心虚', m: '做了坏事怕人察觉，心里发虚' },
+    { w: '虚怀若谷', m: '胸怀像山谷一样深广，形容十分谦虚' }, { w: '谷贱伤农', m: '粮价过低损害农民利益' },
+    /* 十链 */
+    { w: '千军万马', m: '形容军队雄壮，规模宏大' }, { w: '马不停蹄', m: '一刻也不停留，一直前进' },
+    { w: '提心吊胆', m: '十分担心或害怕' }, { w: '胆大心细', m: '胆子大而思虑周密' },
+    { w: '细水长流', m: '节约使用财物，使经常不缺' }, { w: '流连忘返', m: '留恋美景，舍不得离开' },
+    { w: '返老还童', m: '由衰老恢复青春' }, { w: '童言无忌', m: '孩子说话不必忌讳' },
+    { w: '济济一堂', m: '很多有才能的人聚集在一起' }, { w: '堂堂正正', m: '光明正大' },
+    { w: '正大光明', m: '心怀坦白，言行正派' }, { w: '明察秋毫', m: '目光敏锐，能看清极细小的事物' },
+    { w: '毫不利己', m: '一点也不自私自利' }, { w: '己所不欲', m: '自己不愿意的，不要施加给别人' },
+    /* 补链：高频接龙字 */
+    { w: '一心为公', m: '一心为集体、为大家' }, { w: '公私分明', m: '公家和私人的界限分得清楚' },
+    { w: '明明白白', m: '清清楚楚，没有疑问' }, { w: '白手起家', m: '在一无所有的基础上创立事业' },
+    { w: '家徒四壁', m: '家里只有四面墙，形容十分贫穷' }, { w: '壁垒森严', m: '防御工事坚固，戒备严密' },
+    { w: '严于律己', m: '对自己要求严格' }, { w: '济世救人', m: '以医术或善行挽救世人' },
+    { w: '五花八门', m: '花样繁多，变化多端' }, { w: '门庭若市', m: '门口和庭院像集市一样热闹' },
+    { w: '市井之徒', m: '平庸鄙俗、没有作为的人' }, { w: '徒劳无功', m: '白费力气，没有成效' },
+    { w: '功德圆满', m: '法事完满结束，多指事情顺利完成' }, { w: '满载而归', m: '装得满满地回来，收获很大' },
+    { w: '归心似箭', m: '想回家的心情像射出的箭一样急切' }, { w: '箭在弦上', m: '事情到了不得不做的时刻' },
+    { w: '上行下效', m: '上面的人怎么做，下面的人就跟着学' }, { w: '笑逐颜开', m: '笑得眉眼舒展开来，形容非常高兴' },
+    { w: '劳苦功高', m: '出了大力，吃了大苦，立了大功' }, { w: '高瞻远瞩', m: '眼光远大，看得高远' },
+    { w: '锦上添花', m: '使好的更好，美上加美' }, { w: '举足轻重', m: '所处地位重要，一举一动都影响全局' },
+    { w: '花团锦簇', m: '五彩缤纷、繁华艳丽的景象' }, { w: '簇拥而来', m: '许多人围拢着过来' },
+    { w: '来龙去脉', m: '事情的前因后果' }, { w: '脉脉含情', m: '默默地用眼神表达感情' },
+    { w: '情同手足', m: '感情深厚，如同兄弟' }, { w: '足食足兵', m: '粮食充足，军备完善' },
+    { w: '兵贵神速', m: '用兵以行动迅速为可贵' }, { w: '速战速决', m: '用快速的战术结束战局' },
+    { w: '决一雌雄', m: '比出高低胜负' }, { w: '雄心壮志', m: '伟大的理想和宏伟的志愿' },
+    { w: '志在四方', m: '有远大志向，不局限于一方' }, { w: '方兴未艾', m: '事物正在发展，尚未达到顶点' },
+    { w: '爱不释手', m: '喜爱得舍不得放下' }, { w: '手舞足蹈', m: '高兴得手脚都舞动起来' },
+    { w: '道不拾遗', m: '社会风气良好，路上没人捡拾别人丢了的东西' }, { w: '遗臭万年', m: '坏名声永远流传' },
+    { w: '年富力强', m: '年纪轻，精力旺盛' }, { w: '强词夺理', m: '无理强辩，硬说有理' },
+    { w: '理直气壮', m: '理由充分，说话气势就壮' }, { w: '壮志凌云', m: '理想宏伟远大' },
+    { w: '云开见日', m: '黑暗过去，光明到来' }, { w: '日理万机', m: '每天处理很多国家大事' },
+    { w: '机不可失', m: '好机会不可错过' }, { w: '失而复得', m: '失去后又得到' },
+    { w: '得心应手', m: '技艺纯熟，做事顺手' }, { w: '手急眼快', m: '动作敏捷，反应快' },
+    { w: '快马加鞭', m: '加快速度，快上加快' }, { w: '鞭长莫及', m: '力量达不到，管不着' },
+    { w: '及锋而试', m: '趁有利时机及时行动' }, { w: '拭目以待', m: '擦亮眼睛等着瞧，形容殷切期望' },
+    { w: '以德报怨', m: '用恩惠回报别人的怨恨' }, { w: '怨天尤人', m: '抱怨天，责怪别人' },
+    { w: '人杰地灵', m: '杰出的人出生或到过的地方成为名胜' }, { w: '灵机一动', m: '突然想出办法' },
+    { w: '动荡不安', m: '局势不稳定，不平静' }, { w: '安分守己', m: '规矩老实，守本分' },
+    { w: '挤眉弄眼', m: '用眉眼向人示意' }, { w: '眼高手低', m: '要求标准高，实际能力低' },
+    { w: '低声下气', m: '恭顺小心地说话做事' }, { w: '气宇轩昂', m: '气度不凡，精神饱满' },
+    { w: '昂首挺胸', m: '昂起头，挺起胸，精神抖擞' }, { w: '胸有成竹', m: '做事之前已有通盘考虑' },
+    { w: '竹报平安', m: '平安家信' }, { w: '安居乐业', m: '安定地生活，愉快地工作' },
+    { w: '夜以继日', m: '日夜不停地努力' }, { w: '日积月累', m: '一天天一月月地积累' },
+    { w: '累卵之危', m: '像堆起来的蛋，非常危险' }, { w: '危机四伏', m: '到处隐藏着危险' },
+    { w: '伏虎降龙', m: '战胜强大的对手' }, { w: '龙争虎斗', m: '双方势均力敌，斗争激烈' },
+    { w: '斗志昂扬', m: '斗争意志高涨旺盛' }, { w: '扬名四海', m: '名声传遍各地' },
+    { w: '死里逃生', m: '从极危险的境地逃脱' }, { w: '生龙活虎', m: '活泼矫健，富有生气' },
+    { w: '虎头蛇尾', m: '做事有始无终' }, { w: '尾大不掉', m: '机构下强上弱，指挥不灵' },
+    { w: '掉以轻心', m: '对某件事不重视，态度草率' }, { w: '心血来潮', m: '突然产生某种念头' },
+    { w: '潮涨潮落', m: '潮水涨起又落下，比喻事物起伏' }, { w: '落落大方', m: '言谈举止自然大方' },
+    { w: '方寸已乱', m: '心绪烦乱，拿不定主意' }, { w: '乱世英雄', m: '混乱时代中涌现的英雄人物' },
+    { w: '雄才大略', m: '非常杰出的才智和谋略' }, { w: '略胜一筹', m: '比较起来稍强一些' },
+    { w: '愁眉苦脸', m: '忧愁得皱着眉，哭丧着脸' }, { w: '脸红耳赤', m: '着急或羞愧的样子' },
+    { w: '赤胆忠心', m: '形容十分忠诚' }, { w: '忠言逆耳', m: '诚恳劝告的话往往不好听' },
+    { w: '耳濡目染', m: '经常听到看到，不知不觉受影响' }, { w: '染苍染黄', m: '比喻变化不定，反复无常' },
+    { w: '黄道吉日', m: '迷信中宜于办事的好日子' }, { w: '日久天长', m: '时间长，日子久' },
+    { w: '心平气和', m: '心情平静，态度温和' }, { w: '和颜悦色', m: '脸色和蔼喜悦，态度和善' },
+    { w: '色厉内荏', m: '外表强硬，内心怯懦' }, { w: '光阴似箭', m: '时间像箭一样飞逝，形容时间过得快' },
+    { w: '阴差阳错', m: '因偶然的差错而造成的失误' }, { w: '错落有致', m: '交错纷杂但富有情趣' },
+    { w: '至理名言', m: '最正确的道理，最有价值的话' }, { w: '美意延年', m: '心情舒畅能延年益寿' },
+    { w: '年深日久', m: '时间久远' }, { w: '久负盛名', m: '长时期地享有好名声' },
+    { w: '名副其实', m: '名声或名称与实际相符' }, { w: '实至名归', m: '有了真本领，自然有了声誉' },
+    { w: '归真返璞', m: '去除外饰，恢复本真' }, { w: '璞玉浑金', m: '未加修饰的天然美质，比喻人品纯真质朴' },
+    { w: '金枝玉叶', m: '旧指皇族子孙，现指出身高贵的人' }, { w: '叶公好龙', m: '表面爱好某事物，实际并非真爱好' },
+    { w: '龙潭虎穴', m: '龙虎居住的深潭洞穴，比喻凶险之地' }, { w: '穴居野处', m: '居住在洞里生活在荒野，形容远古人类生活' },
+    { w: '处变不惊', m: '面对变乱镇定自若' }, { w: '惊弓之鸟', m: '受过惊吓，遇事惶恐不安的人' },
+    { w: '鸟语花香', m: '鸟叫好听，花飘清香，春天景象' }, { w: '香消玉殒', m: '美貌女子死亡' },
+    { w: '殒身不恤', m: '牺牲生命也不顾惜' }, { w: '恤孤念寡', m: '救济孤儿，关心寡妇，指怜悯弱者' }
+  ];
+
+  /* 同音字组（同音干扰用；组内字互为同音） */
+  var HOMO = [
+    ['一', '衣', '依', '义', '意', '亦', '易', '益', '艺', '亿'],
+    ['心', '新', '辛', '欣', '薪', '信'],
+    ['天', '添'], ['花', '华', '化', '话', '画'],
+    ['大', '达', '打'], ['山', '删', '衫', '珊'],
+    ['水', '谁', '税'],
+    ['人', '仁', '任', '认', '忍', '刃'],
+    ['地', '第', '帝', '弟', '递'],
+    ['龙', '隆', '笼', '聋', '胧'],
+    ['马', '码', '麻', '蚂'],
+    ['月', '乐', '越', '跃', '悦', '阅'],
+    ['风', '丰', '封', '蜂', '枫', '疯'],
+    ['海', '还', '孩', '亥'],
+    ['金', '今', '斤', '津', '筋'],
+    ['明', '名', '鸣', '铭'],
+    ['声', '生', '升', '胜', '圣'],
+    ['成', '城', '程', '诚', '乘', '呈'],
+    ['力', '立', '利', '丽', '厉', '历', '例'],
+    ['火', '伙', '或', '获', '货'],
+    ['头', '投', '透']
+  ];
+  var HOMOMAP = {};
+  HOMO.forEach(function (g) { g.forEach(function (c) { if (!HOMOMAP[c]) HOMOMAP[c] = {}; g.forEach(function (c2) { if (c2 !== c) HOMOMAP[c][c2] = 1; }); }); });
+
+  /* ═══ 索引与出题（seeded 预生成） ═══ */
+  var BY_FIRST = {};
+  WORDS.forEach(function (wd, i) {
+    var c = wd.w.charAt(0);
+    (BY_FIRST[c] = BY_FIRST[c] || []).push(i);
+  });
+
+  function chainOf(seed, lv) {
+    var rnd = mulberry((seed ^ (lv * 0x9e3779b9)) >>> 0);
+    var CHAIN = 8;               /* 出题数；链长 = CHAIN+1（每题答案=下一词，末题也有解） */
+    for (var attempt = 0; attempt < 60; attempt++) {
+      var used = {}, chain = [];
+      var startIdx = Math.floor(rnd() * WORDS.length);
+      chain.push(startIdx); used[startIdx] = 1;
+      var ok = true;
+      for (var s = 1; s <= CHAIN; s++) {
+        var tail = WORDS[chain[chain.length - 1]].w.charAt(3);
+        var pool = (BY_FIRST[tail] || []).filter(function (i) { return !used[i]; });
+        if (!pool.length) { ok = false; break; }
+        var nxt = pool[Math.floor(rnd() * pool.length)];
+        chain.push(nxt); used[nxt] = 1;
+      }
+      if (!ok) continue;
+      /* 组题：每题=当前词+4选项（1 正确+3 干扰） */
+      var qs = [];
+      for (var q = 0; q < CHAIN; q++) {
+        var cur = chain[q], ans = chain[q + 1];
+        var opts = [];
+        opts.push(ans);
+        var needTail = WORDS[cur].w.charAt(3);
+        /* 梯度：lv>=7 每题先注入 1 个同音干扰（首字与尾字同音不同字，可用则必在） */
+        if (lv >= 7) {
+          var homos = Object.keys(HOMOMAP[needTail] || {});
+          for (var hi = 0; hi < homos.length && opts.length < 2; hi++) {
+            var hc = homos[Math.floor(rnd() * homos.length)];
+            var hpool = (BY_FIRST[hc] || []).filter(function (i) { return opts.indexOf(i) < 0 && i !== cur; });
+            if (hpool.length) { opts.push(hpool[Math.floor(rnd() * hpool.length)]); break; }
+          }
+        }
+        var guard = 0;
+        while (opts.length < 4 && guard < 500) {
+          guard++;
+          var d = Math.floor(rnd() * WORDS.length);
+          if (opts.indexOf(d) >= 0 || d === cur) continue;
+          var dw = WORDS[d].w;
+          if (dw.charAt(0) === needTail) continue;   /* 干扰不可接 */
+          opts.push(d);
+        }
+        if (opts.length < 4) { ok = false; break; }
+        /* 洗牌 */
+        for (var sh = opts.length - 1; sh > 0; sh--) {
+          var r3 = Math.floor(rnd() * (sh + 1));
+          var tmp = opts[sh]; opts[sh] = opts[r3]; opts[r3] = tmp;
+        }
+        qs.push({ cur: cur, opts: opts, ans: opts.indexOf(ans) });
+      }
+      if (ok) return { chain: chain, qs: qs, lv: lv };
+    }
+    return null;   /* 词表连通性兜底失败（verify 会暴露） */
+  }
+
+  /* ═══ 状态 ═══ */
+  var CHAIN_LEN = 8;
+  var S = {
+    phase: 'MENU',           /* MENU PLAY WIN LOSE */
+    lv: 1, seed: 0,
+    qs: [], qi: 0,
+    lives: 3, combo: 0, maxCombo: 0, score: 0, lvScore: 0,
+    wrongs: 0, hintUsed: false, hintLeft: 1,
+    best: safeStorage.get('mq_g17_best', 0),
+    maxLv: safeStorage.get('mq_g17_lv', 1),
+    timers: [], lock: false
+  };
+  var el = {
+    hud: document.getElementById('hud'), lives: document.getElementById('lives'),
+    combo: document.getElementById('combo'), ctLv: document.getElementById('ct-lv'),
+    ctProg: document.getElementById('ct-prog'), curbox: document.getElementById('curbox'),
+    curw: document.getElementById('curw'), curm: document.getElementById('curm'),
+    linkhint: document.getElementById('linkhint'), opts: document.getElementById('opts'),
+    btnHint: document.getElementById('btn-hint'), score: document.getElementById('score'),
+    menu: document.getElementById('menu'), menuOk: document.getElementById('menu-ok'),
+    menuGo: document.getElementById('menu-go'), menuLv: document.getElementById('menu-lv'),
+    menuBest: document.getElementById('menu-best'),
+    win: document.getElementById('win'), winStar: document.getElementById('win-star'),
+    winScore: document.getElementById('win-score'), winMax: document.getElementById('win-max'),
+    winOk: document.getElementById('win-ok'), winMenu: document.getElementById('win-menu'),
+    lose: document.getElementById('lose'), loseN: document.getElementById('lose-n'),
+    loseOk: document.getElementById('lose-ok'), loseMenu: document.getElementById('lose-menu'),
+    btnSnd: document.getElementById('btn-snd')
+  };
+
+  var SND_ON =
+    '<svg width="20" height="20" viewBox="0 0 20 20">' +
+    '<path d="M3 8 h3 l4 -3.4 v10.8 L6 12 H3z" fill="#ffb347"/>' +
+    '<path d="M13 7 q2 3 0 6 M15.5 5 q3.2 5 0 10" stroke="#7ec8ff" stroke-width="1.7" fill="none" stroke-linecap="round"/>' +
+    '</svg>';
+  var SND_OFF =
+    '<svg width="20" height="20" viewBox="0 0 20 20">' +
+    '<path d="M3 8 h3 l4 -3.4 v10.8 L6 12 H3z" fill="#8d99b8"/>' +
+    '<path d="M13 7.5 l5 5 M18 7.5 l-5 5" stroke="#ff8494" stroke-width="1.9" stroke-linecap="round"/>' +
+    '</svg>';
+  function sndIcon() {
+    el.btnSnd.innerHTML = SFX.on ? SND_ON : SND_OFF;
+    el.btnSnd.classList.toggle('off', !SFX.on);
+  }
+
+  function T(fn, ms) { var id = setTimeout(fn, ms); S.timers.push(id); return id; }
+  function clearTimers() { S.timers.forEach(clearTimeout); S.timers = []; }
+
+  function to(p) { clearTimers(); S.phase = p; }
+
+  function updateHUD() {
+    el.ctLv.textContent = S.lv;
+    el.ctProg.textContent = Math.min(S.qi, CHAIN_LEN) + '/' + CHAIN_LEN;
+    var h = '';
+    for (var i = 0; i < 3; i++) h += '<span class="h' + (i < S.lives ? '' : ' dead') + '">♥</span>';
+    el.lives.innerHTML = h;
+    el.combo.textContent = '连击 ×' + S.combo;
+    el.combo.classList.toggle('hot', S.combo >= 3);
+    el.score.textContent = S.score;
+    el.btnHint.innerHTML = '提示 <em>×' + S.hintLeft + '</em>';
+    el.btnHint.disabled = S.hintLeft <= 0 || S.phase !== 'PLAY';
+  }
+
+  function renderQ() {
+    var q = S.qs[S.qi];
+    var wd = WORDS[q.cur];
+    el.curw.innerHTML = '';
+    for (var i = 0; i < 4; i++) {
+      var c = document.createElement('span');
+      c.className = 'c' + (i === 3 ? ' tail' : '');
+      c.textContent = wd.w.charAt(i);
+      el.curw.appendChild(c);
+    }
+    el.curm.textContent = '「' + wd.w + '」' + wd.m;
+    var tail = wd.w.charAt(3);
+    el.linkhint.innerHTML = '接「<b>' + tail + '</b>」—— 选首字是「' + tail + '」的成语';
+    el.opts.innerHTML = '';
+    q.opts.forEach(function (oi, idx) {
+      var b = document.createElement('div');
+      b.className = 'opt';
+      var t = WORDS[oi].w;
+      b.innerHTML = '<span class="fst">' + t.charAt(0) + '</span>' + t.slice(1);
+      (function (ii) {
+        b.addEventListener('pointerdown', function (e) { e.preventDefault(); pick(ii); });
+      })(idx);
+      el.opts.appendChild(b);
+    });
+    updateHUD();
+  }
+
+  function startLevel(seed, lv) {
+    var g = chainOf(seed, lv);
+    if (!g) return false;
+    S.seed = seed; S.lv = lv;
+    S.qs = g.qs; S.qi = 0;
+    S.lives = 3; S.combo = 0; S.maxCombo = 0;
+    S.lvScore = 0; S.wrongs = 0; S.hintUsed = false; S.hintLeft = 1;
+    S.lock = false;
+    el.menu.hidden = true; el.win.hidden = true; el.lose.hidden = true;
+    to('PLAY');
+    renderQ();
+    return true;
+  }
+
+  /* 选择 */
+  function pick(idx) {
+    if (S.phase !== 'PLAY' || S.lock) return null;
+    var q = S.qs[S.qi];
+    var optEls = el.opts.children;
+    if (idx === q.ans) {
+      S.lock = true;
+      var mult = Math.min(S.combo, 20) * 0.1 + 1;
+      var pts = Math.round(100 * mult);
+      S.score += pts; S.lvScore += pts;
+      S.combo++;
+      if (S.combo > S.maxCombo) S.maxCombo = S.combo;
+      SFX.right(S.combo);
+      if (navigator.vibrate) { try { navigator.vibrate(8); } catch (e) {} }
+      optEls[idx].classList.add('right');
+      T(function () {
+        S.qi++;
+        if (S.qi >= CHAIN_LEN) { winLevel(); return; }
+        /* 翻页动画 */
+        el.curbox.className = 'paper swapA';
+        T(function () {
+          renderQ();
+          el.curbox.className = 'paper swapB';
+          T(function () { el.curbox.className = 'paper'; S.lock = false; }, 280);
+        }, 220);
+      }, 340);
+      return 'right';
+    } else {
+      S.wrongs++;
+      S.lives--;
+      S.combo = 0;
+      SFX.wrong();
+      if (navigator.vibrate) { try { navigator.vibrate([30, 30, 30]); } catch (e) {} }
+      optEls[idx].classList.add('wrong');
+      T(function () { optEls[idx].classList.remove('wrong'); }, 420);
+      updateHUD();                       /* 先重建心心，再给新熄灭的心挂 pop（先挂会被 innerHTML 重建抹掉） */
+      var hs = el.lives.querySelectorAll('.h');
+      if (hs[S.lives]) { hs[S.lives].classList.add('pop'); }
+      if (S.lives <= 0) {
+        S.lock = true;
+        T(loseLevel, 700);
+      }
+      return 'wrong';
+    }
+  }
+
+  function hint() {
+    if (S.phase !== 'PLAY' || S.hintLeft <= 0) return false;
+    S.hintLeft--; S.hintUsed = true;
+    SFX.hint();
+    var q = S.qs[S.qi];
+    el.opts.children[q.ans].classList.add('hintglow');
+    T(function () {
+      var c = el.opts.children[q.ans];
+      if (c) c.classList.remove('hintglow');
+    }, 3000);
+    updateHUD();
+    return true;
+  }
+
+  function starsOf() {
+    if (S.wrongs === 0 && !S.hintUsed) return 3;
+    if (S.wrongs <= 1 || S.hintUsed) return 2;
+    return 1;
+  }
+
+  function winLevel() {
+    to('WIN');
+    var st = starsOf();
+    if (S.score > S.best) { S.best = S.score; safeStorage.set('mq_g17_best', S.best); }
+    if (S.lv + 1 > S.maxLv) { S.maxLv = S.lv + 1; safeStorage.set('mq_g17_lv', S.maxLv); }
+    el.winStar.textContent = '★★★☆☆☆'.slice(3 - st, 6 - st);
+    el.winScore.textContent = S.lvScore;
+    el.winMax.textContent = '×' + S.maxCombo;
+    el.win.hidden = false;
+    SFX.winArp();
+    if (navigator.vibrate) { try { navigator.vibrate([20, 50, 20]); } catch (e) {} }
+    updateHUD();
+  }
+
+  function loseLevel() {
+    to('LOSE');
+    el.loseN.textContent = S.qi;
+    el.lose.hidden = false;
+    SFX.lose();
+    updateHUD();
+  }
+
+  function showMenu() {
+    to('MENU');
+    el.win.hidden = true; el.lose.hidden = true;
+    el.menuLv.textContent = 'Lv ' + S.maxLv;
+    el.menuBest.textContent = S.best;
+    if (S.maxLv > 1) {
+      el.menuGo.style.display = '';
+      el.menuGo.textContent = '继续第 ' + S.maxLv + ' 关';
+    }
+    el.menu.hidden = false;
+    updateHUD();
+  }
+
+  /* ═══ 事件 ═══ */
+  el.menuOk.addEventListener('click', function () { SFX.unlock(); S.score = 0; startLevel((Math.random() * 1e9) | 0, 1); });
+  el.menuGo.addEventListener('click', function () { SFX.unlock(); S.score = 0; startLevel((Math.random() * 1e9) | 0, S.maxLv); });
+  el.winOk.addEventListener('click', function () { startLevel((Math.random() * 1e9) | 0, S.lv + 1); });
+  el.winMenu.addEventListener('click', showMenu);
+  el.loseOk.addEventListener('click', function () { S.score -= S.lvScore; startLevel((Math.random() * 1e9) | 0, S.lv); });
+  el.loseMenu.addEventListener('click', showMenu);
+  el.btnHint.addEventListener('click', function () { hint(); });
+  el.btnSnd.addEventListener('click', function () { SFX.toggle(); sndIcon(); });
+
+  /* ═══ dev 钩子 ═══ */
+  
+
+  /* ═══ 启动 ═══ */
+  sndIcon();
+  showMenu();
+})();
+</script>
+</body>
+</html>
