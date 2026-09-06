@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#16241c">
+<title>骰子快车 · 口袋游戏机</title>
+<style>
+:root{--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px)}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;position:fixed}
+body{
+  background:linear-gradient(178deg,#1d2f25 0%,#16241c 48%,#0f1a14 100%);
+  color:#e9ede4;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+  touch-action:none;user-select:none;-webkit-user-select:none;
+}
+#app{position:relative;width:100%;height:100%;max-width:520px;margin:0 auto}
+.screen{position:absolute;inset:0;display:none}
+.screen.on{display:block}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+/* ---------- 菜单 ---------- */
+#menu{display:none;flex-direction:column;align-items:center;justify-content:center;gap:0;
+  background:radial-gradient(130% 55% at 50% -4%,#2c4436 0%,rgba(44,68,54,0) 60%),
+             linear-gradient(178deg,#1d2f25 0%,#17261e 55%,#0e1913 100%)}
+#menu.on{display:flex}
+.m-kicker{font-size:11.5px;letter-spacing:.42em;color:#7d9a86;margin-bottom:14px;padding-left:.42em}
+.m-title{font-size:46px;font-weight:800;letter-spacing:.06em;
+  background:linear-gradient(105deg,#efe3c2 18%,#d8b878 52%,#8fc8a8 88%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 3px 12px rgba(216,184,120,.22))}
+.m-sub{margin-top:12px;color:#9ab4a0;font-size:13.5px;letter-spacing:.18em;padding-left:.18em}
+#m-art{width:216px;height:150px;margin:24px 0 4px}
+.btn{display:block;width:206px;margin:0 auto;border:none;cursor:pointer;
+  font-family:inherit;font-size:17px;font-weight:700;letter-spacing:.22em;padding:15px 0 15px .22em;
+  color:#241a08;border-radius:14px;background:linear-gradient(168deg,#dcb96a,#b98f3e);
+  box-shadow:0 6px 22px rgba(220,185,106,.28),inset 0 1px 0 rgba(255,248,220,.55)}
+.btn:active{transform:translateY(2px) scale(.985)}
+.btn.ghost{background:linear-gradient(168deg,rgba(220,185,106,.10),rgba(220,185,106,.03));color:#c8b488;box-shadow:inset 0 0 0 1.8px rgba(200,180,136,.55);font-size:14px;padding:12px 0 12px .22em;margin-top:14px}
+#m-best{margin-top:20px;color:#7d9a86;font-size:12.5px;letter-spacing:.14em}
+#m-best b{color:#e6cf9a;font-weight:700}
+.m-foot{position:absolute;bottom:calc(var(--sab) + 16px);left:0;right:0;text-align:center;color:#6d8776;font-size:10.5px;letter-spacing:.12em}
+/* ---------- 游戏 ---------- */
+#game{padding-top:calc(var(--sat) + 4px);display:none;flex-direction:column}
+#game.on{display:flex}
+#hud{position:relative;z-index:6;display:flex;align-items:center;gap:8px;padding:4px 14px 2px}
+.hud-title{font-size:19px;font-weight:800;letter-spacing:.1em;color:#e6cf9a;line-height:1.15}
+.hud-title .hud-k{display:block;font-size:8.5px;letter-spacing:.34em;color:#9b8b60;font-weight:600}
+.hud-score{flex:1;text-align:right;font-size:11.5px;color:#9ab4a0;line-height:1.2}
+.hud-score b{display:block;font-size:18px;color:#f0f4ec;font-weight:800;font-variant-numeric:tabular-nums}
+.hud-score b i{font-style:normal;font-size:11.5px;color:#9ab4a0;font-weight:600}
+.icon-btn{width:36px;height:36px;border-radius:11px;border:1.4px solid rgba(200,180,136,.4);
+  background:rgba(16,26,20,.72);color:#c8d8cc;font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.icon-btn:active{transform:scale(.94)}
+.icon-btn.off{color:#5a7262}
+/* 行程进度条 */
+#trip{height:3px;margin:3px 18px 0;border-radius:2px;background:rgba(200,180,136,.14);overflow:hidden}
+#trip i{display:block;height:100%;width:0;border-radius:2px;
+  background:linear-gradient(90deg,#8a7a56,#d8b96a);transition:width .35s ease-out}
+/* 骰区 */
+#dice-tray{margin:8px 18px 0;padding:14px 10px 10px;border-radius:14px;
+  background:linear-gradient(178deg,rgba(10,18,13,.55),rgba(10,18,13,.3));
+  border:1px solid rgba(200,180,136,.16);
+  display:flex;justify-content:center;gap:10px}
+.die{position:relative;width:46px;height:46px;border-radius:9px;cursor:pointer;
+  background:linear-gradient(160deg,#f4efe2 0%,#e8e0cc 55%,#d8ceae 100%);
+  box-shadow:0 3px 7px rgba(0,0,0,.45),0 5px 10px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.7),inset 0 -2px 3px rgba(0,0,0,.16);
+  display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);padding:6px;gap:1px;
+  transition:transform .18s ease-out,box-shadow .18s}
+.die .pip{border-radius:50%;background:#2c2a24;align-self:center;justify-self:center;width:7px;height:7px}
+.die .pip.red{background:#c23c30;box-shadow:0 0 3px rgba(194,60,48,.4)}
+.die .np{width:7px;height:7px}
+.die.locked{transform:translateY(3px) scale(.96);
+  box-shadow:0 1px 3px rgba(0,0,0,.5),inset 0 0 0 2px #c8a45a,inset 0 1px 0 rgba(255,255,255,.5)}
+.die.locked::after{content:"";position:absolute;left:50%;top:-13px;transform:translateX(-50%);
+  width:5px;height:5px;border-radius:50%;background:#d8b96a;box-shadow:0 0 5px rgba(216,185,106,.6)}
+.die.rolling{animation:droll .42s ease-in-out}
+@keyframes droll{0%{transform:rotate(0) translateY(0)}25%{transform:rotate(72deg) translateY(-13px)}
+  55%{transform:rotate(196deg) translateY(4px)}80%{transform:rotate(308deg) translateY(-5px)}100%{transform:rotate(360deg) translateY(0)}}
+.die.pop{animation:dpop .14s ease-out}
+@keyframes dpop{0%{transform:scale(1.13)}70%{transform:scale(.96)}100%{transform:scale(1)}}
+/* 掷按钮 */
+#roll-zone{display:flex;flex-direction:column;align-items:center;gap:7px;margin:9px 18px 0}
+#btn-roll{width:132px;border:none;cursor:pointer;font-family:inherit;font-size:16px;font-weight:800;letter-spacing:.2em;
+  padding:12px 0 12px .2em;color:#241a08;border-radius:13px;
+  background:linear-gradient(168deg,#dcb96a,#b98f3e);
+  box-shadow:0 5px 16px rgba(220,185,106,.26),inset 0 1px 0 rgba(255,248,220,.5)}
+#btn-roll:active{transform:translateY(2px)}
+#btn-roll:disabled{filter:grayscale(.65) brightness(.72);cursor:default;box-shadow:none}
+#roll-dots{display:flex;gap:6px}
+#roll-dots i{width:10px;height:10px;border-radius:50%;background:rgba(200,180,136,.2);border:1px solid rgba(200,180,136,.4)}
+#roll-dots i.used{background:#d8b96a;border-color:#d8b96a}
+#turn-tip{margin:6px 18px 0;font-size:11px;color:#b8ccbc;letter-spacing:.1em;text-align:center}
+/* 计分表 */
+#sheet{flex:1;margin:8px 18px 0;display:grid;grid-template-columns:1fr 1fr;gap:5px 8px;align-content:stretch;grid-auto-rows:minmax(31px,1fr);overflow-y:auto}
+.srow{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-radius:9px;
+  background:rgba(12,20,15,.5);border:1px solid rgba(200,180,136,.12);cursor:pointer}
+.srow .sname{font-size:12px;color:#a8bfae;letter-spacing:.08em}
+.srow .sname::before{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;
+  background:rgba(200,180,136,.3);margin-right:7px;vertical-align:2px}
+.srow.filled .sname::before{background:rgba(216,185,106,.75)}
+.srow .sval{font-size:13px;color:#7d9a86;font-weight:700;font-variant-numeric:tabular-nums;min-width:30px;text-align:right}
+.srow.filled{background:rgba(58,48,26,.5);border-color:rgba(216,185,106,.3);cursor:default}
+.srow.filled .sname{color:#8a7a5e}
+.srow.filled .sval{color:#e6cf9a}
+.srow.preview{background:rgba(216,185,106,.13);border-color:rgba(216,185,106,.3);box-shadow:inset 3px 0 0 rgba(216,185,106,.55)}
+.srow.preview .sname{color:#c8d8cc}
+.srow.preview .sval{color:#d8e8dc}
+.srow.preview.hot .sval{color:#f0d89a}
+.srow.preview.zero .sval{color:#7d8d80}
+.srow.ok{border-color:rgba(216,185,106,.35)}
+.srow:active{transform:scale(.985)}
+.srow.bonus{background:rgba(40,52,32,.5);cursor:default}
+.srow.bonus .sname{color:#9ab4a0}
+/* 票根 */
+#stub{margin:7px 18px calc(var(--sab) + 8px);padding:8px 14px;border-radius:11px;
+  background:linear-gradient(90deg,rgba(238,227,198,.1),rgba(238,227,198,.04));
+  border:1px dashed rgba(216,185,106,.35);
+  display:flex;align-items:center;justify-content:space-between}
+#stub .lab{font-size:10.5px;color:#9ab4a0;letter-spacing:.14em}
+#stub b{font-size:16px;color:#f0e6c8;font-weight:800;font-variant-numeric:tabular-nums}
+#stub .bonus-tag{font-size:10px;color:#8fc8a8;letter-spacing:.1em}
+/* 浮字 */
+.floatxt{position:absolute;z-index:9;font-weight:800;pointer-events:none;letter-spacing:.08em;color:#f0d89a;
+  animation:fup 1s ease-out forwards;text-shadow:0 1px 8px rgba(0,0,0,.6)}
+@keyframes fup{0%{transform:translate(-50%,0) scale(.82);opacity:0}18%{opacity:1;transform:translate(-50%,-8px) scale(1)}
+  100%{transform:translate(-50%,-46px) scale(1);opacity:0}}
+/* ---------- 终局面板 ---------- */
+#end{display:none;align-items:center;justify-content:center;background:rgba(8,14,10,.78);z-index:30;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+#end.on{display:flex}
+#end .card{width:82%;max-width:330px;border-radius:20px;padding:26px 22px 22px;text-align:center;
+  background:linear-gradient(172deg,#243829,#182820);border:1.4px solid rgba(216,185,106,.34);
+  box-shadow:0 18px 50px rgba(0,0,0,.6),inset 0 1px 0 rgba(240,230,200,.12)}
+#end .e-k{font-size:11px;letter-spacing:.4em;color:#7d9a86;padding-left:.4em}
+#end .e-t{font-size:26px;font-weight:800;letter-spacing:.12em;color:#f0e6c8;margin:8px 0 4px}
+#end .e-s{font-size:13px;color:#9ab4a0;margin-bottom:12px}
+#end .e-s b{color:#f0d89a;font-size:30px;font-weight:800;font-variant-numeric:tabular-nums}
+#end .newbest{display:inline-block;margin-bottom:8px;padding:3px 12px;border-radius:99px;font-size:11.5px;letter-spacing:.18em;
+  color:#241a08;background:linear-gradient(95deg,#e8ca82,#c8a45a)}
+#end .rows{display:flex;gap:8px;margin:4px 0 16px}
+#end .rows div{flex:1;background:rgba(10,18,13,.6);border:1px solid rgba(200,180,136,.15);border-radius:10px;padding:9px 0 8px}
+#end .rows span{display:block;font-size:10px;color:#7d9a86;letter-spacing:.1em}
+#end .rows b{display:block;font-size:16px;color:#e9ede4;font-weight:800;margin-top:3px;font-variant-numeric:tabular-nums}
+#end .btn{margin-top:2px}
+@media (max-height:700px){
+  #m-art{width:160px;height:114px;margin:18px 0 2px}
+  .m-title{font-size:38px}
+  .die{width:42px;height:42px;padding:5px}
+  .srow{padding:4.5px 9px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- 菜单 -->
+  <div id="menu" class="screen on">
+    <div class="m-kicker">夜 行 列 车</div>
+    <div class="m-title">骰子快车</div>
+    <div class="m-sub">五骰十三站 · 落格定票价</div>
+    <svg id="m-art" viewBox="0 0 216 150">
+      <defs>
+        <linearGradient id="w46" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#101c15"/><stop offset="1" stop-color="#0a130e"/></linearGradient>
+        <radialGradient id="d46" cx=".35" cy=".3" r=".95"><stop offset="0" stop-color="#f4efe2"/><stop offset=".6" stop-color="#e8e0cc"/><stop offset="1" stop-color="#cfc4a4"/></radialGradient>
+        <linearGradient id="br46" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2c4436"/><stop offset="1" stop-color="#1a2a20"/></linearGradient>
+      </defs>
+      <rect x="10" y="8" width="196" height="92" rx="12" fill="url(#w46)" stroke="#c8a45a" stroke-width="2.4"/>
+      <rect x="10" y="8" width="196" height="92" rx="12" fill="none" stroke="rgba(240,230,200,.2)" stroke-width=".8"/>
+      <line x1="103" y1="10" x2="103" y2="98" stroke="#c8a45a" stroke-width="2.2"/>
+      <g fill="#eae4d2">
+        <circle cx="36" cy="30" r="1.2" opacity=".7"/><circle cx="70" cy="20" r="1" opacity=".5"/>
+        <circle cx="52" cy="52" r="1.4" opacity=".8"/><circle cx="160" cy="30" r="1.2" opacity=".6"/>
+        <circle cx="180" cy="58" r="1" opacity=".5"/><circle cx="136" cy="72" r="1.3" opacity=".7"/>
+        <circle cx="26" cy="70" r="1" opacity=".45"/><circle cx="84" cy="66" r="1" opacity=".5"/>
+      </g>
+      <g opacity=".9">
+        <circle cx="150" cy="46" r="2.6" fill="none" stroke="rgba(234,228,210,.35)" stroke-width="1"/>
+        <circle cx="150" cy="46" r="1.1" fill="#eae4d2"/>
+      </g>
+      <g style="animation:floaty 2.6s ease-in-out infinite">
+        <rect x="8" y="106" width="30" height="30" rx="5.5" fill="url(#d46)" stroke="#c8b488" stroke-width="1"/>
+        <circle cx="23" cy="121" r="3.6" fill="#c23c30"/>
+        <rect x="50" y="106" width="30" height="30" rx="5.5" fill="url(#d46)" stroke="#c8b488" stroke-width="1"/>
+        <circle cx="58.5" cy="114.5" r="2.7" fill="#2c2a24"/><circle cx="71.5" cy="127.5" r="2.7" fill="#2c2a24"/><circle cx="65" cy="121" r="2.7" fill="#2c2a24"/>
+        <rect x="92" y="106" width="30" height="30" rx="5.5" fill="url(#d46)" stroke="#c8b488" stroke-width="1"/>
+        <circle cx="100.5" cy="114.5" r="2.7" fill="#2c2a24"/><circle cx="113.5" cy="114.5" r="2.7" fill="#2c2a24"/><circle cx="107" cy="121" r="2.7" fill="#2c2a24"/>
+        <circle cx="100.5" cy="127.5" r="2.7" fill="#2c2a24"/><circle cx="113.5" cy="127.5" r="2.7" fill="#2c2a24"/>
+        <rect x="134" y="106" width="30" height="30" rx="5.5" fill="url(#d46)" stroke="#c8b488" stroke-width="1"/>
+        <circle cx="142.5" cy="114.5" r="2.7" fill="#2c2a24"/><circle cx="155.5" cy="127.5" r="2.7" fill="#2c2a24"/>
+        <rect x="176" y="106" width="30" height="30" rx="5.5" fill="url(#d46)" stroke="#c8b488" stroke-width="1" transform="rotate(-9 191 121)"/>
+        <circle cx="184.5" cy="114.5" r="2.7" fill="#2c2a24" transform="rotate(-9 191 121)"/><circle cx="184.5" cy="121" r="2.7" fill="#2c2a24" transform="rotate(-9 191 121)"/><circle cx="184.5" cy="127.5" r="2.7" fill="#2c2a24" transform="rotate(-9 191 121)"/>
+        <circle cx="197.5" cy="114.5" r="2.7" fill="#2c2a24" transform="rotate(-9 191 121)"/><circle cx="197.5" cy="121" r="2.7" fill="#2c2a24" transform="rotate(-9 191 121)"/><circle cx="197.5" cy="127.5" r="2.7" fill="#2c2a24" transform="rotate(-9 191 121)"/>
+      </g>
+      <rect x="0" y="142" width="216" height="4" rx="2" fill="url(#br46)"/>
+      <line x1="24" y1="143" x2="24" y2="146" stroke="#c8a45a" stroke-width="1" opacity=".5"/>
+      <line x1="76" y1="143" x2="76" y2="146" stroke="#c8a45a" stroke-width="1" opacity=".5"/>
+      <line x1="128" y1="143" x2="128" y2="146" stroke="#c8a45a" stroke-width="1" opacity=".5"/>
+      <line x1="180" y1="143" x2="180" y2="146" stroke="#c8a45a" stroke-width="1" opacity=".5"/>
+    </svg>
+    <button class="btn" id="btn-start">登 车</button>
+    <button class="btn ghost" id="btn-how">玩 法</button>
+    <div id="m-best"></div>
+    <div class="m-foot">五骰十三站 · 满载到终点</div>
+  </div>
+
+  <!-- 游戏 -->
+  <div id="game" class="screen">
+    <div id="hud">
+      <button class="icon-btn" id="btn-home">⌂</button>
+      <div class="hud-title"><span class="hud-k">卧 铺 车 厢</span>骰子快车</div>
+      <div class="hud-score">行进站点<b><i>第</i> <span id="round-no">1</span> <i>/ 13</i></b></div>
+      <button class="icon-btn off" id="btn-snd">♪̶</button>
+    </div>
+    <div id="trip"><i id="trip-fill"></i></div>
+    <div id="dice-tray"></div>
+    <div id="roll-zone">
+      <div id="roll-dots"><i></i><i></i><i></i></div>
+      <button id="btn-roll">起 掷</button>
+    </div>
+    <div id="turn-tip">起掷五骰 · 点骰锁定</div>
+    <div id="sheet"></div>
+    <div id="stub">
+      <div><div class="lab">点数厢 <span id="up-sum">0</span>/63</div><div class="bonus-tag" id="bonus-tag">满 63 加 35</div></div>
+      <div style="text-align:right"><div class="lab">总 票 价</div><b id="total">0</b></div>
+    </div>
+  </div>
+
+  <!-- 终局 -->
+  <div id="end" class="screen">
+    <div class="card">
+      <div class="e-k">列 车 到 站</div>
+      <div class="e-t" id="end-title">十三站满载</div>
+      <div id="end-best-tag" class="newbest" style="display:none">新纪录</div>
+      <div class="e-s">总票价 <b id="end-score">0</b></div>
+      <div class="rows">
+        <div><span>点数厢</span><b id="end-up">0</b></div>
+        <div><span>奖励</span><b id="end-bonus">0</b></div>
+        <div><span>最佳</span><b id="end-best">0</b></div>
+      </div>
+      <button class="btn" id="btn-again">再 发 一 班</button>
+      <button class="btn ghost" id="btn-menu2">回 车 厢</button>
+    </div>
+  </div>
+
+</div>
+<script>
+"use strict";
+/* ================= 骰子快车 · Yahtzee ================= */
+var FACES={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
+var BOXES=[
+  {id:0,name:'一',grp:'up'},{id:1,name:'二',grp:'up'},{id:2,name:'三',grp:'up'},
+  {id:3,name:'四',grp:'up'},{id:4,name:'五',grp:'up'},{id:5,name:'六',grp:'up'},
+  {id:6,name:'三连',grp:'lo'},{id:7,name:'四连',grp:'lo'},{id:8,name:'葫芦',grp:'lo'},
+  {id:9,name:'小顺',grp:'lo'},{id:10,name:'大顺',grp:'lo'},{id:11,name:'五骰连开',grp:'lo'},
+  {id:12,name:'机会',grp:'lo'}
+];
+var el={
+  menu:document.getElementById('menu'), game:document.getElementById('game'), end:document.getElementById('end'),
+  tray:document.getElementById('dice-tray'), sheet:document.getElementById('sheet'),
+  roundNo:document.getElementById('round-no'), rollBtn:document.getElementById('btn-roll'),
+  rollDots:document.querySelectorAll('#roll-dots i'), tip:document.getElementById('turn-tip'),
+  upSum:document.getElementById('up-sum'), bonusTag:document.getElementById('bonus-tag'), total:document.getElementById('total'),
+  endTitle:document.getElementById('end-title'), endScore:document.getElementById('end-score'),
+  endUp:document.getElementById('end-up'), endBonus:document.getElementById('end-bonus'),
+  endBest:document.getElementById('end-best'), endBestTag:document.getElementById('end-best-tag'),
+  mBest:document.getElementById('m-best'),
+  tripFill:document.getElementById('trip-fill'),
+  rowByBox:{}
+};
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+/* ---------- 状态 ---------- */
+var S={
+  dice:[1,1,1,1,1], locked:[false,false,false,false,false],
+  rollsUsed:0, round:1,
+  boxes:Array.apply(null,{length:13}).map(function(){return null}),   /* null=未用 / 数字=已落 */
+  best:0, games:0,
+  playing:false, busy:false, sndOn:false,
+  rng:null
+};
+function loadBest(){try{S.best=+localStorage.getItem('g46_best')||0;S.games=+localStorage.getItem('g46_games')||0}catch(e){}}
+function saveBest(){try{localStorage.setItem('g46_best',String(S.best));localStorage.setItem('g46_games',String(S.games))}catch(e){}}
+/* ---------- 音效（默认关） ---------- */
+var AC=null;
+function ac(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}return AC}
+function beep(f,d,type,vol,slide){
+  if(!S.sndOn)return; var a=ac(); if(!a)return;
+  try{
+    var o=a.createOscillator(),g=a.createGain(),t=a.currentTime;
+    o.type=type||'sine'; o.frequency.setValueAtTime(f,t);
+    if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(40,slide),t+d);
+    g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(vol||.14,t+.012);
+    g.gain.exponentialRampToValueAtTime(.0001,t+d);
+    o.connect(g); g.connect(a.destination); o.start(t); o.stop(t+d+.03);
+  }catch(e){}
+}
+var SND={
+  shake:function(){[0,1,2].forEach(function(i){setTimeout(function(){beep(160+Math.random()*90,.05,'square',.06)},i*70)})},
+  land:function(){beep(240,.07,'triangle',.13,180)},
+  lock:function(){beep(660,.05,'triangle',.09)},
+  unlock:function(){beep(440,.05,'triangle',.07)},
+  place:function(){beep(520,.08,'triangle',.12);setTimeout(function(){beep(780,.1,'triangle',.1)},70)},
+  zero:function(){beep(180,.12,'sine',.1)},
+  yaht:function(){[660,880,1100,1320].forEach(function(f,i){setTimeout(function(){beep(f,.14,'triangle',.13)},i*110)})},
+  over:function(){[520,660,780].forEach(function(f,i){setTimeout(function(){beep(f,.2,'triangle',.12)},i*160)})},
+  ui:function(){beep(500,.06,'sine',.1)}
+};
+/* ---------- 计分引擎 ---------- */
+function counts(d){var c=[0,0,0,0,0,0,0];for(var i=0;i<5;i++)c[d[i]]++;return c}
+function longestRun(c){
+  var run=0,max=0,i;
+  for(i=1;i<=6;i++){if(c[i]>0){run++;if(run>max)max=run}else run=0}
+  return max;
+}
+function scoreBox(box,d){
+  var c=counts(d),i,sum=0;
+  for(i=1;i<=6;i++)sum+=i*c[i];
+  if(box<6)return c[box+1]*(box+1);
+  var faceOf=function(n){for(i=6;i>=1;i--)if(c[i]>=n)return i;return 0};
+  var h3=false,h2=false;
+  for(i=1;i<=6;i++){if(c[i]>=3)h3=true;else if(c[i]===2)h2=true}
+  switch(box){
+    case 6: var t3=faceOf(3);return t3?t3*3:0;
+    case 7: var f4=faceOf(4);return f4?f4*4:0;
+    case 8: return (h3&&h2)?25:0;
+    case 9: return longestRun(c)>=4?30:0;
+    case 10: return longestRun(c)>=5?40:0;
+    case 11: for(i=1;i<=6;i++)if(c[i]===5)return 50;return 0;
+    case 12: return sum;
+  }
+  return 0;
+}
+function upSum(boxes){var s=0;for(var i=0;i<6;i++)if(boxes[i]!=null)s+=boxes[i];return s}
+function totalScore(boxes){
+  var s=0;
+  for(var i=0;i<13;i++)if(boxes[i]!=null)s+=boxes[i];
+  if(upSum(boxes)>=63)s+=35;
+  return s;
+}
+/* ---------- 掷骰 / 锁定 / 落分 ---------- */
+function rollDice(){
+  if(S.rollsUsed>=3||S.busy||!S.playing)return;
+  S.busy=true;
+  SND.shake();
+  for(var i=0;i<5;i++){
+    if(!S.locked[i])S.dice[i]=1+((S.rng()*6)|0);
+  }
+  S.rollsUsed++;
+  /* 演出：未锁骰滚动 420ms，期间随机换面快闪 */
+  var diceEls=el.tray.children;
+  for(i=0;i<5;i++){
+    if(S.locked[i])continue;
+    diceEls[i].classList.add('rolling');
+    (function(idx){
+      var flips=0,iv=setInterval(function(){
+        renderDie(diceEls[idx],1+((Math.random()*6)|0),false);
+        if(++flips>=4)clearInterval(iv);
+      },95);
+    })(i);
+  }
+  setTimeout(function(){
+    for(var j=0;j<5;j++){
+      if(S.locked[j])continue;
+      diceEls[j].classList.remove('rolling');
+      diceEls[j].classList.add('pop');
+      setTimeout(function(de){return function(){de.classList.remove('pop')}}(diceEls[j]),160);
+      renderDie(diceEls[j],S.dice[j],false);
+    }
+    SND.land();
+    S.busy=false;
+    updRollUI();updSheet(true);
+  },430);
+  updRollUI();
+}
+function toggleLock(i){
+  if(!S.playing||S.busy||S.rollsUsed===0||S.rollsUsed>=3)return;
+  S.locked[i]=!S.locked[i];
+  renderDie(el.tray.children[i],S.dice[i],S.locked[i]);
+  S.locked[i]?SND.lock():SND.unlock();
+}
+function place(box){
+  if(!S.playing||S.busy||S.rollsUsed===0)return;
+  if(S.boxes[box]!=null)return;
+  var v=scoreBox(box,S.dice);
+  S.boxes[box]=v;
+  if(box===11&&v===50){SND.yaht();floatText('五骰连开！',20)}
+  else if(v>0){SND.place();if(v>=30)floatText('+'+v,16)}
+  else SND.zero();
+  /* 站推进 */
+  S.round++;
+  S.rollsUsed=0;
+  S.locked=[false,false,false,false,false];
+  if(S.round>13){finish();return}
+  drawDice();updRollUI();updSheet(false);updStub();
+}
+function finish(){
+  S.playing=false;
+  var up=upSum(S.boxes),bonus=up>=63?35:0,tot=totalScore(S.boxes);
+  var isNew=false;
+  S.games++;
+  if(tot>S.best){S.best=tot;isNew=true}
+  saveBest();
+  SND.over();
+  el.tripFill.style.width='100%';
+  updSheet(false);updStub();
+  el.endTitle.textContent=tot>=260?'满载而归':tot>=200?'顺利到站':'平安抵站';
+  el.endScore.textContent=tot;
+  el.endUp.textContent=up;
+  el.endBonus.textContent=bonus;
+  el.endBest.textContent=S.best;
+  el.endBestTag.style.display=isNew?'inline-block':'none';
+  el.end.classList.add('on');
+  showMenuBest();
+}
+/* ---------- 渲染 ---------- */
+function renderDie(de,v,locked){
+  de.innerHTML='';
+  var pips=FACES[v];
+  for(var i=0;i<9;i++){
+    var c=document.createElement('span');
+    if(pips.indexOf(i)>=0)c.className='pip'+(v===1?' red':'');
+    else c.className='np';
+    de.appendChild(c);
+  }
+  de.classList.toggle('locked',!!locked);
+}
+function drawDice(){
+  el.tray.innerHTML='';
+  for(var i=0;i<5;i++){
+    var de=document.createElement('div');
+    de.className='die';
+    de.dataset.i=String(i);
+    renderDie(de,S.dice[i],S.locked[i]);
+    el.tray.appendChild(de);
+  }
+}
+function updRollUI(){
+  el.roundNo.textContent=Math.min(S.round,13);
+  el.tripFill.style.width=((Math.min(S.round,13)-1)/13*100)+'%';
+  el.rollBtn.textContent=S.rollsUsed===0?'起 掷':'再 掷';
+  el.rollBtn.disabled=S.rollsUsed>=3||!S.playing;
+  for(var i=0;i<3;i++)el.rollDots[i].classList.toggle('used',i<S.rollsUsed);
+  el.tip.textContent=S.rollsUsed===0?'起掷五骰 · 点骰锁定':
+    S.rollsUsed>=3?'三掷已满 · 点格落分':'点骰锁定 · 或点格落分';
+}
+function updSheet(preview){
+  var j,r;
+  for(j=0;j<13;j++){
+    r=el.rowByBox[j];
+    r.classList.remove('preview','hot','zero');
+    if(S.boxes[j]!=null){
+      r.classList.add('filled');
+      r.querySelector('.sval').textContent=S.boxes[j];
+    }else{
+      r.classList.remove('filled');
+      r.querySelector('.sval').textContent='—';
+      if(preview&&S.rollsUsed>0&&S.playing){
+        var v=scoreBox(j,S.dice);
+        r.classList.add('preview');
+        if(v>0){r.querySelector('.sval').textContent=v;if(v>=25)r.classList.add('hot')}
+        else{r.querySelector('.sval').textContent='0';r.classList.add('zero')}
+      }
+    }
+  }
+  var up=upSum(S.boxes),br=el.sheet.querySelector('.srow.bonus');
+  br.querySelector('.sval').textContent=up>=63?'+35':'—';
+  br.classList.toggle('ok',up>=63);
+}
+function updStub(){
+  var up=upSum(S.boxes);
+  el.upSum.textContent=up;
+  el.bonusTag.textContent=up>=63?'已加 35':'满 63 加 35';
+  el.total.textContent=totalScore(S.boxes);
+}
+function buildSheet(){
+  el.sheet.innerHTML='';
+  var k,b,r;
+  for(k=0;k<13;k++){
+    b=BOXES[k];
+    r=document.createElement('div');
+    r.className='srow';r.dataset.box=String(b.id);
+    r.innerHTML='<span class="sname">'+b.name+'</span><b class="sval">—</b>';
+    /* 左列 点数厢 6 格（1-6 行） / 右列 牌型厢 7 格（1-7 行），显式放置对齐 */
+    if(b.id<6){r.style.gridColumn='1';r.style.gridRow=String(b.id+1)}
+    else{r.style.gridColumn='2';r.style.gridRow=String(b.id-5)}
+    el.sheet.appendChild(r);
+    el.rowByBox[b.id]=r;
+  }
+  var bonus=document.createElement('div');
+  bonus.className='srow bonus';bonus.dataset.box='-1';
+  bonus.style.gridColumn='1';bonus.style.gridRow='7';
+  bonus.innerHTML='<span class="sname">点数厢奖励</span><b class="sval">—</b>';
+  el.sheet.appendChild(bonus);
+}
+function floatText(txt,size){
+  var f=document.createElement('div');f.className='floatxt';f.textContent=txt;
+  f.style.fontSize=(size||14)+'px';
+  f.style.left='50%';f.style.top='110px';
+  document.getElementById('game').appendChild(f);
+  setTimeout(function(){f.parentNode&&f.parentNode.removeChild(f)},1020);
+}
+function showMenuBest(){
+  el.mBest.innerHTML=S.best>0?('最佳票价　<b>'+S.best+'</b>　已发车 <b>'+S.games+'</b> 班'):'夜行列车 · 静候首班';
+}
+/* ---------- 生命周期 ---------- */
+function startGame(seed){
+  S.rng=mulberry(seed||((Math.random()*1e9)|0));
+  S.dice=[2,6,1,4,3];S.locked=[false,false,false,false,false];   /* 花色待掷面 */
+  S.rollsUsed=0;S.round=1;
+  S.boxes=Array.apply(null,{length:13}).map(function(){return null});
+  S.playing=true;S.busy=false;
+  el.menu.classList.remove('on');el.end.classList.remove('on');el.game.classList.add('on');
+  drawDice();updRollUI();updSheet(false);updStub();
+}
+function goMenu(){
+  S.playing=false;
+  el.game.classList.remove('on');el.end.classList.remove('on');el.menu.classList.add('on');
+  showMenuBest();
+}
+/* ---------- 输入 ---------- */
+el.tray.addEventListener('pointerdown',function(e){
+  var de=e.target.closest('.die');
+  if(de)toggleLock(+de.dataset.i);
+});
+el.sheet.addEventListener('pointerdown',function(e){
+  var r=e.target.closest('.srow');
+  if(!r)return;
+  var b=+r.dataset.box;
+  if(b<0)return;                    /* 奖励条不可点 */
+  if(S.boxes[b]!=null)return;
+  place(b);
+});
+document.getElementById('btn-roll').addEventListener('click',function(){if(!S.busy)rollDice()});
+document.getElementById('btn-start').addEventListener('click',function(){SND.ui();startGame()});
+document.getElementById('btn-how').addEventListener('click',function(){SND.ui();floatHow()});
+document.getElementById('btn-home').addEventListener('click',function(){SND.ui();goMenu()});
+document.getElementById('btn-again').addEventListener('click',function(){SND.ui();startGame()});
+document.getElementById('btn-menu2').addEventListener('click',function(){SND.ui();goMenu()});
+document.getElementById('btn-snd').addEventListener('click',function(){
+  S.sndOn=!S.sndOn;this.classList.toggle('off',!S.sndOn);this.textContent=S.sndOn?'♪':'♪̶';
+  if(S.sndOn){var a=ac();if(a&&a.state==='suspended')a.resume();SND.ui()}
+});
+function floatHow(){
+  var old=document.getElementById('howtip');if(old)old.parentNode.removeChild(old);
+  var ovo=document.getElementById('howov');if(ovo)ovo.parentNode.removeChild(ovo);
+  var ov=document.createElement('div');ov.id='howov';
+  ov.style.cssText='position:fixed;left:0;top:0;right:0;bottom:0;z-index:98;background:rgba(8,14,10,.55)';
+  var tip=document.createElement('div');tip.id='howtip';
+  tip.style.cssText='position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:99;width:78%;max-width:300px;padding:20px 18px;border-radius:16px;background:linear-gradient(172deg,#243829,#182820);border:1.4px solid rgba(216,185,106,.4);color:#e9ede4;font-size:13px;line-height:2;box-shadow:0 16px 44px rgba(0,0,0,.6)';
+  tip.innerHTML='<b style="color:#e6cf9a">骰子快车 · 玩法</b><br>每站至多掷三次——<br>· <b>点骰子</b>：锁定/解锁（黄铜框=锁）<br>· 再掷只掷未锁的骰<br>· 掷后点<b>计分格</b>落分（格上显示预览分）<br>十三格每格只用一次；牌型不合落 0 也要划掉一格。<br>点数厢满 63 加 35；<b>五骰连开</b>=50 大奖。<br>十三站跑完，总票价定高低。';
+  var closeHow=function(){if(ov.parentNode)ov.parentNode.removeChild(ov);if(tip.parentNode)tip.parentNode.removeChild(tip)};
+  var x=document.createElement('div');x.textContent='✕';x.style.cssText='position:absolute;top:8px;right:12px;color:#7d9a86;font-size:15px;padding:4px';
+  x.onclick=closeHow;
+  ov.onclick=closeHow;
+  tip.appendChild(x);document.body.appendChild(ov);document.body.appendChild(tip);
+}
+/* ---------- 启动 ---------- */
+loadBest();buildSheet();showMenuBest();
+
+
+</script>
+</body>
+</html>
