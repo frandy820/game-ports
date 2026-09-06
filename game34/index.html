@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#f2ead9">
+<title>九宫墨阵 · 离线版</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect x='4' y='4' width='40' height='40' rx='9' fill='%23f2ead9'/%3E%3Crect x='12' y='12' width='24' height='24' fill='none' stroke='%234a4238' stroke-width='2.4'/%3E%3Cpath d='M20 12v24M28 12v24M12 20h24M12 28h24' stroke='%234a4238' stroke-width='1.4'/%3E%3Ctext x='24' y='29.5' font-size='13' font-weight='900' text-anchor='middle' fill='%23b03a2e' font-family='system-ui'%3E九%3C/text%3E%3C/svg%3E">
+<style>
+  :root{
+    --paper:#f2ead9; --paper2:#ece1cc; --ink:#2b2620; --dim:#8a7f6d;
+    --line-soft:#cfc3ab; --line-ink:#4a4238;
+    --blue:#3d5a80; --red:#b03a2e; --amber:#c9862e;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{background:linear-gradient(180deg,var(--paper) 0%,var(--paper2) 100%);color:var(--ink);
+    font-family:'Segoe UI',system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
+    overflow:hidden;position:fixed;inset:0;touch-action:none;user-select:none;-webkit-user-select:none}
+
+  #hud{position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);left:14px;right:60px;z-index:6;
+    display:flex;align-items:center;gap:10px;pointer-events:none}
+  #title{font-size:20px;font-weight:800;color:#3a332a;letter-spacing:.1em}
+  #badge{font-size:11px;font-weight:800;color:#fdf6e8;background:var(--red);padding:2px 8px;
+    border-radius:5px;letter-spacing:.14em;box-shadow:0 1px 0 rgba(80,30,20,.3)}
+  #clock{margin-left:auto;display:flex;align-items:center;gap:8px;pointer-events:auto}
+  #clock .tx{font-size:16px;font-weight:700;color:#5a5245;font-variant-numeric:tabular-nums;letter-spacing:.04em}
+  #btn-pause{width:36px;height:36px;border:1px solid #b9a887;border-radius:10px;background:#f7f0e0;
+    color:#6a6152;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 5px rgba(90,70,40,.18)}
+  #btn-pause:active{transform:translateY(1px);box-shadow:0 0 2px rgba(90,70,40,.2)}
+  #btn-snd{position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);right:12px;z-index:7;
+    width:36px;height:36px;border:1px solid #b9a887;border-radius:10px;background:#f7f0e0;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 2px 5px rgba(90,70,40,.18);pointer-events:auto}
+  #btn-snd.off{opacity:.55}
+
+  #board{position:absolute;left:12px;top:calc(env(safe-area-inset-top,0px) + 66px);z-index:4;
+    display:grid;grid-template-columns:repeat(9,39px);grid-template-rows:repeat(9,39px);
+    border:3px solid var(--line-ink);background:#faf4e6;box-shadow:0 6px 22px rgba(80,60,30,.22), inset 0 0 0 1px rgba(255,255,255,.5)}
+  .cell{position:relative;border-right:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft);
+    display:flex;align-items:center;justify-content:center;font-size:23px;font-weight:700;
+    font-family:Georgia,'Times New Roman','PingFang SC',serif;cursor:pointer;color:var(--blue)}
+  .cell.given{color:var(--ink);font-weight:800}
+  .cell.wr{color:var(--red);background:rgba(176,58,46,.1)}
+  .cell.bR{border-right:3px solid var(--line-ink)}
+  .cell.bB{border-bottom:3px solid var(--line-ink)}
+  .cell:nth-child(9n){border-right:none}
+  .cell:nth-child(n+73){border-bottom:none}
+  .cell.hl{background:rgba(201,134,46,.13)}
+  .cell.sel{background:rgba(61,90,128,.16);box-shadow:inset 0 0 0 2px var(--blue);z-index:2}
+  .cell.wr.sel{background:rgba(176,58,46,.14)}
+  .cell.same::after{content:'';position:absolute;inset:4.5px;border-radius:50%;
+    border:2px solid rgba(61,90,128,.55)}
+  .cell.pop{animation:cpop .18s ease}
+  @keyframes cpop{0%{transform:scale(.55);opacity:.35}100%{transform:scale(1);opacity:1}}
+  .notes{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);
+    width:100%;height:100%;padding:1.5px}
+  .notes i{font-style:normal;font-size:10px;font-weight:600;color:var(--dim);
+    display:flex;align-items:center;justify-content:center;line-height:1}
+
+  #midbar{position:absolute;left:16px;right:16px;top:calc(env(safe-area-inset-top,0px) + 440px);z-index:4;
+    display:flex;align-items:center;gap:12px}
+  #midbar .prog{flex:1;display:flex;align-items:center;gap:8px}
+  #midbar .pl{font-size:11.5px;font-weight:700;color:#6a6152;letter-spacing:.05em;font-variant-numeric:tabular-nums;white-space:nowrap}
+  #midbar .ptrack{flex:1;height:5px;border-radius:99px;background:rgba(138,127,109,.25);overflow:hidden}
+  #midbar .pfill{height:100%;border-radius:99px;background:linear-gradient(90deg,#3d5a80,#6d8cae);transition:width .3s}
+  #midbar .cnt{font-size:11.5px;font-weight:700;color:#8a7f6d;letter-spacing:.04em;white-space:nowrap;font-variant-numeric:tabular-nums}
+  #midbar .cnt b{color:#b03a2e}
+
+  #toolbar{position:absolute;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 166px);z-index:4;
+    display:flex;gap:8px}
+  .tool{flex:1;height:50px;border:1px solid #b9a887;border-radius:12px;background:#f7f0e0;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.5px;
+    box-shadow:0 2px 5px rgba(90,70,40,.16);color:#5a5245}
+  .tool:active{transform:translateY(2px);box-shadow:0 0 2px rgba(90,70,40,.2)}
+  .tool .ic{font-size:17px;line-height:1}
+  .tool .tx{font-size:11px;font-weight:700;letter-spacing:.06em}
+  .tool.on{background:#3d5a80;border-color:#345072;color:#f4f0e4}
+  .tool.used{opacity:.45}
+
+  #keypad{position:absolute;left:10px;right:10px;bottom:calc(env(safe-area-inset-bottom,0px) + 26px);z-index:4;
+    display:flex;gap:4px}
+  .key{flex:1;height:128px;border:1px solid #b9a887;border-radius:13px;background:#f7f0e0;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+    box-shadow:0 3px 7px rgba(90,70,40,.16)}
+  .key:active{transform:translateY(2px);box-shadow:0 0 3px rgba(90,70,40,.2)}
+  .key .n{font-size:30px;font-weight:800;color:#3a332a;line-height:1.05;
+    font-family:Georgia,'PingFang SC',serif}
+  .key .c{font-size:10.5px;font-weight:700;color:var(--dim)}
+  .key.dim{opacity:.32}
+
+  footer{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 4px);
+    text-align:center;font-size:10.5px;font-weight:600;color:rgba(110,98,80,.6);letter-spacing:.05em;
+    pointer-events:none;z-index:30}
+
+  .layer{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(58,48,34,.5);z-index:20;backdrop-filter:blur(2px)}
+  .layer[hidden]{display:none}
+  .lpanel{display:flex;flex-direction:column;gap:13px;width:min(86vw,340px);
+    background:#f7f0e0;border:1px solid #b9a887;border-radius:18px;padding:24px 26px;
+    box-shadow:0 14px 40px rgba(60,45,20,.35), inset 0 1px 0 rgba(255,255,255,.7)}
+  .lt{font-size:18px;font-weight:800;color:#3a332a;letter-spacing:.14em;text-align:center}
+  .ld{font-size:13.5px;color:#6a6152;line-height:1.9;text-align:center}
+  .ld b{color:#3a332a}
+  .layer button{padding:11px 0;font-size:15px;font-weight:700;color:#fdf6e8;background:var(--red);
+    border:none;border-radius:12px;cursor:pointer;box-shadow:0 3px 0 rgba(110,40,28,.45);letter-spacing:.1em}
+  .layer button:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(110,40,28,.45)}
+  .layer button.ghost{background:transparent;color:#8a7f6d;border:1px solid #b9a887;box-shadow:none}
+  #menu .diffrow{display:flex;gap:8px}
+  #menu .diffrow button{flex:1;background:#3d5a80;box-shadow:0 3px 0 rgba(38,58,86,.5);letter-spacing:.06em}
+  #menu .bestrow{font-size:12px;color:var(--dim);text-align:center;line-height:1.8}
+  #menu .bestrow b{color:#5a5245;font-variant-numeric:tabular-nums}
+  #end .big{font-size:40px;font-weight:800;color:#3a332a;text-align:center;
+    font-variant-numeric:tabular-nums;letter-spacing:.03em}
+  #end .stats{display:flex;justify-content:center;gap:20px;font-size:12.5px;color:var(--dim)}
+  #end .stats b{color:#5a5245;font-size:16px;font-variant-numeric:tabular-nums}
+  .rec{display:none;margin:0 auto;width:max-content;padding:4px 14px;border-radius:99px;
+    font-size:12px;color:#8c5a00;font-weight:700;letter-spacing:.1em;
+    background:rgba(201,134,46,.16);border:1px solid rgba(201,134,46,.55)}
+  .rec.show{display:block;animation:rpop .6s ease both, rglow 1.9s ease-in-out .6s infinite}
+  @keyframes rpop{0%{transform:scale(.4);opacity:0}70%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+  @keyframes rglow{0%,100%{box-shadow:0 0 0 0 rgba(201,134,46,0)}50%{box-shadow:0 0 12px 2px rgba(201,134,46,.4)}}
+  #pausemask .lt{color:#3a332a}
+  #menu{background:rgba(58,48,34,.62)}
+</style>
+</head>
+<body>
+  <div id="hud">
+    <div id="title">九宫墨阵</div>
+    <div id="badge">入门</div>
+    <div id="clock"><span class="tx" id="clock-tx">00:00</span><button id="btn-pause" aria-label="暂停">❚❚</button></div>
+  </div>
+  <button id="btn-snd" aria-label="声音开关"></button>
+
+  <div id="board"></div>
+
+  <div id="midbar">
+    <div class="prog"><span class="pl" id="mb-prog">已填 0/81</span><div class="ptrack"><div class="pfill" id="mb-fill" style="width:0%"></div></div></div>
+    <div class="cnt" id="mb-cnt">错 <b>0</b> · 提示 <b>0</b></div>
+  </div>
+
+  <div id="toolbar">
+    <div class="tool" id="t-note"><span class="ic">✎</span><span class="tx">笔记</span></div>
+    <div class="tool" id="t-erase"><span class="ic">⌫</span><span class="tx">擦除</span></div>
+    <div class="tool" id="t-undo"><span class="ic">↩</span><span class="tx">撤销</span></div>
+    <div class="tool" id="t-hint"><span class="ic">✦</span><span class="tx">提示 ×3</span></div>
+  </div>
+
+  <div id="keypad"></div>
+
+  <footer>九宫墨阵 · 完全离线 · 心静如水</footer>
+
+  <div id="pausemask" class="layer" hidden>
+    <div class="lpanel">
+      <div class="lt">小憩片刻</div>
+      <div class="ld">盘面已掩上，心静了再回来。</div>
+      <button id="pm-resume">继续</button>
+      <button id="pm-menu" class="ghost">收起棋盘</button>
+    </div>
+  </div>
+
+  <div id="menu" class="layer">
+    <div class="lpanel">
+      <div class="lt">九宫墨阵</div>
+      <div class="ld">暮色书房一局数独：行、列、宫各填 1-9 不重复。<br>落子黛青，朱批即错；笔记可记候选。</div>
+      <div class="diffrow">
+        <button data-diff="easy">入门</button>
+        <button data-diff="mid">进阶</button>
+        <button data-diff="hard">大师</button>
+      </div>
+      <div class="bestrow" id="menu-best">入门 — · 进阶 — · 大师 —</div>
+      <button id="menu-continue" class="ghost" hidden>继续上局</button>
+    </div>
+  </div>
+
+  <div id="end" class="layer" hidden>
+    <div class="lpanel">
+      <div class="lt">九宫功成</div>
+      <div class="big" id="end-time">00:00</div>
+      <div class="rec" id="end-rec">★ 最佳时间 ★</div>
+      <div class="stats"><span>难度<br><b id="end-diff">入门</b></span><span>错误<br><b id="end-wrong">0</b></span><span>提示<br><b id="end-hint">0</b></span></div>
+      <div class="bestrow">此难度最佳 <b id="end-best">—</b></div>
+      <button id="end-ok">再来一局</button>
+      <button id="end-menu" class="ghost">换个难度</button>
+    </div>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  function mulberry(seed) { var t = seed >>> 0; return function () { t += 0x6D2B79F5; var r2 = Math.imul(t ^ (t >>> 15), 1 | t); r2 ^= r2 + Math.imul(r2 ^ (r2 >>> 7), 61 | r2); return ((r2 ^ (r2 >>> 14)) >>> 0) / 4294967296; }; }
+
+  var safeStorage = {
+    get: function (k, d) { try { var v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set: function (k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+    del: function (k) { try { localStorage.removeItem(k); } catch (e) {} }
+  };
+
+  var SFX = (function () {
+    var ctx = null, on = safeStorage.get('mq_g34_sound', false);
+    function ac() {
+      if (!ctx) { try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+      if (ctx && ctx.state === 'suspended') ctx.resume();
+      return ctx;
+    }
+    function tone(type, f0, f1, t, vol, when) {
+      if (!on) return;
+      var c = ac(); if (!c) return;
+      var o = c.createOscillator(), g = c.createGain();
+      var t0 = c.currentTime + (when || 0);
+      o.type = type; o.frequency.setValueAtTime(f0, t0);
+      if (f1) o.frequency.exponentialRampToValueAtTime(f1, t0 + t);
+      g.gain.setValueAtTime(vol, t0);
+      g.gain.exponentialRampToValueAtTime(.001, t0 + t + .02);
+      o.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0 + t + .04);
+    }
+    return {
+      unlock: function () { ac(); },
+      toggle: function () { on = !on; safeStorage.set('mq_g34_sound', on); return on; },
+      isOn: function () { return on; },
+      tap: function () { tone('sine', 620, 480, .05, .06); tone('triangle', 1240, 900, .03, .025, .008); },
+      erase: function () { tone('sine', 420, 320, .06, .045); },
+      wrong: function () { tone('sawtooth', 200, 130, .16, .05); tone('sine', 120, 90, .18, .05); },
+      note: function () { tone('sine', 880, 860, .03, .03); },
+      hint: function () { tone('sine', 784, 784, .1, .05); tone('sine', 1175, 1175, .14, .04, .1); },
+      win: function () { tone('sine', 523.25, 523.25, .13, .06); tone('sine', 659.25, 659.25, .13, .06, .13); tone('sine', 783.99, 783.99, .22, .07, .26); }
+    };
+  })();
+
+  /* ═══ 数值 ═══ */
+  var DIFFS = { easy: { label: '入门', holes: 40 }, mid: { label: '进阶', holes: 51 }, hard: { label: '大师', holes: 57 } };
+  var DIFF_ORDER = ['easy', 'mid', 'hard'];
+
+  function bidx(r, c) { return ((r / 3) | 0) * 3 + ((c / 3) | 0); }
+  function popcount(x) { var n = 0; while (x) { x &= x - 1; n++; } return n; }
+
+  /* ── 求解器：位掩码 + MRV，count 到 limit 即停 ── */
+  function countSolutions(grid, limit) {
+    var rows = [0,0,0,0,0,0,0,0,0], cols = [0,0,0,0,0,0,0,0,0], boxes = [0,0,0,0,0,0,0,0,0];
+    var g = grid.slice();
+    for (var i = 0; i < 81; i++) {
+      var v = g[i];
+      if (v) {
+        var bit = 1 << v, r = (i / 9) | 0, c = i % 9, b = bidx(r, c);
+        if ((rows[r] & bit) || (cols[c] & bit) || (boxes[b] & bit)) return 0;
+        rows[r] |= bit; cols[c] |= bit; boxes[b] |= bit;
+      }
+    }
+    var count = 0;
+    function dfs() {
+      if (count >= limit) return;
+      var best = -1, bestMask = 0, bestCnt = 10;
+      for (var k = 0; k < 81; k++) {
+        if (g[k]) continue;
+        var r2 = (k / 9) | 0, c2 = k % 9, b2 = bidx(r2, c2);
+        var mask = ~(rows[r2] | cols[c2] | boxes[b2]) & 0x3FE;
+        var cnt = popcount(mask);
+        if (cnt === 0) return;
+        if (cnt < bestCnt) { bestCnt = cnt; best = k; bestMask = mask; if (cnt === 1) break; }
+      }
+      if (best === -1) { count++; return; }
+      var r3 = (best / 9) | 0, c3 = best % 9, b3 = bidx(r3, c3), m = bestMask;
+      while (m) {
+        var bit2 = m & -m; m ^= bit2;
+        var v2 = 31 - Math.clz32(bit2);
+        g[best] = v2; rows[r3] |= bit2; cols[c3] |= bit2; boxes[b3] |= bit2;
+        dfs();
+        g[best] = 0; rows[r3] &= ~bit2; cols[c3] &= ~bit2; boxes[b3] &= ~bit2;
+        if (count >= limit) return;
+      }
+    }
+    dfs();
+    return count;
+  }
+
+  /* ── 满盘生成：回溯 + 随机候选序（MRV） ── */
+  function genFull(rand) {
+    var g = new Array(81).fill(0);
+    var rows = [0,0,0,0,0,0,0,0,0], cols = [0,0,0,0,0,0,0,0,0], boxes = [0,0,0,0,0,0,0,0,0];
+    function shuffledDigits() {
+      var a = [1,2,3,4,5,6,7,8,9];
+      for (var j = 8; j > 0; j--) { var k = (rand() * (j + 1)) | 0; var t = a[j]; a[j] = a[k]; a[k] = t; }
+      return a;
+    }
+    function dfs(filled) {
+      if (filled === 81) return true;
+      var best = -1, bestMask = 0, bestCnt = 10;
+      for (var k = 0; k < 81; k++) {
+        if (g[k]) continue;
+        var r2 = (k / 9) | 0, c2 = k % 9, b2 = bidx(r2, c2);
+        var mask = ~(rows[r2] | cols[c2] | boxes[b2]) & 0x3FE;
+        var cnt = popcount(mask);
+        if (cnt === 0) return false;
+        if (cnt < bestCnt) { bestCnt = cnt; best = k; bestMask = mask; if (cnt === 1) break; }
+      }
+      var r3 = (best / 9) | 0, c3 = best % 9, b3 = bidx(r3, c3);
+      var ds = shuffledDigits();
+      for (var di = 0; di < 9; di++) {
+        var v = ds[di], bit = 1 << v;
+        if (!(bestMask & bit)) continue;
+        g[best] = v; rows[r3] |= bit; cols[c3] |= bit; boxes[b3] |= bit;
+        if (dfs(filled + 1)) return true;
+        g[best] = 0; rows[r3] &= ~bit; cols[c3] &= ~bit; boxes[b3] &= ~bit;
+      }
+      return false;
+    }
+    dfs(0);
+    return g;
+  }
+
+  /* ── 挖洞：先中心对称成对移除；枯竭后单格补挖（仍唯一解才保留） ── */
+  function dig(solution, targetHoles, rand) {
+    var g = solution.slice();
+    var holes = 0;
+    var order = [];
+    for (var i = 0; i <= 40; i++) order.push(i);
+    for (var j = order.length - 1; j > 0; j--) { var k = (rand() * (j + 1)) | 0; var t = order[j]; order[j] = order[k]; order[k] = t; }
+    for (var oi = 0; oi < order.length; oi++) {
+      if (holes >= targetHoles) break;
+      var a = order[oi], b2 = 80 - a;
+      var pair = (a === b2) ? 1 : 2;
+      if (holes + pair > targetHoles) continue;
+      var va = g[a], vb = g[b2];
+      g[a] = 0; g[b2] = 0;
+      if (countSolutions(g, 2) === 1) holes += pair;
+      else { g[a] = va; g[b2] = vb; }
+    }
+    /* 第二轮：对称枯竭时随机单格补挖至目标 */
+    if (holes < targetHoles) {
+      var singles = [];
+      for (var s2 = 0; s2 < 81; s2++) if (g[s2]) singles.push(s2);
+      for (var s3 = singles.length - 1; s3 > 0; s3--) { var k3 = (rand() * (s3 + 1)) | 0; var t3 = singles[s3]; singles[s3] = singles[k3]; singles[k3] = t3; }
+      for (var si = 0; si < singles.length && holes < targetHoles; si++) {
+        var q = singles[si], vq = g[q];
+        g[q] = 0;
+        if (countSolutions(g, 2) === 1) holes++;
+        else g[q] = vq;
+      }
+    }
+    return g;
+  }
+
+  function genPuzzle(seed, diff) {
+    var rand = mulberry(seed);
+    var solution = genFull(rand);
+    var puzzle = dig(solution, DIFFS[diff].holes, rand);
+    return { puzzle: puzzle, solution: solution };
+  }
+
+  /* ═══ 状态 ═══ */
+  var S = {
+    mode: 'menu', paused: false,
+    diff: 'easy', seed: 1,
+    grid: new Array(81).fill(0),   /* 当前盘面（含用户落子） */
+    given: new Array(81).fill(false),
+    solution: new Array(81).fill(0),
+    notes: new Array(81).fill(0),  /* 候选 bitmask（bit n = 数字 n） */
+    sel: -1, noteMode: false,
+    wrongs: 0, hints: 3,
+    time: 0, timer: 0,
+    history: [], /* {i, val, notes} 单格快照 */
+    won: false
+  };
+
+  var el = {
+    board: document.getElementById('board'),
+    keypad: document.getElementById('keypad'),
+    toolbar: document.getElementById('toolbar'),
+    badge: document.getElementById('badge'),
+    clockTx: document.getElementById('clock-tx'),
+    btnPause: document.getElementById('btn-pause'), btnSnd: document.getElementById('btn-snd'),
+    tNote: document.getElementById('t-note'), tErase: document.getElementById('t-erase'),
+    tUndo: document.getElementById('t-undo'), tHint: document.getElementById('t-hint'),
+    menu: document.getElementById('menu'), menuBest: document.getElementById('menu-best'),
+    menuContinue: document.getElementById('menu-continue'),
+    pausemask: document.getElementById('pausemask'),
+    end: document.getElementById('end'), endTime: document.getElementById('end-time'),
+    endDiff: document.getElementById('end-diff'), endWrong: document.getElementById('end-wrong'),
+    endHint: document.getElementById('end-hint'), endBest: document.getElementById('end-best'),
+    endRec: document.getElementById('end-rec'),
+    endOk: document.getElementById('end-ok'), endMenu: document.getElementById('end-menu'),
+    mbProg: document.getElementById('mb-prog'), mbFill: document.getElementById('mb-fill'),
+    mbCnt: document.getElementById('mb-cnt'),
+    pmResume: document.getElementById('pm-resume'), pmMenu: document.getElementById('pm-menu')
+  };
+
+  /* ── 建格子 ── */
+  var cells = [];
+  for (var ci = 0; ci < 81; ci++) {
+    var d = document.createElement('div');
+    d.className = 'cell';
+    var r = (ci / 9) | 0, c = ci % 9;
+    if (c === 2 || c === 5) d.classList.add('bR');
+    if (r === 2 || r === 5) d.classList.add('bB');
+    (function (idx) {
+      d.addEventListener('pointerdown', function () { pick(idx); });
+    })(ci);
+    el.board.appendChild(d);
+    cells.push(d);
+  }
+  var keys = [];
+  for (var n = 1; n <= 9; n++) {
+    (function (num) {
+      var b = document.createElement('div');
+      b.className = 'key';
+      b.innerHTML = '<span class="n">' + num + '</span><span class="c"></span>';
+      b.addEventListener('pointerdown', function () { key(num); });
+      el.keypad.appendChild(b);
+      keys.push(b);
+    })(n);
+  }
+
+  function fmtTime(s) {
+    var m = (s / 60) | 0, ss = s % 60;
+    return (m < 10 ? '0' : '') + m + ':' + (ss < 10 ? '0' : '') + ss;
+  }
+
+  /* ── 渲染 ── */
+  function renderBoard() {
+    var selVal = S.sel >= 0 ? S.grid[S.sel] : 0;
+    var sr = S.sel >= 0 ? ((S.sel / 9) | 0) : -1, sc = S.sel >= 0 ? (S.sel % 9) : -1, sb = S.sel >= 0 ? bidx(sr, sc) : -1;
+    for (var i = 0; i < 81; i++) {
+      var d = cells[i], v = S.grid[i];
+      var r = (i / 9) | 0, c = i % 9, b = bidx(r, c);
+      d.className = 'cell';
+      if (c === 2 || c === 5) d.classList.add('bR');
+      if (r === 2 || r === 5) d.classList.add('bB');
+      if (S.given[i]) d.classList.add('given');
+      if (v && !S.given[i] && v !== S.solution[i]) d.classList.add('wr');
+      if (S.sel >= 0 && i !== S.sel && (r === sr || c === sc || b === sb)) d.classList.add('hl');
+      if (i === S.sel) d.classList.add('sel');
+      if (selVal && v === selVal && i !== S.sel) d.classList.add('same');
+      if (!v && S.notes[i]) {
+        var html = '<div class="notes">';
+        for (var nn = 1; nn <= 9; nn++) html += '<i>' + ((S.notes[i] & (1 << nn)) ? nn : '') + '</i>';
+        d.innerHTML = html + '</div>';
+      } else {
+        d.textContent = v || '';
+      }
+    }
+  }
+
+  function renderKeypad() {
+    for (var n = 1; n <= 9; n++) {
+      var cnt = 0;
+      for (var i = 0; i < 81; i++) if (S.grid[i] === n) cnt++;
+      var left = 9 - cnt;
+      keys[n - 1].querySelector('.c').textContent = left > 0 ? '余 ' + left : '—';
+      keys[n - 1].classList.toggle('dim', left <= 0);
+    }
+  }
+
+  function renderTools() {
+    el.tNote.classList.toggle('on', S.noteMode);
+    el.tUndo.classList.toggle('used', S.history.length === 0);
+    el.tHint.classList.toggle('used', S.hints <= 0);
+    el.tHint.querySelector('.tx').textContent = '提示 ×' + S.hints;
+  }
+
+  function renderHUD() {
+    el.badge.textContent = DIFFS[S.diff].label;
+    el.clockTx.textContent = fmtTime(S.time);
+    var filled = 0;
+    for (var i = 0; i < 81; i++) if (S.grid[i]) filled++;
+    el.mbProg.textContent = '已填 ' + filled + '/81';
+    el.mbFill.style.width = (filled / 81 * 100).toFixed(1) + '%';
+    el.mbCnt.innerHTML = '错 <b>' + S.wrongs + '</b> · 提示 <b>' + (3 - S.hints) + '</b>';
+  }
+
+  function renderAll() { renderBoard(); renderKeypad(); renderTools(); renderHUD(); }
+
+  /* ── 存档 ── */
+  function saveGame() {
+    if (S.mode !== 'play' || S.won) return;
+    safeStorage.set('mq_g34_save', {
+      diff: S.diff, seed: S.seed, grid: S.grid, given: S.given,
+      solution: S.solution, notes: S.notes, wrongs: S.wrongs, hints: S.hints,
+      time: S.time
+    });
+  }
+
+  /* ── 计时 ── */
+  function tickStart() {
+    clearInterval(S.timer);
+    S.timer = setInterval(function () {
+      if (S.mode === 'play' && !S.paused) { S.time++; renderHUD(); if (S.time % 5 === 0) saveGame(); }
+    }, 1000);
+  }
+
+  /* ── 局程 ── */
+  function newGame(seed, diff) {
+    S.diff = diff || S.diff;
+    S.seed = (seed == null ? ((Math.random() * 1e9) | 0) : seed) >>> 0;
+    var p = genPuzzle(S.seed, S.diff);
+    S.grid = p.puzzle.slice();
+    S.solution = p.solution.slice();
+    S.given = p.puzzle.map(function (v) { return v > 0; });
+    S.notes = new Array(81).fill(0);
+    S.sel = -1; S.noteMode = false;
+    S.wrongs = 0; S.hints = 3; S.time = 0; S.history = []; S.won = false;
+    S.mode = 'play'; S.paused = false;
+    el.menu.hidden = true; el.end.hidden = true; el.pausemask.hidden = true;
+    renderAll();
+    tickStart();
+    saveGame();
+    return true;
+  }
+
+  function continueGame() {
+    var sv = safeStorage.get('mq_g34_save', null);
+    if (!sv || !sv.grid) return false;
+    S.diff = sv.diff; S.seed = sv.seed; S.grid = sv.grid; S.given = sv.given;
+    S.solution = sv.solution; S.notes = sv.notes || new Array(81).fill(0);
+    S.wrongs = sv.wrongs || 0; S.hints = sv.hints == null ? 3 : sv.hints;
+    S.time = sv.time || 0;
+    S.sel = -1; S.noteMode = false; S.history = []; S.won = false;
+    S.mode = 'play'; S.paused = false;
+    el.menu.hidden = true; el.end.hidden = true; el.pausemask.hidden = true;
+    renderAll();
+    tickStart();
+    return true;
+  }
+
+  function pick(i) {
+    if (S.mode !== 'play' || S.paused) return false;
+    S.sel = i;
+    renderBoard();
+    return true;
+  }
+
+  function pushHist(i) {
+    S.history.push({ i: i, val: S.grid[i], notes: S.notes[i] });
+    if (S.history.length > 300) S.history.shift();
+  }
+
+  function key(n) {
+    if (S.mode !== 'play' || S.paused) return false;
+    if (n < 1 || n > 9) return false;
+    if (S.sel < 0 || S.given[S.sel]) return false;
+    var i = S.sel;
+    if (S.noteMode) {
+      if (S.grid[i]) return false;
+      if (placedCount(n) >= 9) return false;   /* 余 0 数字禁点 */
+      pushHist(i);
+      S.notes[i] ^= (1 << n);
+      SFX.note();
+      renderBoard();
+      saveGame();
+      return true;
+    }
+    if (S.grid[i] === n) {                       /* 同数字再点=清除（优先于余量拦截） */
+      pushHist(i);
+      S.grid[i] = 0; SFX.erase();
+      renderAll(); saveGame();
+      return true;
+    }
+    if (placedCount(n) >= 9) return false;     /* 余 0 数字禁点 */
+    pushHist(i);
+    S.grid[i] = n; S.notes[i] = 0;
+    if (n !== S.solution[i]) { S.wrongs++; SFX.wrong(); }
+    else SFX.tap();
+    renderAll();
+    cells[i].classList.add('pop');
+    saveGame();
+    checkWin();
+    return true;
+  }
+
+  function placedCount(n) {
+    var c = 0;
+    for (var q = 0; q < 81; q++) if (S.grid[q] === n) c++;
+    return c;
+  }
+
+  function erase() {
+    if (S.mode !== 'play' || S.paused) return false;
+    if (S.sel < 0 || S.given[S.sel]) return false;
+    var i = S.sel;
+    if (!S.grid[i] && !S.notes[i]) return false;
+    pushHist(i);
+    S.grid[i] = 0; S.notes[i] = 0;
+    SFX.erase();
+    renderAll();
+    saveGame();
+    return true;
+  }
+
+  function undo() {
+    if (S.mode !== 'play' || S.paused) return false;
+    if (!S.history.length) return false;
+    var h = S.history.pop();
+    S.grid[h.i] = h.val; S.notes[h.i] = h.notes;
+    S.sel = h.i;
+    SFX.erase();
+    renderAll();
+    saveGame();
+    return true;
+  }
+
+  function hint() {
+    if (S.mode !== 'play' || S.paused) return false;
+    if (S.hints <= 0) return false;
+    var target = -1;
+    if (S.sel >= 0 && !S.given[S.sel] && S.grid[S.sel] !== S.solution[S.sel]) target = S.sel;
+    else {
+      var cand = [];
+      for (var i = 0; i < 81; i++) if (!S.given[i] && S.grid[i] !== S.solution[i]) cand.push(i);
+      if (!cand.length) return false;
+      target = cand[(mulberry(S.seed ^ (0xBEEF + S.hints))() * cand.length) | 0];
+    }
+    S.hints--;
+    S.grid[target] = S.solution[target];
+    S.notes[target] = 0;
+    S.sel = target;
+    SFX.hint();
+    renderAll();
+    cells[target].classList.add('pop');
+    saveGame();
+    checkWin();
+    return true;
+  }
+
+  function checkWin() {
+    for (var i = 0; i < 81; i++) if (S.grid[i] !== S.solution[i]) return false;
+    S.won = true; S.mode = 'end';
+    clearInterval(S.timer);
+    safeStorage.del('mq_g34_save');
+    SFX.win();
+    var bk = 'mq_g34_best_' + S.diff;
+    var best = safeStorage.get(bk, null);
+    var rec = best == null || S.time < best;
+    if (rec) safeStorage.set(bk, S.time);
+    el.endTime.textContent = fmtTime(S.time);
+    el.endDiff.textContent = DIFFS[S.diff].label;
+    el.endWrong.textContent = S.wrongs;
+    el.endHint.textContent = 3 - S.hints;
+    el.endBest.textContent = fmtTime(rec ? S.time : best);
+    el.endRec.classList.toggle('show', rec);
+    el.end.hidden = false;
+    return true;
+  }
+
+  function pause() {
+    if (S.mode !== 'play' || S.paused) return false;
+    S.paused = true;
+    el.pausemask.hidden = false;
+    saveGame();
+    return true;
+  }
+  function resume() {
+    if (S.mode !== 'play' || !S.paused) return false;
+    S.paused = false;
+    el.pausemask.hidden = true;
+    return true;
+  }
+
+  function bestLine() {
+    var parts = DIFF_ORDER.map(function (d) {
+      var b = safeStorage.get('mq_g34_best_' + d, null);
+      return DIFFS[d].label + ' ' + (b == null ? '—' : fmtTime(b));
+    });
+    el.menuBest.textContent = parts.join(' · ');
+  }
+
+  function showMenu() {
+    S.mode = 'menu'; S.paused = false;
+    clearInterval(S.timer);
+    el.end.hidden = true; el.pausemask.hidden = true;
+    var sv = safeStorage.get('mq_g34_save', null);
+    el.menuContinue.hidden = !(sv && sv.grid && sv.grid.some(function (v) { return !v; }));
+    if (sv && sv.grid) el.menuContinue.textContent = '继续上局 · ' + DIFFS[sv.diff].label + ' ' + fmtTime(sv.time || 0);
+    bestLine();
+    el.menu.hidden = false;
+  }
+
+  /* ── 输入绑定 ── */
+  el.btnPause.addEventListener('click', function () { if (S.mode === 'play') pause(); });
+  el.pmResume.addEventListener('click', resume);
+  el.pmMenu.addEventListener('click', function () { saveGame(); showMenu(); });
+  el.tNote.addEventListener('pointerdown', function () { if (S.mode === 'play' && !S.paused) { S.noteMode = !S.noteMode; renderTools(); } });
+  el.tErase.addEventListener('pointerdown', erase);
+  el.tUndo.addEventListener('pointerdown', undo);
+  el.tHint.addEventListener('pointerdown', hint);
+  var diffBtns = document.querySelectorAll('#menu .diffrow button');
+  for (var dbi = 0; dbi < diffBtns.length; dbi++) {
+    (function (btn) {
+      btn.addEventListener('click', function () { SFX.unlock(); newGame(null, btn.getAttribute('data-diff')); });
+    })(diffBtns[dbi]);
+  }
+  el.menuContinue.addEventListener('click', function () { SFX.unlock(); continueGame(); });
+  el.endOk.addEventListener('click', function () { newGame(null, S.diff); });
+  el.endMenu.addEventListener('click', showMenu);
+
+  /* ── 声音开关（系列统一形态） ── */
+  var SND_ON =
+    '<svg width="20" height="20" viewBox="0 0 20 20">' +
+    '<path d="M3 8 h3 l4 -3.4 v10.8 L6 12 H3z" fill="#c9862e"/>' +
+    '<path d="M13 7 q2 3 0 6 M15.5 5 q3.2 5 0 10" stroke="#8c5a00" stroke-width="1.7" fill="none" stroke-linecap="round"/>' +
+    '</svg>';
+  var SND_OFF =
+    '<svg width="20" height="20" viewBox="0 0 20 20">' +
+    '<path d="M3 8 h3 l4 -3.4 v10.8 L6 12 H3z" fill="#98825e"/>' +
+    '<path d="M13 7.5 l5 5 M18 7.5 l-5 5" stroke="#b03a2e" stroke-width="1.9" stroke-linecap="round"/>' +
+    '</svg>';
+  function sndIcon() {
+    el.btnSnd.innerHTML = SFX.isOn() ? SND_ON : SND_OFF;
+    el.btnSnd.classList.toggle('off', !SFX.isOn());
+  }
+  el.btnSnd.addEventListener('click', function () { SFX.toggle(); sndIcon(); });
+
+  
+
+  /* ═══ 启动 ═══ */
+  sndIcon();
+  showMenu();
+})();
+</script>
+</body>
+</html>
