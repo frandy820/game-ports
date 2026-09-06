@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#1c130c">
+<title>移塔 · 离线版</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect x='4' y='4' width='40' height='40' rx='9' fill='%231c130c'/%3E%3Crect x='10' y='26' width='28' height='6' rx='3' fill='%23e8b23c'/%3E%3Crect x='14' y='18' width='20' height='6' rx='3' fill='%23c8a144'/%3E%3Crect x='19' y='10' width='10' height='6' rx='3' fill='%23a8853c'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg1:#241a12; --bg2:#171009; --txt:#e8dcc8; --sub:#9a8a72;
+    --gold:#e8b23c; --copper:#8a6a34; --wood:#5d462c; --red:#c9553f;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{background:linear-gradient(180deg,var(--bg1) 0%,#1d150d 55%,var(--bg2) 100%);color:var(--txt);
+    font-family:'Segoe UI',system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
+    overflow:hidden;position:fixed;inset:0;touch-action:none;user-select:none;-webkit-user-select:none}
+
+  #hud{position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);left:14px;right:60px;z-index:6;
+    display:flex;align-items:center;gap:10px;pointer-events:none}
+  #title{font-size:20px;font-weight:800;color:#f0e8d8;letter-spacing:.1em}
+  #badge{font-size:11px;font-weight:800;color:#fdf6e8;background:#6e501f;padding:2px 8px;
+    border-radius:5px;letter-spacing:.14em;box-shadow:0 1px 0 rgba(30,18,6,.5)}
+  #btn-home{margin-left:auto;pointer-events:auto;width:36px;height:36px;border:1px solid #4a3a26;border-radius:10px;
+    background:#2c2115;color:#c8b494;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 2px 6px rgba(0,5,12,.4)}
+  #btn-home:active{transform:translateY(1px);box-shadow:none}
+  #btn-snd{position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);right:12px;z-index:40;
+    width:36px;height:36px;border:1px solid #4a3a26;border-radius:10px;background:#2c2115;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,5,12,.4);pointer-events:auto}
+  #btn-snd.off{opacity:.55}
+
+  #qbar{position:absolute;top:calc(env(safe-area-inset-top,0px) + 58px);left:16px;right:16px;z-index:4;
+    display:flex;align-items:baseline;gap:10px}
+  #moves-lab{font-size:12px;font-weight:700;color:var(--sub);letter-spacing:.18em}
+  #moves{font-size:26px;font-weight:800;color:#f0e8d8;font-variant-numeric:tabular-nums;line-height:1}
+  #minlab{font-size:12px;font-weight:700;color:#8a7a5e;letter-spacing:.06em}
+  #minlab b{color:#c8a144;font-variant-numeric:tabular-nums}
+  #heldtip{margin-left:auto;font-size:11.5px;font-weight:700;color:#c8a144;letter-spacing:.08em;
+    padding:3px 10px;border-radius:99px;background:rgba(232,178,60,.12);border:1px solid rgba(232,178,60,.45);display:none}
+  #heldtip.show{display:block}
+
+  #board{position:absolute;inset:0;z-index:3}
+  .peg{position:absolute;width:14px;border-radius:7px 7px 3px 3px;
+    background:linear-gradient(90deg,#4a3820,#6b5230 40%,#57422a 75%,#3d2e1a);
+    box-shadow:0 2px 6px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,220,160,.25)}
+  .peg::before{content:"";position:absolute;top:-7px;left:50%;transform:translateX(-50%);
+    width:18px;height:9px;border-radius:9px 9px 0 0;background:linear-gradient(90deg,#8a6a34,#c8a144 45%,#8a6a34)}
+  .peg.lit{box-shadow:0 2px 6px rgba(0,0,0,.5), 0 0 14px 3px rgba(232,178,60,.45), inset 0 1px 0 rgba(255,220,160,.25)}
+  #base{position:absolute;height:16px;border-radius:8px;left:22px;right:22px;
+    background:linear-gradient(180deg,#6b5230,#3d2e1a 85%);
+    box-shadow:0 4px 10px rgba(0,0,0,.55), inset 0 2px 0 rgba(255,215,150,.18)}
+  #base::after{content:"";position:absolute;left:8%;right:8%;top:5px;height:3px;border-radius:2px;
+    background:rgba(255,220,160,.14)}
+  .pegfoot{position:absolute;width:34px;height:9px;border-radius:4px 4px 0 0;
+    background:linear-gradient(180deg,#57422a,#3a2c18)}
+
+  .disc{position:absolute;height:24px;border-radius:12px;left:0;top:0;
+    box-shadow:0 3px 6px rgba(0,0,0,.45), inset 0 2px 0 rgba(255,245,215,.35), inset 0 -3px 5px rgba(60,35,8,.55);
+    border:1px solid rgba(50,30,8,.6)}
+  .disc::after{content:"";position:absolute;left:14%;right:14%;top:8px;height:2px;border-radius:1px;
+    background:rgba(255,240,200,.28)}
+  .disc.held-disc{box-shadow:0 10px 20px rgba(0,0,0,.55), 0 0 16px 4px rgba(232,178,60,.4),
+    inset 0 2px 0 rgba(255,245,215,.4), inset 0 -3px 5px rgba(60,35,8,.55);
+    animation:dhov 1.1s ease-in-out infinite}
+  @keyframes dhov{0%,100%{transform:var(--tr) rotate(0deg)}50%{transform:var(--tr) rotate(1.1deg)}}
+  .disc.bad{animation:dshake .4s ease}
+  @keyframes dshake{0%,100%{transform:var(--tr);filter:none}
+    25%{transform:var(--tr) translateX(-7px);filter:brightness(1.3) sepia(1) hue-rotate(-32deg) saturate(2.2)}
+    50%{transform:var(--tr) translateX(7px)}
+    75%{transform:var(--tr) translateX(-4px);filter:brightness(1.3) sepia(1) hue-rotate(-32deg) saturate(2.2)}}
+  .disc.hint-disc{animation:dpulse .9s ease-in-out 2}
+  @keyframes dpulse{0%,100%{box-shadow:0 3px 6px rgba(0,0,0,.45)}50%{box-shadow:0 0 18px 5px rgba(232,178,60,.75)}}
+  .disc.fin{animation:dfin 1s ease both}
+  @keyframes dfin{0%{filter:brightness(1)}45%{filter:brightness(1.9) saturate(1.3)}100%{filter:brightness(1)}}
+
+  .dropzone{position:absolute;height:26px;border:1.5px dashed rgba(232,178,60,.55);border-radius:12px;
+    background:rgba(232,178,60,.07);pointer-events:none;opacity:0;transition:opacity .18s}
+  .dropzone.show{opacity:1}
+
+  #toolbar{position:absolute;left:14px;right:14px;bottom:calc(env(safe-area-inset-bottom,0px) + 30px);z-index:4;
+    display:flex;gap:10px}
+  .tool{flex:1;height:52px;border:1px solid #4a3a26;border-radius:12px;background:#2c2115;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:7px;
+    box-shadow:0 3px 7px rgba(0,5,12,.35);color:#c8b494}
+  .tool:active{transform:translateY(2px);box-shadow:none}
+  .tool .ic{font-size:16px}
+  .tool .tx{font-size:13px;font-weight:700;letter-spacing:.05em}
+  .tool:disabled{opacity:.35;pointer-events:none}
+  .tool#t-hint{opacity:1}
+  .tool#t-hint.dim{opacity:.4}
+
+  footer{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 6px);
+    text-align:center;font-size:11px;font-weight:600;color:rgba(154,138,114,.88);letter-spacing:.05em;
+    pointer-events:none;z-index:30}
+
+  #bell{position:absolute;top:calc(env(safe-area-inset-top,0px) + 96px);right:26px;z-index:3;
+    opacity:.5;pointer-events:none;transform-origin:50% 6px}
+  #bell.ring{animation:bring 1.6s ease-in-out 2;opacity:1}
+  @keyframes bring{0%,100%{transform:rotate(0)}30%{transform:rotate(14deg)}55%{transform:rotate(-11deg)}78%{transform:rotate(6deg)}}
+
+  .layer{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(12,7,3,.6);z-index:20;backdrop-filter:blur(2px)}
+  .layer[hidden]{display:none}
+  .lpanel{display:flex;flex-direction:column;gap:13px;width:min(86vw,340px);
+    background:#261b11;border:1px solid #4a3a26;border-radius:18px;padding:24px 26px;
+    box-shadow:0 14px 40px rgba(0,5,12,.65), inset 0 1px 0 rgba(255,220,160,.1)}
+  .lt{font-size:18px;font-weight:800;color:#f0e8d8;letter-spacing:.14em;text-align:center}
+  .ld{font-size:13.5px;color:#ab9878;line-height:1.9;text-align:center}
+  .ld b{color:#e8dcc8}
+  .layer button{padding:11px 0;font-size:15px;font-weight:700;color:#fdf6e8;background:#6e501f;
+    border:none;border-radius:12px;cursor:pointer;box-shadow:0 3px 0 rgba(35,20,6,.6);letter-spacing:.1em}
+  .layer button:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(35,20,6,.6)}
+  .layer button.ghost{background:transparent;color:#ab9878;border:1px solid #4a3a26;box-shadow:none}
+  #menu .lvgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  #menu .lvgrid button{flex-direction:column;display:flex;gap:1px;padding:10px 0;font-size:14px}
+  #menu .lvgrid button small{font-size:10px;font-weight:600;color:rgba(253,246,232,.72);letter-spacing:.04em}
+  #menu .bestrow{font-size:11.5px;color:var(--sub);text-align:center;line-height:1.8}
+  #menu .bestrow b{color:#c8b494;font-variant-numeric:tabular-nums}
+  #end .stars{display:flex;justify-content:center;gap:10px;font-size:38px;line-height:1;height:40px}
+  #end .stars .st{color:rgba(232,178,60,.16);text-shadow:none;transition:color .3s, text-shadow .3s}
+  #end .stars .st.on{color:var(--gold);text-shadow:0 0 14px rgba(232,178,60,.65)}
+  #end .steps{font-size:14px;color:#ab9878;text-align:center;letter-spacing:.06em}
+  #end .steps b{color:#f0e8d8;font-size:22px;font-variant-numeric:tabular-nums}
+  #end .steps .sep{margin:0 6px;opacity:.5}
+  .rec{display:none;margin:0 auto;width:max-content;padding:4px 14px;border-radius:99px;
+    font-size:12px;color:var(--gold);font-weight:700;letter-spacing:.1em;
+    background:rgba(232,178,60,.14);border:1px solid rgba(232,178,60,.5)}
+  .rec.show{display:block;animation:rpop .6s ease both, rglow 1.9s ease-in-out .6s infinite}
+  @keyframes rpop{0%{transform:scale(.4);opacity:0}70%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+  @keyframes rglow{0%,100%{box-shadow:0 0 0 0 rgba(232,178,60,0)}50%{box-shadow:0 0 12px 2px rgba(232,178,60,.35)}}
+</style>
+</head>
+<body>
+  <div id="hud">
+    <div id="title">移塔</div>
+    <div id="badge">五层</div>
+    <button id="btn-home" aria-label="回菜单">⌂</button>
+  </div>
+  <button id="btn-snd" aria-label="声音开关"></button>
+
+  <div id="qbar">
+    <span id="moves-lab">步数</span>
+    <span id="moves">0</span>
+    <span id="minlab">最少 <b>31</b> 步</span>
+    <span id="heldtip">轻点一柱放下</span>
+  </div>
+
+  <div id="board"></div>
+
+  <svg id="bell" width="26" height="30" viewBox="0 0 26 30">
+    <path d="M13 3 v4" stroke="#c8a144" stroke-width="2" stroke-linecap="round"/>
+    <path d="M5 22 Q5 10 13 9 Q21 10 21 22 Z" fill="#c8a144" opacity=".9"/>
+    <path d="M7.5 22 Q7.5 12.5 13 11.3" stroke="rgba(255,240,200,.5)" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+    <circle cx="13" cy="24.6" r="2.6" fill="#e8b23c"/>
+  </svg>
+
+  <div id="toolbar">
+    <button class="tool" id="t-undo"><span class="ic">↩</span><span class="tx">撤一步</span></button>
+    <button class="tool" id="t-reset"><span class="ic">⟲</span><span class="tx">重新开始</span></button>
+    <button class="tool" id="t-hint"><span class="ic">✦</span><span class="tx" id="hint-tx">提示 ×3</span></button>
+  </div>
+
+  <footer>移塔 · 完全离线 · 大不压小</footer>
+
+  <div id="menu" class="layer">
+    <div class="lpanel">
+      <div class="lt">移塔</div>
+      <div class="ld">古寺三柱，<b>大盘不压小盘</b>，<br>把整座塔请到右柱——塔成之日，檐铃自鸣。</div>
+      <div class="lvgrid">
+        <button data-n="3">三层<small>最少 7 步</small></button>
+        <button data-n="4">四层<small>最少 15 步</small></button>
+        <button data-n="5">五层<small>最少 31 步</small></button>
+        <button data-n="6">六层<small>最少 63 步</small></button>
+        <button data-n="7">七层<small>最少 127 步</small></button>
+        <button data-n="8">八层<small>最少 255 步</small></button>
+      </div>
+      <div class="bestrow" id="menu-best">三 — · 四 — · 五 — · 六 — · 七 — · 八 —</div>
+    </div>
+  </div>
+
+  <div id="end" class="layer" hidden>
+    <div class="lpanel">
+      <div class="lt">浮屠已成</div>
+      <div class="stars"><span class="st" id="st1">★</span><span class="st" id="st2">★</span><span class="st" id="st3">★</span></div>
+      <div class="steps"><b id="end-moves">0</b> 步<span class="sep">·</span>最少 <b id="end-min">31</b> 步</div>
+      <div class="rec" id="end-rec">★ 最少步新纪录 ★</div>
+      <div class="bestrow">此层数最佳 <b id="end-best">—</b> 步</div>
+      <button id="end-ok">再移一次</button>
+      <button id="end-menu" class="ghost">换个层数</button>
+    </div>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  var safeStorage = {
+    get: function (k, d) { try { var v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set: function (k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+    del: function (k) { try { localStorage.removeItem(k); } catch (e) {} }
+  };
+
+  var SFX = (function () {
+    var ctx = null, on = safeStorage.get('mq_g38_sound', false);
+    function ac() {
+      if (!ctx) { try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+      if (ctx && ctx.state === 'suspended') ctx.resume();
+      return ctx;
+    }
+    function tone(type, f0, f1, t, vol, when) {
+      if (!on) return;
+      var c = ac(); if (!c) return;
+      var o = c.createOscillator(), g = c.createGain();
+      var t0 = c.currentTime + (when || 0);
+      o.type = type; o.frequency.setValueAtTime(f0, t0);
+      if (f1) o.frequency.exponentialRampToValueAtTime(f1, t0 + t);
+      g.gain.setValueAtTime(vol, t0);
+      g.gain.exponentialRampToValueAtTime(.001, t0 + t + .02);
+      o.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0 + t + .04);
+    }
+    return {
+      unlock: function () { ac(); },
+      toggle: function () { on = !on; safeStorage.set('mq_g38_sound', on); return on; },
+      isOn: function () { return on; },
+      pick: function () { tone('triangle', 480, null, .06, .05); },
+      drop: function () { tone('triangle', 300, 180, .09, .06); },
+      undo: function () { tone('sine', 320, 240, .1, .045); },
+      bad: function () { tone('square', 140, 110, .16, .04); },
+      hint: function () { tone('sine', 880, null, .34, .05); },
+      win: function () {
+        tone('sine', 1318, null, .5, .05); tone('sine', 1046, null, .6, .045, .16);
+        tone('sine', 196, null, 1.4, .05, .3); tone('sine', 98, null, 1.6, .04, .34);
+      }
+    };
+  })();
+
+  /* ═══ 数值 ═══ */
+  var PEGX = [72, 187, 303];      /* 三柱中心 x */
+  var BASEY = 598;                 /* 底盘基线（底层盘底边贴座） */
+  var FLYTOP = 308;                /* 拿起悬浮位（盘顶 y） */
+  var PEGTOP = 356;                /* 柱顶 y */
+  var DH = 24, DGAP = 3;           /* 盘高/层间距 */
+  var MAXW = 104, WSTEP = 9;       /* 底盘宽/层递减 */
+  var NUMCN = { 3: '三', 4: '四', 5: '五', 6: '六', 7: '七', 8: '八' };
+  var NS = [3, 4, 5, 6, 7, 8];
+  function minMoves(n) { return Math.pow(2, n) - 1; }
+  function discW(d, n) { return MAXW - (n - d) * WSTEP; }
+
+  /* ═══ 状态 ═══ */
+  var S = {
+    mode: 'menu', n: 5,
+    pegs: [[], [], []],      /* 各柱盘号（底→顶，大数在下） */
+    held: -1, heldFrom: -1,  /* 拿起的盘号 / 来源柱 */
+    moves: 0, lock: false, hints: 3, hintUsed: 0,
+    undoStack: [], done: false
+  };
+
+  var el = {
+    badge: document.getElementById('badge'),
+    moves: document.getElementById('moves'),
+    minlab: document.getElementById('minlab'),
+    heldtip: document.getElementById('heldtip'),
+    board: document.getElementById('board'),
+    bell: document.getElementById('bell'),
+    tUndo: document.getElementById('t-undo'), tReset: document.getElementById('t-reset'),
+    tHint: document.getElementById('t-hint'), hintTx: document.getElementById('hint-tx'),
+    menu: document.getElementById('menu'), menuBest: document.getElementById('menu-best'),
+    end: document.getElementById('end'),
+    endMoves: document.getElementById('end-moves'), endMin: document.getElementById('end-min'),
+    endBest: document.getElementById('end-best'), endRec: document.getElementById('end-rec'),
+    st1: document.getElementById('st1'), st2: document.getElementById('st2'), st3: document.getElementById('st3'),
+    endOk: document.getElementById('end-ok'), endMenu: document.getElementById('end-menu'),
+    btnHome: document.getElementById('btn-home'), btnSnd: document.getElementById('btn-snd')
+  };
+
+  var discEls = {};   /* 盘号 → DOM */
+  var pegEls = [], zoneEls = [];
+
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function tr(x, y) { return 'translate(' + x + 'px,' + y + 'px)'; }
+  function pegOf(d) { for (var j = 0; j < 3; j++) { var k = S.pegs[j].indexOf(d); if (k >= 0) return j; } return -1; }
+  function topOf(j) { var a = S.pegs[j]; return a.length ? a[a.length - 1] : 99; }
+  function discColor(d, n) {
+    var t = n > 1 ? (d - 1) / (n - 1) : 0;
+    var a = [236, 182, 62], b = [140, 106, 54];
+    var r = Math.round(a[0] + (b[0] - a[0]) * t), g = Math.round(a[1] + (b[1] - a[1]) * t), bl = Math.round(a[2] + (b[2] - a[2]) * t);
+    return 'rgb(' + r + ',' + g + ',' + bl + ')';
+  }
+  function slotY(level) { return BASEY - DH - level * (DH + DGAP); }
+  function flyY() { return FLYTOP; }
+
+  /* ── 棋盘构建（幂等） ── */
+  function buildBoard() {
+    el.board.innerHTML = '';
+    pegEls = []; zoneEls = [];
+    var base = document.createElement('div');
+    base.id = 'base'; base.style.top = (BASEY + 2) + 'px';
+    el.board.appendChild(base);
+    for (var j = 0; j < 3; j++) {
+      var ft = document.createElement('div');
+      ft.className = 'pegfoot';
+      ft.style.left = (PEGX[j] - 17) + 'px'; ft.style.top = (BASEY - 6) + 'px';
+      el.board.appendChild(ft);
+      var p = document.createElement('div');
+      p.className = 'peg';
+      p.style.left = (PEGX[j] - 7) + 'px';
+      p.style.top = PEGTOP + 'px'; p.style.height = (BASEY - PEGTOP) + 'px';
+      (function (idx) { p.addEventListener('pointerdown', function () { tapPeg(idx); }); })(j);
+      el.board.appendChild(p); pegEls.push(p);
+      var z = document.createElement('div');
+      z.className = 'dropzone';
+      el.board.appendChild(z); zoneEls.push(z);
+    }
+    discEls = {};
+    for (var d = S.n; d >= 1; d--) {
+      var dv = document.createElement('div');
+      dv.className = 'disc';
+      var w = discW(d, S.n);
+      dv.style.width = w + 'px';
+      dv.style.background = 'linear-gradient(180deg,' + discColor(d - 0.35, S.n) + ' 0%,' + discColor(d, S.n) + ' 46%,' + discColor(d + 0.35, S.n) + ' 100%)';
+      dv.style.setProperty('--tr', tr(0, 0));
+      (function (dd) { dv.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); tapPeg(pegOf(dd)); }); })(d);
+      el.board.appendChild(dv); discEls[d] = dv;
+    }
+  }
+
+  function placeStatic() {
+    /* 无动画摆盘：全部按状态落位（幂等校准） */
+    for (var j = 0; j < 3; j++) {
+      for (var k = 0; k < S.pegs[j].length; k++) {
+        var d = S.pegs[j][k], dv = discEls[d], w = discW(d, S.n);
+        dv.style.transition = 'none';
+        dv.style.transform = tr(PEGX[j] - w / 2, slotY(k));
+        dv.style.setProperty('--tr', tr(PEGX[j] - w / 2, slotY(k)));
+        dv.style.zIndex = String(10 + k);
+      }
+    }
+    if (S.held > 0) {
+      var hdv = discEls[S.held], hw = discW(S.held, S.n);
+      hdv.style.transition = 'none';
+      hdv.style.transform = tr(PEGX[S.heldFrom] - hw / 2, flyY());
+      hdv.style.setProperty('--tr', tr(PEGX[S.heldFrom] - hw / 2, flyY()));
+      hdv.style.zIndex = '30';
+    }
+  }
+
+  /* ── HUD ── */
+  function renderHUD() {
+    el.badge.textContent = NUMCN[S.n] + '层';
+    el.moves.textContent = S.moves;
+    el.minlab.innerHTML = '最少 <b>' + minMoves(S.n) + '</b> 步';
+    el.heldtip.classList.toggle('show', S.held > 0);
+    el.tUndo.disabled = !S.undoStack.length || S.lock;
+    el.tReset.disabled = S.lock;
+    el.tHint.classList.toggle('dim', S.hints <= 0);
+    el.hintTx.textContent = '提示 ×' + S.hints;
+  }
+
+  function renderZones() {
+    for (var j = 0; j < 3; j++) {
+      var z = zoneEls[j], dv;
+      if (S.held > 0 && S.mode === 'play') {
+        var ok = j === S.heldFrom || topOf(j) > S.held;
+        if (ok) {
+          var w = discW(S.held, S.n);
+          z.style.width = (w + 8) + 'px';
+          z.style.left = (PEGX[j] - (w + 8) / 2) + 'px';
+          z.style.top = (slotY(S.pegs[j].length) - 1) + 'px';
+          z.classList.add('show');
+        } else z.classList.remove('show');
+      } else z.classList.remove('show');
+    }
+    for (var k = 0; k < 3; k++) pegEls[k].classList.toggle('lit', S.held > 0 && k !== S.heldFrom && topOf(k) > S.held);
+  }
+
+  /* ── 局程 ── */
+  function startGame(n) {
+    S.n = n || S.n;
+    S.pegs = [[], [], []];
+    for (var d = S.n; d >= 1; d--) S.pegs[0].push(d);
+    S.held = -1; S.heldFrom = -1;
+    S.moves = 0; S.hints = 3; S.hintUsed = 0;
+    S.undoStack = []; S.done = false; S.lock = false;
+    S.mode = 'play';
+    el.menu.hidden = true; el.end.hidden = true;
+    el.bell.classList.remove('ring');
+    buildBoard(); placeStatic(); renderHUD(); renderZones();
+    return true;
+  }
+
+  function starsFor(moves, mn) {
+    if (moves <= mn) return 3;
+    if (moves * 4 <= mn * 5) return 2;   /* 精确 ≤1.25，整数比较免 ceil 偏松 */
+    return 1;
+  }
+
+  function finish() {
+    S.done = true; S.mode = 'end'; S.lock = true;
+    SFX.win();
+    el.bell.classList.add('ring');
+    for (var k = 0; k < S.pegs[2].length; k++) {
+      (function (dd, delay) {
+        setTimeout(function () { var dv = discEls[dd]; if (dv) { dv.classList.remove('fin'); void dv.offsetWidth; dv.classList.add('fin'); } }, delay);
+      })(S.pegs[2][k], k * 90);
+    }
+    var mn = minMoves(S.n);
+    var bk = 'mq_g38_best_' + S.n;
+    var best = safeStorage.get(bk, null);
+    var rec = best == null || S.moves < best;
+    if (rec) safeStorage.set(bk, S.moves);
+    var stars = starsFor(S.moves, mn);
+    setTimeout(function () {
+      el.st1.className = 'st'; el.st2.className = 'st'; el.st3.className = 'st';
+      setTimeout(function () { el.st1.className = 'st' + (stars >= 1 ? ' on' : ''); }, 60);
+      setTimeout(function () { el.st2.className = 'st' + (stars >= 2 ? ' on' : ''); }, 320);
+      setTimeout(function () { el.st3.className = 'st' + (stars >= 3 ? ' on' : ''); }, 580);
+    }, 30);
+    el.endMoves.textContent = S.moves;
+    el.endMin.textContent = mn;
+    el.endBest.textContent = rec ? S.moves : best;
+    el.endRec.classList.toggle('show', rec);
+    renderHUD();   /* 金光动画窗口内三钮同步置灰 */
+    setTimeout(function () { if (S.done && S.mode === 'end') el.end.hidden = false; }, 900);
+    return true;
+  }
+
+  /* ── 动画移动：盘已在 held（悬浮位） ── */
+  function animLift(d, from, fast) {
+    var dv = discEls[d], w = discW(d, S.n);
+    var t1 = fast ? 40 : 130;
+    dv.style.transition = 'transform ' + t1 + 'ms ease';
+    dv.style.transform = tr(PEGX[from] - w / 2, flyY());
+    dv.style.setProperty('--tr', tr(PEGX[from] - w / 2, flyY()));
+    return sleep(t1 + 12);
+  }
+  function animSlide(d, from, to, fast) {
+    var dv = discEls[d], w = discW(d, S.n);
+    var t2 = fast ? 46 : 160;
+    dv.style.transition = 'transform ' + t2 + 'ms ease';
+    dv.style.transform = tr(PEGX[to] - w / 2, flyY());
+    dv.style.setProperty('--tr', tr(PEGX[to] - w / 2, flyY()));
+    return sleep(t2 + 12);
+  }
+  function animLand(d, to, level, fast) {
+    var dv = discEls[d], w = discW(d, S.n);
+    var t3 = fast ? 40 : 130;
+    dv.style.transition = 'transform ' + t3 + 'ms ease';
+    dv.style.transform = tr(PEGX[to] - w / 2, slotY(level));
+    dv.style.setProperty('--tr', tr(PEGX[to] - w / 2, slotY(level)));
+    return sleep(t3 + 12);
+  }
+
+  /* ── 交互 ── */
+  function tapPeg(j) {
+    if (S.mode !== 'play' || S.lock) return false;
+    if (j < 0 || j > 2) return false;
+    if (S.held > 0) return dropPeg(j);
+    return pickPeg(j);
+  }
+
+  function pickPeg(j) {
+    if (S.mode !== 'play' || S.lock) return false;
+    if (S.held > 0) return false;
+    if (!S.pegs[j].length) return false;
+    S.lock = true;
+    var d = S.pegs[j].pop();
+    S.held = d; S.heldFrom = j;
+    SFX.pick();
+    var dv = discEls[d];
+    renderZones(); renderHUD();
+    return animLift(d, j, false).then(function () {
+      dv.classList.add('held-disc');   /* 悬浮摆动在滑到位后再挂，避免 keyframe 抢掉上浮过渡 */
+      S.lock = false; renderHUD();     /* 解锁即重渲染：held 态三钮须可点（撤一步含 held 分支） */
+      return true;
+    });
+  }
+
+  /* dropPeg 返回 Promise<true>（合法/放回）或 Promise<false>（非法） */
+  function dropPeg(j) {
+    if (S.mode !== 'play' || S.lock) return Promise.resolve(false);
+    if (S.held < 0) return Promise.resolve(false);
+    var d = S.held, from = S.heldFrom;
+    var isBack = (j === from);
+    var legal = isBack || topOf(j) > d;
+    S.lock = true;
+    var dv = discEls[d];
+    dv.classList.remove('held-disc');
+    S.held = -1; S.heldFrom = -1;   /* 飞行中即撤悬浮高亮/虚位框，落地链用局部 d/from */
+    renderZones(); renderHUD();
+    if (!legal) {
+      /* 非法：滑至目标上方 → 红闪抖动 → 送回原柱顶 */
+      SFX.bad();
+      return animSlide(d, from, j, false).then(function () {
+        dv.classList.add('bad');
+        return sleep(430).then(function () {
+          dv.classList.remove('bad');
+          return animSlide(d, j, from, false);
+        });
+      }).then(function () {
+        return animLand(d, from, S.pegs[from].length, false);
+      }).then(function () {
+        S.pegs[from].push(d);
+        S.held = -1; S.heldFrom = -1;
+        placeStatic(); S.lock = false; renderHUD();   /* 非法抖动收尾同样重渲染解锁钮 */
+        return false;
+      });
+    }
+    SFX.drop();
+    return Promise.all([animSlide(d, from, j, false)]).then(function () {
+      return animLand(d, j, S.pegs[j].length, false);
+    }).then(function () {
+      S.pegs[j].push(d);
+      S.held = -1; S.heldFrom = -1;
+      if (!isBack) { S.moves++; S.undoStack.push([from, j]); }
+      renderHUD(); renderZones();
+      S.lock = false;
+      if (S.pegs[2].length === S.n && !isBack) return finish();
+      return true;
+    });
+  }
+
+  function undo() {
+    if (S.mode !== 'play' || S.lock) return Promise.resolve(false);
+    if (!S.undoStack.length) return Promise.resolve(false);
+    /* SPEC：拿起未放状态先放回原柱（不计步）再撤 */
+    if (S.held > 0) {
+      var hd = S.held, hf = S.heldFrom;
+      S.lock = true;
+      var hdv = discEls[hd];
+      hdv.classList.remove('held-disc');
+      S.held = -1; S.heldFrom = -1;
+      renderZones(); renderHUD();
+      return animLand(hd, hf, S.pegs[hf].length, false).then(function () {
+        S.pegs[hf].push(hd);
+        placeStatic(); S.lock = false;
+        return undo();
+      });
+    }
+    var mv = S.undoStack[S.undoStack.length - 1];
+    var src = mv[1], dst = mv[0];   /* 盘在 mv[1]，撤回 mv[0] */
+    S.lock = true;
+    SFX.undo();
+    var d = S.pegs[src].pop();
+    S.held = d; S.heldFrom = src;
+    var dv = discEls[d];
+    return animLift(d, src, false).then(function () {
+      return animSlide(d, src, dst, false);
+    }).then(function () {
+      return animLand(d, dst, S.pegs[dst].length, false);
+    }).then(function () {
+      S.pegs[dst].push(d);
+      S.held = -1; S.heldFrom = -1;
+      S.moves--; S.undoStack.pop();
+      renderHUD(); renderZones();
+      S.lock = false;
+      return true;
+    });
+  }
+
+  function restart() {
+    if (S.mode !== 'play' || S.lock) return false;
+    startGame(S.n);
+    return true;
+  }
+
+  /* ── 最优下一步：step(d, dest) 经典递归 ── */
+  function solveNext() {
+    if (S.held > 0) return null;
+    function step(d, dest) {
+      if (d <= 0) return null;
+      var p = pegOf(d);
+      if (p === dest) return step(d - 1, dest);
+      var aux = 3 - p - dest;
+      var inner = step(d - 1, aux);
+      if (inner) return inner;
+      return [p, dest];
+    }
+    return step(S.n, 2);
+  }
+
+  function hint() {
+    if (S.mode !== 'play' || S.lock) return false;
+    if (S.held > 0 || S.hints <= 0) return false;
+    var mv = solveNext();
+    if (!mv) return false;
+    S.hints--; S.hintUsed++;
+    SFX.hint();
+    var d = S.pegs[mv[0]][S.pegs[mv[0]].length - 1];
+    var dv = discEls[d];
+    dv.classList.remove('hint-disc'); void dv.offsetWidth; dv.classList.add('hint-disc');
+    pegEls[mv[1]].classList.add('lit');
+    setTimeout(function () { dv.classList.remove('hint-disc'); pegEls[mv[1]].classList.remove('lit'); renderZones(); }, 1850);
+    renderHUD();
+    return mv;
+  }
+
+  /* ── bot：最优全解（真实动画链） ── */
+  function solveAll(fast) {
+    return new Promise(function (resolve) {
+      var steps = 0, expect = minMoves(S.n);
+      function tick() {
+        if (S.pegs[2].length === S.n) {
+          if (S.mode === 'play') finish();   /* fast 路径不走 dropPeg，此处补终局 */
+          resolve({ ok: steps === expect, steps: steps, expect: expect });
+          return;
+        }
+        if (S.mode !== 'play') { resolve({ ok: false, at: 'mode', steps: steps }); return; }
+        var mv = solveNext();
+        if (!mv) { resolve({ ok: false, at: 'solveNext', steps: steps }); return; }
+        /* 快速路径：跳过逐帧动画，直接状态转移+瞬时摆位 */
+        if (fast) {
+          var d = S.pegs[mv[0]].pop();
+          S.pegs[mv[1]].push(d);
+          S.moves++; S.undoStack.push([mv[0], mv[1]]);
+          steps++;
+          renderHUD(); placeStatic();
+          setTimeout(tick, 0);
+        } else {
+          pickPeg(mv[0]).then(function (ok) {
+            if (!ok) { resolve({ ok: false, at: 'pick', steps: steps }); return; }
+            return dropPeg(mv[1]).then(function (r) {
+              if (r === false) { resolve({ ok: false, at: 'drop', steps: steps }); return; }
+              steps++;
+              setTimeout(tick, 30);
+            });
+          }).catch(function () { resolve({ ok: false, at: 'err', steps: steps }); });
+        }
+      }
+      tick();
+    });
+  }
+
+  function bestLine() {
+    var parts = NS.map(function (n) {
+      var b = safeStorage.get('mq_g38_best_' + n, null);
+      return NUMCN[n] + ' ' + (b == null ? '—' : b);
+    });
+    el.menuBest.textContent = parts.join(' · ');
+  }
+
+  function showMenu() {
+    S.mode = 'menu'; S.lock = false;
+    if (S.held > 0 && S.heldFrom >= 0) {   /* 悬浮盘收落原柱，撤下摆动 */
+      var hd = S.held;
+      if (discEls[hd]) discEls[hd].classList.remove('held-disc');
+      S.pegs[S.heldFrom].push(hd);
+      S.held = -1; S.heldFrom = -1;
+      placeStatic();
+    }
+    el.end.hidden = true; el.menu.hidden = false;
+    el.bell.classList.remove('ring');
+    bestLine();
+  }
+
+  /* ── 绑定 ── */
+  el.tUndo.addEventListener('pointerdown', function () { undo(); });
+  el.tReset.addEventListener('pointerdown', function () { restart(); });
+  el.tHint.addEventListener('pointerdown', function () { hint(); });
+  el.btnHome.addEventListener('click', function () { if (S.mode === 'play' || S.mode === 'end') showMenu(); });
+  var lvBtns = document.querySelectorAll('#menu .lvgrid button');
+  for (var bi = 0; bi < lvBtns.length; bi++) {
+    (function (btn) {
+      btn.addEventListener('click', function () { SFX.unlock(); startGame(parseInt(btn.getAttribute('data-n'), 10)); });
+    })(lvBtns[bi]);
+  }
+  el.endOk.addEventListener('click', function () { startGame(S.n); });
+  el.endMenu.addEventListener('click', showMenu);
+
+  /* ── 声音开关（系列统一形态） ── */
+  var SND_ON =
+    '<svg width="20" height="20" viewBox="0 0 20 20">' +
+    '<path d="M3 8 h3 l4 -3.4 v10.8 L6 12 H3z" fill="#e8b23c"/>' +
+    '<path d="M13 7 q2 3 0 6 M15.5 5 q3.2 5 0 10" stroke="#7a5c18" stroke-width="1.7" fill="none" stroke-linecap="round"/>' +
+    '</svg>';
+  var SND_OFF =
+    '<svg width="20" height="20" viewBox="0 0 20 20">' +
+    '<path d="M3 8 h3 l4 -3.4 v10.8 L6 12 H3z" fill="#9a8a72"/>' +
+    '<path d="M13 7.5 l5 5 M18 7.5 l-5 5" stroke="#c9553f" stroke-width="1.9" stroke-linecap="round"/>' +
+    '</svg>';
+  function sndIcon() {
+    el.btnSnd.innerHTML = SFX.isOn() ? SND_ON : SND_OFF;
+    el.btnSnd.classList.toggle('off', !SFX.isOn());
+  }
+  el.btnSnd.addEventListener('click', function () { SFX.toggle(); sndIcon(); });
+
+  
+
+  /* ═══ 启动 ═══ */
+  sndIcon();
+  showMenu();
+})();
+</script>
+</body>
+</html>
