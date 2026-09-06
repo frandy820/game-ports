@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#141210">
+<title>金库转转 · 口袋游戏机</title>
+<style>
+:root{--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px)}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;position:fixed}
+body{
+  background:linear-gradient(178deg,#2a2620 0%,#1c1915 46%,#141210 100%);
+  color:#ece4d4;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+  touch-action:none;user-select:none;-webkit-user-select:none;
+}
+#app{position:relative;width:100%;height:100%;max-width:520px;margin:0 auto}
+.screen{position:absolute;inset:0;display:none}
+.screen.on{display:block}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+#menu{display:none;flex-direction:column;align-items:center;justify-content:center;gap:0;
+  background:radial-gradient(130% 55% at 50% -4%,#3a342a 0%,rgba(58,52,42,0) 60%),
+             linear-gradient(178deg,#2a2620 0%,#221e19 55%,#12100d 100%)}
+#menu.on{display:flex}
+.m-kicker{font-size:11.5px;letter-spacing:.42em;color:#a89878;margin-bottom:14px;padding-left:.42em}
+.m-title{font-size:46px;font-weight:800;letter-spacing:.06em;
+  background:linear-gradient(105deg,#f4ead2 18%,#d8c8a0 52%,#e6c07a 88%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 3px 12px rgba(216,184,120,.22))}
+.m-sub{margin-top:12px;color:#b0a488;font-size:13.5px;letter-spacing:.18em;padding-left:.18em}
+#m-art{width:216px;height:150px;margin:24px 0 4px}
+.btn{display:block;width:206px;margin:0 auto;border:none;cursor:pointer;
+  font-family:inherit;font-size:17px;font-weight:700;letter-spacing:.22em;padding:15px 0 15px .22em;
+  color:#1c1812;border-radius:14px;background:linear-gradient(168deg,#eedeb8,#c8a45a);
+  box-shadow:0 6px 22px rgba(216,184,120,.24),inset 0 1px 0 rgba(255,255,255,.55)}
+.btn:active{transform:translateY(2px) scale(.985)}
+.btn.ghost{background:linear-gradient(168deg,rgba(216,184,120,.1),rgba(216,184,120,.03));color:#c8b888;box-shadow:inset 0 0 0 1.8px rgba(200,180,136,.5);font-size:14px;padding:12px 0 12px .22em;margin-top:14px}
+#m-rec{margin-top:18px;color:#a89878;font-size:12.5px;letter-spacing:.12em}
+#m-rec b{color:#e6c07a;font-weight:700}
+.m-foot{position:absolute;bottom:calc(var(--sab) + 16px);left:0;right:0;text-align:center;color:#6a6250;font-size:10.5px;letter-spacing:.12em}
+#game{padding-top:calc(var(--sat) + 4px)}
+#hud{position:relative;z-index:6;display:flex;align-items:center;gap:8px;padding:4px 14px 4px}
+.hud-title{font-size:19px;font-weight:800;letter-spacing:.1em;color:#ece0c8;line-height:1.15}
+.hud-title .hud-k{display:block;font-size:8.5px;letter-spacing:.34em;color:#9b8b60;font-weight:600}
+.hud-score{flex:1;text-align:right;font-size:12px;color:#b0a488;line-height:1.25}
+.hud-score b{display:block;font-size:19px;color:#f6efdc;font-weight:800;font-variant-numeric:tabular-nums}
+.icon-btn{width:36px;height:36px;border-radius:11px;border:1.4px solid rgba(200,180,136,.4);
+  background:rgba(20,18,16,.72);color:#d8ccae;font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.icon-btn:active{transform:scale(.94)}
+.icon-btn.off{color:#5a5240}
+#vault{position:relative;margin:24px 18px 0;border-radius:18px;padding:16px 12px 14px;
+  background:linear-gradient(172deg,#3a332a 0%,#2c2620 55%,#221d18 100%);
+  border:1.6px solid rgba(216,184,120,.4);
+  box-shadow:0 10px 34px rgba(0,0,0,.5),inset 0 1px 0 rgba(240,225,190,.16),inset 0 -2px 0 rgba(0,0,0,.4)}
+#vault::before{content:"";position:absolute;inset:6px;border-radius:13px;border:1px dashed rgba(216,184,120,.22);pointer-events:none}
+.rivet{position:absolute;width:5px;height:5px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#e8d8ac,#8a744a);box-shadow:0 1px 2px rgba(0,0,0,.5)}
+#reels{display:flex;gap:8px;justify-content:center;position:relative;z-index:2}
+.reel{position:relative;width:92px;height:104px;border-radius:10px;overflow:hidden;
+  background:linear-gradient(178deg,#191512 0%,#221c16 50%,#191512 100%);
+  border:2px solid rgba(216,184,120,.5);
+  box-shadow:inset 0 10px 16px rgba(0,0,0,.65),inset 0 -10px 16px rgba(0,0,0,.65)}
+.reel .strip{position:absolute;left:0;right:0;top:0;transition:none}
+.reel .cellr{height:104px;display:flex;align-items:center;justify-content:center}
+@media (max-width:359px){.reel{width:80px}}   /* m8: 窄屏显式缩轮（置 .cellr 后保证源序生效） */
+.reel.lit{border-color:#e6c07a;box-shadow:inset 0 0 22px rgba(230,192,122,.18),inset 0 10px 16px rgba(0,0,0,.6),inset 0 -10px 16px rgba(0,0,0,.6)}
+.reel.near{animation:nearpulse .5s ease-in-out infinite}
+@keyframes nearpulse{0%,100%{border-color:rgba(230,192,122,.6)}50%{border-color:#f0d090}}
+.reel .glass{position:absolute;inset:0;z-index:3;pointer-events:none;
+  background:linear-gradient(178deg,rgba(255,246,220,.14) 0%,rgba(255,255,255,0) 26%,rgba(255,255,255,0) 74%,rgba(0,0,0,.22) 100%);
+  border-radius:8px}
+.reel .flash{position:absolute;inset:0;z-index:4;pointer-events:none;border-radius:8px;background:radial-gradient(60% 60% at 50% 50%,rgba(246,224,164,.5),rgba(246,224,164,0));opacity:0}
+.reel .flash.go{animation:fl .38s ease-out}
+@keyframes fl{0%{opacity:0}30%{opacity:1}100%{opacity:0}}
+#payline{position:absolute;left:6px;right:6px;top:50%;height:0;z-index:5;pointer-events:none;
+  border-top:1.6px solid rgba(230,192,122,.55)}
+#payline::before,#payline::after{content:"";position:absolute;top:-4px;width:7px;height:7px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#f0d8a0,#a08040)}
+#payline::before{left:-2px}#payline::after{right:-2px}
+#msg{margin:10px 18px 0;height:22px;text-align:center;font-size:13.5px;letter-spacing:.1em;color:#c8b888;font-weight:600;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#msg.win{color:#e6c07a}
+#msg.jack{color:#f4dc9a;text-shadow:0 0 12px rgba(230,192,122,.5)}
+#dock{display:flex;flex-direction:column;gap:10px;margin:8px 18px calc(var(--sab) + 10px);
+  min-height:150px;justify-content:center}
+#bet-bar{display:flex;gap:8px;justify-content:center}
+.chip{border:none;cursor:pointer;font-family:inherit;font-size:14px;font-weight:700;letter-spacing:.06em;
+  min-width:64px;padding:10px 0 9px;border-radius:12px;color:#d8ccae;
+  background:linear-gradient(168deg,rgba(216,184,120,.1),rgba(216,184,120,.03));
+  box-shadow:inset 0 0 0 1.6px rgba(200,180,136,.45)}
+.chip.on{color:#1c1812;background:linear-gradient(168deg,#eedeb8,#c8a45a);box-shadow:0 4px 14px rgba(216,184,120,.25)}
+.chip:disabled{filter:saturate(.35) brightness(.72);cursor:default}
+#spin{display:block;width:100%;border:none;cursor:pointer;font-family:inherit;
+  font-size:19px;font-weight:800;letter-spacing:.42em;padding:16px 0 16px .42em;color:#1c1812;border-radius:15px;
+  background:linear-gradient(168deg,#f2e2b0 0%,#d8b878 60%,#c8a45a 100%);
+  box-shadow:0 7px 24px rgba(216,184,120,.28),inset 0 1px 0 rgba(255,255,255,.6),inset 0 -3px 0 rgba(120,90,40,.35)}
+#spin:active{transform:translateY(2px)}
+#spin:disabled{filter:saturate(.35) brightness(.72);cursor:default;transform:none}
+#sub-row{display:flex;gap:10px;justify-content:center}
+.sub{border:none;cursor:pointer;font-family:inherit;font-size:12px;letter-spacing:.14em;color:#a89878;
+  background:rgba(20,18,16,.5);padding:9px 16px;border-radius:11px;box-shadow:inset 0 0 0 1.3px rgba(200,180,136,.3)}
+.sub:active{transform:scale(.96)}
+.floatxt{position:absolute;z-index:9;font-weight:800;pointer-events:none;letter-spacing:.08em;color:#f0d890;
+  animation:fup 1.1s ease-out forwards;text-shadow:0 1px 10px rgba(0,0,0,.65)}
+@keyframes fup{0%{transform:translate(-50%,0) scale(.8);opacity:0}16%{opacity:1;transform:translate(-50%,-10px) scale(1)}
+  100%{transform:translate(-50%,-52px) scale(1);opacity:0}}
+.ov{position:fixed;left:0;top:0;right:0;bottom:0;z-index:40;background:rgba(8,6,4,.6);
+  -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center}
+.ov.on{display:flex}
+.panel{position:relative;width:84%;max-width:340px;max-height:76vh;overflow-y:auto;border-radius:18px;padding:20px 18px 18px;
+  background:linear-gradient(172deg,#332c22,#221d16);border:1.4px solid rgba(216,184,120,.4);
+  box-shadow:0 18px 50px rgba(0,0,0,.6)}
+.panel h3{font-size:15px;letter-spacing:.24em;color:#e6c07a;margin-bottom:12px;text-align:center}
+.panel .x{position:absolute;top:10px;right:13px;color:#a89878;font-size:15px;padding:4px;cursor:pointer}
+.payt{width:100%;border-collapse:collapse;font-size:12.5px}
+.payt td{padding:7px 4px;border-bottom:1px solid rgba(216,184,120,.12);color:#c8bc9c}
+.payt td:last-child{text-align:right;color:#f0d890;font-weight:700;font-variant-numeric:tabular-nums}
+.payt tr:first-child td{border-top:1px solid rgba(216,184,120,.12)}
+#coll-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.citem{position:relative;border-radius:12px;padding:8px 4px 7px;text-align:center;
+  background:rgba(16,14,12,.55);border:1px solid rgba(216,184,120,.16)}
+.citem svg{display:block;margin:0 auto 4px}
+.citem .cn{font-size:10px;letter-spacing:.06em;color:#8a7c60;line-height:1.35}
+.citem.got{border-color:rgba(230,192,122,.45)}
+.citem.got .cn{color:#e8d8ac}
+.citem:not(.got) svg{filter:grayscale(1) brightness(.5);opacity:.5}
+#coll-count{text-align:center;font-size:11.5px;color:#a89878;margin-top:10px;letter-spacing:.1em}
+#coll-count b{color:#e6c07a}
+@media (max-height:700px){
+  #m-art{width:160px;height:114px;margin:18px 0 2px}
+  .m-title{font-size:38px}
+  .reel{width:80px;height:92px}
+  .reel .cellr{height:92px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="menu" class="screen on">
+    <div class="m-kicker">深 夜 金 库</div>
+    <div class="m-title">金库转转</div>
+    <div class="m-sub">三转轮 · 库藏图鉴</div>
+    <svg id="m-art" viewBox="0 0 216 150">
+      <defs>
+        <radialGradient id="mgl50" cx=".35" cy=".3" r=".95"><stop offset="0" stop-color="#f6e8bc"/><stop offset=".55" stop-color="#d8b878"/><stop offset="1" stop-color="#8a6a34"/></radialGradient>
+        <linearGradient id="mbr50" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a332a"/><stop offset="1" stop-color="#221d16"/></linearGradient>
+        <radialGradient id="mpe50" cx=".35" cy=".3" r=".95"><stop offset="0" stop-color="#f4f0e4"/><stop offset=".6" stop-color="#d8d2be"/><stop offset="1" stop-color="#a8a08a"/></radialGradient>
+        <radialGradient id="mge50" cx=".35" cy=".3" r=".95"><stop offset="0" stop-color="#8ad8b8"/><stop offset=".55" stop-color="#3a9a7a"/><stop offset="1" stop-color="#1a5a44"/></radialGradient>
+      </defs>
+      <rect x="22" y="8" width="172" height="132" rx="14" fill="url(#mbr50)" stroke="#c8a45a" stroke-width="1.8"/>
+      <g fill="#c8a45a"><circle cx="30" cy="16" r="1.8"/><circle cx="186" cy="16" r="1.8"/><circle cx="30" cy="132" r="1.8"/><circle cx="186" cy="132" r="1.8"/><circle cx="108" cy="16" r="1.8"/><circle cx="108" cy="132" r="1.8"/></g>
+      <rect x="34" y="30" width="44" height="52" rx="7" fill="#191512" stroke="rgba(216,184,120,.55)" stroke-width="1.4"/>
+      <rect x="86" y="30" width="44" height="52" rx="7" fill="#191512" stroke="rgba(216,184,120,.55)" stroke-width="1.4"/>
+      <rect x="138" y="30" width="44" height="52" rx="7" fill="#191512" stroke="rgba(216,184,120,.55)" stroke-width="1.4"/>
+      <g transform="translate(56 56)">
+        <path d="M-11 -5 Q0 -13 11 -5 L8 7 Q0 12 -8 7 Z" fill="url(#mgl50)" stroke="#8a6a34" stroke-width="1"/>
+        <ellipse cx="-4" cy="-3" rx="4.4" ry="2.4" fill="rgba(255,255,255,.45)" transform="rotate(-18 -4 -3)"/>
+      </g>
+      <g transform="translate(108 56)"><circle r="11" fill="url(#mpe50)" stroke="#8a7c5a" stroke-width="1"/><circle r="6.8" fill="none" stroke="#9a8c6a" stroke-width="1.2"/><rect x="-1.6" y="-1.6" width="3.2" height="3.2" fill="#8a7c5a"/></g>
+      <g transform="translate(160 56)"><path d="M0 -11 L8 -2 L5 9 L-5 9 L-8 -2 Z" fill="url(#mge50)" stroke="#1a5a44" stroke-width="1"/><path d="M-4 2 L0 5 L5 -3" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="1.6"/></g>
+      <g stroke="rgba(230,192,122,.5)" stroke-width="1.2" stroke-linecap="round" fill="none">
+        <path d="M40 92 q8 -5 16 0 t16 0" opacity=".6"/>
+        <path d="M132 100 q8 -5 16 0 t16 0" opacity=".4"/>
+      </g>
+      <g style="animation:floaty 2.6s ease-in-out infinite">
+        <rect x="80" y="104" width="56" height="20" rx="10" fill="#191512" stroke="#c8a45a" stroke-width="1.4"/>
+        <text x="111" y="118" font-size="9.5" font-weight="800" letter-spacing="3" fill="#e6c07a" text-anchor="middle">开转</text>
+      </g>
+    </svg>
+    <button class="btn" id="btn-start">开 库</button>
+    <button class="btn ghost" id="btn-how">赔 率</button>
+    <button class="btn ghost" id="btn-coll" style="margin-top:10px">库 藏 图 鉴</button>
+    <div id="m-rec"></div>
+    <div class="m-foot">三转定音 · 库藏集星</div>
+  </div>
+
+  <div id="game" class="screen">
+    <div id="hud">
+      <button class="icon-btn" id="btn-home">⌂</button>
+      <div class="hud-title"><span class="hud-k">深 夜 金 库</span>金库转转</div>
+      <div class="hud-score">金库余额<b id="bank">1000</b></div>
+      <button class="icon-btn off" id="btn-snd">♪̶</button>
+    </div>
+    <div id="vault">
+      <div class="rivet" style="left:7px;top:7px"></div><div class="rivet" style="right:7px;top:7px"></div>
+      <div class="rivet" style="left:7px;bottom:7px"></div><div class="rivet" style="right:7px;bottom:7px"></div>
+      <div id="reels">
+        <div class="reel" id="r0"><div class="strip"></div><div class="glass"></div><div class="flash"></div></div>
+        <div class="reel" id="r1"><div class="strip"></div><div class="glass"></div><div class="flash"></div></div>
+        <div class="reel" id="r2"><div class="strip"></div><div class="glass"></div><div class="flash"></div></div>
+        <div id="payline"></div>
+      </div>
+    </div>
+    <div id="msg">押注开转 · 三转定音</div>
+    <div id="dock">
+      <div id="bet-bar">
+        <button class="chip on" data-bet="10">10</button>
+        <button class="chip" data-bet="25">25</button>
+        <button class="chip" data-bet="50">50</button>
+      </div>
+      <button id="spin">开 转</button>
+      <div id="sub-row">
+        <button class="sub" id="btn-pay2">赔 率</button>
+        <button class="sub" id="btn-coll2">图 鉴</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ov" id="pay-ov">
+    <div class="panel">
+      <div class="x" id="pay-x">✕</div>
+      <h3>赔 率 表</h3>
+      <table class="payt">
+        <tr><td>三金锭 · 镇库之宝</td><td>×120</td></tr>
+        <tr><td>三钥匙 · 万能钥匙</td><td>×40</td></tr>
+        <tr><td>三元宝 / 三宝石</td><td>×12</td></tr>
+        <tr><td>三铜钱 / 三珍珠</td><td>×8</td></tr>
+        <tr><td>恰两金锭</td><td>×3</td></tr>
+        <tr><td>其他恰两同</td><td>×1 退本</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="ov" id="coll-ov">
+    <div class="panel">
+      <div class="x" id="coll-x">✕</div>
+      <h3>库 藏 图 鉴</h3>
+      <div id="coll-grid"></div>
+      <div id="coll-count"></div>
+    </div>
+  </div>
+
+</div>
+<script>
+"use strict";
+/* ================= 金库转转 · 三轴转轮 ================= */
+var SYMS=[
+  {id:'ingot', w:1, pay3:120, name:'金锭'},
+  {id:'coin',  w:3, pay3:8,   name:'铜钱'},
+  {id:'yuanbao',w:2,pay3:12,  name:'元宝'},
+  {id:'pearl', w:3, pay3:8,   name:'珍珠'},
+  {id:'gem',   w:2, pay3:12,  name:'宝石'},
+  {id:'key',   w:1, pay3:40,  name:'钥匙'}
+];
+var SYM={};SYMS.forEach(function(s){SYM[s.id]=s});
+var STRIP=['coin','pearl','yuanbao','gem','coin','pearl','ingot','yuanbao','gem','coin','pearl','key'];
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+var R=mulberry(20260907);
+var S={
+  bank:1000,best:0,spins:0,relief:0,losing:0,
+  bet:10,busy:false,
+  coll:{},pos:[4,8,1],result:null,sndOn:false
+};
+function loadS(){try{
+  S.bank=+localStorage.getItem('g50_bank')||1000;
+  S.best=+localStorage.getItem('g50_best')||0;
+  S.spins=+localStorage.getItem('g50_spins')||0;
+  S.relief=+localStorage.getItem('g50_relief')||0;
+  var c=JSON.parse(localStorage.getItem('g50_coll')||'{}');
+  if(c&&typeof c==='object')S.coll=c;
+}catch(e){}}
+function saveS(){try{
+  localStorage.setItem('g50_bank',String(Math.round(S.bank)));
+  localStorage.setItem('g50_best',String(S.best));
+  localStorage.setItem('g50_spins',String(S.spins));
+  localStorage.setItem('g50_relief',String(S.relief));
+  localStorage.setItem('g50_coll',JSON.stringify(S.coll));
+}catch(e){}}
+/* ---------- 赔付（数据层纯函数） ---------- */
+function payoutOf(p0,p1,p2){
+  var a=STRIP[p0],b=STRIP[p1],c=STRIP[p2];
+  if(a===b&&b===c){
+    var sy=SYM[a];
+    return {mult:sy.pay3,kind:'triple',sym:a,name:sy.name};
+  }
+  var gold=0;
+  if(a==='ingot')gold++;if(b==='ingot')gold++;if(c==='ingot')gold++;
+  if(gold===2)return {mult:3,kind:'twoIngot',sym:'ingot',name:'双金'};
+  var pair=null;
+  if(a===b||a===c)pair=a;else if(b===c)pair=b;
+  if(pair)return {mult:1,kind:'pair',sym:pair,name:SYM[pair].name};
+  return {mult:0,kind:'none',sym:null,name:''};
+}
+/* ---------- 图鉴 ---------- */
+var COLL_DEF=[
+  {id:'treasure',name:'镇库之宝',svg:'ingot'},
+  {id:'key3',name:'万能钥匙',svg:'key'},
+  {id:'yuanbao3',name:'金玉满堂',svg:'yuanbao'},
+  {id:'gem3',name:'点石成金',svg:'gem'},
+  {id:'coin3',name:'聚宝盆',svg:'coin'},
+  {id:'pearl3',name:'沧海遗珠',svg:'pearl'},
+  {id:'doubleIngot',name:'双金临门',svg:'ingot'},
+  {id:'firstTriple',name:'开张大吉',svg:'coin'},
+  {id:'relief',name:'雪中送炭',svg:'key'},
+  {id:'spins100',name:'常客',svg:'pearl'},
+  {id:'grandSlam',name:'大满贯',svg:'gem'},
+  {id:'turnaround',name:'否极泰来',svg:'yuanbao'}
+];
+function unlock(id){
+  if(S.coll[id])return false;
+  S.coll[id]=1;saveS();
+  return true;
+}
+function checkColl(r,win){
+  var news=[];
+  function u(id){if(unlock(id))news.push(id)}
+  if(r.kind==='triple'){
+    u('firstTriple');
+    var map={ingot:'treasure',key:'key3',yuanbao:'yuanbao3',gem:'gem3',coin:'coin3',pearl:'pearl3'};
+    u(map[r.sym]);
+  }
+  if(r.kind==='twoIngot')u('doubleIngot');
+  if(win>=1000)u('grandSlam');
+  if(S.losing>=5&&r.mult>0)u('turnaround');
+  if(S.spins>=100)u('spins100');
+  return news;
+}
+/* ---------- 音效 ---------- */
+var AC=null;
+function ac(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)}catch(e){}}return AC}
+function beep(f,d,type,vol,slide){
+  if(!S.sndOn)return; var a=ac(); if(!a)return;
+  try{
+    var o=a.createOscillator(),g=a.createGain(),t=a.currentTime;
+    o.type=type||'sine'; o.frequency.setValueAtTime(f,t);
+    if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(40,slide),t+d);
+    g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(vol||.13,t+.012);
+    g.gain.exponentialRampToValueAtTime(.0001,t+d);
+    o.connect(g); g.connect(a.destination); o.start(t); o.stop(t+d+.03);
+  }catch(e){}
+}
+var SND={
+  tick:function(){beep(320,.03,'square',.05)},
+  stop:function(i){beep(420+i*120,.09,'triangle',.12,260)},
+  win:function(m){[520,640,830,1040].slice(0,m>=8?4:2).forEach(function(f,i){setTimeout(function(){beep(f,.15,'triangle',.13)},i*110)})},
+  jack:function(){[520,660,830,1040,1240].forEach(function(f,i){setTimeout(function(){beep(f,.18,'triangle',.14)},i*110)})},
+  lose:function(){beep(160,.14,'sine',.09,120)},
+  ui:function(){beep(500,.06,'sine',.1)},
+  coll:function(){beep(880,.1,'triangle',.12);setTimeout(function(){beep(1100,.12,'triangle',.12)},110)}
+};
+/* ---------- 符号 SVG ---------- */
+var SVG_DEFS='<radialGradient id="g-ingot" cx=".35" cy=".3" r=".95"><stop offset="0" stop-color="#f6e8bc"/><stop offset=".55" stop-color="#d8b878"/><stop offset="1" stop-color="#8a6a34"/></radialGradient>'+
+  '<radialGradient id="g-coin" cx=".35" cy=".3" r=".95"><stop offset="0" stop-color="#f4ecd8"/><stop offset=".6" stop-color="#d8ccae"/><stop offset="1" stop-color="#a89c80"/></radialGradient>'+
+  '<radialGradient id="g-pearl" cx=".35" cy=".3" r=".95"><stop offset="0" stop-color="#fbf8ee"/><stop offset=".6" stop-color="#e2dcc8"/><stop offset="1" stop-color="#b0a890"/></radialGradient>'+
+  '<radialGradient id="g-gem" cx=".35" cy=".3" r=".95"><stop offset="0" stop-color="#8ad8b8"/><stop offset=".55" stop-color="#3a9a7a"/><stop offset="1" stop-color="#1a5a44"/></radialGradient>';
+var SYM_BODY={
+  ingot:'<path d="M-14 -6 Q0 -15 14 -6 L10 8 Q0 14 -10 8 Z" fill="url(#g-ingot)" stroke="#8a6a34" stroke-width="1"/><ellipse cx="-5" cy="-4" rx="5.4" ry="2.8" fill="rgba(255,255,255,.45)" transform="rotate(-18 -5 -4)"/>',
+  coin:'<circle r="14" fill="url(#g-coin)" stroke="#8a7c5a" stroke-width="1"/><circle r="8.6" fill="none" stroke="#9a8c6a" stroke-width="1.3"/><rect x="-2" y="-2" width="4" height="4" fill="#8a7c5a"/>',
+  yuanbao:'<path d="M-12 4 Q-13 -7 -6 -6 Q-3 -13 0 -13 Q3 -13 6 -6 Q13 -7 12 4 Q6 9 0 9 Q-6 9 -12 4 Z" fill="url(#g-ingot)" stroke="#8a6a34" stroke-width="1"/><path d="M-7 2 Q0 -2 7 2" fill="none" stroke="#8a6a34" stroke-width="1.1"/><ellipse cx="-4" cy="-7" rx="3.6" ry="1.8" fill="rgba(255,255,255,.4)" transform="rotate(-16 -4 -7)"/>',
+  pearl:'<circle r="12.5" fill="url(#g-pearl)" stroke="#9a927e" stroke-width="1"/><ellipse cx="-4.5" cy="-4.5" rx="4.6" ry="2.8" fill="rgba(255,255,255,.7)" transform="rotate(-30 -4.5 -4.5)"/>',
+  gem:'<path d="M0 -13 L9.5 -3 L6 11 L-6 11 L-9.5 -3 Z" fill="url(#g-gem)" stroke="#1a5a44" stroke-width="1"/><path d="M-4.6 2 L0 5.4 L5 -3.4" fill="none" stroke="rgba(255,255,255,.62)" stroke-width="1.8"/>',
+  key:'<circle cx="-6" cy="-4" r="5.6" fill="none" stroke="url(#g-ingot)" stroke-width="2.4"/><path d="M-2.6 -1 L8 9 M5 6 L8.4 2.8 M2 9.2 L5.2 6" stroke="url(#g-ingot)" stroke-width="2.4" fill="none" stroke-linecap="round"/>'
+};
+function symSvg(id,size){
+  var s=size||30;
+  return '<svg width="'+s+'" height="'+s+'" viewBox="-16 -16 32 32"><defs>'+SVG_DEFS+'</defs>'+(SYM_BODY[id]||'')+'</svg>';
+}
+/* ---------- DOM ---------- */
+var el={
+  menu:document.getElementById('menu'),game:document.getElementById('game'),
+  bank:document.getElementById('bank'),msg:document.getElementById('msg'),
+  spin:document.getElementById('spin'),mRec:document.getElementById('m-rec'),
+  collGrid:document.getElementById('coll-grid'),collCount:document.getElementById('coll-count'),
+  vault:document.getElementById('vault'),
+  reels:[document.getElementById('r0'),document.getElementById('r1'),document.getElementById('r2')]
+};
+function cellH(){return el.reels[0].offsetHeight||104}
+var reelBuilt=[false,false,false];
+function renderReel(i,pos){
+  var strip=el.reels[i].querySelector('.strip');
+  if(!strip)return;
+  var h=cellH();
+  if(!reelBuilt[i]){                       /* 一次性建 12+1 环绕长条，滚动只改 transform */
+    var html='';
+    for(var k=0;k<13;k++)html+='<div class="cellr">'+symSvg(STRIP[k%12],34)+'</div>';
+    strip.innerHTML=html;
+    reelBuilt[i]=true;
+  }
+  strip.style.transform='translateY('+(-pos*h)+'px)';
+}
+function renderAll(){for(var i=0;i<3;i++)renderReel(i,S.pos[i])}
+function updBank(){el.bank.textContent=Math.round(S.bank)}
+function updMsg(txt,cls){el.msg.textContent=txt;el.msg.className=cls||''}
+function floatWin(txt,size){
+  var f=document.createElement('div');f.className='floatxt';f.textContent=txt;
+  f.style.fontSize=(size||16)+'px';f.style.left='50%';f.style.top='30%';f.style.transform='translateX(-50%)';
+  el.vault.appendChild(f);setTimeout(function(){f.parentNode&&f.parentNode.removeChild(f)},1120);
+}
+function renderColl(){
+  var html='';
+  COLL_DEF.forEach(function(c){
+    var got=!!S.coll[c.id];
+    html+='<div class="citem'+(got?' got':'')+'">'+symSvg(c.svg,30)+'<div class="cn">'+(got?c.name:'？？？')+'</div></div>';
+  });
+  el.collGrid.innerHTML=html;
+  var n=COLL_DEF.filter(function(c){return S.coll[c.id]}).length;
+  el.collCount.innerHTML='已集 <b>'+n+'</b> / '+COLL_DEF.length;
+}
+function showMenuRec(){
+  el.mRec.innerHTML='余额 <b>'+Math.round(S.bank)+'</b> · 已转 <b>'+S.spins+'</b> 局 · 最高赢 <b>'+S.best+'</b>　图鉴 <b>'+COLL_DEF.filter(function(c){return S.coll[c.id]}).length+'</b>/12';
+}
+/* ---------- 核心流程 ---------- */
+function setBet(b){
+  if(S.busy)return;
+  S.bet=b;saveS();
+  var chips=document.querySelectorAll('.chip');
+  for(var i=0;i<chips.length;i++)chips[i].classList.toggle('on',+chips[i].getAttribute('data-bet')===b);
+  SND.ui();
+}
+function doSpin(){
+  if(S.busy)return;
+  if(S.bank<S.bet){                                  /* M3: 押注死区给反馈 */
+    if(S.bank>=10){updMsg('余额不足 · 降档再押','')}else tryRelief();
+    return;
+  }
+  S.busy=true;
+  S.bank-=S.bet;updBank();saveS();
+  el.spin.disabled=true;
+  var _chips=document.querySelectorAll('.chip');     /* m1: 转动中押注档锁定 */
+  for(var ci=0;ci<_chips.length;ci++)_chips[ci].disabled=true;
+  for(var ri=0;ri<3;ri++)el.reels[ri].classList.remove('lit','near');   /* M2: 清上局点亮 */
+  clearTimeout(S._nearT);
+  updMsg('转轮飞转……','');
+  var t0=R()*12|0,t1=R()*12|0,t2=R()*12|0;
+  var targets=[t0,t1,t2];
+  var r=payoutOf(t0,t1,t2);
+  S.result=r;
+  if(typeof document!=='undefined'&&document.hidden){
+    for(var i=0;i<3;i++){S.pos[i]=targets[i];renderReel(i,S.pos[i])}
+    finishSpin();return;
+  }
+  var rolls=[0,1,2].map(function(i){return (S.pos[i]+3)%12+Math.random()*2});
+  var tStart=Date.now();
+  var stops=[820,1320,1820];
+  var stopped=[false,false,false];
+  var tickIv=setInterval(function(){SND.tick()},130);
+  S._tickIv=tickIv;
+  (function roll(){
+    var now=Date.now(),done=true;
+    for(var i=0;i<3;i++){
+      if(stopped[i])continue;
+      done=false;
+      if(now-tStart>=stops[i]){
+        stopped[i]=true;S.pos[i]=targets[i];
+        renderReel(i,S.pos[i]);
+        SND.stop(i);
+        var fl=el.reels[i].querySelector('.flash');
+        if(fl){fl.classList.remove('go');void fl.offsetWidth;fl.classList.add('go')}   /* M1: 强制 reflow 重触发 */
+        el.reels[i].classList.add('lit');
+        if(i===2&&STRIP[targets[0]]===STRIP[targets[1]]&&STRIP[targets[2]]!==STRIP[targets[0]]){   /* m3: 仅真近失（前两同第三异） */
+          el.reels[2].classList.add('near');
+          S._nearT=setTimeout(function(){el.reels[2].classList.remove('near')},1200);
+        }
+      }else{
+        var sp=0.34+((stops[i]-(now-tStart))/2000)*0.5;
+        rolls[i]=(rolls[i]+sp)%12;
+        renderReel(i,rolls[i]);
+      }
+    }
+    if(!done){requestAnimationFrame(roll)}
+    else finishSpin();
+  })();
+}
+function finishSpin(){
+  clearInterval(S._tickIv);
+  var r=S.result;
+  var win=Math.round(S.bet*r.mult);
+  S.spins++;
+  if(r.mult>0){
+    S.bank+=win;S.losing=0;
+    if(win>S.best)S.best=win;
+    if(r.kind==='triple'){updMsg('三'+r.name+'！ +'+win,'jack');floatWin('+'+win,22);
+      if(r.mult>=40)SND.jack();else SND.win(r.mult)}
+    else if(r.kind==='twoIngot'){updMsg('双金临门！ +'+win,'win');floatWin('+'+win,17);SND.win(r.mult)}
+    else{updMsg(r.name+'一对 · 退本','win');SND.win(1)}
+  }else{
+    S.losing++;
+    updMsg('库门未开 · 再试','');
+    SND.lose();
+  }
+  var news=checkColl(r,win);
+  if(news.length){
+    var nm2=COLL_DEF.filter(function(c){return news.indexOf(c.id)>=0});
+    setTimeout(function(){
+      if(S.busy)return;                               /* m2: 玩家已开下一转则不覆写 */
+      updMsg('新收藏 · '+nm2.map(function(c){return c.name}).join('、'),'jack');
+      SND.coll();
+    },900);
+  }
+  updBank();saveS();
+  S.busy=false;el.spin.disabled=false;
+  var _chips2=document.querySelectorAll('.chip');
+  for(var ci2=0;ci2<_chips2.length;ci2++)_chips2[ci2].disabled=false;
+  if(S.bank<10)tryRelief();
+}
+function tryRelief(){
+  if(S.bank>=10)return;
+  S.bank+=200;S.relief++;
+  saveS();updBank();
+  updMsg('雪中送炭 · 补充 200','win');
+  if(unlock('relief'))SND.coll();else SND.ui();
+}
+/* ---------- 生命周期 ---------- */
+function startGame(){
+  el.menu.classList.remove('on');el.game.classList.add('on');
+  updBank();renderAll();
+  updMsg('押注开转 · 三转定音','');
+}
+function goMenu(){
+  el.game.classList.remove('on');el.menu.classList.add('on');
+  showMenuRec();
+}
+/* ---------- 事件 ---------- */
+document.getElementById('btn-start').addEventListener('click',function(){SND.ui();startGame()});
+document.getElementById('btn-home').addEventListener('click',function(){if(!S.busy){SND.ui();goMenu()}});
+document.getElementById('btn-snd').addEventListener('click',function(){
+  S.sndOn=!S.sndOn;this.classList.toggle('off',!S.sndOn);this.textContent=S.sndOn?'♪':'♪̶';
+  if(S.sndOn){var a=ac();if(a&&a.state==='suspended')a.resume();SND.ui()}
+});
+(function(){
+  var chips=document.querySelectorAll('.chip');
+  for(var i=0;i<chips.length;i++)(function(ch){
+    ch.addEventListener('click',function(){setBet(+ch.getAttribute('data-bet'))});
+  })(chips[i]);
+})();
+el.spin.addEventListener('click',function(){doSpin()});
+function bindOv(ovId,xId,openBtns){
+  var ov=document.getElementById(ovId),x=document.getElementById(xId);
+  function close(){ov.classList.remove('on');renderColl()}
+  x.addEventListener('click',function(e){e.stopPropagation();close()});
+  ov.addEventListener('click',function(e){if(e.target===ov)close()});
+  openBtns.forEach(function(id){
+    document.getElementById(id).addEventListener('click',function(){SND.ui();renderColl();ov.classList.add('on')});
+  });
+}
+bindOv('pay-ov','pay-x',['btn-how','btn-pay2']);
+bindOv('coll-ov','coll-x',['btn-coll','btn-coll2']);
+if(typeof requestAnimationFrame==='undefined'){window.requestAnimationFrame=function(f){return setTimeout(f,33)}}
+window.addEventListener('resize',function(){if(el.game.classList.contains('on'))renderAll()});
+/* ---------- 启动 ---------- */
+loadS();showMenuRec();renderColl();
+renderAll();
+
+
+</script>
+</body>
+</html>
