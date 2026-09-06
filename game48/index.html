@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0c1c2c">
+<title>跳珠 · 口袋游戏机</title>
+<style>
+:root{--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px)}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;position:fixed}
+body{
+  background:linear-gradient(178deg,#132a40 0%,#0c1c2c 48%,#081420 100%);
+  color:#e8eef4;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+  touch-action:none;user-select:none;-webkit-user-select:none;
+}
+#app{position:relative;width:100%;height:100%;max-width:520px;margin:0 auto}
+.screen{position:absolute;inset:0;display:none}
+.screen.on{display:block}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+/* ---------- 菜单 ---------- */
+#menu{display:none;flex-direction:column;align-items:center;justify-content:center;gap:0;
+  background:radial-gradient(130% 55% at 50% -4%,#1e3a54 0%,rgba(30,58,84,0) 60%),
+             linear-gradient(178deg,#132a40 0%,#102436 55%,#081320 100%)}
+#menu.on{display:flex}
+.m-kicker{font-size:11.5px;letter-spacing:.42em;color:#7d9ab4;margin-bottom:14px;padding-left:.42em}
+.m-title{font-size:46px;font-weight:800;letter-spacing:.06em;
+  background:linear-gradient(105deg,#e8f0f6 18%,#a8c8dc 52%,#e6cf9a 88%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 3px 12px rgba(168,200,220,.2))}
+.m-sub{margin-top:12px;color:#8fa8bc;font-size:13.5px;letter-spacing:.18em;padding-left:.18em}
+#m-art{width:216px;height:150px;margin:24px 0 4px}
+.btn{display:block;width:206px;margin:0 auto;border:none;cursor:pointer;
+  font-family:inherit;font-size:17px;font-weight:700;letter-spacing:.22em;padding:15px 0 15px .22em;
+  color:#0c1c2c;border-radius:14px;background:linear-gradient(168deg,#b8d4e4,#7d9cb4);
+  box-shadow:0 6px 22px rgba(184,212,228,.22),inset 0 1px 0 rgba(255,255,255,.5)}
+.btn:active{transform:translateY(2px) scale(.985)}
+.btn.ghost{background:linear-gradient(168deg,rgba(184,212,228,.1),rgba(184,212,228,.03));color:#a8c4d4;box-shadow:inset 0 0 0 1.8px rgba(168,196,212,.5);font-size:14px;padding:12px 0 12px .22em;margin-top:14px}
+.side-pick{display:flex;gap:0;margin-top:20px;border-radius:12px;overflow:hidden;
+  box-shadow:inset 0 0 0 1.6px rgba(168,196,212,.4)}
+.side-pick button{border:none;cursor:pointer;font-family:inherit;font-size:12.5px;letter-spacing:.12em;
+  padding:9px 18px;color:#8fa8bc;background:rgba(19,42,64,.85)}
+.side-pick button.on{color:#0c1c2c;background:linear-gradient(168deg,#b8d4e4,#7d9cb4);font-weight:700}
+#m-rec{margin-top:18px;color:#7d9ab4;font-size:12.5px;letter-spacing:.12em}
+#m-rec b{color:#e6cf9a;font-weight:700}
+.m-foot{position:absolute;bottom:calc(var(--sab) + 16px);left:0;right:0;text-align:center;color:#5a748c;font-size:10.5px;letter-spacing:.12em}
+/* ---------- 游戏 ---------- */
+#game{padding-top:calc(var(--sat) + 4px)}
+#hud{position:relative;z-index:6;display:flex;align-items:center;gap:8px;padding:4px 14px 4px}
+.hud-title{font-size:19px;font-weight:800;letter-spacing:.1em;color:#d8e4ec;line-height:1.15}
+.hud-title .hud-k{display:block;font-size:8.5px;letter-spacing:.34em;color:#9b8b60;font-weight:600}
+.hud-score{flex:1;text-align:right;font-size:12px;color:#8fa8bc;line-height:1.25}
+.hud-score b{display:block;font-size:19px;color:#eef4f8;font-weight:800;font-variant-numeric:tabular-nums}
+.icon-btn{width:36px;height:36px;border-radius:11px;border:1.4px solid rgba(168,196,212,.4);
+  background:rgba(12,28,44,.72);color:#c8d8e4;font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.icon-btn:active{transform:scale(.94)}
+.icon-btn.off{color:#54708a}
+/* 回合条 */
+#turnbar{display:flex;align-items:center;justify-content:center;gap:8px;margin:4px 14px 0;height:26px;
+  border-radius:8px;background:rgba(30,58,84,.35);border:1px solid rgba(168,196,212,.22)}
+#turnbar .dot{width:14px;height:14px;border-radius:50%;flex:none;box-shadow:0 1px 3px rgba(0,0,0,.4),inset 0 1px 2px rgba(255,255,255,.3)}
+#turnbar .dot.w{background:radial-gradient(circle at 35% 30%,#ffffff 0%,#eee8d6 55%,#c2b898 100%)}
+#turnbar .dot.b{background:radial-gradient(circle at 35% 30%,#5a7a92 0%,#2c465c 55%,#12222f 100%)}
+#turnbar span{font-size:11.5px;letter-spacing:.14em;color:#a8c4d4}
+#turnbar span.think{color:#8fa8bc}
+#turnbar .dot.thinkdot{animation:breath 1.2s ease-in-out infinite}
+#turnbar span.end{color:#e6cf9a;font-weight:700}
+/* 棋盘 */
+#board-wrap{position:relative;margin:6px 14px 0;display:flex;justify-content:center}
+#board{position:relative;padding:7px;border-radius:10px;
+  background:linear-gradient(160deg,#1e3a54 0%,#16324a 45%,#102838 100%);
+  box-shadow:0 8px 24px rgba(0,0,0,.45),inset 0 1px 0 rgba(200,228,244,.25),inset 0 -1px 0 rgba(0,10,20,.5)}
+#grid{position:relative;border-radius:4px;overflow:hidden;
+  background:linear-gradient(178deg,#2a4a62 0%,#223e54 100%);
+  box-shadow:inset 0 0 0 1px rgba(168,196,212,.25)}
+.cell{position:absolute;width:38px;height:38px}
+.cell.light{background:rgba(120,160,190,.28);
+  box-shadow:inset 0 0 0 1px rgba(168,196,212,.1)}
+.cell.dark{background:rgba(10,24,38,.55)}
+.cell.legal{cursor:pointer}
+.cell.legal::after{content:"";position:absolute;left:50%;top:50%;width:13px;height:13px;border-radius:50%;
+  transform:translate(-50%,-50%);border:2.2px solid rgba(230,207,154,.85);
+  animation:breath 2s ease-in-out infinite}
+@keyframes breath{0%,100%{opacity:.5}50%{opacity:1}}
+.cell.jump{cursor:pointer}
+.cell.jump::after{content:"";position:absolute;left:50%;top:50%;width:16px;height:16px;border-radius:50%;
+  transform:translate(-50%,-50%);border:2.4px solid #e08a5e;box-shadow:0 0 8px rgba(224,138,94,.5);
+  animation:breath 1.2s ease-in-out infinite}
+.cell.sel{background:rgba(230,207,154,.22)}
+.cell.lastfrom{background:rgba(230,207,154,.1)}
+/* 棋子 */
+.pc{position:absolute;width:32px;height:32px;border-radius:50%;pointer-events:none;
+  transition:left .16s ease-out,top .16s ease-out;
+  box-shadow:0 2px 4px rgba(0,0,0,.5),inset 0 1px 2px rgba(255,255,255,.3)}
+.pc::after{content:"";position:absolute;left:7px;top:5px;width:11px;height:7px;border-radius:50%;
+  background:radial-gradient(closest-side,rgba(255,255,255,.55),rgba(255,255,255,0))}
+.pc.w{background:radial-gradient(circle at 35% 30%,#ffffff 0%,#f2ecda 52%,#c2b898 100%)}
+.pc.b{background:radial-gradient(circle at 35% 30%,#6a8aa2 0%,#2c465c 52%,#12222f 100%)}
+.pc.k::before{content:"";position:absolute;inset:3px;border-radius:50%;
+  border:2.2px solid #d8b878;box-shadow:0 0 6px rgba(216,184,120,.5)}
+.pc.b.k::before{border-color:#e6cf9a}
+.pc.hop{animation:hop .18s ease-out}
+@keyframes hop{0%{transform:scale(1)}45%{transform:scale(1.22) translateY(-7px)}100%{transform:scale(1)}}
+.pc.burst{animation:burst .3s ease-out forwards}
+@keyframes burst{0%{transform:scale(1);opacity:1}60%{transform:scale(1.3);opacity:.5}100%{transform:scale(.2);opacity:0}}
+.pc.crown{animation:crown .5s ease-out}
+@keyframes crown{0%{transform:scale(1)}40%{transform:scale(1.3);box-shadow:0 0 16px rgba(216,184,120,.8)}100%{transform:scale(1)}}
+/* 子数条 */
+#stat{display:flex;gap:8px;margin:6px 14px 0;align-items:center}
+#stat .side{display:flex;align-items:center;gap:6px;font-size:11px;color:#8fa8bc;letter-spacing:.08em}
+#stat .side i{width:11px;height:11px;border-radius:50%;display:inline-block;box-shadow:0 1px 2px rgba(0,0,0,.4)}
+#stat .side.w i{background:radial-gradient(circle at 35% 30%,#fff,#d8d0b8)}
+#stat .side.b i{background:radial-gradient(circle at 35% 30%,#5a7a92,#16242f)}
+#stat .side b{font-size:15px;color:#eef4f8;font-weight:800;font-variant-numeric:tabular-nums}
+#stat .bar{flex:1;height:8px;border-radius:5px;overflow:hidden;background:rgba(30,58,84,.5);display:flex}
+#stat .bar .wt{background:linear-gradient(90deg,#e8e0cc,#fbf7ea);transition:width .4s}
+#stat .bar .bk{background:linear-gradient(90deg,#2c465c,#16242f);flex:1;transition:width .4s}
+#hint{margin:7px 18px 0;color:#7d98ac;font-size:11px;line-height:1.7;letter-spacing:.04em;text-align:center}
+#hint b{color:#c8d8e4;font-weight:600}
+/* 浮字 */
+.floatxt{position:absolute;z-index:9;font-weight:800;pointer-events:none;letter-spacing:.08em;color:#e6cf9a;
+  animation:fup 1s ease-out forwards;text-shadow:0 1px 8px rgba(0,0,0,.6)}
+@keyframes fup{0%{transform:translate(-50%,0) scale(.82);opacity:0}18%{opacity:1;transform:translate(-50%,-8px) scale(1)}
+  100%{transform:translate(-50%,-46px) scale(1);opacity:0}}
+/* ---------- 终局面板 ---------- */
+#end{display:none;align-items:center;justify-content:center;background:rgba(6,14,24,.78);z-index:30;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+#end.on{display:flex}
+#end .card{width:82%;max-width:330px;border-radius:20px;padding:26px 22px 22px;text-align:center;
+  background:linear-gradient(172deg,#1c3a54,#12283c);border:1.4px solid rgba(216,184,120,.34);
+  box-shadow:0 18px 50px rgba(0,0,0,.6),inset 0 1px 0 rgba(220,240,250,.14)}
+#end .e-k{font-size:11px;letter-spacing:.4em;color:#7d9ab4;padding-left:.4em}
+#end .e-t{font-size:27px;font-weight:800;letter-spacing:.12em;color:#eef4f8;margin:8px 0 4px}
+#end .e-t.lose{color:#8fa8bc}
+#end .e-s{font-size:14px;color:#8fa8bc;margin-bottom:14px}
+#end .e-s b{color:#e6cf9a;font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
+#end .rows{display:flex;gap:8px;margin:4px 0 16px}
+#end .rows div{flex:1;background:rgba(8,20,32,.6);border:1px solid rgba(168,196,212,.16);border-radius:10px;padding:9px 0 8px}
+#end .rows span{display:block;font-size:10px;color:#7d9ab4;letter-spacing:.1em}
+#end .rows b{display:block;font-size:16px;color:#eef4f8;font-weight:800;margin-top:3px;font-variant-numeric:tabular-nums}
+#end .btn{margin-top:2px}
+@media (max-height:700px){
+  #m-art{width:160px;height:114px;margin:18px 0 2px}
+  .m-title{font-size:38px}
+  #hint{font-size:10px;line-height:1.4}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- 菜单 -->
+  <div id="menu" class="screen on">
+    <div class="m-kicker">深 海 棋 局</div>
+    <div class="m-title">跳珠</div>
+    <div class="m-sub">白雨跳珠 · 连吃入船</div>
+    <svg id="m-art" viewBox="0 0 216 150">
+      <defs>
+        <radialGradient id="pw48" cx=".35" cy=".3" r=".95"><stop offset="0" stop-color="#ffffff"/><stop offset=".52" stop-color="#f2ecda"/><stop offset="1" stop-color="#c2b898"/></radialGradient>
+        <radialGradient id="pb48" cx=".35" cy=".3" r=".95"><stop offset="0" stop-color="#6a8aa2"/><stop offset=".52" stop-color="#2c465c"/><stop offset="1" stop-color="#12222f"/></radialGradient>
+        <linearGradient id="bd48" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a4a62"/><stop offset="1" stop-color="#1c3448"/></linearGradient>
+        <linearGradient id="dk48" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#12222f"/><stop offset="1" stop-color="#0c1a26"/></linearGradient>
+      </defs>
+      <rect x="24" y="10" width="168" height="128" rx="9" fill="url(#bd48)" stroke="rgba(168,196,212,.4)" stroke-width="1.6"/>
+      <g>
+        <rect x="34" y="20" width="37" height="32" fill="url(#dk48)" opacity=".85"/><rect x="108" y="20" width="37" height="32" fill="url(#dk48)" opacity=".85"/>
+        <rect x="71" y="52" width="37" height="32" fill="url(#dk48)" opacity=".85"/><rect x="145" y="52" width="37" height="32" fill="url(#dk48)" opacity=".85"/>
+        <rect x="34" y="84" width="37" height="32" fill="url(#dk48)" opacity=".85"/><rect x="108" y="84" width="37" height="32" fill="url(#dk48)" opacity=".85"/>
+        <rect x="145" y="116" width="37" height="22" fill="url(#dk48)" opacity=".6"/><rect x="34" y="116" width="37" height="22" fill="url(#dk48)" opacity=".6"/>
+      </g>
+      <g stroke="rgba(230,207,154,.35)" stroke-width="1" fill="none" stroke-linecap="round">
+        <path d="M96 118 q10 -6 20 0 t20 0" opacity=".7"/>
+        <path d="M30 128 q10 -6 20 0 t20 0" opacity=".5"/>
+      </g>
+      <circle cx="52.5" cy="100" r="11.5" fill="url(#pb48)"/><ellipse cx="48.5" cy="96" rx="3.4" ry="2.2" fill="rgba(255,255,255,.4)" transform="rotate(-24 48.5 96)"/>
+      <circle cx="126.5" cy="68" r="11.5" fill="url(#pb48)"/><ellipse cx="122.5" cy="64" rx="3.4" ry="2.2" fill="rgba(255,255,255,.4)" transform="rotate(-24 122.5 64)"/>
+      <circle cx="89.5" cy="36" r="11.5" fill="url(#pb48)" opacity=".95"/><ellipse cx="85.5" cy="32" rx="3.4" ry="2.2" fill="rgba(255,255,255,.4)" transform="rotate(-24 85.5 32)"/>
+      <g style="animation:floaty 2.5s ease-in-out infinite">
+        <circle cx="89.5" cy="100" r="12" fill="url(#pw48)"/><ellipse cx="85" cy="95.5" rx="3.6" ry="2.4" fill="rgba(255,255,255,.8)" transform="rotate(-24 85 95.5)"/>
+        <circle cx="89.5" cy="100" r="7" fill="none" stroke="#d8b878" stroke-width="1.6"/>
+      </g>
+      <circle cx="52.5" cy="36" r="11.5" fill="url(#pw48)" opacity=".55"/><ellipse cx="48.5" cy="32" rx="3.4" ry="2.2" fill="rgba(255,255,255,.5)" transform="rotate(-24 48.5 32)"/>
+      <g fill="rgba(230,240,250,.5)"><circle cx="160" cy="16" r="1"/><circle cx="30" cy="30" r="1.1"/><circle cx="186" cy="120" r="1"/></g>
+    </svg>
+    <button class="btn" id="btn-start">落 子</button>
+    <button class="btn ghost" id="btn-how">玩 法</button>
+    <div class="side-pick">
+      <button id="side-w" class="on">执贝白 · 先手</button>
+      <button id="side-b">执墨青 · 后手</button>
+    </div>
+    <div id="m-rec"></div>
+    <div class="m-foot">斜走斜跳 · 连珠入船</div>
+  </div>
+
+  <!-- 游戏 -->
+  <div id="game" class="screen">
+    <div id="hud">
+      <button class="icon-btn" id="btn-home">⌂</button>
+      <div class="hud-title"><span class="hud-k">深 海 棋 局</span>跳珠</div>
+      <div class="hud-score">第<b id="move-no">1</b>手</div>
+      <button class="icon-btn off" id="btn-snd">♪̶</button>
+    </div>
+    <div id="turnbar"><div class="dot w" id="turn-dot"></div><span id="turn-txt">执贝白 · 轮到你</span></div>
+    <div id="board-wrap">
+      <div id="board"><div id="grid"></div></div>
+    </div>
+    <div id="stat">
+      <div class="side w"><i></i>白 <b id="st-w">12</b></div>
+      <div class="bar"><div class="wt" id="bar-w" style="width:50%"></div><div class="bk"></div></div>
+      <div class="side b"><b id="st-b">12</b> 青<i></i></div>
+    </div>
+    <div id="hint"><b>有吃必吃</b> · 跳过敌珠即吃，连跳一气呵成 · 抵对岸底线加冕为王</div>
+  </div>
+
+  <!-- 终局 -->
+  <div id="end" class="screen">
+    <div class="card">
+      <div class="e-k">珠 落 局 定</div>
+      <div class="e-t" id="end-title">白胜</div>
+      <div class="e-s">存珠 <b id="end-score">12 : 0</b></div>
+      <div class="rows">
+        <div><span>战绩</span><b id="end-rec">0-0-0</b></div>
+        <div><span>连胜</span><b id="end-streak">0</b></div>
+      </div>
+      <button class="btn" id="btn-again">再 对 一 局</button>
+      <button class="btn ghost" id="btn-menu2">回 深 海</button>
+    </div>
+  </div>
+
+</div>
+<script>
+"use strict";
+/* ================= 跳珠 · English Draughts ================= */
+var N=8, CELL=38, STEP=CELL;
+var W=1,B=2,WK=3,BK=4;                 /* 1白 2黑 3白王 4黑王 */
+var DW=[[-1,-1],[-1,1]], DB=[[1,-1],[1,1]], D4=[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]].slice(0);
+D4=[[-1,-1],[-1,1],[1,-1],[1,1]];
+function sideOf(p){return p===W||p===WK?W:B}
+function kingOf(p){return p===W?WK:p===B?BK:p}
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+/* ---------- 状态 ---------- */
+var S={
+  board:[], turn:W, side:'w',             /* 玩家执 'w' 先手 / 'b' 后手 */
+  moves:0, quiet:0, over:false, playing:false, busy:false,
+  rec:{w:0,l:0,d:0}, streak:0,
+  sel:-1, chainCaptured:[], chainFrom:-1,
+  sndOn:false, aiDepth:5, aiTimer:0, gen:0,
+  lastFrom:-1, lastTo:-1
+};
+function playerStone(){return S.side==='w'?W:B}
+function aiStone(){return S.side==='w'?B:W}
+function loadRec(){try{var r=JSON.parse(localStorage.getItem('g48_rec'));if(r&&typeof r.w==='number')S.rec=r;
+  S.streak=+localStorage.getItem('g48_streak')||0;
+  S.side=localStorage.getItem('g48_side')==='b'?'b':'w'}catch(e){}}
+function saveRec(){try{localStorage.setItem('g48_rec',JSON.stringify(S.rec));
+  localStorage.setItem('g48_streak',String(S.streak));
+  localStorage.setItem('g48_side',S.side)}catch(e){}}
+/* ---------- 引擎 ---------- */
+function inB(r,c){return r>=0&&r<N&&c>=0&&c<N}
+function dirsOf(p){return p===WK||p===BK?D4:(p===W?DW:DB)}
+/* 某子的完整跳链（DFS，升王即停；返回 [{path:[sq...], cap:[sq...]}] 不含起点） */
+function chainsFrom(bd,sq){
+  var piece=bd[sq],out=[];
+  function rec(r,c,p,cap,path){
+    var found=false,i,d,er,ec,lr,lc,mSq,lSq;
+    var dirs=dirsOf(p);
+    for(i=0;i<dirs.length;i++){
+      d=dirs[i];er=r+d[0];ec=c+d[1];lr=r+2*d[0];lc=c+2*d[1];
+      if(!inB(lr,lc))continue;
+      mSq=er*N+ec;lSq=lr*N+lc;
+      if(bd[lSq]!==0)continue;
+      var mid=bd[mSq];
+      if(mid===0||sideOf(mid)===sideOf(p))continue;
+      if(cap.indexOf(mSq)>=0)continue;
+      found=true;
+      /* 模拟：跳子移动+吃子移除 */
+      bd[r*N+c]=0;bd[mSq]=0;bd[lSq]=p;
+      var np=p,willKing=false;
+      if((p===W&&lr===0)||(p===B&&lr===N-1)){np=kingOf(p);willKing=true}
+      cap.push(mSq);path.push(lSq);
+      if(willKing)out.push({path:path.slice(),cap:cap.slice()});
+      else rec(lr,lc,np,cap,path);
+      cap.pop();path.pop();
+      bd[lSq]=0;bd[mSq]=mid;bd[r*N+c]=p;
+    }
+    if(!found&&path.length>0)out.push({path:path.slice(),cap:cap.slice()});
+  }
+  rec((sq/N)|0,sq%N,piece,[],[]);
+  return out;
+}
+/* 全合法着法：有吃必吃（复合链=单着法） */
+function allMoves(bd,side){
+  var jumps=[],steps=[],r,c,sq,p,i,ch;
+  for(r=0;r<N;r++)for(c=0;c<N;c++){
+    if((r+c)%2!==1)continue;
+    sq=r*N+c;p=bd[sq];
+    if(!p||sideOf(p)!==side)continue;
+    ch=chainsFrom(bd,sq);
+    for(i=0;i<ch.length;i++)jumps.push({from:sq,path:ch[i].path,cap:ch[i].cap});
+    var dirs=dirsOf(p),d,nr,nc;
+    for(i=0;i<dirs.length;i++){
+      d=dirs[i];nr=r+d[0];nc=c+d[1];
+      if(inB(nr,nc)&&bd[nr*N+nc]===0)steps.push({from:sq,path:[nr*N+nc],cap:[]});
+    }
+  }
+  return jumps.length?jumps:steps;
+}
+/* 执行复合着法；返回 {undo, kings} kings=升王数 */
+function applyMove(bd,mv){
+  var p=bd[mv.from],undo={from:mv.from,piece:p,cap:[],capPieces:[]},i,last=mv.path[mv.path.length-1];
+  bd[mv.from]=0;
+  for(i=0;i<mv.cap.length;i++){undo.cap.push(mv.cap[i]);undo.capPieces.push(bd[mv.cap[i]]);bd[mv.cap[i]]=0}
+  var np=p;
+  if((p===W&&(last/N|0)===0)||(p===B&&((last/N|0)===N-1)))np=kingOf(p);
+  bd[last]=np;
+  undo.kings=np!==p?1:0;
+  undo.captured=mv.cap.length;
+  return undo;
+}
+function undoMove(bd,mv,undo){
+  var last=mv.path[mv.path.length-1],i;
+  bd[last]=0;
+  for(i=0;i<undo.cap.length;i++)bd[undo.cap[i]]=undo.capPieces[i];
+  bd[undo.from]=undo.piece;
+}
+function countSide(bd,side){var n=0,i;for(i=0;i<64;i++){var p=bd[i];if(p&&sideOf(p)===side)n++}return n}
+/* eval：me 视角 */
+function evalBoard(bd,me){
+  var opp=3-me,score=0,i,r,c,p,v;
+  for(i=0;i<64;i++){
+    p=bd[i];if(!p)continue;
+    r=(i/N)|0;c=i%N;
+    v=(p===WK||p===BK)?2.6:1;
+    /* 推进：白向 r=0，黑向 r=7 */
+    var adv=(p===W||p===WK)?(7-r):(r);
+    v+=adv*0.03;
+    /* 中心/边线微调 */
+    if(c===0||c===7)v+=0.04;
+    if(sideOf(p)===me)score+=v;else score-=v;
+  }
+  return score;
+}
+function orderMoves(ms){return ms.slice().sort(function(a,b){return b.cap.length-a.cap.length||b.path.length-a.path.length})}
+/* negamax：me 视角分数 */
+var DEADLINE=Infinity;
+/* 标准 negamax：返回=当前行棋方 side 视角分数（子节点取负）；对手节点取 min 由取负实现 */
+function negamax(bd,depth,alpha,beta,side){
+  if(Date.now()>DEADLINE)return evalBoard(bd,side);   /* 限时截断（生产 900ms） */
+  var ms=allMoves(bd,side);
+  if(!ms.length)return -(1000+depth);                 /* 当前方无步=输；越早输越差 */
+  if(depth<=0)return evalBoard(bd,side);
+  ms=orderMoves(ms);
+  var best=-1e9,i;
+  for(i=0;i<ms.length;i++){
+    var u=applyMove(bd,ms[i]);
+    /* 吃子或升王延展一层（防爆栈限深 2） */
+    var nd=(u.captured>0||u.kings)&&depth===1?1:depth-1;
+    var sc=-negamax(bd,nd,-beta,-alpha,3-side);
+    undoMove(bd,ms[i],u);
+    if(sc>best)best=sc;
+    if(best>alpha)alpha=best;
+    if(alpha>=beta)break;
+  }
+  return best;
+}
+function aiBest(bd,depth,ai,msLimit){
+  var ms=allMoves(bd,ai);
+  if(!ms.length)return null;
+  ms=orderMoves(ms);
+  if(msLimit)DEADLINE=Date.now()+msLimit;else DEADLINE=Infinity;
+  var best=ms[0],bestSc=-1e9,d;
+  for(d=2;d<=depth;d++){                    /* 迭代加深：超时返回已得最优 */
+    var cur=null,curSc=-1e9,alpha=-1e9,i,tOut=false;
+    for(i=0;i<ms.length;i++){
+      var u=applyMove(bd,ms[i]);
+      var sc=-negamax(bd,d-1,-1e9,-alpha,3-ai);
+      undoMove(bd,ms[i],u);
+      if(Date.now()>DEADLINE){tOut=true;break}
+      if(sc>curSc){curSc=sc;cur=ms[i];if(sc>alpha)alpha=sc}
+    }
+    if(cur){best=cur;bestSc=curSc}
+    if(tOut)break;
+  }
+  return {mv:best,score:bestSc};
+}
+/* ---------- 音效（默认关） ---------- */
+var AC=null;
+function ac(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)}catch(e){}}return AC}
+function beep(f,d,type,vol,slide){
+  if(!S.sndOn)return; var a=ac(); if(!a)return;
+  try{
+    var o=a.createOscillator(),g=a.createGain(),t=a.currentTime;
+    o.type=type||'sine'; o.frequency.setValueAtTime(f,t);
+    if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(40,slide),t+d);
+    g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(vol||.14,t+.012);
+    g.gain.exponentialRampToValueAtTime(.0001,t+d);
+    o.connect(g); g.connect(a.destination); o.start(t); o.stop(t+d+.03);
+  }catch(e){}
+}
+var SND={
+  drop:function(){beep(420,.07,'sine',.13,300)},
+  cap:function(i){setTimeout(function(){beep(640+i*140,.07,'triangle',.11)},i*90)},
+  crown:function(){[660,880,1100].forEach(function(f,i){setTimeout(function(){beep(f,.14,'triangle',.12)},i*100)})},
+  deny:function(){beep(120,.09,'sawtooth',.08)},
+  win:function(){[520,660,830].forEach(function(f,i){setTimeout(function(){beep(f,.16,'triangle',.13)},i*120)})},
+  lose:function(){[300,200].forEach(function(f,i){setTimeout(function(){beep(f,.2,'sine',.12)},i*170)})},
+  draw:function(){beep(440,.22,'sine',.11)},
+  ui:function(){beep(500,.06,'sine',.1)}
+};
+/* ---------- 渲染 ---------- */
+var el={
+  menu:document.getElementById('menu'), game:document.getElementById('game'), end:document.getElementById('end'),
+  grid:document.getElementById('grid'), board:document.getElementById('board'),
+  moveNo:document.getElementById('move-no'), turnDot:document.getElementById('turn-dot'), turnTxt:document.getElementById('turn-txt'),
+  stW:document.getElementById('st-w'), stB:document.getElementById('st-b'), barW:document.getElementById('bar-w'),
+  endTitle:document.getElementById('end-title'), endScore:document.getElementById('end-score'),
+  endRec:document.getElementById('end-rec'), endStreak:document.getElementById('end-streak'), mRec:document.getElementById('m-rec')
+};
+function buildGrid(){
+  el.grid.innerHTML='';
+  el.grid.style.width=(N*STEP)+'px';el.grid.style.height=(N*STEP)+'px';
+  for(var r=0;r<N;r++)for(var c=0;c<N;c++){
+    var cell=document.createElement('div');
+    cell.className='cell '+(((r+c)%2)?'dark':'light');
+    cell.dataset.sq=String(r*N+c);
+    cell.style.left=(c*STEP)+'px';cell.style.top=(r*STEP)+'px';
+    el.grid.appendChild(cell);
+  }
+  el.board.style.width=(N*STEP+14)+'px';
+  el.board.style.height=(N*STEP+14)+'px';
+}
+function cellAt(sq){return el.grid.querySelector('.cell[data-sq="'+sq+'"]')}
+function mkPc(p){
+  var d=document.createElement('div');
+  d.className='pc '+(sideOf(p)===W?'w':'b')+((p===WK||p===BK)?' k':'');
+  return d;
+}
+function drawAll(anim){
+  el.grid.querySelectorAll('.pc').forEach(function(e){e.parentNode.removeChild(e)});
+  var i,r,c,d;
+  for(i=0;i<64;i++){
+    if(!S.board[i])continue;
+    r=(i/N)|0;c=i%N;
+    d=mkPc(S.board[i]);
+    d.style.left=(c*STEP+3)+'px';d.style.top=(r*STEP+3)+'px';
+    el.grid.appendChild(d);
+  }
+  updLegal();updStat();
+  if(S.lastFrom>=0){var lf=cellAt(S.lastFrom);if(lf)lf.classList.add('lastfrom');
+    var lt=cellAt(S.lastTo);if(lt)lt.classList.add('lastfrom')}
+}
+function updLegal(){
+  el.grid.querySelectorAll('.cell.legal,.cell.jump,.cell.sel').forEach(function(c){
+    c.classList.remove('legal','jump','sel')});
+  if(!S.playing||S.over||S.busy)return;
+  if(S.turn!==playerStone())return;
+  if(S.chainFrom>=0){                     /* 连跳中：只显示该子后续跳点 */
+    var chs=chainsFrom(S.board,S.chainFrom),i;
+    var selCell=cellAt(S.chainFrom);if(selCell)selCell.classList.add('sel');
+    var seen={};
+    for(i=0;i<chs.length;i++){
+      var nxt=chs[i].path[0];                /* 下一段落点=path[0]（逐段引导） */
+      if(!seen[nxt]){seen[nxt]=1;var cc=cellAt(nxt);if(cc)cc.classList.add('jump')}
+    }
+    return;
+  }
+  if(S.sel<0)return;
+  var ms=allMoves(S.board,playerStone()),i2;
+  var selCell2=cellAt(S.sel);if(selCell2)selCell2.classList.add('sel');
+  for(i2=0;i2<ms.length;i2++){
+    if(ms[i2].from!==S.sel)continue;
+    var cc2=cellAt(ms[i2].path[0]);          /* 高亮=首段落点（与输入匹配一致） */
+    if(!cc2)continue;
+    cc2.classList.add(ms[i2].cap.length?'jump':'legal');
+  }
+}
+function updTurn(){
+  if(S.over)return;
+  var aiTurn=S.turn===aiStone();
+  el.turnDot.className='dot '+(S.turn===W?'w':'b')+(aiTurn?' thinkdot':'');
+  el.turnTxt.textContent=aiTurn?'弈客 · 思考中':'轮到你 · '+(S.turn===W?'执贝白':'执墨青');
+  el.turnTxt.className=aiTurn?'think':'';
+  updLegal();
+}
+function updStat(){
+  var w=countSide(S.board,W),b=countSide(S.board,B);
+  el.stW.textContent=w;el.stB.textContent=b;
+  el.barW.style.width=(w+b?Math.round(w/(w+b)*100):50)+'%';
+}
+function floatText(txt,size){
+  var f=document.createElement('div');f.className='floatxt';f.textContent=txt;
+  f.style.fontSize=(size||14)+'px';f.style.left='50%';f.style.top=(el.board.clientHeight*0.34)+'px';f.style.transform='translateX(-50%)';
+  el.board.appendChild(f);setTimeout(function(){f.parentNode&&f.parentNode.removeChild(f)},1020);
+}
+/* ---------- 走子（UI） ---------- */
+function pieceAtDom(sq){                 /* 找 DOM 棋子（按 left/top 定位） */
+  var wantL=((sq%N)*STEP+3)+'px',wantT=(((sq/N)|0)*STEP+3)+'px';
+  var ds=el.grid.querySelectorAll('.pc'),i;
+  for(i=0;i<ds.length;i++)if(ds[i].style.left===wantL&&ds[i].style.top===wantT)return ds[i];
+  return null;
+}
+/* 单段演出：移动 from→to，吃 capSq（可空） */
+function hopDom(from,to,capSq,done){
+  var pc=pieceAtDom(from);
+  if(!pc){done();return}
+  pc.classList.add('hop');
+  pc.style.left=((to%N)*STEP+3)+'px';
+  pc.style.top=(((to/N)|0)*STEP+3)+'px';
+  var victim=capSq>=0?pieceAtDom(capSq):null;
+  if(victim)victim.classList.add('burst');
+  setTimeout(done,180);                            /* 演出链 180ms 继续 */
+  setTimeout(function(){                           /* 吃珠动画完整播完再移除（burst .3s） */
+    if(victim&&victim.parentNode)victim.parentNode.removeChild(victim);
+  },300);
+}
+/* 执行完整着法（含连跳逐段演出）；结束后 turn 切换 */
+function playMoveUi(mv,byPlayer){
+  var myGen=S.gen;                          /* 局代号：回菜单/重开后飞行回调整体废弃 */
+  S.busy=true;
+  S.lastFrom=mv.from;S.lastTo=mv.path[mv.path.length-1];
+  var segs=[],i;
+  var cur=mv.from;
+  for(i=0;i<mv.path.length;i++){segs.push({to:mv.path[i],cap:mv.cap[i]||-1})}
+  (function runSeg(k){
+    if(S.gen!==myGen)return;                 /* 局已换：废弃 */
+    if(k>=segs.length){afterMove(mv);return}
+    var sg=segs[k];
+    SND.drop();if(sg.cap>=0)SND.cap(k);
+    hopDom(cur,sg.to,sg.cap,function(){
+      if(S.gen!==myGen)return;
+      cur=sg.to;
+      runSeg(k+1);
+    });
+  })(0);
+}
+function afterMove(mv){
+  if(!S.playing)return;                       /* 局已废弃（回菜单/重开）：飞行中的演出回调失效 */
+  /* 数据层一次性应用（演出已动 DOM，重画） */
+  var udo=applyMove(S.board,mv);
+  S.moves++;
+  var captured=mv.cap.length;
+  var lastSq=mv.path[mv.path.length-1];
+  if(captured)S.quiet=0;else S.quiet++;
+  el.moveNo.textContent=S.moves+1;
+  drawAll();                                       /* 先重画，再加冕动画才不被 drawAll 销毁 */
+  if(udo.kings){                                   /* 真升王（applyMove 判定；王回底线不重触发） */
+    var kd=pieceAtDom(lastSq);
+    if(kd)kd.classList.add('crown');
+    SND.crown();floatText('加 冕',14);
+    S.quiet=0;
+  }else if(captured>=2)floatText('连跳 ×'+captured,15);
+  /* 终局检查（movedSide=落点棋子归属；sideOf(mv) 传对象恒返 B 的 bug 已修） */
+  var lastSq2=mv.path[mv.path.length-1];
+  var movedSide=sideOf(S.board[lastSq2]);
+  var nextSide=3-movedSide;
+  if(countSide(S.board,nextSide)===0||allMoves(S.board,nextSide).length===0){finish(movedSide);return}
+  if(S.quiet>=50){finish(0);return}
+  S.turn=nextSide;
+  updTurn();
+  S.busy=false;
+  if(S.turn===aiStone())scheduleAi();
+}
+function scheduleAi(){
+  S.busy=true;
+  var myGen=S.gen;
+  S.aiTimer=setTimeout(function(){
+    if(S.gen!==myGen||S.over||!S.playing)return;
+    var r=aiBest(S.board,S.aiDepth,aiStone(),900);
+    S.busy=false;
+    if(!r){finish(playerStone());return}
+    playMoveUi(r.mv,false);
+  },420+((S.moves*37)%380));
+}
+/* ---------- 终局 ---------- */
+function finish(winnerSide){
+  S.over=true;S.playing=false;S.busy=false;
+  clearTimeout(S.aiTimer);
+  var me=playerStone(),meN,aiN;
+  var w=countSide(S.board,W),b=countSide(S.board,B);
+  meN=me===W?w:b;aiN=me===W?b:w;
+  if(winnerSide===0){S.rec.d++;SND.draw();S.endKind='draw'}
+  else if(winnerSide===me){S.rec.w++;S.streak++;SND.win();S.endKind='win'}
+  else{S.rec.l++;S.streak=0;SND.lose();S.endKind='lose'}
+  saveRec();
+  el.turnTxt.textContent=(winnerSide===0?'五十手无吃 · 和局':
+    winnerSide===me?'弈客无路 · 你胜':'你无路可走 · 弈客胜');
+  el.turnTxt.className='end';
+  var kd=S.endKind;
+  el.endTitle.textContent=kd==='draw'?'平分秋色':kd==='win'?'白雨入船':'潮落珠沉';
+  el.endTitle.className='e-t'+(kd==='lose'?' lose':'');
+  el.endScore.textContent=meN+':'+aiN;
+  el.endRec.textContent=S.rec.w+'-'+S.rec.l+'-'+S.rec.d;
+  el.endStreak.textContent=S.streak;
+  var gEnd=S.gen;
+  setTimeout(function(){
+    if(S.gen!==gEnd)return;                 /* 局已换：终局卡不得盖新局 */
+    el.end.classList.add('on');showMenuRec();
+  },900);
+}
+function showMenuRec(){
+  var r=S.rec;
+  el.mRec.innerHTML='战绩 <b>'+r.w+'</b> 胜 · <b>'+r.l+'</b> 负 · <b>'+r.d+'</b> 平　连胜 <b>'+S.streak+'</b>';
+}
+/* ---------- 生命周期 ---------- */
+function startGame(){
+  clearTimeout(S.aiTimer);
+  S.gen++;
+  S.board=[];
+  var r,c;
+  for(var i0=0;i0<64;i0++)S.board.push(0);
+  for(r=0;r<N;r++)for(c=0;c<N;c++)if((r+c)%2===1){
+    if(r<3)S.board[r*N+c]=B;
+    else if(r>=5)S.board[r*N+c]=W;
+  }
+  S.turn=W;S.moves=0;S.quiet=0;S.over=false;S.busy=false;
+  S.sel=-1;S.chainFrom=-1;S.chainCaptured=[];S.lastFrom=-1;S.lastTo=-1;
+  el.moveNo.textContent='1';
+  el.menu.classList.remove('on');el.end.classList.remove('on');el.game.classList.add('on');
+  S.playing=true;
+  drawAll();updTurn();
+  if(aiStone()===W)scheduleAi();
+}
+function goMenu(){
+  S.playing=false;S.over=true;S.gen++;clearTimeout(S.aiTimer);
+  el.game.classList.remove('on');el.end.classList.remove('on');el.menu.classList.add('on');
+  showMenuRec();
+}
+/* ---------- 输入 ---------- */
+el.grid.addEventListener('pointerdown',function(e){
+  if(!S.playing||S.busy||S.over)return;
+  if(S.turn!==playerStone())return;
+  var cell=e.target.closest('.cell');
+  if(!cell)return;
+  var sq=+cell.dataset.sq;
+  /* 连跳中：只接受 jump 高亮落点 */
+  if(S.chainFrom>=0){
+    var chs=chainsFrom(S.board,S.chainFrom),i;
+    for(i=0;i<chs.length;i++){
+      if(chs[i].path[0]===sq){
+        var seg={from:S.chainFrom,path:[sq],cap:[chs[i].cap[0]]};
+        S.chainCaptured.push(chs[i].cap[0]);
+        /* 数据层应用本段 */
+        var tmp=S.board[S.chainFrom];
+        S.board[S.chainFrom]=0;S.board[chs[i].cap[0]]=0;S.board[sq]=tmp;
+        /* 演出+继续判断 */
+        S.busy=true;
+        var myGen3=S.gen;
+        hopDom(S.chainFrom,sq,chs[i].cap[0],function(){
+          if(S.gen!==myGen3)return;
+          SND.cap(S.chainCaptured.length);
+          /* 升王即停 */
+          var p=S.board[sq];
+          var willKing=(p===W&&((sq/N)|0)===0)||(p===B&&((sq/N)|0)===N-1);
+          if(willKing){S.board[sq]=kingOf(p);S.quiet=0;
+            drawAll();var kd=pieceAtDom(sq);if(kd)kd.classList.add('crown');SND.crown();floatText('加 冕',14);
+            endChain(sq,true);return}
+          var more=chainsFrom(S.board,sq);
+          if(more.length){S.chainFrom=sq;S.busy=false;updLegal();return}
+          endChain(sq);
+        });
+        return;
+      }
+    }
+    SND.deny();return;
+  }
+  var p=S.board[sq];
+  if(p&&sideOf(p)===playerStone()){S.sel=(S.sel===sq?-1:sq);SND.ui();updLegal();return}
+  if(S.sel<0)return;
+  /* 走/跳到 sq */
+  var ms=allMoves(S.board,playerStone()),i2,mv=null;
+  for(i2=0;i2<ms.length;i2++)if(ms[i2].from===S.sel&&ms[i2].path[0]===sq){mv=ms[i2];break}
+  if(!mv){SND.deny();return}
+  S.sel=-1;
+  if(mv.cap.length<=1){playMoveUi(mv,true);return}
+  /* 多段链：玩家逐段引导 */
+  S.chainFrom=mv.from;S.chainCaptured=[];
+  /* 执行首段（数据+演出），后续在连跳分支交互 */
+  var first={from:mv.from,path:[mv.path[0]],cap:[mv.cap[0]]};
+  S.chainCaptured.push(mv.cap[0]);
+  var tmp2=S.board[mv.from];
+  S.board[mv.from]=0;S.board[mv.cap[0]]=0;S.board[mv.path[0]]=tmp2;
+  S.busy=true;
+  var myGen2=S.gen;
+  hopDom(mv.from,mv.path[0],mv.cap[0],function(){
+    if(S.gen!==myGen2)return;
+    SND.cap(1);
+    var sq2=mv.path[0];
+    var pp=S.board[sq2];
+    var willKing2=(pp===W&&((sq2/N)|0)===0)||(pp===B&&((sq2/N)|0)===N-1);
+    if(willKing2){S.board[sq2]=kingOf(pp);S.quiet=0;
+      drawAll();var kd2=pieceAtDom(sq2);if(kd2)kd2.classList.add('crown');SND.crown();floatText('加 冕',14);
+      endChain(sq2,true);return}
+    var more2=chainsFrom(S.board,sq2);
+    if(more2.length){S.chainFrom=sq2;S.busy=false;updLegal();return}
+    endChain(sq2);
+  });
+});
+function endChain(sq,noFloat){
+  if(!S.playing)return;                       /* 局已废弃：连跳演出回调失效 */
+  /* 链结束：quiet 处理+回合切换（复用 afterMove 语义但数据已逐段应用） */
+  S.chainFrom=-1;
+  S.lastTo=sq;
+  S.moves++;
+  if(S.chainCaptured.length)S.quiet=0;else S.quiet++;
+  if(S.chainCaptured.length>=2&&!noFloat)floatText('连跳 ×'+S.chainCaptured.length,15);
+  S.chainCaptured=[];
+  el.moveNo.textContent=S.moves+1;
+  drawAll();
+  var mover=sideOf(S.board[sq]||playerStone());
+  var mover2=S.board[sq]?sideOf(S.board[sq]):playerStone();
+  var nextSide=3-mover2;
+  if(countSide(S.board,nextSide)===0||allMoves(S.board,nextSide).length===0){finish(mover2);return}
+  if(S.quiet>=50){finish(0);return}
+  S.turn=nextSide;
+  updTurn();
+  S.busy=false;
+  if(S.turn===aiStone())scheduleAi();
+}
+/* ---------- 按钮 ---------- */
+document.getElementById('btn-start').addEventListener('click',function(){SND.ui();startGame()});
+document.getElementById('btn-how').addEventListener('click',function(){SND.ui();floatHow()});
+document.getElementById('btn-home').addEventListener('click',function(){SND.ui();goMenu()});
+document.getElementById('btn-again').addEventListener('click',function(){SND.ui();startGame()});
+document.getElementById('btn-menu2').addEventListener('click',function(){SND.ui();goMenu()});
+document.getElementById('btn-snd').addEventListener('click',function(){
+  S.sndOn=!S.sndOn;this.classList.toggle('off',!S.sndOn);this.textContent=S.sndOn?'♪':'♪̶';
+  if(S.sndOn){var a=ac();if(a&&a.state==='suspended')a.resume();SND.ui()}
+});
+document.getElementById('side-w').addEventListener('click',function(){setSide('w')});
+document.getElementById('side-b').addEventListener('click',function(){setSide('b')});
+function setSide(s){S.side=s;saveRec();
+  document.getElementById('side-w').classList.toggle('on',s==='w');
+  document.getElementById('side-b').classList.toggle('on',s==='b')}
+function floatHow(){
+  var old=document.getElementById('howtip');if(old)old.parentNode.removeChild(old);
+  var ovo=document.getElementById('howov');if(ovo)ovo.parentNode.removeChild(ovo);
+  var ov=document.createElement('div');ov.id='howov';
+  ov.style.cssText='position:fixed;left:0;top:0;right:0;bottom:0;z-index:98;background:rgba(6,14,24,.55)';
+  var tip=document.createElement('div');tip.id='howtip';
+  tip.style.cssText='position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:99;width:78%;max-width:300px;padding:20px 18px;border-radius:16px;background:linear-gradient(172deg,#1c3a54,#12283c);border:1.4px solid rgba(216,184,120,.4);color:#e8eef4;font-size:13px;line-height:2;box-shadow:0 16px 44px rgba(0,0,0,.6)';
+  tip.innerHTML='<b style="color:#e6cf9a">跳珠 · 玩法</b><br>贝白珠是你的，墨青珠是弈客的——<br>· 珠子沿深色格<b>斜前走一步</b><br>· 隔着一颗敌珠跳过去=吃掉它；<b>有吃必吃</b><br>· 连跳可一气跳完，逐段点落点<br>· 珠子抵达对岸底线=<b>加冕为王</b>，可进可退<br>· 对方无子或无路可走即胜；五十手无吃为和';
+  var closeHow=function(){if(ov.parentNode)ov.parentNode.removeChild(ov);if(tip.parentNode)tip.parentNode.removeChild(tip)};
+  var x=document.createElement('div');x.textContent='✕';x.style.cssText='position:absolute;top:8px;right:12px;color:#7d9ab4;font-size:15px;padding:4px';
+  x.onclick=closeHow;ov.onclick=closeHow;
+  tip.appendChild(x);document.body.appendChild(ov);document.body.appendChild(tip);
+}
+/* ---------- 尺寸 ---------- */
+function layout(){
+  var wrapW=Math.min(window.innerWidth,520)-28;
+  var full=N*STEP+14;
+  var scale=wrapW/full;
+  el.board.style.transform='';el.board.style.marginBottom='';
+  if(scale<0.999||scale>1.001){
+    el.board.style.transform='scale('+scale+')';el.board.style.transformOrigin='top center';
+    el.board.style.marginBottom=(full*(scale-1))+'px';
+  }
+}
+/* ---------- 启动 ---------- */
+loadRec();setSide(S.side);buildGrid();showMenuRec();
+el.grid.addEventListener('pointerleave',function(){});
+window.addEventListener('resize',layout);
+layout();
+
+
+</script>
+</body>
+</html>
