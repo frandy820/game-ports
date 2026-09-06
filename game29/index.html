@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0c1420">
+<title>夜路穿行 · 离线版</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect x='4' y='4' width='40' height='40' rx='9' fill='%230c1420'/%3E%3Crect x='10' y='26' width='28' height='5' rx='2' fill='%232a3242'/%3E%3Crect x='14' y='18' width='20' height='4' rx='2' fill='%233a4458'/%3E%3Ccircle cx='24' cy='34' r='6' fill='%23f4ecd8'/%3E%3Cpath d='M24 28 q2 -3 4 -1' stroke='%23d4586a' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --panel:rgba(14,18,28,.94); --line:rgba(160,175,205,.24);
+    --ink:#eef1f8; --dim:#98a3bd; --gold:#ffd97e; --red:#ff6b7d; --cyan:#8fd0ff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{background:#0c1420;color:var(--ink);
+    font-family:'Segoe UI',system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
+    overflow:hidden;position:fixed;inset:0;touch-action:none;user-select:none;-webkit-user-select:none}
+  #cv{position:absolute;inset:0;width:100%;height:100%}
+
+  #hud{position:absolute;top:calc(env(safe-area-inset-top,0px) + 12px);left:16px;right:60px;z-index:6;
+    display:flex;align-items:flex-start;justify-content:space-between;pointer-events:none}
+  #score{font-size:44px;font-weight:800;color:#f2f0fa;letter-spacing:.03em;
+    text-shadow:0 2px 4px rgba(4,6,14,.9), 0 3px 0 rgba(28,36,48,.5), 0 6px 18px rgba(0,0,0,.5);
+    font-variant-numeric:tabular-nums;transition:transform .12s}
+  #score.pop{transform:scale(1.16)}
+  #hint{font-size:11.5px;color:var(--dim);letter-spacing:.08em;padding-top:10px;
+    opacity:.9;transition:opacity .6s}
+  #hud.dim{opacity:.14;transition:opacity .5s}
+  #btn-snd{position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);right:14px;z-index:7;
+    width:38px;height:38px;border:1px solid var(--line);border-radius:11px;background:var(--panel);
+    cursor:pointer;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 3px 8px rgba(0,0,0,.32);pointer-events:auto}
+  #btn-snd:active{transform:translateY(2px)}
+  #btn-snd.off{opacity:.55}
+  #eagle-warn{position:absolute;left:0;right:0;bottom:120px;text-align:center;z-index:8;pointer-events:none;
+    font-size:15px;font-weight:800;letter-spacing:.2em;color:var(--red);opacity:0;transition:opacity .3s}
+  #eagle-warn.show{opacity:.92;animation:blink .5s steps(2) infinite}
+  @keyframes blink{50%{opacity:.25}}
+  #flash-msg{position:absolute;top:26%;left:0;right:0;text-align:center;z-index:8;pointer-events:none;
+    font-size:24px;font-weight:800;letter-spacing:.14em;color:var(--cyan);opacity:0}
+  #flash-msg.show{animation:fmsg .9s ease both}
+  @keyframes fmsg{0%{opacity:0;transform:translateY(12px) scale(.8)}25%{opacity:1;transform:translateY(0) scale(1.05)}
+    75%{opacity:1}100%{opacity:0;transform:translateY(-14px)}}
+  footer{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 4px);
+    text-align:center;font-size:10.5px;font-weight:600;color:rgba(238,241,248,.62);
+    letter-spacing:.05em;pointer-events:none;z-index:30;text-shadow:0 1px 3px rgba(6,8,16,.8)}
+
+  .layer{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(6,9,16,.58);z-index:20;backdrop-filter:blur(1.5px)}
+  .layer[hidden]{display:none}
+  .lpanel{display:flex;flex-direction:column;gap:13px;width:min(86vw,340px);
+    background:rgba(17,22,34,.97);border:1px solid rgba(160,175,205,.38);border-radius:18px;padding:24px 26px;
+    box-shadow:0 14px 40px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06)}
+  .lt{font-size:17px;font-weight:800;color:var(--gold);letter-spacing:.08em;text-align:center}
+  .ld{font-size:14px;color:#d9dcea;line-height:1.9;text-align:center}
+  .ld b{color:#ffe9b8}
+  .ld .no{color:var(--red);font-weight:700}
+  .layer button{padding:11px 0;font-size:15px;font-weight:700;color:#1a1c30;background:var(--gold);
+    border:none;border-radius:12px;cursor:pointer}
+  .layer button.ghost{background:transparent;color:var(--dim);border:1px solid var(--line)}
+  #menu .bestrow,#end .bestrow{font-size:13px;color:var(--dim);text-align:center}
+  #menu .bestrow b,#end .bestrow b{color:var(--ink)}
+  #end .big{font-size:42px;font-weight:800;color:#f2f0fa;text-align:center;
+    text-shadow:0 4px 22px rgba(160,175,205,.3);font-variant-numeric:tabular-nums}
+  #end .stats{display:flex;justify-content:center;gap:26px;font-size:13px;color:var(--dim)}
+  #end .stats b{color:var(--ink);font-size:17px;font-variant-numeric:tabular-nums}
+  .rec{display:none;margin:0 auto;width:max-content;padding:4px 14px;border-radius:99px;
+    font-size:12px;color:#ffd97e;font-weight:700;letter-spacing:.1em;
+    background:rgba(255,217,126,.14);border:1px solid rgba(255,217,126,.45)}
+  .rec.show{display:block;animation:rpop .6s ease both}
+  @keyframes rpop{0%{transform:scale(.4);opacity:0}70%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+</style>
+</head>
+<body>
+  <canvas id="cv"></canvas>
+
+  <div id="hud">
+    <div id="score">0</div>
+    <div id="hint">轻点前进 · 滑动转向</div>
+  </div>
+  <div id="eagle-warn">老 鹰 来 了</div>
+  <div id="flash-msg">+10</div>
+  <button id="btn-snd" aria-label="声音开关"></button>
+  <footer>夜路穿行 · 完全离线 · 车灯河影一路向北</footer>
+
+  <div id="menu" class="layer">
+    <div class="lpanel">
+      <div class="lt">夜路穿行</div>
+      <div class="ld">深夜赶路的小白鸡，一路向北回家。<br>
+        <b>轻点跳一格，滑动可四向移动</b>。<br>
+        马路看车灯、河面跳原木、铁轨等信号；<br>
+        站着发呆太久，老鹰可就要来了。</div>
+      <div class="bestrow">最远 <b id="menu-best">0</b> 步</div>
+      <button id="menu-ok">出发</button>
+    </div>
+  </div>
+
+  <div id="end" class="layer" hidden>
+    <div class="lpanel">
+      <div class="lt" id="end-title">旅途结束</div>
+      <div class="big" id="end-score">0</div>
+      <div class="rec" id="end-rec">★ 新纪录 ★</div>
+      <div class="stats"><span>走过<br><b id="end-n">0</b> 步</span><span>耗时<br><b id="end-t">0</b> 秒</span></div>
+      <div class="bestrow">历史最远 <b id="end-best">0</b> 步</div>
+      <button id="end-ok">再走一趟</button>
+      <button id="end-menu" class="ghost">歇会儿</button>
+    </div>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  function mulberry(seed) { var t = seed >>> 0; return function () { t += 0x6D2B79F5; var r2 = Math.imul(t ^ (t >>> 15), 1 | t); r2 ^= r2 + Math.imul(r2 ^ (r2 >>> 7), 61 | r2); return ((r2 ^ (r2 >>> 14)) >>> 0) / 4294967296; }; }
+
+  var safeStorage = {
+    get: function (k, d) { try { var v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set: function (k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+    del: function (k) { try { localStorage.removeItem(k); } catch (e) {} }
+  };
+
+  var SFX = (function () {
+    var ctx = null, on = safeStorage.get('mq_g29_sound', false);
+    function ac() {
+      if (!ctx) { try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+      if (ctx && ctx.state === 'suspended') ctx.resume();
+      return ctx;
+    }
+    function tone(type, f0, f1, t, vol, when) {
+      var c = ac(); if (!c) return;
+      var o = c.createOscillator(), g = c.createGain();
+      var t0 = c.currentTime + (when || 0);
+      o.type = type; o.frequency.setValueAtTime(f0, t0);
+      if (f1) o.frequency.exponentialRampToValueAtTime(f1, t0 + t);
+      g.gain.setValueAtTime(vol, t0);
+      g.gain.exponentialRampToValueAtTime(.001, t0 + t + .02);
+      o.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0 + t + .04);
+    }
+    function noise(t, vol, filt) {
+      var c = ac(); if (!c) return;
+      var n = c.createBufferSource();
+      var buf = c.createBuffer(1, c.sampleRate * t | 0, c.sampleRate);
+      var d = buf.getChannelData(0);
+      for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      n.buffer = buf;
+      var g = c.createGain(); var t0 = c.currentTime;
+      g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(.001, t0 + t);
+      n.connect(filt || g); if (filt) filt.connect(g);
+      g.connect(c.destination); n.start(t0); n.stop(t0 + t + .02);
+    }
+    return {
+      unlock: function () { ac(); },
+      hop: function () { if (!on) return; tone('sine', 660, 880, .07, .05); },
+      bump: function () { if (!on) return; tone('sine', 185, 140, .06, .05); },
+      milestone: function () {
+        if (!on) return;
+        tone('sine', 523.25, 0, .12, .05); tone('sine', 783.99, 0, .16, .06, .08);
+      },
+      splash: function () {
+        if (!on) return;
+        var c = ac(); if (!c) return;
+        var bp = c.createBiquadFilter(); bp.type = 'lowpass'; bp.frequency.value = 1200;
+        noise(.3, .12, bp);
+      },
+      train: function () {
+        if (!on) return;
+        var c = ac(); if (!c) return;
+        var lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 300;
+        noise(.5, .16, lp); tone('sawtooth', 130, 90, .5, .06);
+      },
+      warn: function () { if (!on) return; tone('square', 990, 990, .09, .04); tone('square', 990, 990, .09, .04, .14); },
+      eagle: function () { if (!on) return; tone('sawtooth', 1400, 500, .5, .05); },
+      squash: function () {
+        if (!on) return;
+        tone('triangle', 200, 80, .18, .12);
+        var c = ac(); if (!c) return;
+        var hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 2400;
+        noise(.12, .06, hp);
+      },
+      get on() { return on; },
+      toggle: function () { on = !on; safeStorage.set('mq_g29_sound', on); return on; }
+    };
+  })();
+
+  /* ═══ 数值 ═══ */
+  var W = 375, H = 812;
+  var COLS = 7, CELL = W / COLS;         /* ≈53.57 */
+  var ROW_H = 58;
+  var PLAYER_ANCHOR_Y = 560;             /* 玩家稳定显示的屏幕纵坐标 */
+  var CAR_SPD_LO = 85, CAR_SPD_HI = 185;
+  var LOG_SPD_LO = 34, LOG_SPD_HI = 70;
+  var LOG_LEN = [2, 2, 3, 3, 4];         /* 原木长度（格） */
+  var TRAIN_WARN = 1.2, TRAIN_PASS = .45, TRAIN_IDLE_LO = 3, TRAIN_IDLE_HI = 6.5;
+  var IDLE_EAGLE = 6;                    /* 空闲秒数后镜头开始上滚 */
+  var EAGLE_ROLL_MAX = 34;               /* 上滚最大速度 px/s */
+  var JUMP_MS = 125;
+  var TYPE_P = { grass: .36, road: .32, river: .19, rail: .13 };
+  var rowCache = {};                     /* 行静态层缓存 k->canvas */
+
+  /* ═══ 状态 ═══ */
+  var S = {
+    mode: 'menu', running: false, seed: 1, t: 0, raf: 0, lastTs: 0,
+    score: 0, maxK: 0, startT: 0, hintDone: false, bumpT: 0,
+    camK: 0, idleT: 0, eagleMode: false,
+    rows: {},                             /* k -> row 对象 */
+    topK: 0,                              /* 已生成到 */
+    player: null,                         /* {col,fromK,toK,kF,jumpT,x} */
+    dead: null, feathers: [], ripples: []
+  };
+
+  var el = {
+    cv: document.getElementById('cv'), score: document.getElementById('score'),
+    hud: document.getElementById('hud'), hint: document.getElementById('hint'),
+    eagleWarn: document.getElementById('eagle-warn'), flash: document.getElementById('flash-msg'),
+    menu: document.getElementById('menu'), menuOk: document.getElementById('menu-ok'),
+    menuBest: document.getElementById('menu-best'),
+    end: document.getElementById('end'), endTitle: document.getElementById('end-title'),
+    endScore: document.getElementById('end-score'),
+    endN: document.getElementById('end-n'), endT: document.getElementById('end-t'),
+    endBest: document.getElementById('end-best'), endRec: document.getElementById('end-rec'),
+    endOk: document.getElementById('end-ok'), endMenu: document.getElementById('end-menu'),
+    btnSnd: document.getElementById('btn-snd')
+  };
+  var ctx2d = el.cv.getContext('2d');
+  var DPR = Math.min(window.devicePixelRatio || 1, 2);
+  el.cv.width = W * DPR; el.cv.height = H * DPR;
+  ctx2d.scale(DPR, DPR);
+
+  var TOP_ROWS = Math.ceil(PLAYER_ANCHOR_Y / ROW_H);   /* 锚点之上的可见行数 ≈10 */
+  var BOT_ROWS = Math.ceil((H - PLAYER_ANCHOR_Y) / ROW_H); /* 之下 ≈5 */
+
+  function hudDim(on) { el.hud.classList.toggle('dim', on); }
+
+  function genRow(k) {
+    if (S.rows[k]) return S.rows[k];
+    var rnd = mulberry((S.seed ^ 0x9e37) + k * 7919);
+    var type;
+    if (k < 3) type = 'grass';
+    else {
+      var prev = S.rows[k - 1] ? S.rows[k - 1].type : 'grass';
+      var pp = S.rows[k - 2] ? S.rows[k - 2].type : 'grass';
+      var r = rnd();
+      /* 不与上两行同型三连（河/铁尤其），路可两连 */
+      if (r < TYPE_P.grass) type = 'grass';
+      else if (r < TYPE_P.grass + TYPE_P.road) type = (prev === 'road') ? 'grass' : 'road';
+      else if (r < TYPE_P.grass + TYPE_P.road + TYPE_P.river) type = (prev === 'river' || pp === 'river') ? 'grass' : 'river';
+      else type = (prev === 'rail') ? 'grass' : 'rail';
+    }
+    var row = { k: k, type: type, tint: rnd() };
+    if (type === 'grass') {
+      row.trees = [];
+      if (k >= 2) {
+        var n = rnd() < .5 ? 0 : (rnd() < .6 ? 1 : (rnd() < .8 ? 2 : 3));
+        var pool = [0, 1, 2, 3, 4, 5, 6];
+        for (var i = 0; i < n; i++) {
+          var c = pool.splice(rnd() * pool.length | 0, 1)[0];
+          row.trees.push(c);
+        }
+        /* 保证起点行(k=2 出发前列)中列不可全堵：col 3 永远留空 */
+        var ci = row.trees.indexOf(3);
+        if (ci >= 0 && k < 4) row.trees.splice(ci, 1);
+      }
+    } else if (type === 'road') {
+      var dir = rnd() < .5 ? 1 : -1;
+      var spd = CAR_SPD_LO + rnd() * (CAR_SPD_HI - CAR_SPD_LO);
+      var gap = 150 + rnd() * 170;              /* 车头间距 px */
+      var len = 62 + rnd() * 26;                /* 车长 */
+      var hue = rnd();
+      row.cars = [];
+      var x0 = rnd() * (W + gap);
+      var cnt = Math.ceil((W + gap * 2) / (gap + len)) + 1;
+      for (var ci2 = 0; ci2 < cnt; ci2++) {
+        row.cars.push({ x: x0 + ci2 * (gap + len), spd: spd, dir: dir, len: len, hue: hue });
+      }
+      row.lane = rnd() < .5 ? 0 : 1;            /* 同组双道时二道相位差由 k 奇偶 */
+    } else if (type === 'river') {
+      var dir2 = rnd() < .5 ? 1 : -1;
+      var spd2 = LOG_SPD_LO + rnd() * (LOG_SPD_HI - LOG_SPD_LO);
+      var lg = LOG_LEN[rnd() * LOG_LEN.length | 0];
+      var logW = lg * CELL - 10;
+      var gap2 = 90 + rnd() * 130;
+      row.logs = [];
+      var x02 = rnd() * (W + gap2);
+      var cnt2 = Math.ceil((W + gap2 * 2) / (logW + gap2)) + 1;
+      for (var ci3 = 0; ci3 < cnt2; ci3++) {
+        row.logs.push({ x: x02 + ci3 * (logW + gap2), spd: spd2, dir: dir2, w: logW });
+      }
+    } else if (type === 'rail') {
+      row.phase = 'idle';
+      row.pt = 1.5 + rnd() * (TRAIN_IDLE_LO + TRAIN_IDLE_HI - 1.5);
+    }
+    S.rows[k] = row;
+    if (k > S.topK) S.topK = k;
+    return row;
+  }
+
+  function genAhead() {
+    var need = Math.ceil(S.camK + BOT_ROWS) + 2;
+    for (var k = S.topK; k <= need; k++) {
+      if (!S.rows[k]) genRow(k);
+    }
+  }
+
+  /* ═══ 局程 ═══ */
+  function startRun(seed) {
+    S.seed = (seed == null ? (Math.random() * 1e9 | 0) : seed) >>> 0;
+    S.rows = {}; S.topK = -1;
+    for (var rkc in rowCache) delete rowCache[rkc];
+    for (var k = 0; k < 12; k++) genRow(k);
+    S.player = { col: 3, fromK: 2, toK: 2, kF: 2, jumpT: 1, x: 3 * CELL + CELL / 2, onLog: null };
+    S.camK = 2;                            /* 相机锚定玩家行 kF */
+    S.score = 0; S.maxK = 2; S.startT = 0; S.t = 0;
+    S.idleT = 0; S.eagleMode = false; S.dead = null; S.hintDone = false; S.bumpT = 0;
+    S.feathers = []; S.ripples = [];
+    el.menu.hidden = true; el.end.hidden = true;
+    el.eagleWarn.classList.remove('show');
+    el.hint.style.opacity = '.9';
+    hudDim(false);
+    updateHUD();
+    S.mode = 'play'; S.running = true;
+    S.lastTs = 0;
+    cancelAnimationFrame(S.raf);
+    S.raf = requestAnimationFrame(loop);
+  }
+
+  function endRun(cause) {
+    if (S.mode !== 'play') return;
+    S.mode = 'dying'; S.dead = { cause: cause, t: 0 };
+    if (cause === 'car' || cause === 'train') { SFX.squash(); spawnFeathers(); }
+    else if (cause === 'water' || cause === 'log') { SFX.splash(); S.ripples.push({ x: S.player.x, y: rowScreenY(S.player.toK), r: 4, t: 1 }); }
+    else if (cause === 'eagle') { SFX.eagle(); }
+    el.eagleWarn.classList.remove('show');
+    S.running = true;                     /* 继续渲染死亡动画 */
+  }
+
+  function finishDeath() {
+    S.mode = 'dead'; S.running = false;
+    cancelAnimationFrame(S.raf);
+    hudDim(true);
+    var deadScore = S.score, secs = Math.round(S.t) || 1;
+    var best = safeStorage.get('mq_g29_best', 0);
+    var rec = deadScore > best;
+    if (rec) safeStorage.set('mq_g29_best', deadScore);
+    var titles = { car: '被车撞了', train: '火车呼啸而过', water: '掉进河里', eagle: '被老鹰叼走', log: '漂出了画面' };
+    el.endTitle.textContent = titles[S.dead.cause] || '旅途结束';
+    el.endScore.textContent = deadScore;
+    el.endN.textContent = deadScore;
+    el.endT.textContent = secs;
+    el.endBest.textContent = rec ? deadScore : best;
+    el.endRec.classList.toggle('show', rec);
+    el.end.hidden = false;
+  }
+
+  function spawnFeathers() {
+    var p = S.player;
+    for (var i = 0; i < 10; i++) {
+      S.feathers.push({
+        x: p.x, y: rowScreenY(p.toK),
+        vx: (Math.random() - .5) * 260, vy: -Math.random() * 300 - 60,
+        ang: Math.random() * 7, va: (Math.random() - .5) * 9, t: 1.3 + Math.random() * .5
+      });
+    }
+  }
+
+  function rowScreenY(k) {
+    return PLAYER_ANCHOR_Y + (S.camK - k) * ROW_H;
+  }
+
+  /* ═══ 移动 ═══ */
+  function tryMove(dx, dk) {
+    var p = S.player;
+    if (!p || S.mode !== 'play' || p.jumpT < 1) return false;
+    var nCol = p.col + dx;
+    if (nCol < 0 || nCol >= COLS) { S.bumpT = 1; SFX.bump(); return false; }
+    var nK = p.toK + dk;
+    if (dk < 0 && nK < 0) { S.bumpT = 1; SFX.bump(); return false; }
+    var row = genRow(nK);
+    if (row.type === 'grass' && row.trees.indexOf(nCol) >= 0) { S.bumpT = 1; SFX.bump(); return false; }
+    if (dk > 0 && nK > S.maxK) {
+      S.maxK = nK; S.score = nK - 2;
+      updateHUD(); scorePop();
+      if (S.score > 0 && S.score % 25 === 0) { SFX.milestone(); flashMsg(S.score + ' 步！'); }
+    }
+    p.fromK = p.toK; p.toK = nK;
+    p.col = nCol;
+    p.jumpT = 0;
+    p.onLog = null;                       /* 跳离原木 */
+    S.idleT = 0;
+    SFX.hop();
+    if (!S.hintDone) { S.hintDone = true; setTimeout(function () { el.hint.style.opacity = '0'; }, 1600); }
+    return true;
+  }
+
+  /* ═══ 物理 ═══ */
+  function stepOnce(dt) {
+    var ds = dt / 1000;
+    S.t += ds;
+    if (S.mode === 'play') {
+      S.idleT += ds;
+      if (!S.eagleMode && S.idleT > IDLE_EAGLE) { S.eagleMode = true; el.eagleWarn.classList.add('show'); SFX.warn(); }
+    }
+    /* 镜头跟随 */
+    if (S.mode === 'play' || S.mode === 'dying') {
+      var want = S.player.kF;
+      var diff = want - S.camK;
+      if (S.eagleMode && S.mode === 'play') {
+        /* 压力滚动：永不后退，向上逼近 */
+        if (diff < 2.4) S.camK += EAGLE_ROLL_MAX * ds * Math.min(1, (2.6 - diff));
+        else S.camK = Math.max(S.camK, want - 1.2);
+      } else {
+        S.camK += diff * Math.min(1, ds * 7);
+        if (Math.abs(want - S.camK) < .01) S.camK = want;
+      }
+      S.camK = Math.max(S.camK, want - 2.6);
+      genAhead();
+    }
+    /* 跳跃动画 */
+    var p = S.player;
+    if (p) {
+      if (p.jumpT < 1) {
+        p.jumpT = Math.min(1, p.jumpT + dt / JUMP_MS);
+      }
+      p.kF = p.fromK + (p.toK - p.fromK) * easeQ(p.jumpT);
+    }
+    /* 行实体更新 */
+    var lo = Math.floor(S.camK) - TOP_ROWS, hi = Math.ceil(S.camK + BOT_ROWS) + 2;
+    for (var k = lo; k <= hi; k++) {
+      var row = S.rows[k];
+      if (!row) continue;
+      if (row.type === 'road') {
+        for (var ci = 0; ci < row.cars.length; ci++) {
+          var car = row.cars[ci];
+          car.x += car.spd * car.dir * ds;
+          if (car.x > W + 200 && car.dir > 0) car.x -= (W + 400);
+          if (car.x < -200 - car.len && car.dir < 0) car.x += (W + 400);
+        }
+      } else if (row.type === 'river') {
+        for (var li = 0; li < row.logs.length; li++) {
+          var lg2 = row.logs[li];
+          lg2.x += lg2.spd * lg2.dir * ds;
+          if (lg2.x > W + 60 && lg2.dir > 0) lg2.x -= (W + 120 + lg2.w);
+          if (lg2.x + lg2.w < -60 && lg2.dir < 0) lg2.x += (W + 120 + lg2.w);
+        }
+      } else if (row.type === 'rail') {
+        if (row.phase === 'idle') {
+          row.pt -= ds;
+          if (row.pt <= 0) { row.phase = 'warn'; row.pt = TRAIN_WARN; SFX.warn(); }
+        } else if (row.phase === 'warn') {
+          row.pt -= ds;
+          if (row.pt <= 0) { row.phase = 'passing'; row.pt = TRAIN_PASS; SFX.train(); }
+        } else if (row.phase === 'passing') {
+          row.pt -= ds;
+          if (row.pt <= 0) {
+            row.phase = 'idle';
+            var rnd = mulberry((S.seed ^ k * 31) + (S.t * 1000 | 0));
+            row.pt = TRAIN_IDLE_LO + rnd() * (TRAIN_IDLE_HI - TRAIN_IDLE_LO);
+          }
+        }
+      }
+    }
+    /* 玩家判定 */
+    if (p && S.mode === 'play' && p.jumpT >= 1) {
+      var prow = S.rows[p.toK];
+      if (prow) {
+        if (prow.type === 'road') {
+          for (var ci4 = 0; ci4 < prow.cars.length; ci4++) {
+            var c2 = prow.cars[ci4];
+            var cx = c2.dir > 0 ? c2.x : c2.x - c2.len;
+            if (p.x + 11 > cx + 4 && p.x - 11 < cx + c2.len - 4) { endRun('car'); break; }
+          }
+        } else if (prow.type === 'river') {
+          var on = null;
+          for (var li2 = 0; li2 < prow.logs.length; li2++) {
+            var lg3 = prow.logs[li2];
+            if (p.x > lg3.x + 4 && p.x < lg3.x + lg3.w - 4) { on = lg3; break; }
+          }
+          if (on) {
+            if (!p.onLog) { p.onLog = on; }
+            p.x = Math.min(on.x + on.w - 6, Math.max(on.x + 6, p.x));
+            p.x += on.spd * on.dir * ds;
+            S.idleT = 0;                   /* 随波漂移=活着，不计入老鹰计时 */
+          } else {
+            endRun('water');
+          }
+        } else if (prow.type === 'rail') {
+          if (prow.phase === 'passing') endRun('train');
+        }
+      }
+      /* 原木漂出屏 */
+      if (p.onLog && (p.x < -18 || p.x > W + 18)) endRun('log');
+      /* 老鹰压底 */
+      var py2 = rowScreenY(p.toK);
+      if (py2 > H + 30) endRun('eagle');
+    }
+    /* 死亡动画推进 */
+    if (S.mode === 'dying') {
+      S.dead.t += ds;
+      for (var fi = 0; fi < S.feathers.length; fi++) {
+        var fe = S.feathers[fi];
+        fe.t -= ds; fe.x += fe.vx * ds; fe.y += fe.vy * ds; fe.vy += 900 * ds; fe.ang += fe.va * ds;
+      }
+      for (var ri = S.ripples.length - 1; ri >= 0; ri--) {
+        var rp = S.ripples[ri];
+        rp.t -= ds; rp.r += 60 * ds;
+        if (rp.t <= 0) S.ripples.splice(ri, 1);
+      }
+      if (S.dead.t > 1.15) finishDeath();
+    }
+    if (S.bumpT > 0) S.bumpT = Math.max(0, S.bumpT - ds * 4);
+  }
+
+  function easeQ(t) { return 1 - (1 - t) * (1 - t); }
+
+  /* ═══ 渲染 ═══ */
+  function render() {
+    ctx2d.clearRect(0, 0, W, H);
+    var lo = Math.floor(S.camK) - TOP_ROWS, hi = Math.ceil(S.camK + BOT_ROWS) + 1;
+    /* 从远到近画行 */
+    for (var k = hi; k >= lo; k--) {
+      var row = S.rows[k];
+      if (!row) {
+        if (k < 0) { drawRow({ k: k, type: 'grass', tint: .4, trees: [] }, rowScreenY(k)); }  /* 屏幕底缘草地兜底 */
+        continue;
+      }
+      var y = rowScreenY(k);
+      if (y < -ROW_H || y > H + ROW_H) continue;
+      drawRow(row, y);
+    }
+    /* 行缓存淘汰：视口外即弃（防长跑内存累积） */
+    for (var ck in rowCache) {
+      var kn = +ck;
+      if (kn < lo - 1 || kn > hi + 1) delete rowCache[ck];
+    }
+    /* 粒子 */
+    drawRipples();
+    drawFeathers();
+    /* 玩家 */
+    drawPlayer();
+    /* 老鹰影 */
+    if (S.eagleMode && S.mode === 'play') drawEagleShadow();
+    if (S.dead && S.dead.cause === 'eagle') drawEagleGrab();
+  }
+
+  var ROAD_TINT = ['#232838', '#262b3d'];
+  /* 行静态层：底色/草纹/树/河底/枕木轨按 k 预渲染缓存，动态实体（车/木/波光/灯/火车）逐帧 */
+  function rowStatic(row) {
+    var c = rowCache[row.k];
+    if (c) return c;
+    c = document.createElement('canvas');
+    c.width = Math.ceil(W * DPR); c.height = Math.ceil(ROW_H * DPR);
+    var x = c.getContext('2d'); x.scale(DPR, DPR);
+    if (row.type === 'grass') {
+      x.fillStyle = row.tint < .5 ? '#1d3326' : '#1f3829';
+      x.fillRect(0, 0, W, ROW_H);
+      x.fillStyle = 'rgba(120,190,130,.06)';
+      var gr = mulberry(row.k * 99 + 7);
+      for (var i = 0; i < 7; i++) x.fillRect(gr() * W, gr() * ROW_H, 12, 2);
+      for (var ti = 0; ti < row.trees.length; ti++) drawTree(x, row.trees[ti], ROW_H);
+    } else if (row.type === 'road') {
+      x.fillStyle = ROAD_TINT[row.lane || 0];
+      x.fillRect(0, 0, W, ROW_H);
+    } else if (row.type === 'river') {
+      var wg = x.createLinearGradient(0, 0, 0, ROW_H);
+      wg.addColorStop(0, '#173a52'); wg.addColorStop(1, '#122c40');
+      x.fillStyle = wg;
+      x.fillRect(0, 0, W, ROW_H);
+    } else if (row.type === 'rail') {
+      x.fillStyle = '#2b2418';
+      x.fillRect(0, 0, W, ROW_H);
+      x.fillStyle = '#3a3020';
+      for (var sx2 = 6; sx2 < W; sx2 += 34) x.fillRect(sx2, 14, 22, ROW_H - 28);
+      x.strokeStyle = '#8d99b8'; x.lineWidth = 3;
+      x.beginPath(); x.moveTo(0, ROW_H * .5 - 7); x.lineTo(W, ROW_H * .5 - 7); x.stroke();
+      x.beginPath(); x.moveTo(0, ROW_H * .5 + 7); x.lineTo(W, ROW_H * .5 + 7); x.stroke();
+    }
+    rowCache[row.k] = c;
+    return c;
+  }
+  function drawRow(row, y) {
+    ctx2d.drawImage(rowStatic(row), 0, y - ROW_H, W, ROW_H);
+    if (row.type === 'road') {
+      /* 路缘线随邻行类型实时画（缓存会随邻行生成而过期） */
+      var up = S.rows[row.k + 1], dn = S.rows[row.k - 1];
+      ctx2d.lineWidth = 2;
+      if (up && up.type === 'road') {
+        ctx2d.strokeStyle = 'rgba(255,214,120,.34)';
+        ctx2d.setLineDash([14, 12]);
+        ctx2d.beginPath(); ctx2d.moveTo(0, y - ROW_H + 1); ctx2d.lineTo(W, y - ROW_H + 1); ctx2d.stroke();
+        ctx2d.setLineDash([]);
+      } else {
+        ctx2d.strokeStyle = 'rgba(200,210,235,.16)';
+        ctx2d.beginPath(); ctx2d.moveTo(0, y - ROW_H + 1); ctx2d.lineTo(W, y - ROW_H + 1); ctx2d.stroke();
+      }
+      if (dn && dn.type === 'road') {
+        ctx2d.strokeStyle = 'rgba(255,214,120,.34)';
+        ctx2d.setLineDash([14, 12]);
+        ctx2d.beginPath(); ctx2d.moveTo(0, y - 1); ctx2d.lineTo(W, y - 1); ctx2d.stroke();
+        ctx2d.setLineDash([]);
+      } else {
+        ctx2d.strokeStyle = 'rgba(200,210,235,.16)';
+        ctx2d.beginPath(); ctx2d.moveTo(0, y - 1); ctx2d.lineTo(W, y - 1); ctx2d.stroke();
+      }
+      for (var ci = 0; ci < row.cars.length; ci++) drawCar(row.cars[ci], y);
+    } else if (row.type === 'river') {
+      /* 波光 */
+      ctx2d.strokeStyle = 'rgba(150,200,230,.08)'; ctx2d.lineWidth = 1.5;
+      var wr = mulberry(row.k * 55 + 3);
+      for (var wi = 0; wi < 4; wi++) {
+        var wx = wr() * W, wy = y - ROW_H + 10 + wr() * (ROW_H - 20);
+        var off = Math.sin(S.t * 1.4 + wi) * 8;
+        ctx2d.beginPath(); ctx2d.moveTo(wx + off, wy); ctx2d.lineTo(wx + off + 16, wy); ctx2d.stroke();
+      }
+      for (var li = 0; li < row.logs.length; li++) drawLog(row.logs[li], y);
+    } else if (row.type === 'rail') {
+      drawSignal(row, y);
+      if (row.phase === 'passing') drawTrain(y, row.pt / TRAIN_PASS);
+    }
+  }
+
+  function drawTree(x, col, y) {
+    var cx = col * CELL + CELL / 2, cy = y - ROW_H / 2;
+    /* 影 */
+    x.fillStyle = 'rgba(0,0,0,.3)';
+    x.beginPath(); x.ellipse(cx + 3, cy + 12, 15, 6, 0, 0, 7); x.fill();
+    /* 干 */
+    x.fillStyle = '#4a3527';
+    x.fillRect(cx - 3.5, cy - 2, 7, 14);
+    /* 冠 */
+    var cg = x.createRadialGradient(cx - 5, cy - 12, 3, cx, cy - 8, 20);
+    cg.addColorStop(0, '#3d6b48'); cg.addColorStop(1, '#24422e');
+    x.fillStyle = cg;
+    x.beginPath(); x.arc(cx, cy - 8, 17, 0, 7); x.fill();
+    x.fillStyle = 'rgba(120,190,130,.25)';
+    x.beginPath(); x.arc(cx - 6, cy - 13, 6, 0, 7); x.fill();
+  }
+
+  var CAR_COLORS = [
+    ['#ff8a6b', '#c95a3f'], ['#8fd0ff', '#4a90c2'], ['#ffd97e', '#c9a03f'],
+    ['#c58bff', '#8a5fd0'], ['#8be8c0', '#4fae8a'], ['#ff8fb8', '#c95a82']
+  ];
+  function drawCar(car, y) {
+    var x = car.dir > 0 ? car.x : car.x - car.len;
+    var cy = y - ROW_H / 2;
+    var palette = CAR_COLORS[Math.floor(car.hue * CAR_COLORS.length) % CAR_COLORS.length];
+    /* 车灯锥（行进方向前照） */
+    var lightX = car.dir > 0 ? x + car.len : x;
+    var lg2 = ctx2d.createLinearGradient(lightX, cy, lightX + car.dir * 74, cy);
+    lg2.addColorStop(0, 'rgba(255,240,190,.3)');
+    lg2.addColorStop(1, 'rgba(255,240,190,0)');
+    ctx2d.fillStyle = lg2;
+    ctx2d.beginPath();
+    ctx2d.moveTo(lightX, cy - 8);
+    ctx2d.lineTo(lightX + car.dir * 74, cy - 15);
+    ctx2d.lineTo(lightX + car.dir * 74, cy + 15);
+    ctx2d.lineTo(lightX, cy + 8);
+    ctx2d.closePath(); ctx2d.fill();
+    /* 车体 */
+    var bg2 = ctx2d.createLinearGradient(x, cy - 10, x, cy + 10);
+    bg2.addColorStop(0, palette[0]); bg2.addColorStop(1, palette[1]);
+    ctx2d.fillStyle = bg2;
+    roundRect(x, cy - 11, car.len, 22, 6); ctx2d.fill();
+    /* 车窗 */
+    ctx2d.fillStyle = 'rgba(20,26,40,.75)';
+    var wx2 = car.dir > 0 ? x + car.len * .42 : x + car.len * .18;
+    roundRect(wx2, cy - 7, car.len * .32, 14, 3); ctx2d.fill();
+    /* 尾灯 */
+    ctx2d.fillStyle = '#ff5a66';
+    var tx2 = car.dir > 0 ? x + 2 : x + car.len - 4;
+    ctx2d.fillRect(tx2, cy - 8, 3, 4); ctx2d.fillRect(tx2, cy + 4, 3, 4);
+    /* 前灯点 */
+    ctx2d.fillStyle = '#fff4d0';
+    var hx = car.dir > 0 ? x + car.len - 4 : x + 1;
+    ctx2d.fillRect(hx, cy - 8, 3, 4); ctx2d.fillRect(hx, cy + 4, 3, 4);
+  }
+
+  function drawLog(lg2, y) {
+    var cy = y - ROW_H / 2;
+    /* 影 */
+    ctx2d.fillStyle = 'rgba(0,0,0,.25)';
+    roundRect(lg2.x + 2, cy - 9, lg2.w, 20, 8); ctx2d.fill();
+    var bg2 = ctx2d.createLinearGradient(0, cy - 9, 0, cy + 9);
+    bg2.addColorStop(0, '#8a6a42'); bg2.addColorStop(1, '#5d462c');
+    ctx2d.fillStyle = bg2;
+    roundRect(lg2.x, cy - 10, lg2.w, 20, 8); ctx2d.fill();
+    /* 木纹 */
+    ctx2d.strokeStyle = 'rgba(40,28,16,.5)'; ctx2d.lineWidth = 1.4;
+    ctx2d.beginPath(); ctx2d.moveTo(lg2.x + 8, cy - 3); ctx2d.lineTo(lg2.x + lg2.w - 8, cy - 3); ctx2d.stroke();
+    ctx2d.beginPath(); ctx2d.moveTo(lg2.x + 10, cy + 4); ctx2d.lineTo(lg2.x + lg2.w - 12, cy + 4); ctx2d.stroke();
+    /* 两端年轮 */
+    ctx2d.fillStyle = 'rgba(200,170,130,.5)';
+    ctx2d.beginPath(); ctx2d.arc(lg2.x + 6, cy, 3.4, 0, 7); ctx2d.fill();
+    ctx2d.beginPath(); ctx2d.arc(lg2.x + lg2.w - 6, cy, 3.4, 0, 7); ctx2d.fill();
+  }
+
+  function drawSignal(row, y) {
+    var cx = 22, cy = y - ROW_H / 2;
+    ctx2d.fillStyle = '#454030';
+    roundRect(cx - 7, cy - 12, 14, 24, 4); ctx2d.fill();
+    var lit = row.phase !== 'idle';
+    var blink = row.phase === 'warn' && (Math.floor(S.t * 5) % 2 === 0);
+    var colr = (row.phase === 'passing' || blink) ? '#ff5a66' : '#5a3a3a';
+    ctx2d.fillStyle = colr;
+    ctx2d.beginPath(); ctx2d.arc(cx, cy - 5, 4, 0, 7); ctx2d.fill();
+    if (row.phase === 'passing' || blink) {
+      ctx2d.globalAlpha = .4;
+      ctx2d.beginPath(); ctx2d.arc(cx, cy - 5, 9, 0, 7); ctx2d.fill();
+      ctx2d.globalAlpha = 1;
+    }
+  }
+
+  function drawTrain(y, prog) {
+    var cy = y - ROW_H / 2;
+    var spd = 2600;
+    var x = -520 + prog * (W + 1040);
+    /* 车体 */
+    var bg2 = ctx2d.createLinearGradient(0, cy - 13, 0, cy + 13);
+    bg2.addColorStop(0, '#5d7086'); bg2.addColorStop(1, '#37455a');
+    ctx2d.fillStyle = bg2;
+    roundRect(x, cy - 13, 460, 26, 5); ctx2d.fill();
+    /* 窗 */
+    ctx2d.fillStyle = 'rgba(255,230,170,.85)';
+    for (var i = 0; i < 9; i++) ctx2d.fillRect(x + 16 + i * 48, cy - 7, 26, 8);
+    /* 头灯 */
+    ctx2d.fillStyle = '#fff4d0';
+    ctx2d.fillRect(x + 456, cy - 9, 4, 5); ctx2d.fillRect(x + 456, cy + 4, 4, 5);
+    var lg2 = ctx2d.createLinearGradient(x + 460, cy, x + 560, cy);
+    lg2.addColorStop(0, 'rgba(255,240,190,.5)'); lg2.addColorStop(1, 'rgba(255,240,190,0)');
+    ctx2d.fillStyle = lg2;
+    ctx2d.beginPath();
+    ctx2d.moveTo(x + 460, cy - 8); ctx2d.lineTo(x + 560, cy - 16); ctx2d.lineTo(x + 560, cy + 16); ctx2d.lineTo(x + 460, cy + 8);
+    ctx2d.closePath(); ctx2d.fill();
+  }
+
+  function drawPlayer() {
+    var p = S.player;
+    if (!p) return;
+    if (S.dead && S.dead.cause === 'eagle') {
+      var ey = rowScreenY(p.toK) - S.dead.t * 420;
+      drawChick(p.x, ey, 1.15, 0);
+      return;
+    }
+    if (S.dead && (S.dead.cause === 'car' || S.dead.cause === 'train')) {
+      /* 压扁 */
+      drawChickFlat(p.x, rowScreenY(p.toK));
+      return;
+    }
+    if (S.dead && S.dead.cause === 'water') return;  /* 沉底不可见，涟漪代替 */
+    var y0 = rowScreenY(p.fromK), y1 = rowScreenY(p.toK);
+    var t2 = easeQ(p.jumpT);
+    var y = y0 + (y1 - y0) * t2;
+    var x = p.x + (S.bumpT > 0 ? Math.sin(S.bumpT * 46) * 2.6 * S.bumpT : 0);
+    var hop = Math.sin(Math.PI * p.jumpT) * 7;
+    var sc = 1 + Math.sin(Math.PI * p.jumpT) * .16;
+    drawChick(x, y - hop, sc, (p.jumpT < 1) ? (p.toK > p.fromK ? -.3 : .3) : 0);
+  }
+
+  function drawChick(x, y, sc, tilt) {
+    ctx2d.save();
+    ctx2d.translate(x, y);
+    ctx2d.rotate(tilt || 0);
+    ctx2d.scale(sc, sc);
+    /* 影 */
+    ctx2d.fillStyle = 'rgba(0,0,0,.32)';
+    ctx2d.beginPath(); ctx2d.ellipse(2, 10, 12, 5, 0, 0, 7); ctx2d.fill();
+    /* 身 */
+    var bg2 = ctx2d.createRadialGradient(-4, -6, 3, 0, 0, 15);
+    bg2.addColorStop(0, '#ffffff'); bg2.addColorStop(.7, '#f2ecd8'); bg2.addColorStop(1, '#cfc4a4');
+    ctx2d.fillStyle = bg2;
+    ctx2d.beginPath(); ctx2d.ellipse(0, 0, 13, 12, 0, 0, 7); ctx2d.fill();
+    /* 翅 */
+    ctx2d.fillStyle = '#e2d9be';
+    ctx2d.beginPath(); ctx2d.ellipse(-8, 1, 5, 7, .5, 0, 7); ctx2d.fill();
+    ctx2d.beginPath(); ctx2d.ellipse(8, 1, 5, 7, -.5, 0, 7); ctx2d.fill();
+    /* 冠 */
+    ctx2d.fillStyle = '#e05a68';
+    ctx2d.beginPath(); ctx2d.arc(-3, -11, 3, 0, 7); ctx2d.fill();
+    ctx2d.beginPath(); ctx2d.arc(3, -11, 3, 0, 7); ctx2d.fill();
+    /* 嘴 */
+    ctx2d.fillStyle = '#ffab4a';
+    ctx2d.beginPath(); ctx2d.moveTo(0, -4); ctx2d.lineTo(6, -1); ctx2d.lineTo(0, 2); ctx2d.closePath(); ctx2d.fill();
+    /* 眼 */
+    ctx2d.fillStyle = '#2b2a26';
+    ctx2d.beginPath(); ctx2d.arc(-4, -3, 1.6, 0, 7); ctx2d.fill();
+    ctx2d.beginPath(); ctx2d.arc(4, -3, 1.6, 0, 7); ctx2d.fill();
+    ctx2d.restore();
+  }
+
+  function drawChickFlat(x, y) {
+    ctx2d.save();
+    ctx2d.translate(x, y + 4);
+    var bg2 = ctx2d.createRadialGradient(0, 0, 2, 0, 0, 16);
+    bg2.addColorStop(0, '#f2ecd8'); bg2.addColorStop(1, '#b8ad90');
+    ctx2d.fillStyle = bg2;
+    ctx2d.beginPath(); ctx2d.ellipse(0, 0, 17, 6, 0, 0, 7); ctx2d.fill();
+    ctx2d.fillStyle = '#e05a68';
+    ctx2d.beginPath(); ctx2d.arc(-3, -4, 2, 0, 7); ctx2d.fill();
+    ctx2d.restore();
+  }
+
+  function drawFeathers() {
+    for (var i = 0; i < S.feathers.length; i++) {
+      var f = S.feathers[i];
+      if (f.t <= 0) continue;
+      ctx2d.save();
+      ctx2d.globalAlpha = Math.min(1, f.t);
+      ctx2d.translate(f.x, f.y);
+      ctx2d.rotate(f.ang);
+      ctx2d.fillStyle = '#f6f0dc';
+      ctx2d.beginPath(); ctx2d.ellipse(0, 0, 6, 2.4, 0, 0, 7); ctx2d.fill();
+      ctx2d.restore();
+    }
+    ctx2d.globalAlpha = 1;
+  }
+
+  function drawRipples() {
+    for (var i = 0; i < S.ripples.length; i++) {
+      var r = S.ripples[i];
+      ctx2d.strokeStyle = 'rgba(180,220,240,' + (.5 * Math.min(1, r.t)) + ')';
+      ctx2d.lineWidth = 2;
+      ctx2d.beginPath(); ctx2d.ellipse(r.x, r.y, r.r, r.r * .5, 0, 0, 7); ctx2d.stroke();
+    }
+  }
+
+  function drawEagleShadow() {
+    var t2 = (S.t * .9) % 1;
+    var cx = W / 2 + Math.sin(S.t * 1.1) * 90;
+    var cy = H * (.3 + t2 * .5);
+    ctx2d.save();
+    ctx2d.globalAlpha = .16;
+    ctx2d.fillStyle = '#000';
+    ctx2d.beginPath();
+    ctx2d.ellipse(cx, cy, 46, 12, 0, 0, 7); ctx2d.fill();
+    ctx2d.beginPath();
+    ctx2d.moveTo(cx - 46, cy); ctx2d.quadraticCurveTo(cx - 20, cy - 26, cx, cy - 4);
+    ctx2d.quadraticCurveTo(cx + 20, cy - 26, cx + 46, cy);
+    ctx2d.closePath(); ctx2d.fill();
+    ctx2d.restore();
+  }
+
+  function drawEagleGrab() {
+    var p = S.player;
+    var ey = rowScreenY(p.toK) - S.dead.t * 420;
+    ctx2d.save();
+    ctx2d.translate(p.x, ey - 26);
+    /* 爪 */
+    ctx2d.strokeStyle = '#e8a03c'; ctx2d.lineWidth = 3;
+    ctx2d.beginPath(); ctx2d.moveTo(-4, 14); ctx2d.lineTo(-6, 24); ctx2d.stroke();
+    ctx2d.beginPath(); ctx2d.moveTo(4, 14); ctx2d.lineTo(6, 24); ctx2d.stroke();
+    /* 鹰身 */
+    ctx2d.fillStyle = '#3a3326';
+    ctx2d.beginPath(); ctx2d.ellipse(0, 0, 24, 13, 0, 0, 7); ctx2d.fill();
+    ctx2d.fillStyle = '#2b251b';
+    ctx2d.beginPath();
+    ctx2d.moveTo(-24, 0); ctx2d.quadraticCurveTo(-52, -20, -68, -4);
+    ctx2d.quadraticCurveTo(-44, 4, -24, 4); ctx2d.closePath(); ctx2d.fill();
+    ctx2d.beginPath();
+    ctx2d.moveTo(24, 0); ctx2d.quadraticCurveTo(52, -20, 68, -4);
+    ctx2d.quadraticCurveTo(44, 4, 24, 4); ctx2d.closePath(); ctx2d.fill();
+    /* 头 */
+    ctx2d.fillStyle = '#e8e2d0';
+    ctx2d.beginPath(); ctx2d.arc(20, -6, 7, 0, 7); ctx2d.fill();
+    ctx2d.fillStyle = '#ffab4a';
+    ctx2d.beginPath(); ctx2d.moveTo(26, -6); ctx2d.lineTo(34, -4); ctx2d.lineTo(26, -1); ctx2d.closePath(); ctx2d.fill();
+    ctx2d.restore();
+  }
+
+  function roundRect(x, y, w, h, r) {
+    if (ctx2d.roundRect) { ctx2d.beginPath(); ctx2d.roundRect(x, y, w, h, r); }
+    else {
+      ctx2d.beginPath();
+      ctx2d.moveTo(x + r, y);
+      ctx2d.arcTo(x + w, y, x + w, y + h, r); ctx2d.arcTo(x + w, y + h, x, y + h, r);
+      ctx2d.arcTo(x, y + h, x, y, r); ctx2d.arcTo(x, y, x + w, y, r);
+      ctx2d.closePath();
+    }
+  }
+
+  function updateHUD() { el.score.textContent = S.score; }
+  function scorePop() {
+    el.score.classList.add('pop');
+    setTimeout(function () { el.score.classList.remove('pop'); }, 130);
+  }
+  function flashMsg(txt) {
+    el.flash.textContent = txt;
+    el.flash.classList.remove('show');
+    void el.flash.offsetWidth;
+    el.flash.classList.add('show');
+  }
+
+  /* ═══ 主循环 ═══ */
+  function loop(now) {
+    if (!S.running) return;
+    var dt = Math.min(34, now - (S.lastTs || now));
+    S.lastTs = now;
+    stepOnce(dt);
+    render();
+    if (S.running) S.raf = requestAnimationFrame(loop);
+  }
+
+  /* ═══ 输入：tap=前进，swipe=四向 ═══ */
+  var ptr = { down: false, sx: 0, sy: 0 };
+  window.addEventListener('pointerdown', function (e) {
+    if (e.target && e.target.closest && e.target.closest('#btn-snd')) return;
+    if (!el.menu.hidden || !el.end.hidden) return;
+    ptr.down = true; ptr.sx = e.clientX; ptr.sy = e.clientY;
+  }, { passive: true });
+  window.addEventListener('pointerup', function (e) {
+    if (!ptr.down) return;
+    ptr.down = false;
+    if (S.mode !== 'play') return;
+    var dx = e.clientX - ptr.sx, dy = e.clientY - ptr.sy;
+    var ad = Math.abs(dx), ady = Math.abs(dy);
+    if (ad < 18 && ady < 18) tryMove(0, 1);                    /* tap 前进 */
+    else if (ad > ady) tryMove(dx > 0 ? 1 : -1, 0);            /* 左右 */
+    else tryMove(0, dy < 0 ? 1 : -1);                          /* 上/下 */
+  }, { passive: true });
+  window.addEventListener('pointercancel', function () { ptr.down = false; }, { passive: true });
+  /* 键盘（桌面调试） */
+  window.addEventListener('keydown', function (e) {
+    if (S.mode !== 'play') return;
+    var map = { ArrowUp: [0, 1], ArrowDown: [0, -1], ArrowLeft: [-1, 0], ArrowRight: [1, 0], ' ': [0, 1], w: [0, 1], s: [0, -1], a: [-1, 0], d: [1, 0] };
+    var m = map[e.key];
+    if (m) { e.preventDefault(); tryMove(m[0], m[1]); }
+  });
+
+  /* ── 声音开关（系列统一形态） ── */
+  var SND_ON =
+    '<svg width="20" height="20" viewBox="0 0 20 20">' +
+    '<path d="M3 8 h3 l4 -3.4 v10.8 L6 12 H3z" fill="#8fd0ff"/>' +
+    '<path d="M13 7 q2 3 0 6 M15.5 5 q3.2 5 0 10" stroke="#ffd97e" stroke-width="1.7" fill="none" stroke-linecap="round"/>' +
+    '</svg>';
+  var SND_OFF =
+    '<svg width="20" height="20" viewBox="0 0 20 20">' +
+    '<path d="M3 8 h3 l4 -3.4 v10.8 L6 12 H3z" fill="#8d99b8"/>' +
+    '<path d="M13 7.5 l5 5 M18 7.5 l-5 5" stroke="#ff8494" stroke-width="1.9" stroke-linecap="round"/>' +
+    '</svg>';
+  function sndIcon() {
+    el.btnSnd.innerHTML = SFX.on ? SND_ON : SND_OFF;
+    el.btnSnd.classList.toggle('off', !SFX.on);
+  }
+  el.btnSnd.addEventListener('click', function () { SFX.toggle(); sndIcon(); });
+
+  function showMenu() {
+    S.mode = 'menu'; S.running = false;
+    el.end.hidden = true;
+    hudDim(false);
+    el.eagleWarn.classList.remove('show');
+    el.menuBest.textContent = safeStorage.get('mq_g29_best', 0);
+    el.menu.hidden = false;
+  }
+
+  el.menuOk.addEventListener('click', function () { SFX.unlock(); startRun(); });
+  el.endOk.addEventListener('click', function () { SFX.unlock(); startRun(); });
+  el.endMenu.addEventListener('click', showMenu);
+
+  /* ═══ dev 钩子 ═══ */
+  
+
+  /* ═══ 启动 ═══ */
+  sndIcon();
+  S.seed = 7;
+  for (var k0 = 0; k0 < 12; k0++) genRow(k0);
+  S.player = { col: 3, fromK: 2, toK: 2, kF: 2, jumpT: 1, x: 3 * CELL + CELL / 2, onLog: null };
+  S.camK = 2;
+  showMenu();
+  render();
+})();
+</script>
+</body>
+</html>
