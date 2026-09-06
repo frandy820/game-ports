@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#f6ead6">
+<title>灶糖 · 离线版</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect x='4' y='4' width='40' height='40' rx='9' fill='%23f6ead6'/%3E%3Ccircle cx='19' cy='22' r='9' fill='%23e05a4e'/%3E%3Ccircle cx='31' cy='28' r='9' fill='%2358b878'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg1:#f6ead6; --bg2:#e8d4b8; --txt:#3a2c20; --sub:#8a7458;
+    --brick:#c9553f; --gold:#c07820; --line:rgba(120,88,50,.2);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{background:linear-gradient(180deg,var(--bg1) 0%,#f0e0c6 55%,var(--bg2) 100%);color:var(--txt);
+    font-family:'Segoe UI',system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
+    overflow:hidden;position:fixed;inset:0;touch-action:none;user-select:none;-webkit-user-select:none}
+  #bgc{position:absolute;inset:0;width:375px;height:812px}
+
+  #hud{position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);left:14px;right:60px;z-index:6;
+    display:flex;align-items:center;gap:10px;pointer-events:none}
+  #title{font-size:20px;font-weight:800;color:#fff;letter-spacing:.1em;
+    padding:2px 10px;border:1px solid #8a4a34;border-radius:6px;
+    background:linear-gradient(180deg,#d4654e,#b84834);
+    box-shadow:inset 0 1px 0 rgba(255,235,220,.35), 0 1px 3px rgba(90,40,20,.35)}
+  #badge{font-size:11px;font-weight:800;color:#fff8ec;background:#a04a2c;padding:2px 8px;
+    border-radius:5px;letter-spacing:.14em;box-shadow:0 1px 0 rgba(90,40,20,.4)}
+  #btn-home{margin-left:auto;pointer-events:auto;width:36px;height:36px;border:1px solid #b09468;border-radius:10px;
+    background:#f4e6cc;color:#8a6a42;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 2px 6px rgba(120,80,40,.25)}
+  #btn-home:active{transform:translateY(1px);box-shadow:none}
+  #btn-snd{position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);right:12px;z-index:40;
+    width:36px;height:36px;border:1px solid #b09468;border-radius:10px;background:#f4e6cc;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(120,80,40,.25);pointer-events:auto}
+  #btn-snd.off{opacity:.55}
+
+  #qbar{position:absolute;top:calc(env(safe-area-inset-top,0px) + 58px);left:16px;right:16px;z-index:6;
+    display:flex;align-items:center;gap:12px}
+  #scorewrap{display:flex;flex-direction:column;gap:1px}
+  #score{font-size:27px;font-weight:800;color:#4a3222;font-variant-numeric:tabular-nums;line-height:1}
+  #scorelab{font-size:10px;font-weight:700;color:var(--sub);letter-spacing:.16em}
+  #combo{display:none;padding:3px 12px;border-radius:99px;font-size:12px;font-weight:800;
+    color:#b8482a;letter-spacing:.1em;background:rgba(224,90,78,.13);border:1px solid rgba(224,90,78,.5)}
+  #combo.show{display:block}
+  #combo.pop{animation:cpop .35s ease}
+  @keyframes cpop{0%{transform:scale(1)}45%{transform:scale(1.3)}100%{transform:scale(1)}}
+  #progressw{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+  #proglab{font-size:10px;font-weight:700;color:var(--sub);letter-spacing:.1em}
+  #progbar{width:110px;height:7px;border-radius:4px;background:rgba(120,88,50,.18);overflow:hidden}
+  #progfill{height:100%;width:0%;background:linear-gradient(90deg,#58b878,#e09040);border-radius:4px;transition:width .2s linear}
+  #progfill.hot{background:linear-gradient(90deg,#e09040,#d44834)}
+
+  /* 珠：外层 .zr 只管定位，内层 .zd 只管形态动画（game14/39/40 教训） */
+  .zr{position:absolute;left:0;top:0;width:26px;height:26px;will-change:transform;transition:transform .16s linear}
+  .zd{position:absolute;inset:0;border-radius:50%;
+    box-shadow:0 2px 3px rgba(90,50,20,.35), inset -2px -3px 5px rgba(60,20,5,.28);
+    border:1.2px solid rgba(255,250,240,.35)}
+  .zd::before{content:"";position:absolute;left:4px;top:3px;width:7px;height:5px;border-radius:50%;
+    background:rgba(255,255,255,.85);filter:blur(.4px);transform:rotate(-24deg)}
+  .zd::after{content:"";position:absolute;right:3px;bottom:3px;width:5px;height:3px;border-radius:50%;
+    background:rgba(255,235,210,.35);filter:blur(.8px)}
+  .c1{background:radial-gradient(circle at 36% 32%, #f09488, #e05a4e 55%, #a03428 100%)}
+  .c2{background:radial-gradient(circle at 36% 32%, #fad890, #f2a028 55%, #b05a14 100%)}
+  .c3{background:radial-gradient(circle at 36% 32%, #9ce0ae, #58b878 55%, #2a7848 100%)}
+  .c4{background:radial-gradient(circle at 36% 32%, #94e0da, #44b4c4 55%, #1e7284 100%)}
+  .c5{background:radial-gradient(circle at 36% 32%, #9cb4f0, #5a82d8 55%, #2c4890 100%)}
+  .c6{background:radial-gradient(circle at 36% 32%, #f2e9d6, #dcccac 55%, #9a8c66 100%);
+    border:1.4px solid rgba(96,74,48,.85)}
+  .zd.sm{width:24px;height:24px}
+  .zd.sm::before{width:6px;height:4px;left:3.5px;top:2.5px}
+  .zd.born{animation:dborn .2s ease-out}
+  @keyframes dborn{0%{transform:scale(.3);opacity:0}100%{transform:scale(1);opacity:1}}
+  .zd.poppy{animation:dpop .27s ease forwards}
+  @keyframes dpop{0%{transform:scale(1);filter:brightness(1.5);opacity:1}
+    55%{transform:scale(1.35);filter:brightness(2);opacity:1}
+    100%{transform:scale(1.55);opacity:0;filter:brightness(2.4)}}
+  .zd.swaproll{animation:sroll .24s ease}
+  @keyframes sroll{0%{transform:rotate(0) scale(1)}50%{transform:rotate(180deg) scale(.82)}100%{transform:rotate(360deg) scale(1)}}
+  .zd.intopot{animation:ipot .34s ease-in forwards}
+  @keyframes ipot{0%{transform:scale(1);opacity:1}
+    100%{transform:scale(.2) translateY(14px);opacity:0;filter:brightness(1.6)}}
+  .zd.jumpup{animation:jup .8s cubic-bezier(.3,.5,.6,1) forwards}
+  @keyframes jup{0%{transform:translateY(0) scale(.5);opacity:0}
+    20%{opacity:1;transform:translateY(-46px) scale(1)}
+    100%{transform:translateY(-140px) scale(.9);opacity:0}}
+
+  #curb{position:absolute;left:174.5px;top:684px;width:26px;height:26px;z-index:8}
+  #curb .zd{animation:bob 2.4s ease-in-out infinite}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2.5px)}}
+  #nextw{position:absolute;left:108px;top:726px;width:44px;height:44px;z-index:8;border-radius:50%;
+    border:1.5px dashed rgba(160,110,60,.4);display:flex;align-items:center;justify-content:center;cursor:pointer}
+  #nextw:active{background:rgba(200,150,90,.12)}
+  #nextw .zd{position:relative}
+  #nextlab{position:absolute;left:108px;top:772px;width:44px;text-align:center;font-size:9.5px;
+    color:var(--sub);letter-spacing:.14em;font-weight:700;z-index:8}
+  #aimc{position:absolute;left:0;top:96px;width:375px;height:620px;z-index:5;pointer-events:none}
+
+  #flash{position:absolute;left:0;right:0;top:270px;text-align:center;font-size:26px;font-weight:800;
+    color:#b8482a;letter-spacing:.1em;z-index:15;opacity:0;pointer-events:none;
+    text-shadow:0 2px 10px rgba(255,244,226,.9)}
+  #flash.show{animation:flashy 1s ease forwards}
+  @keyframes flashy{0%{opacity:0;transform:translateY(10px) scale(.85)}
+    18%{opacity:1;transform:translateY(0) scale(1.06)}
+    30%{transform:scale(1)}78%{opacity:1}100%{opacity:0;transform:translateY(-14px)}}
+
+  .crumb{position:absolute;width:6px;height:6px;pointer-events:none;z-index:14;
+    animation:crany .95s ease-out forwards}
+  @keyframes crany{0%{transform:translate(0,0) scale(1) rotate(0);opacity:1}
+    80%{opacity:.85}
+    100%{transform:translate(var(--dx),var(--dy)) scale(.4) rotate(160deg);opacity:0}}
+  .ps{position:absolute;font-size:17px;font-weight:800;color:#e07820;pointer-events:none;z-index:15;
+    text-shadow:0 1px 3px rgba(255,248,232,.9);animation:psfloat .9s ease-out forwards;white-space:nowrap}
+  @keyframes psfloat{0%{transform:translateY(0);opacity:0}18%{opacity:1}
+    100%{transform:translateY(-34px);opacity:0}}
+  .spark{position:absolute;width:10px;height:10px;pointer-events:none;z-index:14;
+    background:radial-gradient(circle, #fff8e0 0%, rgba(255,220,140,.9) 60%, transparent 70%);
+    filter:brightness(1.15);
+    animation:spany .5s ease-out forwards}
+  @keyframes spany{0%{transform:scale(.3);opacity:1}100%{transform:scale(2.2);opacity:0}}
+
+  #t-reset{position:absolute;right:14px;top:722px;width:52px;height:52px;z-index:8;
+    border:1px solid #b09468;border-radius:12px;background:#f4e6cc;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 3px 7px rgba(120,80,40,.3);color:#8a6a42;font-size:11.5px;font-weight:700;letter-spacing:.05em}
+  #t-reset:active{transform:translateY(2px);box-shadow:none}
+  #t-reset svg{display:block;margin-bottom:2px}
+
+  footer{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 6px);
+    text-align:center;font-size:10.5px;font-weight:600;color:rgba(110,84,54,.85);letter-spacing:.05em;
+    pointer-events:none;z-index:30}
+
+  .layer{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(64,44,26,.5);z-index:20;backdrop-filter:blur(2px)}
+  .layer[hidden]{display:none}
+  .lpanel{display:flex;flex-direction:column;gap:13px;width:min(86vw,340px);
+    background:#f8ecd6;border:1px solid #c8a878;border-radius:18px;padding:24px 26px;
+    box-shadow:0 14px 40px rgba(90,50,20,.45), inset 0 1px 0 rgba(255,250,238,.7)}
+  .lt{font-size:18px;font-weight:800;color:#5a3a22;letter-spacing:.14em;text-align:center}
+  .ld{font-size:13.5px;color:#8a6a48;line-height:1.9;text-align:center}
+  .ld b{color:#5a3a22}
+  .layer button{padding:11px 0;font-size:15px;font-weight:700;color:#fff8ec;background:#c05a38;
+    border:none;border-radius:12px;cursor:pointer;box-shadow:0 3px 0 rgba(120,50,26,.55);letter-spacing:.1em}
+  .layer button:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(120,50,26,.55)}
+  .layer button.ghost{background:transparent;color:#8a6a48;border:1px solid #c8a878;box-shadow:none}
+  #menu .demo{display:flex;justify-content:center;gap:9px;margin:2px 0 4px}
+  #menu .demo .zd{position:relative;inset:auto}
+  #menu .bestrow{font-size:12px;color:var(--sub);text-align:center;line-height:1.8}
+  #menu .bestrow b{color:#8a5a2c;font-variant-numeric:tabular-nums}
+  #end .big{font-size:44px;font-weight:800;color:#4a3222;text-align:center;
+    font-variant-numeric:tabular-nums;letter-spacing:.02em}
+  #end .stats{display:flex;justify-content:center;gap:18px;font-size:12.5px;color:var(--sub);
+    line-height:1.55;margin-top:3px}
+  #end .stats b{color:#5a3a22;font-size:17px;font-variant-numeric:tabular-nums}
+  #end .bestrow{font-size:12px;color:var(--sub);text-align:center;margin-top:2px}
+  #end .bestrow b{color:#b06a1e;font-variant-numeric:tabular-nums}
+  .rec{display:none;margin:0 auto;width:max-content;padding:4px 14px;border-radius:99px;
+    font-size:12px;color:#b8482a;font-weight:700;letter-spacing:.1em;
+    background:rgba(224,90,78,.12);border:1px solid rgba(224,90,78,.5)}
+  .rec.show{display:block;animation:rpop .6s ease both, rglow 1.9s ease-in-out .6s infinite}
+  @keyframes rpop{0%{transform:scale(.4);opacity:0}70%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+  @keyframes rglow{0%,100%{box-shadow:0 0 0 0 rgba(224,90,78,0)}50%{box-shadow:0 0 12px 2px rgba(224,90,78,.35)}}
+
+  /* 蒸汽循环 */
+  .steam{position:absolute;border-radius:50%;background:radial-gradient(circle, rgba(255,253,246,.85) 0%, rgba(255,252,244,0) 70%);
+    pointer-events:none;z-index:3;animation:sty 2.6s ease-out infinite}
+  @keyframes sty{0%{transform:translateY(0) scale(.5);opacity:0}
+    18%{opacity:.9}
+    100%{transform:translateY(-46px) scale(1.3);opacity:0}}
+</style>
+</head>
+<body>
+<canvas id="bgc" width="375" height="812"></canvas>
+
+<svg id="track" viewBox="0 0 375 812" style="position:absolute;inset:0;width:375px;height:812px;z-index:1;pointer-events:none">
+  <path id="trk-d" d="M -26 130 H 296 A 47 47 0 0 1 296 224 H 79 A 47 47 0 0 0 79 318 H 296 A 47 47 0 0 1 296 412 H 236 Q 187 436 187 476"
+    fill="none" stroke="#8a5a34" stroke-width="23" stroke-linecap="round"/>
+  <path d="M -26 130 H 296 A 47 47 0 0 1 296 224 H 79 A 47 47 0 0 0 79 318 H 296 A 47 47 0 0 1 296 412 H 236 Q 187 436 187 476"
+    fill="none" stroke="#c89858" stroke-width="15" stroke-linecap="round"/>
+  <path d="M -26 130 H 296 A 47 47 0 0 1 296 224 H 79 A 47 47 0 0 0 79 318 H 296 A 47 47 0 0 1 296 412 H 236 Q 187 436 187 476"
+    fill="none" stroke="#e8cfa8" stroke-width="7" stroke-linecap="round"/>
+  <path d="M -26 126.5 H 296 A 50.5 50.5 0 0 1 296 227.5 H 79 A 50.5 50.5 0 0 0 79 314.5 H 296 A 50.5 50.5 0 0 1 296 408.5 H 236 Q 186.5 432 186.5 475"
+    fill="none" stroke="rgba(255,244,220,.55)" stroke-width="1.4" stroke-linecap="round"/>
+  <!-- 糖锅 -->
+  <g id="pot">
+    <ellipse cx="187" cy="500" rx="58" ry="14" fill="rgba(120,70,30,.18)"/>
+    <path d="M 133 492 Q 137 546 165 558 Q 187 566 209 558 Q 237 546 241 492 Q 214 506 187 506 Q 160 506 133 492 Z"
+      fill="#4a4038"/>
+    <path d="M 133 492 Q 137 546 165 558 Q 187 566 209 558 Q 237 546 241 492 Q 214 506 187 506 Q 160 506 133 492 Z"
+      fill="none" stroke="#2e2620" stroke-width="1.6"/>
+    <ellipse cx="187" cy="493" rx="54" ry="12.5" fill="#5d5148"/>
+    <ellipse cx="187" cy="492" rx="44" ry="9" fill="#8a6a3a"/>
+    <ellipse cx="187" cy="490.5" rx="44" ry="8.5" fill="#a87e42"/>
+    <ellipse cx="167" cy="488" rx="14" ry="3.4" fill="rgba(255,240,200,.4)"/>
+    <rect x="241" y="486" width="16" height="7" rx="3.5" fill="#3a322a"/>
+    <rect x="118" y="486" width="16" height="7" rx="3.5" fill="#3a322a"/>
+    <path d="M 150 560 q-10 10 -22 12 M 224 560 q10 10 22 12" stroke="#7a5a34" stroke-width="3.4" fill="none" stroke-linecap="round"/>
+  </g>
+  <g id="potglow" opacity="0">
+    <ellipse cx="187" cy="493" rx="54" ry="13" fill="none" stroke="rgba(255,120,60,.7)" stroke-width="2.5"/>
+    <ellipse cx="187" cy="493" rx="60" ry="16" fill="none" stroke="rgba(255,120,60,.3)" stroke-width="1.6"/>
+  </g>
+  <g id="tongs" transform="translate(187.5,700)">
+    <ellipse cx="0" cy="24" rx="26" ry="7" fill="rgba(120,70,30,.16)"/>
+    <path d="M -14 16 C -16 4 -13 -8 -8 -16" stroke="#6a8a48" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <path d="M -14.6 4 C -13.5 -3 -11.6 -9 -9 -14" stroke="#8aaa62" stroke-width="2" fill="none" stroke-linecap="round" opacity=".8"/>
+    <path d="M 14 16 C 16 4 13 -8 8 -16" stroke="#6a8a48" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <path d="M 14.6 4 C 13.5 -3 11.6 -9 9 -14" stroke="#8aaa62" stroke-width="2" fill="none" stroke-linecap="round" opacity=".8"/>
+    <path d="M -8 -16 Q -6 -21 -1 -22" stroke="#6a8a48" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <path d="M 8 -16 Q 6 -21 1 -22" stroke="#6a8a48" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <path d="M -13 10 L -20 20 M 13 10 L 20 20" stroke="#6a8a48" stroke-width="2.6" stroke-linecap="round"/>
+  </g>
+</svg>
+<canvas id="aimc" width="375" height="620"></canvas>
+<div id="bubs" style="position:absolute;left:0;top:0;right:0;bottom:0;z-index:2"></div>
+<div id="fx" style="position:absolute;left:0;top:0;right:0;bottom:0;z-index:5;pointer-events:none"></div>
+<div id="flash"></div>
+
+<div id="hud">
+  <div id="title">灶糖</div>
+  <div id="badge">灶 L1</div>
+  <button id="btn-home" aria-label="回菜单">⌂</button>
+</div>
+<button id="btn-snd" aria-label="声音开关"></button>
+
+<div id="qbar">
+  <div id="scorewrap"><div id="score">0</div><div id="scorelab">SCORE</div></div>
+  <div id="combo">连爆 ×2</div>
+  <div id="progressw"><span id="proglab">进锅进度</span>
+    <div id="progbar"><div id="progfill"></div></div>
+  </div>
+</div>
+
+<div id="curb"><div class="zd c1"></div></div>
+<div id="nextw"><div class="zd sm c2"></div></div>
+<div id="nextlab">换珠</div>
+<button id="t-reset" aria-label="重开">
+  <svg width="18" height="18" viewBox="0 0 18 18"><path d="M9 3 a6 6 0 1 1 -5.6 3.8" fill="none" stroke="#8a6a42" stroke-width="2" stroke-linecap="round"/><path d="M3 3 v4 h4" fill="none" stroke="#8a6a42" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>重开
+</button>
+
+<footer>灶糖 · 完全离线 · 三连同味即爆</footer>
+
+<div id="menu" class="layer">
+  <div class="lpanel">
+    <div class="lt">灶糖</div>
+    <div class="demo"><span class="zd sm c1"></span><span class="zd sm c2"></span><span class="zd sm c3"></span><span class="zd sm c4"></span><span class="zd sm c5"></span><span class="zd sm c6"></span></div>
+    <div class="ld">年集糖铺开灶：糖串沿木槽滚向大锅，<br><b>按住瞄准、松手射珠</b>补进串里，<br>三连同味即被买走；断串同味会自己吸上。<br>糖串滚进锅，就熬糊啦。</div>
+    <button id="menu-go">开灶</button>
+    <div class="bestrow">最佳 <b id="menu-best">—</b> 分</div>
+  </div>
+</div>
+
+<div id="end" class="layer" hidden>
+  <div class="lpanel">
+    <div class="lt" id="end-title">熬糊一锅</div>
+    <div class="big" id="end-score">0</div>
+    <div class="rec" id="end-rec">★ 最佳分数 ★</div>
+    <div class="stats"><span>灶位<br><b id="end-lv">L1</b></span><span>最大一爆<br><b id="end-max">0</b></span><span>爆珠总数<br><b id="end-total">0</b></span></div>
+    <div class="bestrow">灶史最佳 <b id="end-best">—</b> 分</div>
+    <button id="end-ok">再开一灶</button>
+    <button id="end-menu" class="ghost">回菜单</button>
+  </div>
+</div>
+<script>
+(function () {
+  'use strict';
+
+  function mulberry(seed) { var t = seed >>> 0; return function () { t += 0x6D2B79F5; var r2 = Math.imul(t ^ (t >>> 15), 1 | t); r2 ^= r2 + Math.imul(r2 ^ (r2 >>> 7), 61 | r2); return ((r2 ^ (r2 >>> 14)) >>> 0) / 4294967296; }; }
+
+  var safeStorage = {
+    get: function (k, d) { try { var v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set: function (k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+    del: function (k) { try { localStorage.removeItem(k); } catch (e) {} }
+  };
+
+  var SFX = (function () {
+    var ctx = null, on = safeStorage.get('mq_g41_sound', false);
+    function ac() {
+      if (!ctx) { try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+      if (ctx && ctx.state === 'suspended') ctx.resume();
+      return ctx;
+    }
+    function tone(type, f0, f1, t, vol, when) {
+      if (!on) return;
+      var c = ac(); if (!c) return;
+      var o = c.createOscillator(), g = c.createGain();
+      var t0 = c.currentTime + (when || 0);
+      o.type = type; o.frequency.setValueAtTime(f0, t0);
+      if (f1) o.frequency.exponentialRampToValueAtTime(f1, t0 + t);
+      g.gain.setValueAtTime(vol, t0);
+      g.gain.exponentialRampToValueAtTime(.001, t0 + t + .02);
+      o.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0 + t + .04);
+    }
+    return {
+      unlock: function () { ac(); },
+      toggle: function () { on = !on; safeStorage.set('mq_g41_sound', on); return on; },
+      isOn: function () { return on; },
+      shot: function () { tone('triangle', 420, 200, .08, .05); },
+      hit: function () { tone('sine', 260, null, .05, .05); tone('square', 700, null, .016, .018); },
+      blip: function () { tone('sine', 680, null, .05, .04); },
+      pop: function (n) {
+        var base = 1080, i;
+        for (i = 0; i < Math.min(5, n); i++) tone('sine', base * Math.pow(1.22, i), null, .1, .05, i * .04);
+        tone('sine', 640, 220, .18, .032, .07);
+      },
+      snap: function () { tone('sine', 520, 760, .09, .045); },
+      chain: function (c) { tone('sine', 660 + c * 120, null, .1, .05); },
+      pot: function () { tone('sine', 200, 70, .4, .055); tone('triangle', 130, 60, .5, .04, .1); },
+      win: function () {
+        tone('sine', 523, null, .12, .05); tone('sine', 659, null, .12, .05, .1);
+        tone('sine', 784, null, .12, .05, .2); tone('sine', 1047, null, .24, .05, .3);
+      },
+      dead: function () { tone('sine', 240, 60, .5, .05); tone('sine', 140, 50, .6, .04, .12); }
+    };
+  })();
+
+  /* ═══ 数值 ═══ */
+  var R = 13, D = 26, HIT2 = Math.pow(2 * R * 0.94, 2);
+  var W = 375, CX = 187.5, CY = 700, SPEED = 820;
+  var MIN_ELEV = 10 * Math.PI / 180;
+  var CNESTC = ['', '#e05a4e', '#f2a028', '#58b878', '#44b4c4', '#5a82d8', '#dcccac'];
+  var LV_LEN = [26, 32, 38, 44, 50], LV_NCOL = [4, 4, 5, 5, 6], LV_SPD = [9, 10.5, 12, 13.5, 15];
+  var CLOSE_SPD = 140, CHAIN_CAP = 8;
+  function lvParams(lv) { var i = Math.min(lv, 5) - 1; return { len: LV_LEN[i], ncol: LV_NCOL[i], spd: LV_SPD[i] }; }
+
+  /* ═══ 轨道（SVG path 等距采样） ═══ */
+  var TRACK_D = "M -26 130 H 296 A 47 47 0 0 1 296 224 H 79 A 47 47 0 0 0 79 318 H 296 A 47 47 0 0 1 296 412 H 236 Q 187 436 187 476";
+  var pts = [], TOTAL = 0;
+  (function sampleTrack() {
+    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
+    var p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    p.setAttribute('d', TRACK_D);
+    svg.appendChild(p); document.body.appendChild(svg);
+    TOTAL = Math.floor(p.getTotalLength());
+    var step = 4;
+    for (var s = 0; s <= TOTAL; s += step) {
+      var pt = p.getPointAtLength(s);
+      pts.push([pt.x, pt.y]);
+    }
+    svg.remove();
+  })();
+  /* arc→xy（arc<=0 沿入口方向外推，arc>=TOTAL 夹末点） */
+  function xyAtO(arc) {
+    if (arc <= 0) {
+      var p0 = pts[0], p1 = pts[1];
+      return [p0[0] + (p0[0] - p1[0]) * (-arc / 4), p0[1] + (p0[1] - p1[1]) * (-arc / 4)];
+    }
+    if (arc >= TOTAL) return pts[pts.length - 1];
+    var i = Math.floor(arc / 4);
+    var a = pts[i], b = pts[i + 1] || a;
+    var f = (arc - i * 4) / 4;
+    return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+  }
+
+  /* ═══ 状态 ═══ */
+  var S = {
+    mode: 'menu', lock: true,
+    chain: [],          /* [ {arc,col,el} ... ] index0=串头(最大arc,靠锅) */
+    gapAfter: null,     /* i：chain[i] 与 chain[i+1] 间断链；null=整串 */
+    seed: 1, rand: null,
+    cur: 1, next: 2,
+    score: 0, level: 1, combo: 0, bursts: 0,
+    maxPop: 0, totalPopped: 0,
+    aimAng: -Math.PI / 2, aiming: false,
+    v: 9, t0: 0
+  };
+
+  var el = {
+    score: document.getElementById('score'), combo: document.getElementById('combo'),
+    badge: document.getElementById('badge'), bubs: document.getElementById('bubs'),
+    fx: document.getElementById('fx'), aimc: document.getElementById('aimc'),
+    curb: document.getElementById('curb'), nextw: document.getElementById('nextw'),
+    flash: document.getElementById('flash'), tReset: document.getElementById('t-reset'),
+    progfill: document.getElementById('progfill'),
+    potglow: document.getElementById('potglow'),
+    menu: document.getElementById('menu'), menuBest: document.getElementById('menu-best'),
+    menuGo: document.getElementById('menu-go'),
+    end: document.getElementById('end'), endTitle: document.getElementById('end-title'),
+    endScore: document.getElementById('end-score'),
+    endLv: document.getElementById('end-lv'), endMax: document.getElementById('end-max'),
+    endTotal: document.getElementById('end-total'), endBest: document.getElementById('end-best'),
+    endRec: document.getElementById('end-rec'),
+    endOk: document.getElementById('end-ok'), endMenu: document.getElementById('end-menu'),
+    btnHome: document.getElementById('btn-home'), btnSnd: document.getElementById('btn-snd'),
+    bgc: document.getElementById('bgc')
+  };
+  var actx = el.aimc.getContext('2d');
+
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  /* ── 弹道模拟（纯函数）：直线步进找第一命中珠，与真实 fire 同构 ── */
+  function simLine(chain, ox, oy, ang) {
+    var vx = Math.cos(ang), vy = Math.sin(ang);
+    var x = ox, y = oy, guard = 0;
+    while (guard++ < 1200) {
+      x += vx * 4; y += vy * 4;
+      if (y < 90 || y > 812 || x < -30 || x > 405) return null;
+      for (var i = 0; i < chain.length; i++) {
+        if (chain[i].arc < 0) continue;
+        var c = xyAtO(chain[i].arc);
+        var dx = c[0] - x, dy = c[1] - y;
+        if (dx * dx + dy * dy < HIT2) return { i: i, x: x, y: y };
+      }
+    }
+    return null;
+  }
+  /* 插入位选择：候选 i 位（前/靠锅侧）与 i+1 位（后），取 arc 中点更近命中点者 */
+  function insertIdxFor(chain, hit) {
+    var i = hit.i;
+    if (i <= 0) return 0;
+    var arcA = chain[i - 1].arc - D;              /* 插在 i 前（成为新 chain[i]）*/
+    var arcB = (i + 1 < chain.length) ? (chain[i].arc + chain[i + 1].arc) / 2 : chain[i].arc + D;
+    var pa = xyAtO(arcA), pb = xyAtO(arcB);
+    var da = (pa[0] - hit.x) * (pa[0] - hit.x) + (pa[1] - hit.y) * (pa[1] - hit.y);
+    var db = (pb[0] - hit.x) * (pb[0] - hit.x) + (pb[1] - hit.y) * (pb[1] - hit.y);
+    return da <= db ? i : i + 1;
+  }
+
+  /* ── 渲染 ── */
+  function setTf(node, x, y) { node.style.transform = 'translate(' + (x - R) + 'px,' + (y - R) + 'px)'; }
+  function makeBead(col, born) {
+    var outer = document.createElement('div');
+    outer.className = 'zr';
+    var inner = document.createElement('div');
+    inner.className = 'zd c' + col + (born ? ' born' : '');
+    outer.appendChild(inner);
+    el.bubs.appendChild(outer);
+    return outer;
+  }
+  function renderChain() {
+    for (var i = 0; i < S.chain.length; i++) {
+      var b = S.chain[i];
+      if (b.arc < -8) { b.el.style.visibility = 'hidden'; continue; }
+      b.el.style.visibility = '';
+      var xy = xyAtO(b.arc);
+      setTf(b.el, xy[0], xy[1]);
+    }
+  }
+  function renderHUD() {
+    el.score.textContent = S.score;
+    el.badge.textContent = '灶 L' + S.level;
+    if (S.combo >= 2) {
+      el.combo.textContent = '连爆 ×' + S.combo;
+      el.combo.classList.add('show');
+    } else el.combo.classList.remove('show');
+    var head = S.chain.length ? S.chain[0].arc : 0;
+    var pct = Math.max(0, Math.min(100, Math.round(head / TOTAL * 100)));
+    el.progfill.style.width = pct + '%';
+    el.progfill.classList.toggle('hot', head > TOTAL - 130);
+    el.potglow.setAttribute('opacity', head > TOTAL - 130 ? '1' : '0');
+  }
+  function renderCannon(roll) {
+    var ci = el.curb.firstChild, ni = el.nextw.firstChild;
+    ci.className = 'zd c' + S.cur;
+    ni.className = 'zd sm c' + S.next;
+    if (roll) {
+      ci.classList.add('swaproll'); ni.classList.add('swaproll');
+      setTimeout(function () { ci.classList.remove('swaproll'); ni.classList.remove('swaproll'); }, 260);
+    }
+  }
+
+  /* ── 瞄准线 ── */
+  function drawAim(ang) {
+    actx.clearRect(0, 0, 375, 520);
+    var chain = S.chain;
+    var vx = Math.cos(ang), vy = Math.sin(ang);
+    var x = CX, y = CY - 96, acc = 0;
+    actx.fillStyle = 'rgba(180,90,40,.55)';
+    var guard = 0, hit = null;
+    var px = x, py = y;
+    while (guard++ < 300) {
+      x += vx * 6; y += vy * 6;
+      if (y < -4 || y > 640 || x < -10 || x > 385) break;
+      var seg = 6; acc += seg;
+      if (acc >= 26) {
+        acc = 0;
+        if (py > 0 && py < 636) { actx.beginPath(); actx.arc(px, py, 2.4, 0, 7); actx.fill(); }
+      }
+      px = x; py = y;
+      for (var i = 0; i < chain.length; i++) {
+        if (chain[i].arc < 0) continue;
+        var c = xyAtO(chain[i].arc);
+        var dx = c[0] - x, dy = c[1] - y;
+        if (dx * dx + dy * dy < HIT2) { hit = { x: x, y: y, c: c }; break; }
+      }
+      if (hit) break;
+    }
+    if (hit) {
+      actx.strokeStyle = 'rgba(180,90,40,.6)';
+      actx.setLineDash([4, 4]); actx.lineWidth = 1.6;
+      actx.beginPath(); actx.arc(hit.c[0], hit.c[1] - 96, R - 1.5, 0, 7); actx.stroke();
+      actx.setLineDash([]);
+    }
+  }
+  function clearAim() { actx.clearRect(0, 0, 375, 520); }
+  function clampAim(dx, dy) {
+    var ang = Math.atan2(dy, dx);
+    var lo = -Math.PI + MIN_ELEV, hi = -MIN_ELEV;
+    if (ang > 0) { ang = (dx >= 0) ? hi : lo; }
+    else { if (ang > hi) ang = hi; else if (ang < lo) ang = lo; }
+    return ang;
+  }
+
+  /* ── 特效 ── */
+  function popScore(xy, gain) {
+    var ps = document.createElement('div');
+    ps.className = 'ps';
+    ps.textContent = '+' + gain;
+    ps.style.left = (xy[0] - 14) + 'px';
+    ps.style.top = (xy[1] - 26) + 'px';
+    el.fx.appendChild(ps);
+    setTimeout(function () { ps.remove(); }, 950);
+  }
+  function crumbs(xy, col) {
+    var base = CNESTC[col] || '#e07820';
+    for (var j = 0; j < 6; j++) {
+      var dp = document.createElement('div');
+      dp.className = 'crumb';
+      var tri = document.createElement('div');
+      tri.style.cssText = 'width:100%;height:100%;border-radius:' + (j % 2 ? '50% 50% 50% 4px' : '50%') + ';background:' + base + ';box-shadow:0 1px 2px rgba(90,40,10,.4)';
+      dp.appendChild(tri);
+      dp.style.left = (xy[0] + 8) + 'px';
+      dp.style.top = (xy[1] + 8) + 'px';
+      dp.style.setProperty('--dx', ((Math.random() * 54) - 27) + 'px');
+      dp.style.setProperty('--dy', ((Math.random() * 48) - 34) + 'px');
+      el.fx.appendChild(dp);
+      (function (nd) { setTimeout(function () { nd.remove(); }, 990); })(dp);
+    }
+    var sp = document.createElement('div');
+    sp.className = 'spark';
+    sp.style.left = (xy[0] - 4) + 'px';
+    sp.style.top = (xy[1] - 4) + 'px';
+    el.fx.appendChild(sp);
+    setTimeout(function () { sp.remove(); }, 520);
+  }
+  function flashMsg(txt) {
+    el.flash.textContent = txt;
+    el.flash.classList.remove('show'); void el.flash.offsetWidth;
+    el.flash.classList.add('show');
+  }
+
+  /* ── 串逻辑 ── */
+  function runBoundsAt(chain, j) {
+    var col = chain[j].col, a = j, b = j;
+    while (a - 1 >= 0 && chain[a - 1].col === col && chain[a - 1].arc - chain[a].arc < D * 1.5) a--;
+    while (b + 1 < chain.length && chain[b + 1].col === col && chain[b + 1].arc - chain[b].arc > -D * 1.5) b++;
+    /* col 相同且相邻（arc 差≈D）；gap 断处不延伸（|diff|>D*1.5 即断） */
+    return [a, b];
+  }
+  async function popRun(a, b, comboN) {
+    var n = b - a + 1;
+    var mid = xyAtO(S.chain[Math.min(a + (n >> 1), S.chain.length - 1)].arc);
+    for (var i = a; i <= b; i++) {
+      var bd = S.chain[i];
+      bd.el.querySelector('.zd').classList.add('poppy');
+      crumbs(xyAtO(bd.arc), bd.col);
+      delete bd.arc; bd.dead = true;
+      (function (nd) { setTimeout(function () { nd.remove(); }, 320); })(bd.el);
+    }
+    S.chain.splice(a, n);
+    var gain = Math.round((10 * n + (n - 3) * 8) * (1 + 0.15 * Math.min(Math.max(comboN - 1, 0), 5)));
+    await sleep(210);
+    S.score += gain;
+    popScore(mid, gain);
+    SFX.pop(n);
+    S.maxPop = Math.max(S.maxPop, n);
+    S.totalPopped += n;
+    S.bursts++;
+    return n;
+  }
+  /* 消除主入口：以 j 为中心查 run，爆后修正 gap 索引，返回爆数（0=不消） */
+  async function resolveAt(j) {
+    if (!S.chain.length || j < 0 || j >= S.chain.length) return 0;
+    var rb = runBoundsAt(S.chain, j);
+    if (rb[1] - rb[0] + 1 < 3) return 0;
+    var a = rb[0], b = rb[1], n = b - a + 1;
+    var oldGap = S.gapAfter, newGap, lenBefore = S.chain.length + n;
+    S.combo++;
+    await popRun(a, b, S.combo);
+    /* gap 索引修正：g>b→前移 n；g===b（爆掉前段尾）→新前段尾 a-1；g<b 不动 */
+    if (oldGap == null) newGap = (a > 0 && b + 1 < lenBefore) ? a - 1 : null;
+    else if (oldGap > b) newGap = oldGap - n;
+    else if (oldGap === b) newGap = (a === 0) ? null : a - 1;
+    else newGap = oldGap;
+    if (newGap != null && newGap >= S.chain.length - 1) newGap = null;
+    S.gapAfter = newGap;
+    if (newGap != null && S.chain[newGap] && S.chain[newGap + 1]) {
+      sparkAt(S.chain[newGap].arc);            /* 断口两端光点：串断了往哪走的流向暗示 */
+      sparkAt(S.chain[newGap + 1].arc);
+      if (S.chain[newGap].col === S.chain[newGap + 1].col) SFX.snap();
+    }
+    renderHUD();
+    return n;
+  }
+
+  /* ── 主循环推进 ── */
+  function enforce(dt) {
+    var ch = S.chain;
+    if (!ch.length) return null;
+    ch[0].arc += S.v * dt;               /* 前段头永远推进（gapAfter 时前段=[0..gapAfter]） */
+    var joined = null;
+    for (var i = 1; i < ch.length; i++) {
+      if (i - 1 === S.gapAfter) {
+        /* 后段头：同味吸合拉拢，异味静止 */
+        var prev = ch[i - 1];
+        if (prev.col === ch[i].col) {
+          ch[i].arc += CLOSE_SPD * dt;
+          if (ch[i].arc - prev.arc <= D) {
+            ch[i].arc = prev.arc - D;
+            S.gapAfter = null;
+            SFX.snap();
+            sparkAt(ch[i].arc);
+            joined = { joined: i };      /* 不提前 return：当帧继续贴齐后段，防掉帧时连锁 run 不足 */
+          }
+        }
+      } else {
+        ch[i].arc = ch[i - 1].arc - D;
+      }
+    }
+    return joined;
+  }
+  function sparkAt(arc) {
+    var xy = xyAtO(arc);
+    var sp = document.createElement('div');
+    sp.className = 'spark';
+    sp.style.left = (xy[0] - 4) + 'px';
+    sp.style.top = (xy[1] - 4) + 'px';
+    el.fx.appendChild(sp);
+    setTimeout(function () { sp.remove(); }, 520);
+  }
+
+  var tick = null;
+  function startLoop() {
+    if (tick) return;
+    var last = null;
+    tick = function (ts) {
+      if (last == null) last = ts;
+      var dt = Math.min(40, ts - last) / 1000; last = ts;
+      if (S.mode === 'play' && !S.lock) {
+        var j = enforce(dt);
+        renderChain();
+        renderHUD();
+        if (S.chain.length && S.chain[0].arc >= TOTAL - 1) { potDeath(); }
+        else if (!S.chain.length) { winLevel(); }
+        if (j && j.joined != null) {
+          /* 吸合相接 → 查连锁（锁输入；多级连锁由后续 enforce joined 事件继续） */
+          S.lock = true;
+          (async function () {
+            await resolveAt(j.joined);
+            await sleep(120);
+            await afterResolveFlow();
+          })();
+        }
+      }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
+  async function afterResolveFlow() {
+    if (!S.chain.length) { await winLevel(); return; }
+    if (S.chain[0].arc >= TOTAL - 1) { potDeath(); return; }
+    S.lock = false;
+  }
+
+  function potDeath() {
+    if (S.mode !== 'play') return;
+    S.mode = 'end'; S.lock = true;
+    SFX.pot(); SFX.dead();
+    var head = S.chain[0];
+    if (head) {
+      head.el.querySelector('.zd').classList.add('intopot');
+      (function (nd) { setTimeout(function () { nd.remove(); }, 380); })(head.el);
+    }
+    endGame('熬糊一锅');
+  }
+
+  /* ── 发射 ── */
+  var flying = null;
+  async function fire(ang) {
+    if (S.mode !== 'play' || S.lock) return { fired: false };
+    S.lock = true;
+    S.combo = 0;
+    clearAim();
+    var col = S.cur;
+    var hit = simLine(S.chain, CX, CY, ang);
+    SFX.shot();
+    /* 飞行动画沿直线回放 */
+    var outer = document.createElement('div');
+    outer.className = 'zr';
+    outer.style.transition = 'none';
+    var inner = document.createElement('div');
+    inner.className = 'zd c' + col;
+    outer.appendChild(inner);
+    setTf(outer, CX, CY);
+    el.fx.appendChild(outer);
+    var tgt = hit ? { x: hit.x, y: hit.y } : null;
+    if (!hit) {
+      /* 空射：珠自飞出屏（不 await），立即解锁换弹——不让 0.7s 飞行锁死推进 */
+      flyStraight(outer, ang, null).then(function () { outer.remove(); });
+      advanceBullet(); S.lock = false; renderHUD();
+      return { fired: true, missed: true };
+    }
+    await flyStraight(outer, ang, tgt);
+    outer.remove();
+    SFX.hit();
+    var idx = insertIdxFor(S.chain, hit);
+    /* 新珠插在 chain[idx] 颗前面：arc = 该颗 arc + D（idx=尾后则贴尾珠 -D）。
+       gap 处（idx=gapAfter+1）enforce 跳过贴齐，新珠自定 arc、后段保持原位不被动拉 */
+    var nb = { arc: (idx < S.chain.length) ? S.chain[idx].arc + D : S.chain[idx - 1].arc - D,
+               col: col, el: makeBead(col, false) };
+    setTf(nb.el, hit.x, hit.y);
+    S.chain.splice(idx, 0, nb);
+    if (S.gapAfter != null && idx <= S.gapAfter) S.gapAfter++;
+    /* 插入重排（gap 处不贴） */
+    for (var i = 1; i < S.chain.length; i++) {
+      if (i - 1 !== S.gapAfter) S.chain[i].arc = S.chain[i - 1].arc - D;
+    }
+    renderChain();
+    await sleep(170);
+    /* 查消（以插入珠为中心；resolveAt 内自增 combo） */
+    var n = await resolveAt(idx);
+    await afterResolveFlow();
+    advanceBullet();
+    renderHUD();
+    return { fired: true, idx: idx, popped: n };
+  }
+  function flyStraight(node, ang, tgt) {
+    return new Promise(function (res) {
+      var vx = Math.cos(ang) * SPEED, vy = Math.sin(ang) * SPEED;   /* px/s，dt 用秒（game40 flyAlong 同法） */
+      var x = CX, y = CY, last = null;
+      function frame(ts) {
+        if (last == null) last = ts;
+        var dt = Math.min(40, ts - last) / 1000; last = ts;
+        var steps = Math.ceil((SPEED * dt) / 4);
+        for (var s = 0; s < steps; s++) {
+          x += vx * dt / steps; y += vy * dt / steps;
+          if (tgt && Math.hypot(tgt.x - x, tgt.y - y) < 5) { setTf(node, x, y); return res(); }
+        }
+        setTf(node, x, y);
+        if (y < 90 || y > 812 || x < -30 || x > 405) return res();
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    });
+  }
+  function advanceBullet() {
+    S.cur = S.next;
+    S.next = nextColor();
+    renderCannon(false);
+  }
+  /* 弹丸只出场上在场味（残局不死等） */
+  function presentColors() {
+    var set = {}, out = [], i;
+    for (i = 0; i < S.chain.length; i++) set[S.chain[i].col] = 1;
+    for (var c = 1; c <= 6; c++) if (set[c]) out.push(c);
+    return out.length ? out : null;
+  }
+  function nextColor() {
+    var pool = presentColors();
+    if (pool) return pool[(S.rand() * pool.length) | 0];
+    return 1 + ((S.rand() * lvParams(S.level).ncol) | 0);
+  }
+
+  /* ── 局程 ── */
+  function clearBoard() {
+    el.bubs.innerHTML = '';
+    S.chain = []; S.gapAfter = null;
+  }
+  function startLevel(fresh) {
+    clearBoard();
+    var P = lvParams(S.level);
+    S.v = P.spd; S.combo = 0;
+    var i, col, head0 = 600;                 /* 开局串头中段起步：珠即刻铺在轨道上，尾段自入口鱼贯而入 */
+    for (i = 0; i < P.len; i++) {
+      col = 1 + ((S.rand() * P.ncol) | 0);
+      S.chain.push({ arc: head0 - i * D, col: col, el: makeBead(col, true) });
+    }
+    if (fresh) { S.cur = nextColor(); S.next = nextColor(); }
+    renderChain();
+    S.mode = 'play'; S.lock = false;
+    el.menu.hidden = true; el.end.hidden = true;
+    renderCannon(false); renderHUD();
+  }
+  function startGame(seed) {
+    S.seed = (seed == null ? ((Math.random() * 1e9) | 0) : seed) >>> 0;
+    S.rand = mulberry(S.seed);
+    S.score = 0; S.level = 1; S.maxPop = 0; S.totalPopped = 0; S.bursts = 0;
+    startLevel(true);
+    return true;
+  }
+  async function winLevel() {
+    if (S.mode !== 'play') return;
+    S.mode = 'won';
+    S.lock = true;
+    var bonus = 200 + 50 * S.level;
+    S.score += bonus;
+    SFX.win();
+    flashMsg('清锅出糖 +' + bonus);
+    celebrate();
+    renderHUD();
+    await sleep(1150);
+    S.level++;
+    startLevel(false);
+  }
+  function celebrate() {
+    for (var i = 0; i < 3; i++) {
+      (function (j) {
+        setTimeout(function () {
+          var o = document.createElement('div');
+          o.className = 'zr';
+          o.style.transition = 'none';
+          var b = document.createElement('div');
+          b.className = 'zd c' + (1 + j) + ' jumpup';
+          o.appendChild(b);
+          setTf(o, 150 + j * 37, 470);
+          el.fx.appendChild(o);
+          setTimeout(function () { o.remove(); }, 1000);
+        }, j * 90);
+      })(i);
+    }
+  }
+  function endGame(title) {
+    if (S.mode === 'end') { /* potDeath 已置 end */ }
+    var best = safeStorage.get('mq_g41_best', null);
+    var rec = best == null || S.score > best;
+    if (rec) safeStorage.set('mq_g41_best', S.score);
+    el.endTitle.textContent = title || '熬糊一锅';
+    el.endScore.textContent = S.score;
+    el.endLv.textContent = 'L' + S.level;
+    el.endMax.textContent = S.maxPop;
+    el.endTotal.textContent = S.totalPopped;
+    el.endBest.textContent = rec ? S.score : best;
+    el.endRec.classList.toggle('show', rec);
+    setTimeout(function () { if (S.mode === 'end' || S.mode === 'won') el.end.hidden = false; }, 640);
+    return true;
+  }
+  function showMenu() {
+    S.mode = 'menu'; S.lock = true;
+    el.end.hidden = true;
+    var b = safeStorage.get('mq_g41_best', null);
+    el.menuBest.textContent = b == null ? '—' : b;
+    el.menu.hidden = false;
+    clearAim();
+  }
+
+  /* ── 输入 ── */
+  function updateAim(px, py) {
+    var dx = px - CX, dy = py - CY;
+    if (Math.hypot(dx, dy) < 26) return;
+    S.aimAng = clampAim(dx, dy);
+    drawAim(S.aimAng);
+  }
+  document.addEventListener('pointerdown', function (ev) {
+    if (S.mode !== 'play' || S.lock) return;
+    var t = ev.target;
+    if (t.closest && (t.closest('button') || t.closest('.layer') || t.closest('#nextw'))) return;
+    if (ev.clientY > 688) return;
+    S.aiming = true;
+    updateAim(ev.clientX, ev.clientY);
+  });
+  document.addEventListener('pointermove', function (ev) {
+    if (S.aiming && S.mode === 'play') updateAim(ev.clientX, ev.clientY);
+  });
+  document.addEventListener('pointerup', function () {
+    if (!S.aiming) return;
+    S.aiming = false;
+    clearAim();
+    if (S.mode === 'play' && !S.lock) fire(S.aimAng);
+  });
+  el.nextw.addEventListener('pointerdown', function (ev) {
+    ev.stopPropagation();
+    if (S.mode !== 'play' || S.lock) return;
+    var t = S.cur; S.cur = S.next; S.next = t;
+    SFX.blip();
+    renderCannon(true);
+  });
+  el.tReset.addEventListener('pointerdown', function (ev) {
+    ev.stopPropagation();
+    if (S.mode !== 'play' || S.lock) return;
+    startGame();
+  });
+  el.btnHome.addEventListener('click', function () { if (S.mode !== 'menu') showMenu(); });
+  el.menuGo.addEventListener('click', function () { SFX.unlock(); startGame(); });
+  el.endOk.addEventListener('click', function () { startGame(); });
+  el.endMenu.addEventListener('click', showMenu);
+
+  /* ── 静态底 ── */
+  (function drawBG() {
+    var g = el.bgc.getContext('2d');
+    var rr = mulberry(20260907);
+    /* 灶砖纹淡格 */
+    g.strokeStyle = 'rgba(150,90,50,.07)'; g.lineWidth = 1;
+    for (var y = 96; y < 812; y += 44) {
+      g.beginPath(); g.moveTo(0, y); g.lineTo(375, y); g.stroke();
+    }
+    for (var x = 0; x < 375; x += 52) {
+      var off = (((y - 96) / 44) | 0) % 2 ? 26 : 0;
+      g.beginPath(); g.moveTo(x + off, 96); g.lineTo(x + off, 812); g.stroke();
+    }
+    /* 木梁影（顶部横梁） */
+    var bg1 = g.createLinearGradient(0, 88, 0, 116);
+    bg1.addColorStop(0, 'rgba(110,70,36,.18)'); bg1.addColorStop(1, 'rgba(110,70,36,0)');
+    g.fillStyle = bg1; g.fillRect(0, 88, 375, 28);
+    /* 糖粉微点 */
+    for (var i = 0; i < 40; i++) {
+      var sx = rr() * 375, sy = 100 + rr() * 600, a = .12 + rr() * .3;
+      g.beginPath(); g.arc(sx, sy, .7 + rr() * 1.1, 0, 7);
+      g.fillStyle = 'rgba(255,252,240,' + a.toFixed(2) + ')'; g.fill();
+    }
+    /* 底部灶台横带 */
+    g.fillStyle = 'rgba(140,84,44,.14)'; g.fillRect(0, 648, 375, 4);
+    var bg2 = g.createLinearGradient(0, 648, 0, 690);
+    bg2.addColorStop(0, 'rgba(140,84,44,.1)'); bg2.addColorStop(1, 'rgba(140,84,44,0)');
+    g.fillStyle = bg2; g.fillRect(0, 652, 375, 38);
+  })();
+
+  /* 蒸汽（DOM 循环动画） */
+  (function makeSteam() {
+    for (var i = 0; i < 3; i++) {
+      var st = document.createElement('div');
+      st.className = 'steam';
+      var sz = 18 + i * 6;
+      st.style.cssText += 'width:' + sz + 'px;height:' + sz + 'px;left:' + (176 + i * 9) + 'px;top:' + (468 - i * 6) + 'px;animation-delay:' + (i * .85) + 's';
+      document.body.appendChild(st);
+    }
+  })();
+
+  /* ── 声音开关（系列统一形态） ── */
+  var SND_ON =
+    '<svg width="20" height="20" viewBox="0 0 20 20">' +
+    '<path d="M3 8 h3 l4 -3.4 v10.8 L6 12 H3z" fill="#c07820"/>' +
+    '<path d="M13 7 q2 3 0 6 M15.5 5 q3.2 5 0 10" stroke="#8a6a34" stroke-width="1.7" fill="none" stroke-linecap="round"/>' +
+    '</svg>';
+  var SND_OFF =
+    '<svg width="20" height="20" viewBox="0 0 20 20">' +
+    '<path d="M3 8 h3 l4 -3.4 v10.8 L6 12 H3z" fill="#8a7458"/>' +
+    '<path d="M13 7.5 l5 5 M18 7.5 l-5 5" stroke="#c9553f" stroke-width="1.9" stroke-linecap="round"/>' +
+    '</svg>';
+  function sndIcon() {
+    el.btnSnd.innerHTML = SFX.isOn() ? SND_ON : SND_OFF;
+    el.btnSnd.classList.toggle('off', !SFX.isOn());
+  }
+  el.btnSnd.addEventListener('click', function () { SFX.toggle(); sndIcon(); });
+
+  
+
+  /* ═══ 启动 ═══ */
+  sndIcon();
+  showMenu();
+  startLoop();
+})();
+</script>
+</body>
+</html>
