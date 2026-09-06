@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1a1512">
+<title>琉璃雨 · 口袋游戏机</title>
+<style>
+:root{--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px)}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;position:fixed}
+body{
+  background:linear-gradient(178deg,#1c1713 0%,#231b14 46%,#191310 100%);
+  color:#f2e8d8;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+  touch-action:none;user-select:none;-webkit-user-select:none;
+}
+/* ---------- 布局骨架 ---------- */
+#app{position:relative;width:100%;height:100%;max-width:520px;margin:0 auto}
+.screen{position:absolute;inset:0;display:none}
+.screen.on{display:block}
+/* ---------- 菜单 ---------- */
+#menu{display:none;flex-direction:column;align-items:center;justify-content:center;gap:0;
+  background:radial-gradient(140% 62% at 50% -6%,#5a3416 0%,rgba(90,52,22,0) 62%),
+             linear-gradient(178deg,#1c1713 0%,#241b13 55%,#171009 100%)}
+#menu.on{display:flex}
+.m-kicker{font-size:11.5px;letter-spacing:.42em;color:#a8835a;margin-bottom:14px;padding-left:.42em}
+.m-title{font-size:46px;font-weight:800;letter-spacing:.06em;
+  background:linear-gradient(105deg,#ffe9c2 18%,#f2a83c 48%,#e05a4e 82%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 3px 14px rgba(242,168,60,.28))}
+.m-sub{margin-top:12px;color:#b39a78;font-size:13.5px;letter-spacing:.18em;padding-left:.18em}
+#m-art{width:196px;height:150px;margin:30px 0 6px}
+.btn{display:block;width:206px;margin:0 auto;border:none;cursor:pointer;
+  font-family:inherit;font-size:17px;font-weight:700;letter-spacing:.22em;padding:15px 0 15px .22em;
+  color:#241505;border-radius:14px;background:linear-gradient(168deg,#f2a83c,#d97a26);
+  box-shadow:0 6px 22px rgba(242,168,60,.32),inset 0 1px 0 rgba(255,244,214,.6)}
+.btn:active{transform:translateY(2px) scale(.985)}
+.btn.ghost{background:linear-gradient(168deg,rgba(242,168,60,.10),rgba(242,168,60,.03));color:#dcc094;box-shadow:inset 0 0 0 1.8px rgba(224,190,140,.66);font-size:14px;padding:12px 0 12px .22em;margin-top:14px}
+#m-best{margin-top:22px;color:#8d7658;font-size:12.5px;letter-spacing:.14em}
+#m-best b{color:#f2b95c;font-weight:700}
+.m-foot{position:absolute;bottom:calc(var(--sab) + 16px);left:0;right:0;text-align:center;color:#5c4c38;font-size:10.5px;letter-spacing:.12em}
+/* ---------- 游戏 ---------- */
+#game{padding-top:calc(var(--sat) + 4px)}
+#hud{position:relative;z-index:6;display:flex;align-items:center;gap:8px;padding:4px 14px 4px}
+.hud-title{font-size:19px;font-weight:800;letter-spacing:.1em;color:#f2c37e;text-shadow:0 1px 8px rgba(242,168,60,.25)}
+.hud-score{flex:1;text-align:right;font-size:13px;color:#c9ab7c;line-height:1.25}
+.hud-score b{display:block;font-size:21px;color:#ffe9c2;font-weight:800;font-variant-numeric:tabular-nums}
+.icon-btn{width:36px;height:36px;border-radius:11px;border:1.4px solid rgba(201,169,126,.4);
+  background:rgba(42,31,20,.72);color:#d8b98c;font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.icon-btn:active{transform:scale(.94)}
+.icon-btn.off{color:#6b563c}
+/* 窑口罩 */
+#kiln{position:relative;height:34px;margin:1px 14px 0;border-radius:10px 10px 4px 4px;overflow:hidden;
+  background:linear-gradient(180deg,#3d2412 0%,#2a1a0e 100%);border:1px solid rgba(242,168,60,.22)}
+#kiln::after{content:"";position:absolute;inset:auto 0 -18px 0;height:24px;
+  background:radial-gradient(58% 100% at 50% 0%,rgba(255,168,64,.5),rgba(255,120,40,0) 72%)}
+#kiln-glow{position:absolute;top:0;width:96px;height:100%;pointer-events:none;
+  background:radial-gradient(60% 130% at 50% -8%,rgba(255,190,90,.75),rgba(255,140,50,0) 70%);
+  transition:left .12s linear}
+#kiln .slit{position:absolute;left:12%;right:12%;bottom:5px;height:3px;border-radius:3px;
+  background:linear-gradient(90deg,rgba(255,170,70,0),rgba(255,196,110,.95),rgba(255,170,70,0));
+  animation:slit 3.2s ease-in-out infinite}
+@keyframes slit{0%,100%{opacity:.55}50%{opacity:1}}
+/* 棋盘 */
+#board-wrap{position:relative;margin:4px 14px 0}
+#board{position:relative;background:rgba(16,11,7,.5);border:1.6px solid rgba(201,169,126,.26);border-radius:12px;overflow:hidden}
+#grid-dots{position:absolute;inset:0;pointer-events:none}
+#layer{position:absolute;inset:0}
+.bead{position:absolute;width:44px;height:44px;border-radius:50%;will-change:transform,top;
+  box-shadow:0 3px 6px rgba(0,0,0,.5),inset 0 -5px 9px rgba(0,0,0,.34),inset 0 3px 6px rgba(255,255,255,.16)}
+.bead .shine{position:absolute;left:7px;top:5px;width:15px;height:10px;border-radius:50%;
+  background:radial-gradient(closest-side,rgba(255,255,255,.92),rgba(255,255,255,0));transform:rotate(-24deg)}
+.bead .motif{position:absolute;inset:9px}
+.bead.pop{animation:pop .13s ease-out}
+@keyframes pop{0%{transform:scale(.9)}70%{transform:scale(1.05)}100%{transform:scale(1)}}
+.bead.boom{animation:boom .3s ease-out forwards;z-index:5}
+@keyframes boom{0%{transform:scale(1);filter:brightness(1)}30%{transform:scale(1.28);filter:brightness(2.6)}
+  100%{transform:scale(.1);filter:brightness(3);opacity:0}}
+.spark{position:absolute;width:5px;height:5px;border-radius:50%;pointer-events:none;z-index:6}
+.ring{position:absolute;width:44px;height:44px;border-radius:50%;border:2.5px solid rgba(255,232,190,.9);
+  pointer-events:none;z-index:6;animation:ring .42s ease-out forwards}
+@keyframes ring{0%{transform:scale(.6);opacity:.95}100%{transform:scale(2.3);opacity:0}}
+.dghost{position:absolute;width:44px;height:44px;border-radius:50%;opacity:.24;pointer-events:none}
+.dghost::after{content:"";position:absolute;inset:3px;border-radius:50%;border:2px dashed rgba(255,225,180,.75)}
+/* 下落柱 */
+#piece{position:absolute;width:44px;height:132px;z-index:4;transition:opacity .12s}
+#piece .bead{position:absolute;left:0}
+/* 浮字 */
+.floatxt{position:absolute;z-index:8;font-weight:800;pointer-events:none;letter-spacing:.05em;
+  animation:fup 1s ease-out forwards;text-shadow:0 1px 6px rgba(0,0,0,.6)}
+@keyframes fup{0%{transform:translate(-50%,0) scale(.82);opacity:0}18%{opacity:1;transform:translate(-50%,-8px) scale(1)}
+  100%{transform:translate(-50%,-46px) scale(1);opacity:0}}
+@keyframes shk{0%,100%{transform:translate(0,0)}25%{transform:translate(3px,1px)}50%{transform:translate(-3px,-1px)}75%{transform:translate(2px,-1px)}}
+/* 结算条 */
+#stat{display:flex;gap:8px;margin:6px 14px 0}
+#stat .cell{flex:1;text-align:center;font-size:10.5px;color:#9d856a;letter-spacing:.1em;padding:5px 0 6px;
+  background:rgba(38,27,17,.55);border:1px solid rgba(201,169,126,.16);border-radius:9px}
+#stat .cell b{display:block;font-size:14.5px;color:#e8cda0;font-weight:800;margin-top:1px;font-variant-numeric:tabular-nums}
+#hint{margin:7px 18px 0;color:#8a7458;font-size:11px;line-height:1.7;letter-spacing:.04em;text-align:center}
+#hint b{color:#c9a06a;font-weight:600}
+/* ---------- 终局面板 ---------- */
+#end{display:none;align-items:center;justify-content:center;background:rgba(12,8,5,.78);z-index:30;backdrop-filter:blur(3px)}
+#end.on{display:flex}
+#end .card{width:82%;max-width:330px;border-radius:20px;padding:26px 22px 22px;text-align:center;
+  background:linear-gradient(172deg,#2e2114,#221709);border:1.4px solid rgba(242,168,60,.34);
+  box-shadow:0 18px 50px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,230,180,.14)}
+#end .e-k{font-size:11px;letter-spacing:.4em;color:#a8835a;padding-left:.4em}
+#end .e-t{font-size:27px;font-weight:800;letter-spacing:.12em;color:#ffe3b0;margin:8px 0 4px}
+#end .e-s{font-size:15px;color:#c9ab7c;margin-bottom:14px}
+#end .e-s b{color:#ffd98e;font-size:24px;font-weight:800;font-variant-numeric:tabular-nums}
+#end .rows{display:flex;gap:8px;margin:4px 0 16px}
+#end .rows div{flex:1;background:rgba(16,11,6,.6);border:1px solid rgba(201,169,126,.16);border-radius:10px;padding:9px 0 8px}
+#end .rows span{display:block;font-size:10px;color:#8d7658;letter-spacing:.1em}
+#end .rows b{display:block;font-size:16px;color:#e8cda0;font-weight:800;margin-top:3px;font-variant-numeric:tabular-nums}
+#end .btn{margin-top:2px}
+#end .newbest{display:inline-block;margin-top:2px;padding:3px 12px;border-radius:99px;font-size:11.5px;letter-spacing:.18em;
+  color:#3a2205;background:linear-gradient(95deg,#ffd97e,#f2a83c);margin-bottom:12px}
+@media (max-height:700px){
+  #m-art{width:150px;height:114px;margin:20px 0 2px}
+  .m-title{font-size:38px}
+  #hint{display:none}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- 菜单 -->
+  <div id="menu" class="screen on">
+    <div class="m-kicker">夜 窑 工 坊</div>
+    <div class="m-title">琉璃雨</div>
+    <div class="m-sub">珠落成串 · 三彩即熔</div>
+    <svg id="m-art" viewBox="0 0 196 150">
+      <defs>
+        <radialGradient id="gR" cx=".35" cy=".3" r=".95"><stop offset="0" stop-color="#f09488"/><stop offset=".6" stop-color="#e05a4e"/><stop offset="1" stop-color="#8e2c22"/></radialGradient>
+        <radialGradient id="gA" cx=".35" cy=".3" r=".95"><stop offset="0" stop-color="#ffd890"/><stop offset=".6" stop-color="#f2a83c"/><stop offset="1" stop-color="#9a6410"/></radialGradient>
+        <radialGradient id="gG" cx=".35" cy=".3" r=".95"><stop offset="0" stop-color="#9ce0ae"/><stop offset=".6" stop-color="#58b878"/><stop offset="1" stop-color="#23703f"/></radialGradient>
+        <radialGradient id="gB" cx=".35" cy=".3" r=".95"><stop offset="0" stop-color="#94b4e8"/><stop offset=".6" stop-color="#5a8ac8"/><stop offset="1" stop-color="#28477e"/></radialGradient>
+        <radialGradient id="gP" cx=".35" cy=".3" r=".95"><stop offset="0" stop-color="#d0a8f0"/><stop offset=".6" stop-color="#a872d8"/><stop offset="1" stop-color="#5c3384"/></radialGradient>
+        <linearGradient id="kg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a2c12"/><stop offset="1" stop-color="#2a1a0e"/></linearGradient>
+      </defs>
+      <rect x="18" y="6" width="160" height="26" rx="9" fill="url(#kg)" stroke="rgba(242,168,60,.3)"/>
+      <rect x="34" y="26" width="128" height="5" rx="2.5" fill="rgba(255,180,80,.55)"/>
+      <ellipse cx="98" cy="19" rx="52" ry="12" fill="rgba(255,170,70,.24)"/>
+      <g><circle cx="98" cy="44" r="11" fill="url(#gR)"/><ellipse cx="94.5" cy="40.5" rx="3.4" ry="2.2" fill="rgba(255,255,255,.75)" transform="rotate(-24 94.5 40.5)"/></g>
+      <g><circle cx="79" cy="72" r="11" fill="url(#gA)"/><ellipse cx="75.5" cy="68.5" rx="3.4" ry="2.2" fill="rgba(255,255,255,.75)" transform="rotate(-24 75.5 68.5)"/></g>
+      <g><circle cx="117" cy="72" r="11" fill="url(#gB)"/><ellipse cx="113.5" cy="68.5" rx="3.4" ry="2.2" fill="rgba(255,255,255,.75)" transform="rotate(-24 113.5 68.5)"/></g>
+      <g><circle cx="98" cy="100" r="11" fill="url(#gG)"/><ellipse cx="94.5" cy="96.5" rx="3.4" ry="2.2" fill="rgba(255,255,255,.75)" transform="rotate(-24 94.5 96.5)"/></g>
+      <g><circle cx="62" cy="100" r="9" fill="url(#gP)" opacity=".9"/><ellipse cx="59" cy="97" rx="2.8" ry="1.9" fill="rgba(255,255,255,.7)" transform="rotate(-24 59 97)"/></g>
+      <g><circle cx="134" cy="100" r="9" fill="url(#gR)" opacity=".9"/><ellipse cx="131" cy="97" rx="2.8" ry="1.9" fill="rgba(255,255,255,.7)" transform="rotate(-24 131 97)"/></g>
+      <g><circle cx="44" cy="128" r="8" fill="url(#gB)" opacity=".85"/><ellipse cx="41.4" cy="125.4" rx="2.5" ry="1.7" fill="rgba(255,255,255,.65)" transform="rotate(-24 41.4 125.4)"/></g>
+      <g><circle cx="78" cy="130" r="8" fill="url(#gG)" opacity=".85"/><ellipse cx="75.4" cy="127.4" rx="2.5" ry="1.7" fill="rgba(255,255,255,.65)" transform="rotate(-24 75.4 127.4)"/></g>
+      <g><circle cx="112" cy="130" r="8" fill="url(#gA)" opacity=".85"/><ellipse cx="109.4" cy="127.4" rx="2.5" ry="1.7" fill="rgba(255,255,255,.65)" transform="rotate(-24 109.4 127.4)"/></g>
+      <g><circle cx="146" cy="128" r="8" fill="url(#gP)" opacity=".85"/><ellipse cx="143.4" cy="125.4" rx="2.5" ry="1.7" fill="rgba(255,255,255,.65)" transform="rotate(-24 143.4 125.4)"/></g>
+      <g stroke="#ffd9a0" stroke-width="1.4" stroke-linecap="round" opacity=".8">
+        <line x1="63" y1="52" x2="63" y2="58"/><line x1="133" y1="46" x2="133" y2="52"/><line x1="53" y1="112" x2="53" y2="118"/>
+      </g>
+    </svg>
+    <button class="btn" id="btn-start">开 窑</button>
+    <button class="btn ghost" id="btn-how">玩 法</button>
+    <div id="m-best"></div>
+    <div class="m-foot">三珠一串落窑 · 横竖斜三彩即熔</div>
+  </div>
+
+  <!-- 游戏 -->
+  <div id="game" class="screen">
+    <div id="hud">
+      <button class="icon-btn" id="btn-home">⌂</button>
+      <div class="hud-title">琉璃雨</div>
+      <div class="hud-score">SCORE<b id="score">0</b></div>
+      <button class="icon-btn off" id="btn-snd">♪̶</button>
+    </div>
+    <div id="kiln"><div id="kiln-glow"></div><div class="slit"></div></div>
+    <div id="board-wrap">
+      <div id="board"><div id="grid-dots"></div><div id="layer"></div><div id="piece"></div></div>
+    </div>
+    <div id="stat">
+      <div class="cell">连锁<b id="st-chain">×1</b></div>
+      <div class="cell">熔彩<b id="st-lines">0</b></div>
+      <div class="cell">BEST<b id="st-best">0</b></div>
+    </div>
+    <div id="hint">左右滑移列 · 轻点换珠序 · <b>下滑速降</b>　横竖斜三同色即熔</div>
+  </div>
+
+  <!-- 终局 -->
+  <div id="end" class="screen">
+    <div class="card">
+      <div class="e-k">窑 火 息</div>
+      <div class="e-t" id="end-title">顶 熔</div>
+      <div id="end-best-tag" class="newbest" style="display:none">新纪录</div>
+      <div class="e-s">本窑得分<b id="end-score">0</b></div>
+      <div class="rows">
+        <div><span>熔彩</span><b id="end-lines">0</b></div>
+        <div><span>最大连锁</span><b id="end-chain">×1</b></div>
+        <div><span>最高纪录</span><b id="end-best">0</b></div>
+      </div>
+      <button class="btn" id="btn-again">再 开 一 窑</button>
+      <button class="btn ghost" id="btn-menu2">回 工 坊</button>
+    </div>
+  </div>
+
+</div>
+<script>
+"use strict";
+/* ================= 琉璃雨 · Columns 落柱三消 ================= */
+var COLS=7, ROWS=13, CELL=44, GAP=4, STEP=CELL+GAP;         /* 48 */
+var COLORS=[
+  {id:1,name:'窑红', base:'#e05a4e', hi:'#f09488', lo:'#8e2c22', motif:'flower'},
+  {id:2,name:'琥珀', base:'#f2a83c', hi:'#ffd890', lo:'#9a6410', motif:'bubble'},
+  {id:3,name:'松绿', base:'#58b878', hi:'#9ce0ae', lo:'#23703f', motif:'leaf'},
+  {id:4,name:'靛蓝', base:'#5a8ac8', hi:'#94b4e8', lo:'#28477e', motif:'ice'},
+  {id:5,name:'紫晶', base:'#a872d8', hi:'#d0a8f0', lo:'#5c3384', motif:'star'}
+];
+var el={
+  menu:document.getElementById('menu'), game:document.getElementById('game'), end:document.getElementById('end'),
+  board:document.getElementById('board'), layer:document.getElementById('layer'), piece:document.getElementById('piece'),
+  grid:document.getElementById('grid-dots'), score:document.getElementById('score'),
+  stChain:document.getElementById('st-chain'), stLines:document.getElementById('st-lines'), stBest:document.getElementById('st-best'),
+  kilnGlow:document.getElementById('kiln-glow'),
+  endScore:document.getElementById('end-score'), endLines:document.getElementById('end-lines'),
+  endChain:document.getElementById('end-chain'), endBest:document.getElementById('end-best'),
+  endTitle:document.getElementById('end-title'), endBestTag:document.getElementById('end-best-tag'),
+  mBest:document.getElementById('m-best')
+};
+/* ---------- 确定性随机 ---------- */
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+/* ---------- 状态 ---------- */
+var S={
+  board:[], beads:{},          /* beads[r*7+c] = {el,color} */
+  cur:null,                    /* {col,cols:[a,b,c],rowF,active} */
+  score:0, best:0, lines:0, chainMax:1, chainShow:1,
+  over:false, playing:false, spawnCol:3,
+  stepMs:900, rng:null, bag:[],
+  busy:false,                  /* 结算/动画播放中锁输入 */
+  sndOn:false, rafId:0, lastT:0, motMax:0
+};
+function loadBest(){try{S.best=+localStorage.getItem('g43_best')||0}catch(e){S.best=0}}
+function saveBest(){try{localStorage.setItem('g43_best',String(S.best))}catch(e){}}
+/* ---------- 音效（默认关，WebAudio 程序化） ---------- */
+var AC=null;
+function ac(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}return AC}
+function beep(f,d,type,vol,slide){
+  if(!S.sndOn)return; var a=ac(); if(!a)return;
+  try{
+    var o=a.createOscillator(),g=a.createGain(),t=a.currentTime;
+    o.type=type||'sine'; o.frequency.setValueAtTime(f,t);
+    if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(40,slide),t+d);
+    g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(vol||.14,t+.012);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+d);
+    o.connect(g); g.connect(a.destination); o.start(t); o.stop(t+d+.03);
+  }catch(e){}
+}
+var SND={
+  move:function(){beep(340,.05,'triangle',.08)},
+  shift:function(){beep(620,.07,'triangle',.1,760)},
+  land:function(){beep(150,.09,'sine',.16,96)},
+  clear:function(n){for(var i=0;i<Math.min(n,3);i++)setTimeout(function(){beep(760+i*180,.13,'triangle',.13,980+i*200)},i*66)},
+  chain:function(k){beep(500+k*160,.2,'triangle',.15,900+k*200)},
+  over:function(){beep(220,.5,'sawtooth',.12,60)},
+  ui:function(){beep(500,.06,'sine',.1)}
+};
+/* ---------- 珠子 DOM ---------- */
+var MOTIFS={
+  flower:'<path d="M13 4.5 a3.2 3.2 0 1 1 0 6.4 a3.2 3.2 0 1 1 0-6.4Z M5.5 12 a3.2 3.2 0 1 1 0 6.4 a3.2 3.2 0 1 1 0-6.4Z M20.5 12 a3.2 3.2 0 1 1 0 6.4 a3.2 3.2 0 1 1 0-6.4Z M13 19.5 a3.2 3.2 0 1 1 0 6.4 a3.2 3.2 0 1 1 0-6.4Z" transform="scale(.86) translate(2.4 0)"/>',
+  bubble:'<circle cx="8" cy="9" r="2.6"/><circle cx="17.5" cy="14" r="3.4"/><circle cx="10.5" cy="19" r="1.9"/><circle cx="18" cy="6.5" r="1.4"/>',
+  leaf:'<path d="M13 3 Q24 8 20 17 Q16 24 13 23 Q10 24 6 17 Q2 8 13 3 Z" opacity=".9"/><path d="M13 6 L13 20" stroke-width="1.6" stroke="#fff" stroke-opacity=".45" fill="none"/>',
+  ice:'<path d="M13 3 V23 M4.5 8 L21.5 18 M21.5 8 L4.5 18" stroke-width="2.4" stroke-linecap="round" fill="none" opacity=".85"/>',
+  star:'<path d="M13 3 l2.7 6.4 6.9 .5 -5.2 4.6 1.6 6.8 -6-3.6 -6 3.6 1.6-6.8 -5.2-4.6 6.9-.5z"/>'
+};
+function beadHTML(ci){
+  var c=COLORS[ci-1];
+  return '<div class="shine"></div><svg class="motif" viewBox="0 0 26 26" fill="rgba(255,255,255,.5)" stroke="none">'+MOTIFS[c.motif]+'</svg>';
+}
+function mkBead(ci){
+  var c=COLORS[ci-1], d=document.createElement('div');
+  d.className='bead';
+  d.style.background='radial-gradient(circle at 34% 30%,'+c.hi+' 0%,'+c.base+' 52%,'+c.lo+' 100%)';
+  d.innerHTML=beadHTML(ci);
+  return d;
+}
+function xOf(c){return c*STEP+GAP}
+function yOf(r){return r*STEP+GAP}
+/* ---------- 盘面 ---------- */
+function emptyBoard(){var b=[];for(var r=0;r<ROWS;r++){b.push([]);for(var c=0;c<COLS;c++)b[r].push(0)}return b}
+function heapTop(col){for(var r=0;r<ROWS;r++)if(S.board[r][col])return r;return ROWS}
+function putBead(r,c,ci,anim){
+  if(r<0||r>=ROWS)return;
+  S.board[r][c]=ci;
+  var d=mkBead(ci); d.style.left=xOf(c)+'px'; d.style.top=yOf(r)+'px';
+  el.layer.appendChild(d); S.beads[r*COLS+c]={el:d};
+  if(anim)d.classList.add('pop');
+}
+function rebuildAll(fast){
+  el.layer.innerHTML=''; S.beads={};
+  for(var r=0;r<ROWS;r++)for(var c=0;c<COLS;c++)if(S.board[r][c])putBead(r,c,S.board[r][c],false);
+}
+/* ---------- 柱生成 ---------- */
+function nextFromBag(){if(!S.bag.length){S.bag=[1,2,3,4,5,1,2,3,4,5,1,2,3,4,5];var i,j,t,r=S.rng;for(i=14;i>0;i--){j=(r()*(i+1))|0;t=S.bag[i];S.bag[i]=S.bag[j];S.bag[j]=t}}return S.bag.pop()}
+function newPiece(){
+  var a=nextFromBag(),b=nextFromBag(),c=nextFromBag();
+  S.cur={col:S.spawnCol,cols:[a,b,c],rowF:-1.15,active:true};
+  el.piece.innerHTML='';
+  for(var i=0;i<3;i++){var d=mkBead(S.cur.cols[i]);d.style.top=(i*STEP)+'px';el.piece.appendChild(d)}
+  el.piece.style.transition='none'; el.piece.style.opacity='1';
+  renderPiece(); renderGhost();
+}
+function renderPiece(){
+  var top=yOf(S.cur.rowF-2)-GAP; if(top<-STEP*3)top=-STEP*3;
+  el.piece.style.left=xOf(S.cur.col)+'px'; el.piece.style.top=top+'px';
+  var bw=el.board.clientWidth||332;
+  el.kilnGlow.style.left=(xOf(S.cur.col)-26)+'px';
+}
+function renderGhost(){
+  var olds=el.layer.querySelectorAll('.dghost'); for(var i=0;i<olds.length;i++)olds[i].parentNode.removeChild(olds[i]);
+  if(!S.cur||!S.cur.active||S.busy)return;
+  var ht=heapTop(S.cur.col), base=Math.max(0,ht-3);
+  for(var i=0;i<3;i++){
+    var r=base+i; if(r<0)continue;
+    var g=document.createElement('div'); g.className='dghost';
+    g.style.left=xOf(S.cur.col)+'px'; g.style.top=yOf(r)+'px';
+    g.style.background='radial-gradient(circle at 34% 30%,rgba(255,220,170,.3),rgba(255,190,120,.08) 70%)';
+    el.layer.appendChild(g);
+  }
+}
+/* ---------- 三连扫描 ---------- */
+function scanAll(bd){
+  var segs=[],r,c,i;
+  function tryLine(dr,dc){ /* 沿方向找同色最长段>=3 */
+    var seen={},sr,sc,len,color,rr,cc;
+    for(sr=0;sr<=ROWS-1;sr++)for(sc=0;sc<COLS;sc++){
+      if(seen[sr*COLS+sc])continue;
+      color=bd[sr][sc]; if(!color)continue;
+      len=1; rr=sr+dr; cc=sc+dc;
+      while(rr>=0&&rr<ROWS&&cc>=0&&cc<COLS&&bd[rr][cc]===color){len++;rr+=dr;cc+=dc}
+      if(len>=3){for(i=0;i<len;i++)seen[(sr+i*dr)*COLS+(sc+i*dc)]=1;
+        segs.push({color:color,cells:Array.apply(null,{length:len}).map(function(_,k){return[(sr+k*dr),(sc+k*dc)]})});}
+    }
+  }
+  tryLine(0,1); tryLine(1,0); tryLine(1,1); tryLine(1,-1);
+  return segs;
+}
+/* ---------- 结算（数据先行，产出动画剧本） ---------- */
+function resolveSync(){
+  var steps=[],chain=0,lines=0,bd=S.board,gain=0;
+  for(;;){
+    var segs=scanAll(bd);
+    if(!segs.length)break;
+    chain++;
+    var roundGain=Math.round(segs.length*30*Math.pow(2,chain-1)*(segs.length>=2?1.5:1));
+    gain+=roundGain; lines+=segs.length;
+    var cellMap={},cells=[];
+    segs.forEach(function(sg){sg.cells.forEach(function(rc){var k=rc[0]*COLS+rc[1];if(!cellMap[k]){cellMap[k]=1;cells.push(rc)}})});
+    /* 数据消除 */
+    cells.forEach(function(rc){bd[rc[0]][rc[1]]=0});
+    /* 重力（数据） */
+    var moves=[];
+    for(var c=0;c<COLS;c++){
+      var write=ROWS-1;
+      for(var r=ROWS-1;r>=0;r--){
+        if(bd[r][c]){
+          if(r!==write){moves.push({fr:r,fc:c,tr:write,tc:c});bd[write][c]=bd[r][c];bd[r][c]=0}
+          write--;
+        }
+      }
+    }
+    steps.push({type:'clear',cells:cells,segs:segs.length,chain:chain,gain:roundGain});
+    if(moves.length)steps.push({type:'fall',moves:moves});
+    if(chain>=8)break;
+  }
+  return {steps:steps,chain:chain,lines:lines,gain:gain};
+}
+function playSteps(res,done){
+  if(!res.steps.length){done();return}
+  var i=0;
+  function next(){
+    if(i>=res.steps.length){done();return}
+    var st=res.steps[i++];
+    if(st.type==='clear'){
+      SND.clear(st.segs); if(st.chain>1)SND.chain(st.chain);
+      if(st.chain>1){
+        el.board.style.animation='shk .3s ease-out';
+        setTimeout(function(){el.board.style.animation=''},320);
+        floatText('连锁 ×'+st.chain+'！','#f2a83c',19);
+      }
+      st.cells.forEach(function(rc){
+        var b=S.beads[rc[0]*COLS+rc[1]];
+        if(b){b.el.classList.add('boom');spawnSparks(rc[0],rc[1]);delete S.beads[rc[0]*COLS+rc[1]];
+          setTimeout(function(t){return function(){t.el&&t.el.parentNode&&t.el.parentNode.removeChild(t.el)}}(b),320)}
+      });
+      S.score+=st.gain; updHud();
+      setTimeout(next,300);
+    }else{
+      st.moves.forEach(function(mv){
+        var b=S.beads[mv.fr*COLS+mv.fc];
+        if(b){b.el.style.transition='top .2s ease-in'; b.el.style.top=yOf(mv.tr)+'px';
+          delete S.beads[mv.fr*COLS+mv.fc]; S.beads[mv.tr*COLS+mv.tc]=b}
+      });
+      setTimeout(next,230);
+    }
+  }
+  next();
+}
+function spawnSparks(r,c){
+  var cx=xOf(c)+22, cy=yOf(r)+22;
+  for(var i=0;i<5;i++){
+    var s=document.createElement('div'); s.className='spark';
+    var ang=Math.PI*2*i/5+Math.random(), dist=16+Math.random()*22;
+    s.style.left=(cx+Math.cos(ang)*dist)+'px'; s.style.top=(cy+Math.sin(ang)*dist)+'px';
+    s.style.background='rgba(255,226,180,.95)'; s.style.transition='all .4s ease-out'; s.style.opacity='.95';
+    el.layer.appendChild(s);
+    setTimeout(function(el2,x,y){return function(){el2.style.left=x+'px';el2.style.top=y+'px';el2.style.opacity='0'}}(s,cx+Math.cos(ang)*dist*2.1,cy+Math.sin(ang)*dist*2.1),16);
+    setTimeout(function(el2){return function(){el2.parentNode&&el2.parentNode.removeChild(el2)}}(s),470);
+  }
+  var ring=document.createElement('div'); ring.className='ring';
+  ring.style.left=xOf(c)+'px'; ring.style.top=yOf(r)+'px';
+  el.layer.appendChild(ring);
+  setTimeout(function(){ring.parentNode&&ring.parentNode.removeChild(ring)},440);
+}
+function floatText(txt,color,size){
+  var f=document.createElement('div'); f.className='floatxt'; f.textContent=txt;
+  f.style.color=color; f.style.fontSize=(size||14)+'px';
+  f.style.left='50%'; f.style.top=(el.board.clientHeight*0.36)+'px'; f.style.transform='translateX(-50%)';
+  el.board.appendChild(f); setTimeout(function(){f.parentNode&&f.parentNode.removeChild(f)},1020);
+}
+/* ---------- 落定 ---------- */
+function settlePiece(fast, cb){
+  if(!S.cur||!S.cur.active)return;
+  S.cur.active=false; S.busy=true;
+  var col=S.cur.col, ht=heapTop(col), dropped=0, i;
+  for(i=0;i<3;i++){
+    var r=ht-3+i;
+    if(r>=0)putBead(r,col,S.cur.cols[i],true);
+  }
+  SND.land();
+  el.piece.style.opacity='0';
+  var res=resolveSync();
+  S.lines+=res.lines;
+  if(res.chain>S.chainMax)S.chainMax=res.chain;
+  S.chainShow=Math.max(1,res.chain);
+  updHud();
+  function after(){
+    S.busy=false;
+    /* 顶死判定：出生点被占 */
+    if(S.board[0][S.spawnCol]||S.board[1][S.spawnCol]||S.board[2][S.spawnCol]){gameOver();if(cb)cb(true);return}
+    newPiece(); if(cb)cb(false);
+  }
+  if(fast){rebuildAll();after()}
+  else playSteps(res,after);
+}
+function dropNow(){
+  if(!S.cur||!S.cur.active||S.busy)return;
+  var ht=heapTop(S.cur.col), maxRow=ht-1;
+  var cells=Math.max(0,Math.round(maxRow-S.cur.rowF));
+  S.score+=cells*2; S.cur.rowF=maxRow;
+  renderPiece(); updHud();
+  settlePiece(false);
+}
+/* ---------- HUD ---------- */
+function updHud(){
+  el.score.textContent=S.score;
+  el.stChain.textContent='×'+S.chainShow;
+  el.stLines.textContent=S.lines;
+  el.stBest.textContent=Math.max(S.best,S.score);
+  if(S.score>S.motMax)S.motMax=S.score;
+}
+function speedOf(score){var lv=Math.floor(score/1200);return Math.max(220,900-lv*85)}
+/* ---------- 主循环 ---------- */
+function tick(t){
+  if(!S.playing)return;
+  var dt=Math.min(64,t-S.lastT); S.lastT=t;
+  if(S.cur&&S.cur.active&&!S.busy){
+    S.stepMs=speedOf(S.score);
+    S.cur.rowF+=dt/S.stepMs;
+    var maxRow=heapTop(S.cur.col)-1;
+    if(S.cur.rowF>=maxRow){S.cur.rowF=maxRow;renderPiece();settlePiece(false)}
+    else renderPiece();
+  }
+  S.rafId=requestAnimationFrame(tick);
+}
+/* ---------- 输入 ---------- */
+var DR=null;
+function onDown(e){
+  if(!S.playing||!S.cur||!S.cur.active||S.busy)return;
+  DR={x:e.clientX,y:e.clientY,t:Date.now(),mode:null,col0:S.cur.col};
+}
+function onMove(e){
+  if(!DR||!S.cur||!S.cur.active||S.busy)return;
+  var dx=e.clientX-DR.x, dy=e.clientY-DR.y;
+  if(!DR.mode){
+    if(Math.abs(dx)>16&&Math.abs(dx)>Math.abs(dy)*1.15)DR.mode='h';
+    else if(dy>30&&dy>Math.abs(dx)*1.5){DR.mode='v';dropNow();return}
+  }
+  if(DR.mode==='h'){
+    var nc=Math.max(0,Math.min(COLS-1,DR.col0+Math.round(dx/STEP)));
+    if(nc!==S.cur.col){S.cur.col=nc;SND.move();renderPiece();renderGhost()}
+  }
+}
+function onUp(e){
+  if(!DR)return;
+  var dt=Date.now()-DR.t, dist=Math.hypot(e.clientX-DR.x,e.clientY-DR.y);
+  if(!DR.mode&&dt<300&&dist<12){shiftPiece()}
+  DR=null;
+}
+function shiftPiece(){
+  if(!S.cur||!S.cur.active||S.busy)return;
+  var c=S.cur.cols; S.cur.cols=[c[2],c[0],c[1]];  /* 底珠转顶 */
+  var kids=el.piece.childNodes;
+  el.piece.insertBefore(kids[2],kids[0]);          /* 底珠 DOM 移到顶 */
+  for(var i=0;i<3;i++){kids[i].style.top=(i*STEP)+'px'}
+  SND.shift();
+}
+/* ---------- 生命周期 ---------- */
+function startGame(seed){
+  S.rng=mulberry(seed||1); S.bag=[];
+  S.board=emptyBoard(); S.beads={}; el.layer.innerHTML='';
+  S.score=0;S.lines=0;S.chainMax=1;S.chainShow=1;S.motMax=0;
+  S.over=false;S.busy=false;S.stepMs=speedOf(0);
+  updHud();
+  el.menu.classList.remove('on'); el.end.classList.remove('on'); el.game.classList.add('on');
+  S.playing=true; S.lastT=performance.now();
+  newPiece();
+  cancelAnimationFrame(S.rafId); S.rafId=requestAnimationFrame(tick);
+}
+function gameOver(){
+  S.playing=false;S.over=true;SND.over();
+  cancelAnimationFrame(S.rafId);
+  var isNew=false;
+  if(S.score>S.best){S.best=S.score;saveBest();isNew=true}
+  el.endScore.textContent=S.score; el.endLines.textContent=S.lines;
+  el.endChain.textContent='×'+S.chainMax; el.endBest.textContent=S.best;
+  el.endBestTag.style.display=isNew?'inline-block':'none';
+  el.end.classList.add('on');
+  showMenuBest();
+}
+function showMenuBest(){el.mBest.innerHTML=S.best>0?('最高纪录　<b>'+S.best+'</b>'):'深夜工坊 · 静候第一炉'}
+function goMenu(){
+  S.playing=false;cancelAnimationFrame(S.rafId);
+  el.game.classList.remove('on');el.end.classList.remove('on');el.menu.classList.add('on');
+  showMenuBest();
+}
+/* ---------- 尺寸 ---------- */
+function layout(){
+  var wrapW=Math.min(window.innerWidth,520)-28;
+  var scale=wrapW/(COLS*STEP+GAP+2);
+  el.board.style.height=(ROWS*STEP+GAP+2)+'px';
+  el.board.style.width=(COLS*STEP+GAP+2)+'px';
+  if(scale<0.999||scale>1.001){
+    el.board.style.transform='scale('+scale+')';el.board.style.transformOrigin='top center';
+    el.board.style.height=(ROWS*STEP+GAP+2)+'px';
+    el.board.style.marginBottom=((ROWS*STEP+GAP+2)*(scale-1))+'px';
+  }
+  /* 网格点 */
+  var g=el.grid; g.innerHTML='';
+  for(var r=0;r<ROWS;r++)for(var c=0;c<COLS;c++){
+    var d=document.createElement('div');
+    d.style.cssText='position:absolute;width:'+CELL+'px;height:'+CELL+'px;left:'+xOf(c)+'px;top:'+yOf(r)+'px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(201,169,126,.07)';
+    g.appendChild(d);
+  }
+}
+/* ---------- 事件绑定 ---------- */
+document.getElementById('btn-start').addEventListener('click',function(){SND.ui();startGame((Math.random()*1e9)|0)});
+document.getElementById('btn-how').addEventListener('click',function(){
+  SND.ui(); floatHow();
+});
+function floatHow(){
+  var h=document.getElementById('hint');
+  var old=document.getElementById('howtip');
+  if(old)old.parentNode.removeChild(old);
+  var tip=document.createElement('div');tip.id='howtip';
+  tip.style.cssText='position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:99;width:78%;max-width:300px;padding:20px 18px;border-radius:16px;background:linear-gradient(172deg,#2e2114,#221709);border:1.4px solid rgba(242,168,60,.34);color:#e8d2ac;font-size:13px;line-height:2;box-shadow:0 16px 44px rgba(0,0,0,.6)';
+  tip.innerHTML='<b style="color:#f2b95c">琉璃雨 · 玩法</b><br>三颗琉璃珠一串从窑口落下——<br>· <b>左右滑动</b>：移到别的列<br>· <b>轻点屏幕</b>：三珠循环换序（底珠转到顶）<br>· <b>向下滑</b>：速降落定<br>横、竖、斜三同色即熔；熔出的空洞上方珠子下坠，<b>可能连锁</b>，连锁分翻倍。珠子堆到窑口即封窑。';
+  var x=document.createElement('div');x.textContent='✕';x.style.cssText='position:absolute;top:8px;right:12px;color:#a8835a;font-size:15px;padding:4px';
+  x.onclick=function(){tip.parentNode.removeChild(tip)};
+  tip.appendChild(x);document.body.appendChild(tip);
+}
+document.getElementById('btn-home').addEventListener('click',function(){SND.ui();goMenu()});
+document.getElementById('btn-again').addEventListener('click',function(){SND.ui();startGame((Math.random()*1e9)|0)});
+document.getElementById('btn-menu2').addEventListener('click',function(){SND.ui();goMenu()});
+document.getElementById('btn-snd').addEventListener('click',function(){
+  S.sndOn=!S.sndOn; this.classList.toggle('off',!S.sndOn); this.textContent=S.sndOn?'♪':'♪̶';
+  if(S.sndOn){var a=ac();if(a&&a.state==='suspended')a.resume();SND.ui()}
+});
+el.board.addEventListener('pointerdown',onDown);
+window.addEventListener('pointermove',onMove);
+window.addEventListener('pointerup',onUp);
+window.addEventListener('pointercancel',function(){DR=null});
+window.addEventListener('resize',layout);
+loadBest();showMenuBest();layout();
+
+
+</script>
+</body>
+</html>
