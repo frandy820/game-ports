@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0e1a2b">
+<title>夜渠流灯 · 离线版</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect x='4' y='4' width='40' height='40' rx='9' fill='%230e1a2b'/%3E%3Cpath d='M14 24 h20' stroke='%234fc3dd' stroke-width='5' stroke-linecap='round'/%3E%3Ccircle cx='14' cy='24' r='6' fill='%234fc3dd'/%3E%3Ccircle cx='34' cy='24' r='6' fill='%234fc3dd'/%3E%3Ccircle cx='34' cy='24' r='2.4' fill='%23fff7e0'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg1:#0e1a2b; --bg2:#12233a; --txt:#dbe6f4; --sub:#7e93b2;
+    --ink:#0b1524; --line:rgba(126,150,190,.28);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{background:linear-gradient(180deg,var(--bg1) 0%,#0d1727 55%,var(--bg2) 100%);color:var(--txt);
+    font-family:'Segoe UI',system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
+    overflow:hidden;position:fixed;inset:0;touch-action:none;user-select:none;-webkit-user-select:none}
+
+  #hud{position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);left:14px;right:60px;z-index:6;
+    display:flex;align-items:center;gap:10px;pointer-events:none}
+  #title{font-size:20px;font-weight:800;color:#e8f0fa;letter-spacing:.1em}
+  #badge{font-size:11px;font-weight:800;color:#fdf6e8;background:#b03a2e;padding:2px 8px;
+    border-radius:5px;letter-spacing:.14em;box-shadow:0 1px 0 rgba(60,15,8,.4)}
+  #clock{margin-left:auto;display:flex;align-items:center;gap:8px;pointer-events:auto}
+  #clock .tx{font-size:16px;font-weight:700;color:#a8bcd8;font-variant-numeric:tabular-nums;letter-spacing:.04em}
+  #btn-pause{width:36px;height:36px;border:1px solid #3a4f6e;border-radius:10px;background:#16263e;
+    color:#a8bcd8;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,10,25,.4)}
+  #btn-pause:active{transform:translateY(1px);box-shadow:none}
+  #btn-snd{position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);right:12px;z-index:7;
+    width:36px;height:36px;border:1px solid #3a4f6e;border-radius:10px;background:#16263e;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,10,25,.4);pointer-events:auto}
+  #btn-snd.off{opacity:.55}
+
+  #board{position:absolute;z-index:4;border:2px solid rgba(126,150,190,.35);border-radius:14px;
+    background:rgba(10,20,36,.55);box-shadow:0 10px 30px rgba(0,8,20,.5), inset 0 0 24px rgba(20,50,90,.25);
+    overflow:hidden}
+  .cell{position:absolute;border-right:1px solid rgba(126,150,190,.10);border-bottom:1px solid rgba(126,150,190,.10)}
+  .cell.occ{background:rgba(70,110,170,.08)}
+  #wires{position:absolute;inset:0;z-index:3;pointer-events:none}
+  #lamps{position:absolute;inset:0;z-index:4;pointer-events:none}
+  .lamp{position:absolute;border-radius:50%;display:flex;align-items:center;justify-content:center}
+  .lamp .core{border-radius:50%;background:rgba(255,250,232,.95);box-shadow:0 0 6px 2px rgba(255,246,214,.65)}
+  .lamp.pulse{animation:lpulse 2.4s ease-in-out infinite}
+  @keyframes lpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
+  @keyframes lpulse2{0%,100%{opacity:.95}50%{opacity:.72}}
+  .ripple{position:absolute;border-radius:50%;border:2px solid rgba(220,240,255,.7);
+    animation:rip .5s ease-out both;pointer-events:none;z-index:5}
+  @keyframes rip{0%{transform:scale(.3);opacity:.9}100%{transform:scale(1.8);opacity:0}}
+
+  #midbar{position:absolute;left:16px;right:16px;z-index:4;display:flex;align-items:center;gap:12px}
+  #midbar .prog{flex:1;display:flex;align-items:center;gap:8px}
+  #midbar .pl{font-size:11.5px;font-weight:700;color:#8fa6c4;letter-spacing:.05em;font-variant-numeric:tabular-nums;white-space:nowrap}
+  #midbar .ptrack{flex:1;height:5px;border-radius:99px;background:rgba(126,150,190,.2);overflow:hidden}
+  #midbar .pfill{height:100%;border-radius:99px;background:linear-gradient(90deg,#3d6a9e,#6fb3d8);transition:width .25s}
+  #midbar .cnt{font-size:11.5px;font-weight:700;color:#7e93b2;letter-spacing:.04em;white-space:nowrap;font-variant-numeric:tabular-nums}
+  #midbar .cnt b{color:#e8b23c}
+
+  #toolbar{position:absolute;left:14px;right:14px;bottom:calc(env(safe-area-inset-bottom,0px) + 30px);z-index:4;
+    display:flex;gap:9px}
+  .tool{flex:1;height:56px;border:1px solid #3a4f6e;border-radius:13px;background:#16263e;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+    box-shadow:0 3px 8px rgba(0,10,25,.4);color:#a8bcd8}
+  .tool:active{transform:translateY(2px);box-shadow:none}
+  .tool .ic{font-size:19px;line-height:1}
+  .tool .tx{font-size:11.5px;font-weight:700;letter-spacing:.06em}
+  .tool.used{opacity:.4}
+
+  footer{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 6px);
+    text-align:center;font-size:10.5px;font-weight:600;color:rgba(126,150,190,.7);letter-spacing:.05em;
+    pointer-events:none;z-index:30}
+
+  .layer{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(6,12,24,.6);z-index:20;backdrop-filter:blur(2px)}
+  .layer[hidden]{display:none}
+  .lpanel{display:flex;flex-direction:column;gap:13px;width:min(86vw,340px);
+    background:#101d33;border:1px solid #3a4f6e;border-radius:18px;padding:24px 26px;
+    box-shadow:0 14px 40px rgba(0,8,20,.6), inset 0 1px 0 rgba(160,200,240,.08)}
+  .lt{font-size:18px;font-weight:800;color:#e8f0fa;letter-spacing:.14em;text-align:center}
+  .ld{font-size:13.5px;color:#8fa6c4;line-height:1.9;text-align:center}
+  .ld b{color:#dbe6f4}
+  .layer button{padding:11px 0;font-size:15px;font-weight:700;color:#0d1727;background:#e8b23c;
+    border:none;border-radius:12px;cursor:pointer;box-shadow:0 3px 0 rgba(150,105,20,.5);letter-spacing:.1em}
+  .layer button:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(150,105,20,.5)}
+  .layer button.ghost{background:transparent;color:#8fa6c4;border:1px solid #3a4f6e;box-shadow:none}
+  #menu .diffrow{display:flex;gap:8px}
+  #menu .diffrow button{flex:1;background:#3d6a9e;color:#eaf2fb;box-shadow:0 3px 0 rgba(24,44,70,.6);letter-spacing:.06em}
+  #menu .bestrow{font-size:12px;color:#7e93b2;text-align:center;line-height:1.8}
+  #menu .bestrow b{color:#a8bcd8;font-variant-numeric:tabular-nums}
+  #end .big{font-size:40px;font-weight:800;color:#e8f0fa;text-align:center;
+    font-variant-numeric:tabular-nums;letter-spacing:.03em}
+  #end .stats{display:flex;justify-content:center;gap:20px;font-size:12.5px;color:#7e93b2}
+  #end .stats b{color:#dbe6f4;font-size:16px;font-variant-numeric:tabular-nums}
+  .rec{display:none;margin:0 auto;width:max-content;padding:4px 14px;border-radius:99px;
+    font-size:12px;color:#e8b23c;font-weight:700;letter-spacing:.1em;
+    background:rgba(232,178,60,.14);border:1px solid rgba(232,178,60,.5)}
+  .rec.show{display:block;animation:rpop .6s ease both, rglow 1.9s ease-in-out .6s infinite}
+  @keyframes rpop{0%{transform:scale(.4);opacity:0}70%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+  @keyframes rglow{0%,100%{box-shadow:0 0 0 0 rgba(232,178,60,0)}50%{box-shadow:0 0 12px 2px rgba(232,178,60,.35)}}
+  #menu{background:rgba(6,12,24,.66)}
+</style>
+</head>
+<body>
+  <div id="hud">
+    <div id="title">夜渠流灯</div>
+    <div id="badge">入门</div>
+    <div id="clock"><span class="tx" id="clock-tx">00:00</span><button id="btn-pause" aria-label="暂停">❚❚</button></div>
+  </div>
+  <button id="btn-snd" aria-label="声音开关"></button>
+
+  <div id="board"></div>
+
+  <div id="midbar">
+    <div class="prog"><span class="pl" id="mb-prog">已铺 0/25</span><div class="ptrack"><div class="pfill" id="mb-fill" style="width:0%"></div></div></div>
+    <div class="cnt" id="mb-cnt">灯 <b>0/4</b> · 重画 0</div>
+  </div>
+
+  <div id="toolbar">
+    <div class="tool" id="t-hint"><span class="ic">✦</span><span class="tx">提示 ×3</span></div>
+    <div class="tool" id="t-clear"><span class="ic">⟲</span><span class="tx">拂散流光</span></div>
+    <div class="tool" id="t-new"><span class="ic">☋</span><span class="tx">换一盘</span></div>
+  </div>
+
+  <footer>夜渠流灯 · 完全离线 · 水静灯明</footer>
+
+  <div id="pausemask" class="layer" hidden>
+    <div class="lpanel">
+      <div class="lt">小憩片刻</div>
+      <div class="ld">渠水暂歇，灯还亮着。</div>
+      <button id="pm-resume">继续</button>
+      <button id="pm-menu" class="ghost">收起棋盘</button>
+    </div>
+  </div>
+
+  <div id="menu" class="layer">
+    <div class="lpanel">
+      <div class="lt">夜渠流灯</div>
+      <div class="ld">夜渠里各色河灯成对漂着：<br>从一盏灯拖出流光接到<b>同色另一盏</b>；<br>灯灯相接、水面铺满，满渠皆明。</div>
+      <div class="diffrow">
+        <button data-diff="easy">入门 5×5</button>
+        <button data-diff="mid">进阶 6×6</button>
+        <button data-diff="hard">大师 7×7</button>
+      </div>
+      <div class="bestrow" id="menu-best">入门 — · 进阶 — · 大师 —</div>
+      <button id="menu-continue" class="ghost" hidden>继续上局</button>
+    </div>
+  </div>
+
+  <div id="end" class="layer" hidden>
+    <div class="lpanel">
+      <div class="lt">满渠灯明</div>
+      <div class="big" id="end-time">00:00</div>
+      <div class="rec" id="end-rec">★ 最佳时间 ★</div>
+      <div class="stats"><span>难度<br><b id="end-diff">入门</b></span><span>重画<br><b id="end-redraw">0</b></span><span>提示<br><b id="end-hint">0</b></span></div>
+      <div class="bestrow">此难度最佳 <b id="end-best">—</b></div>
+      <button id="end-ok">再来一局</button>
+      <button id="end-menu" class="ghost">换个难度</button>
+    </div>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  function mulberry(seed) { var t = seed >>> 0; return function () { t += 0x6D2B79F5; var r2 = Math.imul(t ^ (t >>> 15), 1 | t); r2 ^= r2 + Math.imul(r2 ^ (r2 >>> 7), 61 | r2); return ((r2 ^ (r2 >>> 14)) >>> 0) / 4294967296; }; }
+
+  var safeStorage = {
+    get: function (k, d) { try { var v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set: function (k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+    del: function (k) { try { localStorage.removeItem(k); } catch (e) {} }
+  };
+
+  var SFX = (function () {
+    var ctx = null, on = safeStorage.get('mq_g35_sound', false);
+    function ac() {
+      if (!ctx) { try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+      if (ctx && ctx.state === 'suspended') ctx.resume();
+      return ctx;
+    }
+    function tone(type, f0, f1, t, vol, when) {
+      if (!on) return;
+      var c = ac(); if (!c) return;
+      var o = c.createOscillator(), g = c.createGain();
+      var t0 = c.currentTime + (when || 0);
+      o.type = type; o.frequency.setValueAtTime(f0, t0);
+      if (f1) o.frequency.exponentialRampToValueAtTime(f1, t0 + t);
+      g.gain.setValueAtTime(vol, t0);
+      g.gain.exponentialRampToValueAtTime(.001, t0 + t + .02);
+      o.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0 + t + .04);
+    }
+    return {
+      unlock: function () { ac(); },
+      toggle: function () { on = !on; safeStorage.set('mq_g35_sound', on); return on; },
+      isOn: function () { return on; },
+      step: function (c) { tone('sine', 262 + [0, 62, 98, 130, 196, 261][c % 6], null, .05, .05); },
+      link: function (c) { var f = 262 + [0, 62, 98, 130, 196, 261][c % 6]; tone('sine', f, null, .09, .06); tone('sine', f * 1.5, null, .13, .05, .09); },
+      back: function () { tone('sine', 330, 240, .05, .04); },
+      deny: function () { tone('square', 110, 90, .07, .035); },
+      win: function () { var i2; for (i2 = 0; i2 < 5; i2++) tone('sine', 392 * Math.pow(2, [0, 2, 4, 7, 9][i2] / 12), null, .16, .06, i2 * .11); }
+    };
+  })();
+
+  /* ═══ 数值 ═══ */
+  var DIFFS = { easy: { label: '入门', n: 5, colors: 4 }, mid: { label: '进阶', n: 6, colors: 5 }, hard: { label: '大师', n: 7, colors: 6 } };
+  var DIFF_ORDER = ['easy', 'mid', 'hard'];
+  var PALETTE = [
+    { main: '#4fc3dd', dim: 'rgba(79,195,221,.85)' },
+    { main: '#e05548', dim: 'rgba(224,85,72,.85)' },
+    { main: '#cdd8e8', dim: 'rgba(205,216,232,.85)' },
+    { main: '#e8b23c', dim: 'rgba(232,178,60,.85)' },
+    { main: '#a678d8', dim: 'rgba(166,120,216,.85)' },
+    { main: '#58c98e', dim: 'rgba(88,201,142,.85)' }
+  ];
+  var GHOST_MS = 1200;
+
+  function neighbors(i, n) {
+    var r = (i / n) | 0, c = i % n, out = [];
+    if (r > 0) out.push(i - n);
+    if (c < n - 1) out.push(i + 1);
+    if (r < n - 1) out.push(i + n);
+    if (c > 0) out.push(i - 1);
+    return out;
+  }
+
+  /* ── 生成：随机游走分解 + 合并/拆分调色数 ── */
+  function genBoard(n, colors, rand) {
+    var total = n * n;
+    var paths = null;
+    for (var attempt = 0; attempt < 60; attempt++) {
+      var visited = new Array(total).fill(false);
+      var list = [];
+      var stuckTries = 0;
+      var dead = false;
+      while (true) {
+        var un = [];
+        for (var i = 0; i < total; i++) if (!visited[i]) un.push(i);
+        if (!un.length) break;
+        var start = un[(rand() * un.length) | 0];
+        var path = [start];
+        visited[start] = true;
+        var cur = start;
+        var ok = false;
+        for (var t = 0; t < 400; t++) {
+          var opts = neighbors(cur, n).filter(function (x) { return !visited[x]; });
+          if (!opts.length) break;
+          cur = opts[(rand() * opts.length) | 0];
+          visited[cur] = true;
+          path.push(cur);
+        }
+        if (path.length === 1) { dead = true; break; }   /* 孤立格：分解失败，重生成 */
+        if (path.length >= 3 || (stuckTries > 25 && path.length >= 2)) { list.push(path); stuckTries = 0; }
+        else { for (var k = 0; k < path.length; k++) visited[path[k]] = false; stuckTries++; }
+        if (list.length > colors + 3) break;
+      }
+      if (dead || list.length < colors) continue;
+      var adj = adjustCount(list, colors, n, rand);
+      if (adj && adj.length === colors) { paths = adj; break; }
+    }
+    if (!paths) paths = fallbackBoard(n, colors, rand);
+    /* 覆盖校验（fallback 保证；正常路径全覆盖） */
+    var order = paths.map(function (p, idx) { return idx; });
+    for (var s = order.length - 1; s > 0; s--) { var k2 = (rand() * (s + 1)) | 0; var t2 = order[s]; order[s] = order[k2]; order[k2] = t2; }
+    return paths.map(function (p, ix) { return paths[order[ix]]; });
+  }
+
+  function adjustCount(list, target, n, rand) {
+    var arr = list.slice();
+    var guard = 0;
+    while (arr.length > target && guard++ < 200) {
+      /* 合并：找两条端点四邻相邻的路径，随机优先 */
+      var i1 = -1, i2 = -1, aEnd = -1, bEnd = -1;
+      for (var a = 0; a < arr.length && i1 < 0; a++) {
+        for (var b = 0; b < arr.length && i1 < 0; b++) {
+          if (a === b) continue;
+          var ea = [arr[a][0], arr[a][arr[a].length - 1]];
+          var eb = [arr[b][0], arr[b][arr[b].length - 1]];
+          for (var x = 0; x < 2 && i1 < 0; x++) for (var y = 0; y < 2 && i1 < 0; y++) {
+            if (neighbors(ea[x], n).indexOf(eb[y]) >= 0) { i1 = a; i2 = b; aEnd = x; bEnd = y; }
+          }
+        }
+      }
+      if (i1 < 0) return null;
+      var pa = arr[i1], pb = arr[i2];
+      var paUse = aEnd === 0 ? pa.slice().reverse() : pa.slice();
+      var pbUse = bEnd === 0 ? pb.slice() : pb.slice().reverse();
+      var merged = paUse.concat(pbUse);
+      arr = arr.filter(function (_, ix) { return ix !== i1 && ix !== i2; });
+      arr.push(merged);
+    }
+    guard = 0;
+    while (arr.length < target && guard++ < 200) {
+      arr.sort(function (p, q) { return q.length - p.length; });
+      var longest = arr[0];
+      if (longest.length < 5) return null;
+      var cut = 2 + ((rand() * (longest.length - 4)) | 0);
+      arr.shift();
+      arr.push(longest.slice(0, cut), longest.slice(cut));
+    }
+    return arr;
+  }
+
+  function fallbackBoard(n, colors, rand) {
+    /* 兜底：蛇形全覆盖再等分（无随机性亦保证可解） */
+    var total = n * n, grid = [];
+    for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) grid.push(r % 2 === 0 ? r * n + c : r * n + (n - 1 - c));
+    var per = Math.floor(total / colors), out = [];
+    for (var k = 0; k < colors; k++) out.push(grid.slice(k * per, k === colors - 1 ? total : (k + 1) * per));
+    return out;
+  }
+
+  /* ═══ 状态 ═══ */
+  var S = {
+    mode: 'menu', paused: false,
+    diff: 'easy', seed: 1, n: 5, colors: 4,
+    endpoints: [],        /* 每格：色号或 -1 */
+    gen: [],              /* 每色生成路径（提示/答案） */
+    paths: [],            /* 每色玩家路径（格序数组） */
+    owner: [],            /* 每格：色号或 -1 */
+    drag: null,           /* {color, cells} */
+    ghost: -1, ghostTimer: 0,
+    redraws: 0, hints: 3,
+    time: 0, timer: 0, won: false
+  };
+
+  var el = {
+    board: document.getElementById('board'),
+    badge: document.getElementById('badge'),
+    clockTx: document.getElementById('clock-tx'),
+    btnPause: document.getElementById('btn-pause'), btnSnd: document.getElementById('btn-snd'),
+    menu: document.getElementById('menu'), menuBest: document.getElementById('menu-best'),
+    menuContinue: document.getElementById('menu-continue'),
+    pausemask: document.getElementById('pausemask'),
+    end: document.getElementById('end'), endTime: document.getElementById('end-time'),
+    endDiff: document.getElementById('end-diff'), endRedraw: document.getElementById('end-redraw'),
+    endHint: document.getElementById('end-hint'), endBest: document.getElementById('end-best'),
+    endRec: document.getElementById('end-rec'),
+    endOk: document.getElementById('end-ok'), endMenu: document.getElementById('end-menu'),
+    mbProg: document.getElementById('mb-prog'), mbFill: document.getElementById('mb-fill'),
+    mbCnt: document.getElementById('mb-cnt'),
+    tHint: document.getElementById('t-hint'), tHintTx: document.querySelector('#t-hint .tx'),
+    tClear: document.getElementById('t-clear'),
+    tNew: document.getElementById('t-new'),
+    pmResume: document.getElementById('pm-resume'), pmMenu: document.getElementById('pm-menu')
+  };
+
+  /* ── 布局（按 N 定格宽，盘面居中） ── */
+  var CW = 68, boardW = 0, boardTop = 0;
+  var cells = [], lampEls = {};
+  var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('id', 'wires');
+  var lampLayer = document.createElement('div');
+  lampLayer.setAttribute('id', 'lamps');
+
+  function layout() {
+    var n = S.n;
+    CW = n === 5 ? 68 : (n === 6 ? 56 : 48);
+    boardW = CW * n;
+    var safeT = 0;
+    boardTop = safeT + 66 + Math.max(12, (812 - 66 - 96 - 30 - boardW) / 2);
+    el.board.style.left = ((375 - boardW - 4) / 2) + 'px';
+    el.board.style.top = 'calc(env(safe-area-inset-top,0px) + ' + boardTop + 'px)';
+    el.board.style.width = (boardW + 4) + 'px';
+    el.board.style.height = (boardW + 4) + 'px';
+    el.board.innerHTML = '';
+    cells = []; lampEls = {};
+    svg.setAttribute('width', boardW + 4); svg.setAttribute('height', boardW + 4);
+    svg.setAttribute('viewBox', '0 0 ' + (boardW + 4) + ' ' + (boardW + 4));
+    svg.innerHTML = '';
+    el.board.appendChild(svg);
+    el.board.appendChild(lampLayer);
+    lampLayer.innerHTML = '';
+    for (var i = 0; i < n * n; i++) {
+      var d = document.createElement('div');
+      d.className = 'cell';
+      d.style.width = CW + 'px'; d.style.height = CW + 'px';
+      d.style.left = (2 + (i % n) * CW) + 'px';
+      d.style.top = (2 + ((i / n) | 0) * CW) + 'px';
+      el.board.appendChild(d);
+      cells.push(d);
+    }
+    /* midbar 位置贴盘下 */
+    document.getElementById('midbar').style.top = 'calc(env(safe-area-inset-top,0px) + ' + (boardTop + boardW + 26) + 'px)';
+  }
+
+  function center(i) {
+    return { x: 2 + (i % S.n) * CW + CW / 2, y: 2 + ((i / S.n) | 0) * CW + CW / 2 };
+  }
+
+  function buildLamps() {
+    lampLayer.innerHTML = '';
+    lampEls = {};
+    for (var i = 0; i < S.n * S.n; i++) {
+      var c = S.endpoints[i];
+      if (c < 0) continue;
+      var d = document.createElement('div');
+      d.className = 'lamp';
+      var R = CW * 0.30;
+      var p = center(i);
+      d.style.width = d.style.height = (R * 2) + 'px';
+      d.style.left = (p.x - R) + 'px'; d.style.top = (p.y - R) + 'px';
+      d.style.background = 'radial-gradient(circle at .38 .32, rgba(255,252,240,.85), ' + PALETTE[c].main + ' 30%)';
+      d.style.boxShadow = '0 0 ' + (CW * 0.22) + 'px ' + (CW * 0.07) + 'px ' + PALETTE[c].dim;
+      var core = document.createElement('div');
+      core.className = 'core';
+      core.style.width = core.style.height = (R * 0.62) + 'px';
+      d.appendChild(core);
+      lampLayer.appendChild(d);
+      lampEls[i] = d;
+    }
+  }
+
+  /* ── 渲染 ── */
+  function renderWires() {
+    var html = '';
+    for (var c = 0; c < S.colors; c++) {
+      var p = S.paths[c];
+      if (!p || p.length < 2) p = (S.drag && S.drag.color === c) ? S.drag.cells : null;
+      if (p && p.length >= 2) {
+        var pts = p.map(function (i) { var q = center(i); return q.x.toFixed(1) + ',' + q.y.toFixed(1); }).join(' ');
+        var lw = CW * 0.42;
+        var linked = isLinked(c);
+        html += '<polyline points="' + pts + '" fill="none" stroke="' + PALETTE[c].dim +
+          '" stroke-width="' + (lw * 1.75).toFixed(1) + '" stroke-linecap="round" stroke-linejoin="round" opacity="' + (linked ? .22 : .13) + '"/>';
+        html += '<polyline points="' + pts + '" fill="none" stroke="' + PALETTE[c].main +
+          '" stroke-width="' + lw.toFixed(1) + '" stroke-linecap="round" stroke-linejoin="round" opacity="' + (linked ? '.95' : '.78') + '"' +
+          (linked ? ' style="animation:lpulse2 2.4s ease-in-out infinite"' : '') + '/>';
+      }
+    }
+    if (S.ghost >= 0) {
+      var gp = S.gen[S.ghost];
+      if (gp && gp.length >= 2) {
+        var gpts = gp.map(function (i) { var q = center(i); return q.x.toFixed(1) + ',' + q.y.toFixed(1); }).join(' ');
+        html += '<polyline points="' + gpts + '" fill="none" stroke="#fff" stroke-width="' + (CW * 0.13).toFixed(1) +
+          '" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="10 9" opacity=".85"/>';
+      }
+    }
+    if (S.drag && S.drag.cells.length) {
+      var hp = center(S.drag.cells[S.drag.cells.length - 1]);
+      html += '<circle cx="' + hp.x + '" cy="' + hp.y + '" r="' + (CW * 0.16) + '" fill="#fff" opacity=".92"/>';
+    }
+    svg.innerHTML = html;
+  }
+
+  function renderCells() {
+    for (var i = 0; i < S.n * S.n; i++) {
+      cells[i].classList.toggle('occ', S.owner[i] >= 0);
+    }
+    for (var li in lampEls) lampEls[li].classList.toggle('pulse', isLinked(S.endpoints[li]));
+  }
+
+  function isLinked(c) {
+    var p = S.paths[c];
+    if (!p || p.length < 2) return false;
+    var a = p[0], b = p[p.length - 1];
+    return S.endpoints[a] === c && S.endpoints[b] === c && a !== b;
+  }
+
+  function renderHUD() {
+    el.badge.textContent = DIFFS[S.diff].label + ' ' + S.n + '×' + S.n;
+    el.clockTx.textContent = fmtTime(S.time);
+    var covered = 0, linked = 0;
+    for (var i = 0; i < S.n * S.n; i++) if (S.owner[i] >= 0) covered++;
+    for (var c = 0; c < S.colors; c++) if (isLinked(c)) linked++;
+    var total = S.n * S.n;
+    el.mbProg.textContent = '已铺 ' + covered + '/' + total;
+    el.mbFill.style.width = (covered / total * 100).toFixed(1) + '%';
+    el.mbCnt.innerHTML = '灯 <b>' + linked + '/' + S.colors + '</b> · 重画 ' + S.redraws;
+    el.tHint.classList.toggle('used', S.hints <= 0);
+    el.tHintTx.textContent = '提示 ×' + S.hints;
+  }
+
+  function renderAll() { renderCells(); renderWires(); renderHUD(); }
+
+  function fmtTime(s) {
+    var m = (s / 60) | 0, ss = s % 60;
+    return (m < 10 ? '0' : '') + m + ':' + (ss < 10 ? '0' : '') + ss;
+  }
+
+  /* ── 存档 ── */
+  function saveGame() {
+    if (S.mode !== 'play' || S.won) return;
+    safeStorage.set('mq_g35_save', {
+      diff: S.diff, seed: S.seed, paths: S.paths,
+      redraws: S.redraws, hints: S.hints, time: S.time
+    });
+  }
+
+  function rebuildOwner() {
+    S.owner = new Array(S.n * S.n).fill(-1);
+    for (var c = 0; c < S.colors; c++) {
+      var p = S.paths[c] || [];
+      for (var k = 0; k < p.length; k++) S.owner[p[k]] = c;
+    }
+  }
+
+  /* ── 计时 ── */
+  function tickStart() {
+    clearInterval(S.timer);
+    S.timer = setInterval(function () {
+      if (S.mode === 'play' && !S.paused) { S.time++; renderHUD(); if (S.time % 5 === 0) saveGame(); }
+    }, 1000);
+  }
+
+  /* ── 局程 ── */
+  function newGame(seed, diff) {
+    S.diff = diff || S.diff;
+    S.seed = (seed == null ? ((Math.random() * 1e9) | 0) : seed) >>> 0;
+    S.n = DIFFS[S.diff].n; S.colors = DIFFS[S.diff].colors;
+    var rand = mulberry(S.seed);
+    var gen = genBoard(S.n, S.colors, rand);
+    S.gen = gen;
+    S.endpoints = new Array(S.n * S.n).fill(-1);
+    for (var c = 0; c < gen.length; c++) {
+      var p = gen[c];
+      S.endpoints[p[0]] = c; S.endpoints[p[p.length - 1]] = c;
+    }
+    S.paths = []; for (var k = 0; k < S.colors; k++) S.paths.push([]);
+    rebuildOwner();
+    S.drag = null; S.ghost = -1; S.redraws = 0; S.hints = 3; S.time = 0; S.won = false;
+    S.mode = 'play'; S.paused = false;
+    el.menu.hidden = true; el.end.hidden = true; el.pausemask.hidden = true;
+    layout(); buildLamps(); renderAll();
+    tickStart();
+    saveGame();
+    return true;
+  }
+
+  function continueGame() {
+    var sv = safeStorage.get('mq_g35_save', null);
+    if (!sv || !sv.paths) return false;
+    S.diff = sv.diff; S.seed = sv.seed;
+    S.n = DIFFS[S.diff].n; S.colors = DIFFS[S.diff].colors;
+    var rand = mulberry(S.seed);
+    S.gen = genBoard(S.n, S.colors, rand);
+    S.endpoints = new Array(S.n * S.n).fill(-1);
+    for (var c = 0; c < S.gen.length; c++) {
+      var p = S.gen[c];
+      S.endpoints[p[0]] = c; S.endpoints[p[p.length - 1]] = c;
+    }
+    S.paths = sv.paths.map(function (p) { return p.slice(); });
+    while (S.paths.length < S.colors) S.paths.push([]);
+    rebuildOwner();
+    S.redraws = sv.redraws || 0; S.hints = sv.hints == null ? 3 : sv.hints;
+    S.time = sv.time || 0;
+    S.drag = null; S.ghost = -1; S.won = false;
+    S.mode = 'play'; S.paused = false;
+    el.menu.hidden = true; el.end.hidden = true; el.pausemask.hidden = true;
+    layout(); buildLamps(); renderAll();
+    tickStart();
+    return true;
+  }
+
+  /* ── 拖拽核心 ── */
+  function startDrag(i) {
+    if (S.mode !== 'play' || S.paused) return false;
+    var c = -1;
+    if (S.endpoints[i] >= 0) c = S.endpoints[i];
+    else {
+      for (var k = 0; k < S.colors; k++) {
+        var p = S.paths[k];
+        if (p.length && (p[0] === i || p[p.length - 1] === i)) { c = k; break; }
+      }
+    }
+    if (c < 0) return false;
+    var old = S.paths[c];
+    if (old.length > 1) S.redraws++;
+    S.paths[c] = [];
+    rebuildOwner();
+    S.paths[c] = [i]; S.owner[i] = c;
+    S.drag = { color: c, cells: [i] };
+    SFX.step(c);
+    spawnRipple(i);
+    renderAll();
+    return true;
+  }
+
+  function stepTo(j) {
+    if (!S.drag || S.mode !== 'play' || S.paused) return false;
+    var c = S.drag.color, cells = S.drag.cells;
+    var len = cells.length;
+    if (j === cells[len - 1]) return false;
+    if (len >= 2 && j === cells[len - 2]) {
+      var tail = cells.pop();
+      S.owner[tail] = -1;
+      S.paths[c] = cells.slice();
+      SFX.back();
+      renderAll();
+      return true;
+    }
+    var last = cells[len - 1];
+    if (neighbors(last, S.n).indexOf(j) < 0) return false;
+    if (S.endpoints[j] >= 0 && S.endpoints[j] !== c) return false;   /* 他色河灯 */
+    if (S.owner[j] === c) {
+      /* 己色中段：截断保留前缀（含 j） */
+      var idx = cells.indexOf(j);
+      if (idx >= 0 && idx < len - 1) {
+        for (var k = idx + 1; k < len; k++) S.owner[cells[k]] = -1;
+        S.drag.cells = cells.slice(0, idx + 1);
+        S.paths[c] = S.drag.cells.slice();
+        SFX.back();
+        renderAll();
+        return true;
+      }
+      return false;
+    }
+    if (S.owner[j] >= 0 && S.owner[j] !== c) { SFX.deny(); return false; }
+    cells.push(j);
+    S.owner[j] = c;
+    S.paths[c] = cells.slice();
+    SFX.step(c);
+    renderAll();
+    return true;
+  }
+
+  function endDrag() {
+    if (!S.drag) return false;
+    var c = S.drag.color;
+    S.drag = null;
+    if (isLinked(c)) SFX.link(c);
+    renderAll();
+    saveGame();
+    checkWin();
+    return true;
+  }
+
+  function spawnRipple(i) {
+    var p = center(i);
+    var d = document.createElement('div');
+    d.className = 'ripple';
+    var sz = CW * 0.9;
+    d.style.width = d.style.height = sz + 'px';
+    d.style.left = (p.x - sz / 2) + 'px'; d.style.top = (p.y - sz / 2) + 'px';
+    el.board.appendChild(d);
+    setTimeout(function () { if (d.parentNode) d.parentNode.removeChild(d); }, 520);
+  }
+
+  function checkWin() {
+    if (S.mode !== 'play') return false;
+    var covered = 0;
+    for (var i = 0; i < S.n * S.n; i++) if (S.owner[i] >= 0) covered++;
+    if (covered !== S.n * S.n) return false;
+    for (var c = 0; c < S.colors; c++) if (!isLinked(c)) return false;
+    S.won = true; S.mode = 'end';
+    clearInterval(S.timer);
+    safeStorage.del('mq_g35_save');
+    SFX.win();
+    var bk = 'mq_g35_best_' + S.diff;
+    var best = safeStorage.get(bk, null);
+    var rec = best == null || S.time < best;
+    if (rec) safeStorage.set(bk, S.time);
+    el.endTime.textContent = fmtTime(S.time);
+    el.endDiff.textContent = DIFFS[S.diff].label;
+    el.endRedraw.textContent = S.redraws;
+    el.endHint.textContent = 3 - S.hints;
+    el.endBest.textContent = fmtTime(rec ? S.time : best);
+    el.endRec.classList.toggle('show', rec);
+    el.end.hidden = false;
+    return true;
+  }
+
+  function hint() {
+    if (S.mode !== 'play' || S.paused) return false;
+    if (S.hints <= 0) return false;
+    var cand = [];
+    for (var c = 0; c < S.colors; c++) if (!isLinked(c)) cand.push(c);
+    if (!cand.length) cand = S.gen.map(function (_, ix) { return ix; });
+    if (!cand.length) return false;
+    S.ghost = cand[(mulberry(S.seed ^ 0x51DE)() * cand.length) | 0];
+    S.hints--;
+    SFX.step(S.ghost);
+    clearTimeout(S.ghostTimer);
+    S.ghostTimer = setTimeout(function () { S.ghost = -1; renderWires(); }, GHOST_MS);
+    renderWires(); renderHUD();
+    return true;
+  }
+
+  function clearPaths() {
+    if (S.mode !== 'play' || S.paused) return false;
+    S.paths = []; for (var k = 0; k < S.colors; k++) S.paths.push([]);
+    S.drag = null; S.ghost = -1;
+    rebuildOwner();
+    SFX.back();
+    renderAll();
+    saveGame();
+    return true;
+  }
+
+  function pause() {
+    if (S.mode !== 'play' || S.paused) return false;
+    S.paused = true;
+    el.pausemask.hidden = false;
+    saveGame();
+    return true;
+  }
+  function resume() {
+    if (S.mode !== 'play' || !S.paused) return false;
+    S.paused = false;
+    el.pausemask.hidden = true;
+    return true;
+  }
+
+  function bestLine() {
+    var parts = DIFF_ORDER.map(function (d) {
+      var b = safeStorage.get('mq_g35_best_' + d, null);
+      return DIFFS[d].label + ' ' + (b == null ? '—' : fmtTime(b));
+    });
+    el.menuBest.textContent = parts.join(' · ');
+  }
+
+  function showMenu() {
+    S.mode = 'menu'; S.paused = false;
+    clearInterval(S.timer);
+    el.end.hidden = true; el.pausemask.hidden = true;
+    var sv = safeStorage.get('mq_g35_save', null);
+    var hasPlay = !!(sv && sv.paths && sv.paths.some(function (p) { return p.length > 1; }));
+    el.menuContinue.hidden = !hasPlay;
+    if (sv && sv.paths) el.menuContinue.textContent = '继续上局 · ' + DIFFS[sv.diff].label + ' ' + fmtTime(sv.time || 0);
+    bestLine();
+    el.menu.hidden = false;
+  }
+
+  /* ── 输入绑定 ── */
+  function hitCell(px, py) {
+    var rect = el.board.getBoundingClientRect();
+    var x = px - rect.left - 2, y = py - rect.top - 2;
+    if (x < 0 || y < 0 || x >= boardW || y >= boardW) return -1;
+    var c = (x / CW) | 0, r = (y / CW) | 0;
+    return r * S.n + c;
+  }
+  el.board.addEventListener('pointerdown', function (e) {
+    if (S.mode !== 'play' || S.paused) return;
+    var i = hitCell(e.clientX, e.clientY);
+    if (i >= 0) { SFX.unlock(); startDrag(i); }
+    e.preventDefault();
+  });
+  el.board.addEventListener('pointermove', function (e) {
+    if (!S.drag || S.paused) return;
+    var i = hitCell(e.clientX, e.clientY);
+    if (i >= 0) stepTo(i);
+    e.preventDefault();
+  });
+  window.addEventListener('pointerup', endDrag);
+  window.addEventListener('pointercancel', endDrag);
+
+  el.btnPause.addEventListener('click', function () { if (S.mode === 'play') pause(); });
+  el.pmResume.addEventListener('click', resume);
+  el.pmMenu.addEventListener('click', function () { saveGame(); showMenu(); });
+  el.tHint.addEventListener('pointerdown', function () { hint(); });
+  el.tClear.addEventListener('pointerdown', function () { clearPaths(); });
+  el.tNew.addEventListener('pointerdown', function () { if (S.mode === 'play' && !S.paused) newGame(null, S.diff); });
+  var diffBtns = document.querySelectorAll('#menu .diffrow button');
+  for (var dbi = 0; dbi < diffBtns.length; dbi++) {
+    (function (btn) {
+      btn.addEventListener('click', function () { SFX.unlock(); newGame(null, btn.getAttribute('data-diff')); });
+    })(diffBtns[dbi]);
+  }
+  el.menuContinue.addEventListener('click', function () { SFX.unlock(); continueGame(); });
+  el.endOk.addEventListener('click', function () { newGame(null, S.diff); });
+  el.endMenu.addEventListener('click', showMenu);
+
+  /* ── 声音开关（系列统一形态） ── */
+  var SND_ON =
+    '<svg width="20" height="20" viewBox="0 0 20 20">' +
+    '<path d="M3 8 h3 l4 -3.4 v10.8 L6 12 H3z" fill="#e8b23c"/>' +
+    '<path d="M13 7 q2 3 0 6 M15.5 5 q3.2 5 0 10" stroke="#8c5a00" stroke-width="1.7" fill="none" stroke-linecap="round"/>' +
+    '</svg>';
+  var SND_OFF =
+    '<svg width="20" height="20" viewBox="0 0 20 20">' +
+    '<path d="M3 8 h3 l4 -3.4 v10.8 L6 12 H3z" fill="#a8bcd8"/>' +
+    '<path d="M13 7.5 l5 5 M18 7.5 l-5 5" stroke="#e05548" stroke-width="1.9" stroke-linecap="round"/>' +
+    '</svg>';
+  function sndIcon() {
+    el.btnSnd.innerHTML = SFX.isOn() ? SND_ON : SND_OFF;
+    el.btnSnd.classList.toggle('off', !SFX.isOn());
+  }
+  el.btnSnd.addEventListener('click', function () { SFX.toggle(); sndIcon(); });
+
+  
+
+  /* ═══ 启动 ═══ */
+  sndIcon();
+  showMenu();
+})();
+</script>
+</body>
+</html>
