@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#141a26">
+<title>四子连星 · 口袋游戏机</title>
+<style>
+:root{--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px)}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;position:fixed}
+body{
+  background:linear-gradient(178deg,#151b28 0%,#1c2536 48%,#101420 100%);
+  color:#e8eef8;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+  touch-action:none;user-select:none;-webkit-user-select:none;
+}
+#app{position:relative;width:100%;height:100%;max-width:520px;margin:0 auto}
+.screen{position:absolute;inset:0;display:none}
+.screen.on{display:block}
+/* ---------- 菜单 ---------- */
+#menu{display:none;flex-direction:column;align-items:center;justify-content:center;gap:0;
+  background:radial-gradient(140% 60% at 50% -6%,#2c3a58 0%,rgba(44,58,88,0) 62%),
+             linear-gradient(178deg,#151b28 0%,#1b2436 55%,#0f131d 100%)}
+#menu.on{display:flex}
+.m-kicker{font-size:11.5px;letter-spacing:.42em;color:#8fa0c0;margin-bottom:14px;padding-left:.42em}
+.m-title{font-size:46px;font-weight:800;letter-spacing:.06em;
+  background:linear-gradient(105deg,#f4e8c8 18%,#f0c878 52%,#8fd8c4 88%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 3px 14px rgba(240,200,120,.25))}
+.m-sub{margin-top:12px;color:#a8b6cc;font-size:13.5px;letter-spacing:.18em;padding-left:.18em}
+#m-art{width:210px;height:150px;margin:26px 0 4px}
+.btn{display:block;width:206px;margin:0 auto;border:none;cursor:pointer;
+  font-family:inherit;font-size:17px;font-weight:700;letter-spacing:.22em;padding:15px 0 15px .22em;
+  color:#1a1408;border-radius:14px;background:linear-gradient(168deg,#f0c058,#c8902c);
+  box-shadow:0 6px 22px rgba(240,192,88,.3),inset 0 1px 0 rgba(255,248,220,.6)}
+.btn:active{transform:translateY(2px) scale(.985)}
+.btn.ghost{background:linear-gradient(168deg,rgba(240,192,88,.10),rgba(240,192,88,.03));color:#d8c8a0;box-shadow:inset 0 0 0 1.8px rgba(216,200,160,.6);font-size:14px;padding:12px 0 12px .22em;margin-top:14px}
+.side-pick{display:flex;gap:0;margin-top:20px;border-radius:12px;overflow:hidden;
+  box-shadow:inset 0 0 0 1.6px rgba(150,168,200,.35)}
+.side-pick button{border:none;cursor:pointer;font-family:inherit;font-size:12.5px;letter-spacing:.12em;
+  padding:9px 18px;color:#9aa8c0;background:rgba(20,26,40,.8)}
+.side-pick button.on{color:#1a1408;background:linear-gradient(168deg,#f0c058,#c8902c);font-weight:700}
+#m-rec{margin-top:18px;color:#7c8aa4;font-size:12.5px;letter-spacing:.12em}
+#m-rec b{color:#f0d08c;font-weight:700}
+.m-foot{position:absolute;bottom:calc(var(--sab) + 16px);left:0;right:0;text-align:center;color:#525e74;font-size:10.5px;letter-spacing:.12em}
+/* ---------- 游戏 ---------- */
+#game{padding-top:calc(var(--sat) + 4px)}
+#hud{position:relative;z-index:6;display:flex;align-items:center;gap:8px;padding:4px 14px 4px}
+.hud-title{font-size:19px;font-weight:800;letter-spacing:.1em;color:#f0d8a0;text-shadow:0 1px 8px rgba(240,200,120,.25);line-height:1.15}
+.hud-title .hud-k{display:block;font-size:8.5px;letter-spacing:.34em;color:#8fa0c0;font-weight:600}
+.hud-score{flex:1;text-align:right;font-size:12px;color:#9aa8c0;line-height:1.25}
+.hud-score b{display:block;font-size:19px;color:#f2f6fc;font-weight:800;font-variant-numeric:tabular-nums}
+.icon-btn{width:36px;height:36px;border-radius:11px;border:1.4px solid rgba(150,168,200,.4);
+  background:rgba(22,28,42,.72);color:#c8d4e8;font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.icon-btn:active{transform:scale(.94)}
+.icon-btn.off{color:#5c687e}
+/* 回合提示条 */
+#turnbar{display:flex;align-items:center;justify-content:center;gap:8px;margin:4px 14px 0;height:26px;
+  border-radius:8px;background:rgba(14,19,30,.5);border:1px solid rgba(150,168,200,.14)}
+#turnbar .dot{width:9px;height:9px;border-radius:50%;flex:none}
+#turnbar .dot.g{background:radial-gradient(circle at 35% 30%,#ffe2a0,#f0b840 60%,#96660e)}
+#turnbar .dot.x{background:radial-gradient(circle at 35% 30%,#a0e4d4,#48b09c 60%,#17584a)}
+#turnbar span{font-size:11.5px;letter-spacing:.14em;color:#a8b6cc}
+#turnbar span.think{color:#8fd8c4}
+#turnbar span.end{color:#f0d08c;font-weight:700}
+/* 棋盘 */
+#board-wrap{position:relative;margin:58px 14px 0}
+#board{position:relative;background:rgba(9,13,21,.62);border:1.6px solid rgba(150,168,200,.24);border-radius:14px}
+#grid-holes{position:absolute;inset:0;pointer-events:none}
+#layer{position:absolute;inset:0}
+.hole{position:absolute;width:46px;height:46px;border-radius:50%;
+  box-shadow:inset 0 0 0 1.4px rgba(150,168,200,.13),inset 0 2px 7px rgba(0,0,0,.35)}
+.hole::after{content:"";position:absolute;left:50%;top:50%;width:3px;height:3px;border-radius:50%;
+  transform:translate(-50%,-50%);background:rgba(240,230,200,.4)}
+.col-hot{position:absolute;top:0;bottom:0;width:49px}
+.col-hot.lit{background:linear-gradient(180deg,rgba(240,200,120,.09),rgba(240,200,120,0) 65%)}
+.star{position:absolute;width:46px;height:46px;border-radius:50%;will-change:top;
+  box-shadow:0 3px 6px rgba(0,0,0,.5),inset 0 -5px 9px rgba(0,0,0,.3),inset 0 3px 6px rgba(255,255,255,.18)}
+.star .shine{position:absolute;left:8px;top:6px;width:15px;height:10px;border-radius:50%;
+  background:radial-gradient(closest-side,rgba(255,255,255,.95),rgba(255,255,255,0));transform:rotate(-24deg)}
+.star.g{background:radial-gradient(circle at 34% 30%,#ffe2a0 0%,#f0b840 54%,#96660e 100%)}
+.star.x{background:radial-gradient(circle at 34% 30%,#a0e4d4 0%,#48b09c 54%,#17584a 100%)}
+.star.drop{transition:top .17s cubic-bezier(.5,0,.9,.6)}
+.star.land{animation:land .2s ease-out}
+@keyframes land{0%{transform:scale(1.06,.88)}55%{transform:scale(.96,1.05)}100%{transform:scale(1)}}
+.star.win{animation:winstar .55s ease-in-out 2}
+@keyframes winstar{0%,100%{filter:brightness(1);transform:scale(1)}50%{filter:brightness(1.9);transform:scale(1.14)}}
+.ghost-slot{position:absolute;width:46px;height:46px;border-radius:50%;pointer-events:none;
+  box-shadow:inset 0 0 0 2px rgba(240,200,120,.5);background:radial-gradient(circle at 34% 30%,rgba(240,184,64,.14),rgba(240,184,64,0) 70%)}
+#preview{position:absolute;width:46px;height:46px;border-radius:50%;pointer-events:none;z-index:5;opacity:0;transition:left .1s ease-out,opacity .12s;
+  box-shadow:0 4px 10px rgba(0,0,0,.45),inset 0 -5px 9px rgba(0,0,0,.28),inset 0 3px 6px rgba(255,255,255,.2);
+  background:radial-gradient(circle at 34% 30%,rgba(255,226,160,.95),rgba(240,184,64,.75) 54%,rgba(150,102,14,.8))}
+.streak{position:absolute;height:9px;border-radius:5px;pointer-events:none;z-index:7;
+  transform-origin:0 50%;animation:streak-in .4s ease-out, streak-pulse 1s ease-in-out .4s 2}
+@keyframes streak-in{0%{opacity:0;filter:brightness(2.2)}100%{opacity:1}}
+@keyframes streak-pulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.7)}}
+.dust{position:absolute;width:4px;height:4px;border-radius:50%;pointer-events:none;z-index:6;opacity:.9}
+@keyframes shk{0%,100%{transform:translate(0,0)}25%{transform:translate(2px,1px)}50%{transform:translate(-2px,-1px)}75%{transform:translate(1px,-1px)}}
+.board-shk{animation:shk .24s ease-out}
+/* 浮字 */
+.floatxt{position:absolute;z-index:9;font-weight:800;pointer-events:none;letter-spacing:.06em;
+  animation:fup 1s ease-out forwards;text-shadow:0 1px 8px rgba(0,0,0,.65)}
+@keyframes fup{0%{transform:translate(-50%,0) scale(.82);opacity:0}18%{opacity:1;transform:translate(-50%,-8px) scale(1)}
+  100%{transform:translate(-50%,-46px) scale(1);opacity:0}}
+/* 统计条 */
+#stat{display:flex;gap:8px;margin:6px 14px 0}
+#stat .cell{flex:1;text-align:center;font-size:10.5px;color:#96a4bc;letter-spacing:.1em;padding:5px 0 6px;
+  background:rgba(16,22,34,.55);border:1px solid rgba(150,168,200,.15);border-radius:9px}
+#stat .cell b{display:block;font-size:14.5px;color:#dce6f4;font-weight:800;margin-top:1px;font-variant-numeric:tabular-nums}
+#hint{margin:7px 18px 0;color:#7c8aa4;font-size:11px;line-height:1.7;letter-spacing:.04em;text-align:center}
+#hint b{color:#d8bc84;font-weight:600}
+/* ---------- 终局面板 ---------- */
+#end{display:none;align-items:center;justify-content:center;background:rgba(8,11,18,.78);z-index:30;backdrop-filter:blur(3px)}
+#end.on{display:flex}
+#end .card{width:82%;max-width:330px;border-radius:20px;padding:26px 22px 22px;text-align:center;
+  background:linear-gradient(172deg,#242f46,#18202f);border:1.4px solid rgba(240,200,120,.3);
+  box-shadow:0 18px 50px rgba(0,0,0,.6),inset 0 1px 0 rgba(240,235,210,.14)}
+#end .e-k{font-size:11px;letter-spacing:.4em;color:#8fa0c0;padding-left:.4em}
+#end .e-t{font-size:27px;font-weight:800;letter-spacing:.12em;color:#f4e6c4;margin:8px 0 4px}
+#end .e-t.lose{color:#b8d8ce}
+#end .e-s{font-size:14px;color:#a8b6cc;margin-bottom:14px}
+#end .e-s b{color:#f0d08c;font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
+#end .rows{display:flex;gap:8px;margin:4px 0 16px}
+#end .rows div{flex:1;background:rgba(12,16,26,.6);border:1px solid rgba(150,168,200,.15);border-radius:10px;padding:9px 0 8px}
+#end .rows span{display:block;font-size:10px;color:#7c8aa4;letter-spacing:.1em}
+#end .rows b{display:block;font-size:16px;color:#dce6f4;font-weight:800;margin-top:3px;font-variant-numeric:tabular-nums}
+#end .btn{margin-top:2px}
+@media (max-height:700px){
+  #m-art{width:160px;height:114px;margin:18px 0 2px}
+  .m-title{font-size:38px}
+  #hint{display:none}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- 菜单 -->
+  <div id="menu" class="screen on">
+    <div class="m-kicker">司 天 对 弈</div>
+    <div class="m-title">四子连星</div>
+    <div class="m-sub">金瓜落枰 · 四星连珠</div>
+    <svg id="m-art" viewBox="0 0 210 150">
+      <defs>
+        <radialGradient id="agG" cx=".35" cy=".3" r=".95"><stop offset="0" stop-color="#ffe2a0"/><stop offset=".55" stop-color="#f0b840"/><stop offset="1" stop-color="#96660e"/></radialGradient>
+        <radialGradient id="agX" cx=".35" cy=".3" r=".95"><stop offset="0" stop-color="#a0e4d4"/><stop offset=".55" stop-color="#48b09c"/><stop offset="1" stop-color="#17584a"/></radialGradient>
+        <linearGradient id="agL" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="rgba(255,226,160,0)"/><stop offset=".5" stop-color="#ffe4a8"/><stop offset="1" stop-color="rgba(255,226,160,0)"/></linearGradient>
+      </defs>
+      <g fill="#fff">
+        <circle cx="18" cy="22" r="1.1" opacity=".6"/><circle cx="196" cy="30" r="1.3" opacity=".5"/>
+        <circle cx="40" cy="8" r="1" opacity=".45"/><circle cx="172" cy="10" r="1" opacity=".55"/>
+        <circle cx="10" cy="70" r="1" opacity=".4"/><circle cx="203" cy="88" r="1.1" opacity=".5"/>
+        <circle cx="30" cy="126" r="1" opacity=".4"/><circle cx="188" cy="120" r="1" opacity=".45"/>
+      </g>
+      <g>
+        <circle cx="52" cy="52" r="13" fill="url(#agG)"/><ellipse cx="48" cy="48" rx="4" ry="2.6" fill="rgba(255,255,255,.75)" transform="rotate(-24 48 48)"/>
+        <circle cx="88" cy="52" r="13" fill="url(#agG)"/><ellipse cx="84" cy="48" rx="4" ry="2.6" fill="rgba(255,255,255,.75)" transform="rotate(-24 84 48)"/>
+        <circle cx="124" cy="52" r="13" fill="url(#agG)"/><ellipse cx="120" cy="48" rx="4" ry="2.6" fill="rgba(255,255,255,.75)" transform="rotate(-24 120 48)"/>
+        <circle cx="160" cy="52" r="13" fill="url(#agG)"/><ellipse cx="156" cy="48" rx="4" ry="2.6" fill="rgba(255,255,255,.75)" transform="rotate(-24 156 48)"/>
+        <rect x="46" y="47" width="120" height="10" rx="5" fill="url(#agL)" opacity=".85"/>
+      </g>
+      <g>
+        <circle cx="70" cy="96" r="11" fill="url(#agG)" opacity=".92"/><ellipse cx="66.6" cy="92.8" rx="3.4" ry="2.2" fill="rgba(255,255,255,.7)" transform="rotate(-24 66.6 92.8)"/>
+        <circle cx="104" cy="112" r="11" fill="url(#agX)" opacity=".92"/><ellipse cx="100.6" cy="108.8" rx="3.4" ry="2.2" fill="rgba(255,255,255,.7)" transform="rotate(-24 100.6 108.8)"/>
+        <circle cx="138" cy="128" r="11" fill="url(#agG)" opacity=".92"/><ellipse cx="134.6" cy="124.8" rx="3.4" ry="2.2" fill="rgba(255,255,255,.7)" transform="rotate(-24 134.6 124.8)"/>
+        <g stroke="#f0d8a0" stroke-width="1.4" stroke-linecap="round" opacity=".8">
+          <line x1="105" y1="16" x2="105" y2="24"/>
+        </g>
+      </g>
+    </svg>
+    <button class="btn" id="btn-start">入 局</button>
+    <button class="btn ghost" id="btn-how">玩 法</button>
+    <div class="side-pick">
+      <button id="side-g" class="on">执金 · 先手</button>
+      <button id="side-x">执玄 · 后手</button>
+    </div>
+    <div id="m-rec"></div>
+    <div class="m-foot">七枰六轨 · 横竖斜四星为胜</div>
+  </div>
+
+  <!-- 游戏 -->
+  <div id="game" class="screen">
+    <div id="hud">
+      <button class="icon-btn" id="btn-home">⌂</button>
+      <div class="hud-title"><span class="hud-k">司 天 监</span>四子连星</div>
+      <div class="hud-score">第<b id="move-no">1</b>手</div>
+      <button class="icon-btn off" id="btn-snd">♪̶</button>
+    </div>
+    <div id="turnbar"><div class="dot g" id="turn-dot"></div><span id="turn-txt">执金 · 轮到你</span></div>
+    <div id="board-wrap">
+      <div id="board"><div id="grid-holes"></div><div id="layer"></div></div>
+    </div>
+    <div id="stat">
+      <div class="cell">连胜<b id="st-streak">0</b></div>
+      <div class="cell">战绩<b id="st-rec">0-0-0</b></div>
+      <div class="cell">胜率<b id="st-rate">--</b></div>
+    </div>
+    <div id="hint">点列落子 · <b>横竖斜四子连珠</b>即胜 · 满列无效</div>
+  </div>
+
+  <!-- 终局 -->
+  <div id="end" class="screen">
+    <div class="card">
+      <div class="e-k">星 象 已 定</div>
+      <div class="e-t" id="end-title">四星连珠</div>
+      <div class="e-s" id="end-sub">共 <b id="end-moves">0</b> 手定胜负</div>
+      <div class="rows">
+        <div><span>战绩</span><b id="end-rec">0-0-0</b></div>
+        <div><span>连胜</span><b id="end-streak">0</b></div>
+      </div>
+      <button class="btn" id="btn-again">再 争 一 局</button>
+      <button class="btn ghost" id="btn-menu2">回 司 天 台</button>
+    </div>
+  </div>
+
+</div>
+<script>
+"use strict";
+/* ================= 四子连星 · Connect Four ================= */
+var COLS=7, ROWS=6, CELL=46, GAP=3, STEP=CELL+GAP;
+var P1=1, P2=2;                    /* 1=金(玩家) 2=玄(观星使) */
+var ORDER=[3,2,4,1,5,0,6];
+var el={
+  menu:document.getElementById('menu'), game:document.getElementById('game'), end:document.getElementById('end'),
+  board:document.getElementById('board'), layer:document.getElementById('layer'), holes:document.getElementById('grid-holes'),
+  moveNo:document.getElementById('move-no'), turnDot:document.getElementById('turn-dot'), turnTxt:document.getElementById('turn-txt'),
+  stStreak:document.getElementById('st-streak'), stRec:document.getElementById('st-rec'), stRate:document.getElementById('st-rate'),
+  endTitle:document.getElementById('end-title'), endSub:document.getElementById('end-sub'),
+  endMoves:document.getElementById('end-moves'), endRec:document.getElementById('end-rec'),
+  endStreak:document.getElementById('end-streak'), mRec:document.getElementById('m-rec'),
+  preview:document.createElement('div')
+};
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+/* ---------- 状态 ---------- */
+var S={
+  board:[], turn:P1, side:'g',          /* side: 玩家执 'g'金先手 / 'x'玄后手 */
+  moves:0, over:false, playing:false, busy:false,
+  rec:{w:0,l:0,d:0}, streak:0,
+  hoverCol:-1, sndOn:false,
+  aiDepth:4, aiDelay:true, aiTimer:0
+};
+function loadRec(){try{var r=JSON.parse(localStorage.getItem('g44_rec'));if(r&&typeof r.w==='number')S.rec=r;
+  S.streak=+localStorage.getItem('g44_streak')||0;
+  S.side=localStorage.getItem('g44_side')==='x'?'x':'g'}catch(e){}}
+function saveRec(){try{localStorage.setItem('g44_rec',JSON.stringify(S.rec));
+  localStorage.setItem('g44_streak',String(S.streak));
+  localStorage.setItem('g44_side',S.side)}catch(e){}}
+function playerStone(){return S.side==='g'?P1:P2}
+function aiStone(){return S.side==='g'?P2:P1}
+/* ---------- 音效（默认关） ---------- */
+var AC=null;
+function ac(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}return AC}
+function beep(f,d,type,vol,slide){
+  if(!S.sndOn)return; var a=ac(); if(!a)return;
+  try{
+    var o=a.createOscillator(),g=a.createGain(),t=a.currentTime;
+    o.type=type||'sine'; o.frequency.setValueAtTime(f,t);
+    if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(40,slide),t+d);
+    g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(vol||.14,t+.012);
+    g.gain.exponentialRampToValueAtTime(.0001,t+d);
+    o.connect(g); g.connect(a.destination); o.start(t); o.stop(t+d+.03);
+  }catch(e){}
+}
+var SND={
+  p1:function(){beep(880,.09,'triangle',.13,720)},
+  p2:function(){beep(300,.1,'triangle',.14,240)},
+  deny:function(){beep(120,.09,'sawtooth',.09)},
+  win:function(){[660,830,990].forEach(function(f,i){setTimeout(function(){beep(f,.16,'triangle',.14)},i*120)})},
+  lose:function(){[330,220].forEach(function(f,i){setTimeout(function(){beep(f,.2,'sine',.13)},i*170)})},
+  draw:function(){beep(440,.22,'sine',.12)},
+  ui:function(){beep(500,.06,'sine',.1)}
+};
+/* ---------- 引擎：窗 / 胜负 / 评估 / 搜索 ---------- */
+var WINDOWS=[];
+(function(){
+  var r,c,i;
+  for(r=0;r<ROWS;r++)for(c=0;c<COLS-3;c++)WINDOWS.push([[r,c],[r,c+1],[r,c+2],[r,c+3]]);
+  for(c=0;c<COLS;c++)for(r=0;r<ROWS-3;r++)WINDOWS.push([[r,c],[r+1,c],[r+2,c],[r+3,c]]);
+  for(r=0;r<ROWS-3;r++)for(c=0;c<COLS-3;c++)WINDOWS.push([[r,c],[r+1,c+1],[r+2,c+2],[r+3,c+3]]);
+  for(r=0;r<ROWS-3;r++)for(c=3;c<COLS;c++)WINDOWS.push([[r,c],[r+1,c-1],[r+2,c-2],[r+3,c-3]]);
+})();
+var DIRS=[[0,1],[1,0],[1,1],[1,-1]];
+function dropRow(bd,c){for(var r=ROWS-1;r>=0;r--)if(!bd[r][c])return r;return -1}
+/* (r,c) 处 p 是否成四连；返回连线格子数组或 null */
+function winLine(bd,r,c,p){
+  for(var d=0;d<4;d++){
+    var dr=DIRS[d][0],dc=DIRS[d][1],cells=[[r,c]],i;
+    for(i=1;i<4;i++){var rr=r+dr*i,cc=c+dc*i;
+      if(rr<0||rr>=ROWS||cc<0||cc>=COLS||bd[rr][cc]!==p)break;cells.push([rr,cc])}
+    for(i=1;i<4;i++){var rr2=r-dr*i,cc2=c-dc*i;
+      if(rr2<0||rr2>=ROWS||cc2<0||cc2>=COLS||bd[rr2][cc2]!==p)break;cells.unshift([rr2,cc2])}
+    if(cells.length>=4)return cells;
+  }
+  return null;
+}
+function boardFull(bd){return bd[0].every(function(v){return v})}
+/* me 视角静态评估 */
+function evalBoard(bd,me){
+  var opp=3-me,score=0,i,k;
+  for(i=0;i<WINDOWS.length;i++){
+    var w=WINDOWS[i],m=0,o=0;
+    for(k=0;k<4;k++){var v=bd[w[k][0]][w[k][1]];if(v===me)m++;else if(v===opp)o++}
+    if(m&&o)continue;
+    if(m===3)score+=50;else if(m===2)score+=10;
+    if(o===3)score-=60;else if(o===2)score-=12;
+  }
+  for(var r=0;r<ROWS;r++){var cv=bd[r][3];if(cv===me)score+=6;else if(cv===opp)score-=6}
+  return score;
+}
+function legalCols(bd){var out=[],i;for(i=0;i<ORDER.length;i++){if(dropRow(bd,ORDER[i])>=0)out.push(ORDER[i])}return out}
+function negamax(bd,depth,alpha,beta,player){
+  var legal=legalCols(bd);
+  if(!legal.length)return 0;
+  if(depth===0)return evalBoard(bd,player);
+  var best=-1000000,i;
+  for(i=0;i<legal.length;i++){
+    var c=legal[i],r=dropRow(bd,c),sc;
+    bd[r][c]=player;
+    if(winLine(bd,r,c,player))sc=100000+depth*10;
+    else sc=-negamax(bd,depth-1,-beta,-alpha,3-player);
+    bd[r][c]=0;
+    if(sc>best)best=sc;
+    if(best>alpha)alpha=best;
+    if(alpha>=beta)break;
+  }
+  return best;
+}
+/* AI 决策：确定性（tie-break=ORDER 首见） */
+function aiBest(bd,depth,ai){
+  var legal=legalCols(bd);
+  if(!legal.length)return null;
+  var best=null,bestSc=-1000001,alpha=-1000000,i;
+  for(i=0;i<legal.length;i++){
+    var c=legal[i],r=dropRow(bd,c),sc;
+    bd[r][c]=ai;
+    if(winLine(bd,r,c,ai))sc=100000+depth*10;
+    else sc=-negamax(bd,depth-1,-1000000,-alpha,3-ai);
+    bd[r][c]=0;
+    if(sc>bestSc){bestSc=sc;best=c;if(sc>alpha)alpha=sc}
+  }
+  return {col:best,score:bestSc};
+}
+/* ---------- 渲染 ---------- */
+function xOf(c){return c*STEP+GAP}
+function yOf(r){return r*STEP+GAP}
+function buildBoard(){
+  el.holes.innerHTML='';
+  for(var r=0;r<ROWS;r++)for(var c=0;c<COLS;c++){
+    var h=document.createElement('div');h.className='hole';
+    h.style.left=xOf(c)+'px';h.style.top=yOf(r)+'px';el.holes.appendChild(h);
+  }
+  for(var i=0;i<COLS;i++){
+    var hot=document.createElement('div');hot.className='col-hot';hot.dataset.col=String(i);
+    hot.style.left=xOf(i)+'px';hot.style.width=STEP+'px';el.layer.parentNode.appendChild(hot);
+  }
+  el.board.style.width=(COLS*STEP+GAP+2)+'px';
+  el.board.style.height=(ROWS*STEP+GAP+2)+'px';
+}
+function mkStar(p){
+  var d=document.createElement('div');
+  d.className='star '+(p===P1?'g':'x');
+  d.innerHTML='<div class="shine"></div>';
+  return d;
+}
+function drawAll(){
+  if(!S.board.length)return;
+  el.layer.innerHTML='';
+  for(var r=0;r<ROWS;r++)for(var c=0;c<COLS;c++)if(S.board[r][c]){
+    var st=mkStar(S.board[r][c]);
+    st.style.left=xOf(c)+'px';st.style.top=yOf(r)+'px';
+    el.layer.appendChild(st);
+  }
+}
+/* ---------- 落子（UI 真路径） ---------- */
+function placeUi(col){
+  var r=dropRow(S.board,col);
+  if(r<0){SND.deny();denyShake(col);return false}
+  el.preview.style.opacity='0';
+  var p=S.turn;
+  S.board[r][col]=p; S.moves++;
+  var st=mkStar(p);
+  st.style.left=xOf(col)+'px';st.style.top='-52px';
+  el.layer.appendChild(st);
+  st.classList.add('drop');
+  /* 强制布局后落位 */
+  void st.offsetWidth;
+  st.style.top=yOf(r)+'px';
+  var line=winLine(S.board,r,col,p);
+  setTimeout(function(){
+    st.classList.remove('drop');st.classList.add('land');
+    spawnDust(col,r);
+    (p===P1)?SND.p1():SND.p2();
+    if(p===P2){el.board.classList.add('board-shk');setTimeout(function(){el.board.classList.remove('board-shk')},260)}
+  },175);
+  el.moveNo.textContent=(line||boardFull(S.board))?S.moves:S.moves+1;   /* 进行中=第N手；终局定格=已完成 */
+  if(line){finish(p,line);return true}
+  if(boardFull(S.board)){finish(0,null);return true}
+  S.turn=3-p; updTurn();
+  if(S.turn===aiStone())scheduleAi();
+  return true;
+}
+function denyShake(col){
+  var hot=el.board.parentNode.querySelector('.col-hot[data-col="'+col+'"]');
+  if(hot){hot.style.transition='none';hot.style.transform='translateX(2px)';
+    setTimeout(function(){hot.style.transform='translateX(-2px)'},40);
+    setTimeout(function(){hot.style.transform='translateX(1px)'},80);
+    setTimeout(function(){hot.style.transform=''    },120)}
+}
+function spawnDust(c,r){
+  var cx=xOf(c)+CELL/2, cy=yOf(r)+CELL-4;
+  for(var i=0;i<3;i++){
+    var d=document.createElement('div');d.className='dust';
+    d.style.left=(cx-8+i*8)+'px';d.style.top=cy+'px';
+    d.style.background='rgba(240,225,190,.85)';
+    d.style.transition='all .35s ease-out';
+    el.layer.appendChild(d);
+    (function(dd,dx,dy){setTimeout(function(){dd.style.transform='translate('+dx+'px,'+dy+'px)';dd.style.opacity='0'},16)})(d,(i-1)*13,-9-Math.random()*7);
+    setTimeout(function(dd){return function(){dd.parentNode&&dd.parentNode.removeChild(dd)}}(d),380);
+  }
+}
+function updTurn(){
+  if(S.over)return;
+  var aiTurn=S.turn===aiStone();
+  el.turnDot.className='dot '+(S.turn===P1?'g':'x');
+  el.turnTxt.textContent=aiTurn?'观星使 · 沉思中':'轮到你 · '+(S.turn===P1?'执金':'执玄');
+  el.turnTxt.className=aiTurn?'think':'';
+  updStat();
+}
+function updStat(){
+  var r=S.rec,t=r.w+r.l;
+  el.stStreak.textContent=S.streak;
+  el.stRec.textContent=r.w+'-'+r.l+'-'+r.d;
+  el.stRate.textContent=t?Math.round(r.w/t*100)+'%':'--';
+}
+/* ---------- AI 行动 ---------- */
+function scheduleAi(){
+  S.busy=true;
+  var mv=aiBest(S.board,S.aiDepth,aiStone());
+  if(!mv){S.busy=false;return}
+  var delay=S.aiDelay?(360+(S.moves*7)%240):0;
+  S.aiTimer=setTimeout(function(){
+    S.busy=false;
+    placeUi(mv.col);
+  },delay);
+}
+/* ---------- 终局 ---------- */
+function finish(winner,line){
+  S.over=true;S.playing=false;S.busy=false;
+  clearTimeout(S.aiTimer);
+  el.preview.style.opacity='0';
+  if(winner===0){
+    S.rec.d++;SND.draw();
+    el.turnTxt.textContent='星图满盘 · 平局';el.turnTxt.className='end';
+    floatText('星图满盘','#a8b6cc',17);
+  }else{
+    var meWin=winner===playerStone();
+    if(meWin){S.rec.w++;S.streak++;SND.win()}else{S.rec.l++;S.streak=0;SND.lose()}
+    if(line)drawStreak(line,winner);
+    for(var i=0;i<line.length;i++){
+      var st=nthStar(line[i][0],line[i][1]);
+      if(st)st.classList.add('win');
+    }
+    el.turnTxt.textContent=meWin?'四星连珠 · 你胜':'观星使 · 四星连珠';el.turnTxt.className='end';
+    floatText(meWin?'四星连珠！':'观星使连珠',meWin?'#f0d08c':'#8fd8c4',19);
+  }
+  S.endWinner=winner;
+  saveRec();updStat();
+  setTimeout(showEnd,1050);
+}
+function nthStar(r,c){ /* 按 left/top 定位取子 */
+  var kids=el.layer.children;
+  for(var i=0;i<kids.length;i++){
+    if(+kids[i].style.left.replace('px','')===xOf(c)&&+kids[i].style.top.replace('px','')===yOf(r))return kids[i];
+  }
+  return null;
+}
+function drawStreak(line,p){
+  var a=line[0],b=line[line.length-1];
+  var x1=xOf(a[1])+CELL/2,y1=yOf(a[0])+CELL/2,x2=xOf(b[1])+CELL/2,y2=yOf(b[0])+CELL/2;
+  var len=Math.hypot(x2-x1,y2-y1);
+  var s=document.createElement('div');s.className='streak';
+  s.style.left=x1+'px';s.style.top=(y1-4.5)+'px';s.style.width=len+'px';
+  s.style.transform='rotate('+Math.atan2(y2-y1,x2-x1)+'rad)';
+  var col=p===P1?'240,200,120':'110,220,195';
+  s.style.background='linear-gradient(90deg,rgba('+col+',0),rgba('+col+',.95) 22%,rgba('+col+',.95) 78%,rgba('+col+',0))';
+  s.style.boxShadow='0 0 14px rgba('+col+',.55)';
+  el.layer.appendChild(s);
+}
+function floatText(txt,color,size){
+  var f=document.createElement('div');f.className='floatxt';f.textContent=txt;
+  f.style.color=color;f.style.fontSize=(size||14)+'px';
+  f.style.left='50%';f.style.top=(el.board.clientHeight*0.34)+'px';f.style.transform='translateX(-50%)';
+  el.board.appendChild(f);setTimeout(function(){f.parentNode&&f.parentNode.removeChild(f)},1020);
+}
+function showEnd(){
+  var r=S.rec;
+  var winner=S.endWinner;
+  el.endTitle.textContent=winner===0?'星图满盘':(winner===playerStone()?'四星连珠':'观星使胜');
+  el.endTitle.className='e-t'+(winner!==0&&winner!==playerStone()?' lose':'');
+  el.endMoves.textContent=S.moves;
+  el.endRec.textContent=r.w+'-'+r.l+'-'+r.d;
+  el.endStreak.textContent=S.streak;
+  el.end.classList.add('on');
+  showMenuRec();
+}
+function showMenuRec(){
+  var r=S.rec;
+  el.mRec.innerHTML='战绩 <b>'+r.w+'</b> 胜 · <b>'+r.l+'</b> 负 · <b>'+r.d+'</b> 平　连胜 <b>'+S.streak+'</b>';
+}
+/* ---------- 生命周期 ---------- */
+function startGame(){
+  S.board=[];for(var r=0;r<ROWS;r++){S.board.push([]);for(var c=0;c<COLS;c++)S.board[r].push(0)}
+  S.turn=P1;S.moves=0;S.over=false;S.busy=false;S.endWinner=-1;
+  clearTimeout(S.aiTimer);
+  el.layer.innerHTML='';el.moveNo.textContent='1';
+  el.menu.classList.remove('on');el.end.classList.remove('on');el.game.classList.add('on');
+  S.playing=true;
+  updTurn();
+  if(aiStone()===P1)scheduleAi();     /* 执玄后手：观星使先行 */
+}
+function goMenu(){
+  S.playing=false;S.over=true;clearTimeout(S.aiTimer);
+  el.game.classList.remove('on');el.end.classList.remove('on');el.menu.classList.add('on');
+  showMenuRec();
+}
+/* ---------- 输入 ---------- */
+function colFromX(clientX){
+  var rect=el.board.getBoundingClientRect();
+  var x=clientX-rect.left;
+  if(x<0||x>rect.width)return -1;
+  return Math.max(0,Math.min(COLS-1,Math.floor(x/rect.width*COLS)));
+}
+function canPlay(){return S.playing&&!S.over&&!S.busy&&S.turn===playerStone()}
+function setHover(col){
+  if(S.hoverCol===col)return;
+  S.hoverCol=col;
+  var hots=el.board.parentNode.querySelectorAll('.col-hot');
+  for(var i=0;i<hots.length;i++)hots[i].classList.toggle('lit',+hots[i].dataset.col===col);
+  if(col>=0&&canPlay()){
+    var r=dropRow(S.board,col);
+    if(r>=0){
+      var gs=document.querySelector('.ghost-slot');if(gs)gs.parentNode.removeChild(gs);
+      gs=document.createElement('div');gs.className='ghost-slot';
+      gs.style.left=xOf(col)+'px';gs.style.top=yOf(r)+'px';el.layer.appendChild(gs);
+      el.preview.style.opacity='.95';el.preview.style.left=xOf(col)+'px';
+      el.preview.style.top='-52px';
+    }
+  }else{
+    var g2=document.querySelector('.ghost-slot');if(g2)g2.parentNode.removeChild(g2);
+    el.preview.style.opacity='0';
+  }
+}
+var DR=null;
+el.board.parentNode.addEventListener('pointerdown',function(e){
+  if(!S.playing)return;
+  var col=colFromX(e.clientX);
+  DR={col:col};setHover(col);
+});
+window.addEventListener('pointermove',function(e){
+  if(!S.playing||S.over)return;
+  var col=colFromX(e.clientX);
+  if(col!==S.hoverCol)setHover(col);
+});
+window.addEventListener('pointerup',function(e){
+  if(!DR)return;
+  var col=colFromX(e.clientX);
+  DR=null;
+  if(col<0)return;
+  if(!canPlay())return;
+  setHover(-1);
+  placeUi(col);
+});
+window.addEventListener('pointercancel',function(){DR=null});
+/* ---------- 按钮 ---------- */
+document.getElementById('btn-start').addEventListener('click',function(){SND.ui();startGame()});
+document.getElementById('btn-how').addEventListener('click',function(){SND.ui();floatHow()});
+document.getElementById('btn-home').addEventListener('click',function(){SND.ui();goMenu()});
+document.getElementById('btn-again').addEventListener('click',function(){SND.ui();startGame()});
+document.getElementById('btn-menu2').addEventListener('click',function(){SND.ui();goMenu()});
+document.getElementById('btn-snd').addEventListener('click',function(){
+  S.sndOn=!S.sndOn;this.classList.toggle('off',!S.sndOn);this.textContent=S.sndOn?'♪':'♪̶';
+  if(S.sndOn){var a=ac();if(a&&a.state==='suspended')a.resume();SND.ui()}
+});
+document.getElementById('side-g').addEventListener('click',function(){setSide('g')});
+document.getElementById('side-x').addEventListener('click',function(){setSide('x')});
+function setSide(s){S.side=s;saveRec();
+  document.getElementById('side-g').classList.toggle('on',s==='g');
+  document.getElementById('side-x').classList.toggle('on',s==='x')}
+function floatHow(){
+  var old=document.getElementById('howtip');if(old)old.parentNode.removeChild(old);
+  var tip=document.createElement('div');tip.id='howtip';
+  tip.style.cssText='position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:99;width:78%;max-width:300px;padding:20px 18px;border-radius:16px;background:linear-gradient(172deg,#242f46,#18202f);border:1.4px solid rgba(240,200,120,.34);color:#dce6f4;font-size:13px;line-height:2;box-shadow:0 16px 44px rgba(0,0,0,.6)';
+  tip.innerHTML='<b style="color:#f0d08c">四子连星 · 玩法</b><br>点击任意一列，星子落入最底空位——<br>· 金子是你的，玄子是观星使的<br>· <b>横、竖、斜</b>先连成四子即胜<br>· 抢中央星位更易成势；<b>双威胁</b>（两条线同时差一子）观星使就堵不住了<br>满盘四十二手无四连为平局。';
+  var x=document.createElement('div');x.textContent='✕';x.style.cssText='position:absolute;top:8px;right:12px;color:#8fa0c0;font-size:15px;padding:4px';
+  x.onclick=function(){tip.parentNode.removeChild(tip)};
+  tip.appendChild(x);document.body.appendChild(tip);
+}
+/* ---------- 尺寸 ---------- */
+function layout(){
+  var wrapW=Math.min(window.innerWidth,520)-28;
+  var scale=wrapW/(COLS*STEP+GAP+2);
+  el.board.style.transform='';el.board.style.marginBottom='';
+  if(scale<0.999||scale>1.001){
+    el.board.style.transform='scale('+scale+')';el.board.style.transformOrigin='top center';
+    el.board.style.marginBottom=((ROWS*STEP+GAP+2)*(scale-1))+'px';
+  }
+  if(S.hoverCol>=0){S.hoverCol=-1;setHover(-1)}
+}
+/* ---------- 启动 ---------- */
+loadRec();setSide(S.side);buildBoard();drawAll();updStat();showMenuRec();
+el.preview.id='preview';el.board.appendChild(el.preview);
+window.addEventListener('resize',layout);
+layout();
+
+
+</script>
+</body>
+</html>
