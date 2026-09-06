@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#16222a">
+<title>密电破译 · 口袋游戏机</title>
+<style>
+:root{--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px)}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;position:fixed}
+body{
+  background:linear-gradient(178deg,#1d2f36 0%,#16222a 52%,#101a20 100%);
+  color:#e8e2d2;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+  touch-action:none;user-select:none;-webkit-user-select:none;
+}
+#app{position:relative;width:100%;height:100%;max-width:520px;margin:0 auto}
+.screen{position:absolute;inset:0;display:none}
+.screen.on{display:block}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes printin{0%{opacity:0;transform:translateY(-14px)}18%{opacity:1}100%{transform:translateY(0)}}
+/* ---------- 菜单 ---------- */
+#menu{display:none;flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(130% 55% at 50% -4%,#2c454e 0%,rgba(44,69,78,0) 60%),
+             linear-gradient(178deg,#1d2f36 0%,#182630 55%,#0e181e 100%)}
+#menu.on{display:flex}
+.m-kicker{font-size:11.5px;letter-spacing:.42em;color:#7f97a0;margin-bottom:14px;padding-left:.42em}
+.m-title{font-size:44px;font-weight:800;letter-spacing:.06em;
+  background:linear-gradient(105deg,#eee6cc 18%,#d8c48a 52%,#e8d8ac 88%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 3px 12px rgba(216,196,138,.22))}
+.m-sub{margin-top:12px;color:#93aab2;font-size:13.5px;letter-spacing:.18em;padding-left:.18em}
+#m-art{width:224px;height:152px;margin:22px 0 2px}
+.btn{display:block;width:206px;margin:0 auto;border:none;cursor:pointer;
+  font-family:inherit;font-size:17px;font-weight:700;letter-spacing:.22em;padding:15px 0 15px .22em;
+  color:#12211d;border-radius:14px;background:linear-gradient(168deg,#dcc388,#b09356);
+  box-shadow:0 6px 22px rgba(220,195,136,.22),inset 0 1px 0 rgba(255,250,230,.5)}
+.btn:active{transform:translateY(2px) scale(.985)}
+.btn.ghost{background:linear-gradient(168deg,rgba(220,195,136,.1),rgba(220,195,136,.03));color:#c2b384;box-shadow:inset 0 0 0 1.8px rgba(194,179,132,.5);font-size:14px;padding:12px 0 12px .22em;margin-top:14px}
+#m-rec{margin-top:20px;color:#7f97a0;font-size:12.5px;letter-spacing:.14em}
+#m-rec b{color:#e2d2a0;font-weight:700}
+.m-foot{position:absolute;bottom:calc(var(--sab) + 16px);left:0;right:0;text-align:center;color:#82a0ad;font-size:10.5px;letter-spacing:.12em}
+/* ---------- 游戏 ---------- */
+#game{padding-top:calc(var(--sat) + 4px);display:none;flex-direction:column}
+#game.on{display:flex}
+#hud{position:relative;z-index:6;display:flex;align-items:center;gap:8px;padding:4px 14px 2px}
+.hud-title{font-size:19px;font-weight:800;letter-spacing:.1em;color:#e2d2a0;line-height:1.15}
+.hud-title .hud-k{display:block;font-size:8.5px;letter-spacing:.34em;color:#8a9a86;font-weight:600}
+.hud-cand{flex:1;text-align:right;font-size:11.5px;color:#93aab2;line-height:1.2}
+.hud-cand b{display:block;font-size:18px;color:#f0ead8;font-weight:800;font-variant-numeric:tabular-nums}
+.icon-btn{width:36px;height:36px;border-radius:11px;border:1.4px solid rgba(194,179,132,.4);
+  background:rgba(14,24,30,.72);color:#d0cabb;font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.icon-btn:active{transform:scale(.94)}
+.icon-btn.off{color:#5d6f77}
+/* 灯晕横带（琥珀台灯自上而下） */
+#lamp{height:26px;margin:4px 14px 0;border-radius:12px 12px 4px 4px;
+  background:radial-gradient(60% 130% at 50% -36%,rgba(240,196,110,.5) 0%,rgba(240,196,110,.13) 46%,rgba(240,196,110,0) 78%);
+  pointer-events:none}
+/* 纸带 */
+#tape-wrap{flex:1;margin:8px 14px 0;min-height:0;border-radius:6px;position:relative;
+  box-shadow:0 4px 16px rgba(0,0,0,.45),inset 0 0 0 1px rgba(20,28,32,.8);
+  background:#202f35;overflow:hidden}
+/* 出纸口压条：纸带自缝中吐出 */
+#tape-wrap::before{content:"";position:absolute;top:0;left:0;right:0;height:7px;z-index:3;
+  background:linear-gradient(180deg,#101a20,#1b282f);box-shadow:0 2px 6px rgba(0,0,0,.55);border-radius:6px 6px 0 0}
+#tape{position:absolute;inset:0 6px;overflow-y:auto;touch-action:pan-y;-webkit-overflow-scrolling:touch;
+  background:
+    radial-gradient(circle at 7px 12px,rgba(22,30,34,.44) 2.6px,rgba(0,0,0,0) 3.2px) repeat-y,
+    radial-gradient(circle at calc(100% - 7px) 12px,rgba(22,30,34,.44) 2.6px,rgba(0,0,0,0) 3.2px) repeat-y,
+    repeating-linear-gradient(180deg,#efe6cf 0 46px,#e9dfc6 46px 47px,#efe6cf 47px 92px);
+  background-size:auto 47px,auto 47px,auto;}
+#tape.empty::after{content:"嘀嗒——静候第一封密电";position:absolute;left:0;right:0;top:38%;
+  text-align:center;font-size:12.5px;letter-spacing:.3em;padding-left:.3em;color:#b8a882}
+.trow{display:flex;align-items:center;gap:7px;min-height:47px;padding:0 14px 0 20px;
+  animation:printin .34s ease-out;border-bottom:1px dashed rgba(120,104,70,.25)}
+.trow .no{width:24px;font-size:9.5px;color:#8a7c5c;font-weight:700;letter-spacing:.04em;font-variant-numeric:tabular-nums}
+.trow .dg{display:flex;gap:5px}
+.trow .dcell{width:30px;height:34px;border-radius:5px;display:flex;align-items:center;justify-content:center;
+  font-size:17px;font-weight:800;color:#2e2a1e;font-family:Consolas,Menlo,monospace;font-variant-numeric:tabular-nums;
+  background:rgba(58,72,60,.14);box-shadow:inset 0 0 0 1.2px rgba(90,84,60,.35)}
+.trow .fb{margin-left:auto;display:flex;gap:5px;align-items:center}
+.badge{min-width:32px;height:26px;border-radius:99px;display:flex;align-items:center;justify-content:center;
+  font-size:12.5px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.badge i{font-style:normal;font-size:10px;font-weight:700;margin-left:2px}
+.badge i:empty{display:none;margin:0}
+.badge.ba{background:radial-gradient(circle at 38% 30%,#f0df9e,#c8a44e);color:#3d2f0e;box-shadow:inset 0 0 0 1px rgba(120,94,34,.5)}
+.badge.bb{background:radial-gradient(circle at 38% 30%,#b9cfc2,#7d9a8a);color:#1e2c24;box-shadow:inset 0 0 0 1px rgba(52,74,62,.45)}
+.badge.bz{background:rgba(60,54,36,.12);color:#9a8c68;box-shadow:inset 0 0 0 1px rgba(120,104,70,.3)}
+.trow.zero{filter:saturate(.45) brightness(.94)}
+.trow.hit{background:linear-gradient(90deg,rgba(200,164,78,.16),rgba(200,164,78,.05));border-bottom:none}
+.trow.hit .dcell{color:#4d3a0c;background:rgba(200,164,78,.25);box-shadow:inset 0 0 0 1.4px rgba(160,126,44,.6)}
+.trow.reveal .dcell{color:#7c2418;background:rgba(160,60,44,.16);box-shadow:inset 0 0 0 1.4px rgba(140,60,44,.5)}
+.trow .rvtag{font-size:9.5px;color:#a04434;font-weight:800;letter-spacing:.2em;padding-left:.2em}
+#tape.shake{animation:tshake .3s ease-out}
+@keyframes tshake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}55%{transform:translateX(4px)}80%{transform:translateX(-2px)}}
+/* 军师浮层 */
+.adv-float{position:absolute;z-index:8;left:50%;bottom:64px;transform:translateX(-50%);
+  display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:12px;
+  background:linear-gradient(172deg,#25363e,#18262c);border:1.4px solid rgba(194,179,132,.45);
+  box-shadow:0 10px 30px rgba(0,0,0,.55);animation:printin .3s ease-out;white-space:nowrap}
+.adv-float .alab{font-size:10px;color:#9db3a4;letter-spacing:.2em}
+.adv-float .ad{width:30px;height:34px;border-radius:5px;display:flex;align-items:center;justify-content:center;
+  font-size:17px;font-weight:800;color:#f0ead8;font-family:Consolas,Menlo,monospace;
+  background:rgba(220,195,136,.13);box-shadow:inset 0 0 0 1.3px rgba(220,195,136,.5)}
+/* 输入行 */
+#cur-row{margin:10px 14px 0;display:flex;justify-content:center;gap:8px;min-height:56px}
+.ccell{width:46px;height:56px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+  font-size:24px;font-weight:800;color:#f0ead8;font-family:Consolas,Menlo,monospace;font-variant-numeric:tabular-nums;
+  background:rgba(10,18,22,.55);box-shadow:inset 0 0 0 1.6px rgba(194,179,132,.4),inset 0 -6px 14px rgba(0,0,0,.3)}
+.ccell.fill{background:rgba(220,195,136,.16);box-shadow:inset 0 0 0 1.8px rgba(220,195,136,.75)}
+.ccell:not(.fill)::after{content:"";width:1.6px;height:22px;background:rgba(194,179,132,.48)}
+#cur-row.m5 .ccell{width:40px;height:52px;font-size:21px}
+/* 工具行 */
+#tools{display:flex;gap:9px;margin:10px 14px 0}
+.tbtn{flex:1;border:none;cursor:pointer;font-family:inherit;font-size:14px;font-weight:800;letter-spacing:.16em;
+  padding:11px 0 11px .16em;color:#d8cbb2;border-radius:12px;
+  background:linear-gradient(168deg,rgba(220,195,136,.13),rgba(220,195,136,.04));
+  box-shadow:inset 0 0 0 1.5px rgba(194,179,132,.45)}
+.tbtn:active{transform:translateY(1px)}
+.tbtn i{font-style:normal;font-size:11.5px;color:#9db3a4;margin-left:3px}
+.tbtn.warn{color:#d8a89a;box-shadow:inset 0 0 0 1.5px rgba(200,120,96,.4);background:linear-gradient(168deg,rgba(200,120,96,.1),rgba(200,120,96,.03))}
+.tbtn:disabled{opacity:.4;cursor:default}
+/* 电键盘 */
+#pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 14px calc(var(--sab) + 10px)}
+.key{height:50px;border:none;border-radius:11px;cursor:pointer;font-family:inherit;
+  font-size:20px;font-weight:800;color:#f0ead8;font-variant-numeric:tabular-nums;
+  background:linear-gradient(172deg,#2c4148,#20323a 70%);
+  box-shadow:0 3px 0 #131f24,0 5px 12px rgba(0,0,0,.4),inset 0 1px 0 rgba(220,235,225,.14);
+  border:1.2px solid rgba(120,160,150,.35)}
+.key:active,.key.pressed{transform:translateY(3px);box-shadow:0 0 0 #131f24,0 2px 6px rgba(0,0,0,.4)}
+.key.used{opacity:.32;cursor:default}
+.key.excl{opacity:.44;text-decoration:line-through;text-decoration-thickness:2px;text-decoration-color:rgba(200,120,96,.75)}
+.key.fn{font-size:16px;letter-spacing:.1em;color:#c2d8c8}
+.key.go{background:linear-gradient(172deg,#dcc388,#b09356);color:#12211d;box-shadow:0 3px 0 #6e5a2c,0 5px 12px rgba(220,195,136,.25),inset 0 1px 0 rgba(255,250,230,.5);border-color:rgba(120,94,44,.6)}
+.key:disabled{opacity:.3;filter:saturate(.25);cursor:default}
+/* 胜利波纹 */
+#wave{position:absolute;inset:0;z-index:12;pointer-events:none;display:none}
+#wave.on{display:block}
+#wave span{position:absolute;left:50%;top:42%;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;
+  border:2.4px solid rgba(232,216,172,.75);animation:ring 1.15s ease-out forwards}
+#wave span:nth-child(2){animation-delay:.22s}
+#wave span:nth-child(3){animation-delay:.44s;border-color:rgba(232,216,172,.45)}
+@keyframes ring{0%{transform:scale(1);opacity:0}14%{opacity:1}100%{transform:scale(19);opacity:0}}
+/* 终局层 */
+#endov{position:absolute;inset:0;z-index:20;display:none;align-items:center;justify-content:center;
+  background:rgba(8,14,18,.66);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
+#endov.on{display:flex}
+#endcard{width:78%;max-width:300px;padding:24px 20px 20px;border-radius:18px;text-align:center;
+  background:linear-gradient(172deg,#243840,#16242a);border:1.6px solid rgba(194,179,132,.5);
+  box-shadow:0 18px 50px rgba(0,0,0,.6);animation:printin .34s ease-out}
+#endcard .ek{font-size:10px;letter-spacing:.4em;padding-left:.4em;color:#8a9a86;margin-bottom:10px}
+#endcard .et{font-size:27px;font-weight:800;letter-spacing:.14em;padding-left:.14em;color:#f0ead8}
+#endcard .et.win{color:#e8d8a4;text-shadow:0 0 16px rgba(232,216,164,.4)}
+#endcard .et.fail{color:#d8a89a}
+#end-stars{margin:12px 0 4px;height:30px;display:flex;justify-content:center;gap:7px}
+#end-stars svg{width:30px;height:30px}
+#end-steps{font-size:13px;color:#a8b8b0;letter-spacing:.1em}
+#end-steps b{color:#f0ead8;font-size:17px}
+#end-best{margin-top:8px;font-size:11.5px;color:#7f97a0;letter-spacing:.12em}
+#end-best .rec{display:inline-block;margin-left:7px;padding:2px 9px;border-radius:99px;font-size:10px;font-weight:800;
+  color:#3d2f0e;background:linear-gradient(168deg,#f0df9e,#c8a44e)}
+#end-secret{margin:10px auto 0;display:flex;justify-content:center;gap:6px}
+#end-secret span{width:30px;height:34px;border-radius:5px;display:flex;align-items:center;justify-content:center;
+  font-size:17px;font-weight:800;color:#d8a89a;font-family:Consolas,Menlo,monospace;
+  background:rgba(160,60,44,.15);box-shadow:inset 0 0 0 1.3px rgba(180,80,60,.5)}
+#end-cta{display:flex;gap:9px;margin-top:16px}
+#end-cta .btn{flex:1.4;width:auto;margin:0;font-size:14.5px;padding:12px 0 12px .18em;letter-spacing:.18em}
+#end-cta .btn.ghost{flex:1;margin:0}
+@media (max-height:700px){
+  .m-title{font-size:38px}
+  #m-art{width:176px;height:120px;margin:16px 0 0}
+  #lamp{height:18px}
+  .key{height:44px}
+  .ccell{height:50px;width:42px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- 菜单 -->
+  <div id="menu" class="screen on">
+    <div class="m-kicker">夜 守 电 台</div>
+    <div class="m-title">密电破译</div>
+    <div class="m-sub">四位暗码 · 铅笔批注</div>
+    <svg id="m-art" viewBox="0 0 224 152">
+      <defs>
+        <linearGradient id="lamp49" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e8c878"/><stop offset="1" stop-color="#a8843e"/></linearGradient>
+        <linearGradient id="glow49" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="rgba(240,200,120,.5)"/><stop offset="1" stop-color="rgba(240,200,120,0)"/></linearGradient>
+        <linearGradient id="paper49" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f2ead6"/><stop offset="1" stop-color="#ddd0b2"/></linearGradient>
+      </defs>
+      <!-- 台灯 -->
+      <g transform="translate(28,10)">
+        <path d="M28 34 L14 78 L42 78 Z" fill="url(#lamp49)" stroke="#5c4418" stroke-width="1.4"/>
+        <path d="M16 76 L40 76 L52 96 L4 96 Z" fill="url(#glow49)"/>
+        <rect x="26" y="34" width="4" height="18" rx="1.6" fill="#8a6a30"/>
+        <g style="animation:floaty 3.2s ease-in-out infinite">
+          <ellipse cx="28" cy="34" rx="16" ry="6" fill="#f2e2b0" opacity=".85"/>
+        </g>
+      </g>
+      <!-- 纸带 -->
+      <g transform="rotate(-4 140 78)">
+        <rect x="62" y="30" width="150" height="72" rx="5" fill="url(#paper49)" stroke="#b8a678" stroke-width="1.4"/>
+        <g fill="#c8b488" opacity=".8">
+          <circle cx="72" cy="42" r="2.4"/><circle cx="72" cy="56" r="2.4"/><circle cx="72" cy="70" r="2.4"/><circle cx="72" cy="84" r="2.4"/>
+          <circle cx="202" cy="42" r="2.4"/><circle cx="202" cy="56" r="2.4"/><circle cx="202" cy="70" r="2.4"/><circle cx="202" cy="84" r="2.4"/>
+        </g>
+        <g font-family="Consolas,Menlo,monospace" font-size="15" font-weight="800" fill="#2e2a1e" text-anchor="middle">
+          <text x="96" y="56">4</text><text x="118" y="56">3</text><text x="140" y="56">2</text><text x="162" y="56">1</text>
+        </g>
+        <ellipse cx="96" cy="60" rx="9" ry="10" fill="none"/>
+        <circle cx="182" cy="50" r="9" fill="#c8a44e"/><text x="182" y="54.5" font-size="9.5" font-weight="800" fill="#3d2f0e" text-anchor="middle">2A</text>
+        <circle cx="202" cy="50" r="9" fill="#7d9a8a"/><text x="202" y="54.5" font-size="9.5" font-weight="800" fill="#1e2c24" text-anchor="middle">2B</text>
+        <line x1="86" y1="68" x2="198" y2="68" stroke="rgba(120,104,70,.35)" stroke-width="1" stroke-dasharray="3 3"/>
+        <g font-family="Consolas,Menlo,monospace" font-size="15" font-weight="800" fill="#4d3a0c" text-anchor="middle">
+          <text x="96" y="90">7</text><text x="118" y="90">3</text><text x="140" y="90">2</text><text x="162" y="90">5</text>
+        </g>
+        <circle cx="182" cy="84" r="9" fill="#c8a44e"/><text x="182" y="88.5" font-size="9.5" font-weight="800" fill="#3d2f0e" text-anchor="middle">4A</text>
+      </g>
+      <!-- 电键 -->
+      <g transform="translate(160,116)">
+        <ellipse cx="14" cy="16" rx="13" ry="4.5" fill="#131f24"/>
+        <circle cx="14" cy="10" r="10.5" fill="url(#lamp49)" stroke="#5c4418" stroke-width="1.3"/>
+        <circle cx="14" cy="10" r="5" fill="none" stroke="rgba(60,44,14,.5)" stroke-width="1.4" stroke-dasharray="2.2 2.2"/>
+        <line x1="26" y1="14" x2="36" y2="20" stroke="#8a6a30" stroke-width="2"/>
+      </g>
+    </svg>
+    <button class="btn" id="btn-start4">译 四 码</button>
+    <button class="btn ghost" id="btn-start5">译 五 码</button>
+    <button class="btn ghost" id="btn-how">玩 法</button>
+    <div id="m-rec"></div>
+    <div class="m-foot">嘀 嗒 嘀 嗒 · 等 你 破 译</div>
+  </div>
+
+  <!-- 游戏 -->
+  <div id="game" class="screen">
+    <div id="hud">
+      <button class="icon-btn" id="btn-home">⌂</button>
+      <div class="hud-title"><span class="hud-k">夜 守 电 台</span>密电破译</div>
+      <div class="hud-cand">尚余可能<b id="cand">—</b></div>
+      <button class="icon-btn off" id="btn-snd">♪̶</button>
+    </div>
+    <div id="lamp"></div>
+    <div id="tape-wrap">
+      <div id="tape" class="empty"></div>
+    </div>
+    <div id="cur-row"></div>
+    <div id="tools">
+      <button class="tbtn" id="btn-advise">军 师<i id="adv-n">×3</i></button>
+      <button class="tbtn warn" id="btn-giveup">揭 底</button>
+    </div>
+    <div id="pad">
+      <button class="key" data-k="1">1</button><button class="key" data-k="2">2</button><button class="key" data-k="3">3</button>
+      <button class="key" data-k="4">4</button><button class="key" data-k="5">5</button><button class="key" data-k="6">6</button>
+      <button class="key" data-k="7">7</button><button class="key" data-k="8">8</button><button class="key" data-k="9">9</button>
+      <button class="key fn" id="key-del">⌫ 退</button><button class="key" data-k="0">0</button><button class="key fn go" id="key-send">▶ 发送</button>
+    </div>
+    <div id="wave"><span></span><span></span><span></span></div>
+    <div id="endov">
+      <div id="endcard">
+        <div class="ek" id="end-k">电 台 汇 报</div>
+        <div class="et win" id="end-t">密电破译</div>
+        <div id="end-stars"></div>
+        <div id="end-steps">第 <b>—</b> 步破译</div>
+        <div id="end-secret" style="display:none"></div>
+        <div id="end-best">四码最快 <b>—</b> 步</div>
+        <div id="end-cta">
+          <button class="btn" id="btn-again">再译一封</button>
+          <button class="btn ghost" id="btn-back">回电台</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script>
+"use strict";
+/* ================= 密电破译 · Bulls & Cows ================= */
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+/* ---------- safeStorage（try-catch 降级内存） ---------- */
+var _mem={};
+var store={
+  get:function(k){try{return localStorage.getItem(k)}catch(e){return (_mem[k]!==undefined)?_mem[k]:null}},
+  set:function(k,v){try{localStorage.setItem(k,v)}catch(e){_mem[k]=v}},
+  del:function(k){try{localStorage.removeItem(k)}catch(e){delete _mem[k]}}
+};
+function loadBest(){return {b4:+store.get('mq_g49_best4')||0,b5:+store.get('mq_g49_best5')||0}}
+function saveBest(){store.set('mq_g49_best4',String(S.best4));store.set('mq_g49_best5',String(S.best5))}
+/* ---------- 状态 ---------- */
+var S={
+  mode:4,n:4,secret:[],cur:[],hist:[],advLeft:3,
+  phase:'menu',            /* menu | input | over */
+  advSeq:0,candCount:0,sndOn:false,
+  best4:0,best5:0,rng:null
+};
+function starsFor(steps,n){
+  if(n===4)return steps<=6?3:(steps<=8?2:1);
+  return steps<=7?3:(steps<=9?2:1);
+}
+/* ---------- 判定（A=同位同数；互异数字下 B=共同数-A） ---------- */
+function judge(g,s){
+  var a=0,i,m={};
+  for(i=0;i<s.length;i++)m[s[i]]=true;
+  var common=0;
+  for(i=0;i<g.length;i++){if(m[g[i]])common++;if(g[i]===s[i])a++}
+  return {a:a,b:common-a};
+}
+/* ---------- 全排列枚举器（懒生成缓存） ---------- */
+var _permCache={};
+function fullPerms(n){
+  if(_permCache[n])return _permCache[n];
+  var res=[],used=new Array(10),cur=[];
+  for(var i=0;i<10;i++)used[i]=false;
+  (function rec(){
+    if(cur.length===n){res.push(cur.slice());return}
+    for(var d=0;d<10;d++){
+      if(used[d])continue;
+      used[d]=true;cur.push(d);rec();cur.pop();used[d]=false;
+    }
+  })();
+  _permCache[n]=res;
+  return res;
+}
+function candidateList(){
+  var pool=fullPerms(S.n),out=[],i,j;
+  for(i=0;i<pool.length;i++){
+    var c=pool[i],ok=true;
+    for(j=0;j<S.hist.length;j++){
+      var f=judge(c,S.hist[j].g);
+      if(f.a!==S.hist[j].a||f.b!==S.hist[j].b){ok=false;break}
+    }
+    if(ok)out.push(c);
+  }
+  return out;
+}
+function recountCand(){S.candCount=candidateList().length;updCandHud()}
+/* ---------- 音效（默认关，WebAudio 程序化） ---------- */
+var AC=null;
+function ac(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}return AC}
+function beep(f,d,type,vol,slide){
+  if(!S.sndOn)return; var a=ac(); if(!a)return;
+  try{
+    var o=a.createOscillator(),g=a.createGain(),t=a.currentTime;
+    o.type=type||'sine'; o.frequency.setValueAtTime(f,t);
+    if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(40,slide),t+d);
+    g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(vol||.12,t+.012);
+    g.gain.exponentialRampToValueAtTime(.0001,t+d);
+    o.connect(g); g.connect(a.destination); o.start(t); o.stop(t+d+.03);
+  }catch(e){}
+}
+var SND={
+  key:function(){beep(880,.035,'square',.05,660)},
+  send:function(){beep(620,.05,'triangle',.1);setTimeout(function(){beep(880,.05,'triangle',.08)},70);setTimeout(function(){beep(620,.04,'triangle',.06)},140)},
+  print:function(){beep(340,.07,'sawtooth',.04,300)},
+  lowB:function(){beep(210,.16,'sine',.09,150)},
+  advise:function(){beep(740,.06,'triangle',.09);setTimeout(function(){beep(980,.08,'triangle',.08)},90)},
+  win:function(){[520,660,780,990,1240].forEach(function(f,i){setTimeout(function(){beep(f,.16,'triangle',.12)},i*95)})},
+  fail:function(){[300,220].forEach(function(f,i){setTimeout(function(){beep(f,.22,'sine',.11)},i*180)})},
+  ui:function(){beep(500,.06,'sine',.1)}
+};
+/* ---------- DOM ---------- */
+var el={
+  menu:document.getElementById('menu'),game:document.getElementById('game'),
+  tape:document.getElementById('tape'),curRow:document.getElementById('cur-row'),
+  cand:document.getElementById('cand'),advN:document.getElementById('adv-n'),
+  mRec:document.getElementById('m-rec'),
+  keys:document.querySelectorAll('#pad .key[data-k]'),
+  keyDel:document.getElementById('key-del'),keySend:document.getElementById('key-send'),
+  endov:document.getElementById('endov'),endT:document.getElementById('end-t'),
+  endStars:document.getElementById('end-stars'),endSteps:document.getElementById('end-steps'),
+  endSecret:document.getElementById('end-secret'),endBest:document.getElementById('end-best'),
+  wave:document.getElementById('wave'),btnAdvise:document.getElementById('btn-advise'),
+  btnGiveup:document.getElementById('btn-giveup')
+};
+function starSVG(on){
+  return '<svg viewBox="0 0 24 24"><path d="M12 2.6l2.8 6.1 6.6.7-4.9 4.5 1.3 6.5L12 17l-5.8 3.4 1.3-6.5-4.9-4.5 6.6-.7z" fill="'+(on?'#e8d8a4':'rgba(232,216,164,.16)')+'" stroke="'+(on?'rgba(160,126,44,.8)':'rgba(232,216,164,.3)')+'" stroke-width="1.1"/></svg>';
+}
+function excludedDigits(){
+  var ex={},i,j;
+  for(i=0;i<S.hist.length;i++){
+    var h=S.hist[i];
+    if(h.a===0&&h.b===0)for(j=0;j<h.g.length;j++)ex[h.g[j]]=true;
+  }
+  return ex;
+}
+/* ---------- 渲染 ---------- */
+function updCandHud(){el.cand.textContent=S.phase==='menu'?'—':String(S.candCount)}
+function renderKeys(){
+  var ex=excludedDigits(),i;
+  for(i=0;i<el.keys.length;i++){
+    var k=el.keys[i],d=+k.dataset.k;
+    k.classList.toggle('used',S.cur.indexOf(d)>=0||S.phase!=='input');
+    k.classList.toggle('excl',!!ex[d]&&S.cur.indexOf(d)<0);
+    k.disabled=(S.phase!=='input');
+  }
+  el.keyDel.disabled=(S.phase!=='input');
+  el.keySend.disabled=(S.phase!=='input'||S.cur.length!==S.n);
+}
+function renderCur(){
+  el.curRow.className=S.n===5?'m5':'';
+  var h='',i;
+  for(i=0;i<S.n;i++){
+    h+='<div class="ccell'+(i<S.cur.length?' fill':'')+'">'+(i<S.cur.length?S.cur[i]:'')+'</div>';
+  }
+  el.curRow.innerHTML=h;
+}
+function tapeRow(h,idx){
+  var d=document.createElement('div');
+  var cls='trow'+(h.a===0&&h.b===0?' zero':'');
+  var cells='',i;
+  for(i=0;i<h.g.length;i++)cells+='<div class="dcell">'+h.g[i]+'</div>';
+  var fb;
+  if(h.a===S.n)fb='<span class="badge ba">'+h.a+'A<i>0B</i></span>';
+  else if(h.a===0&&h.b===0)fb='<span class="badge bz">0A<i>0B</i></span>';
+  else fb='<span class="badge ba">'+h.a+'A<i></i></span><span class="badge bb">'+h.b+'B<i></i></span>';
+  d.className=cls;
+  d.innerHTML='<span class="no">'+pad2(idx+1)+'</span><span class="dg">'+cells+'</span><span class="fb">'+fb+'</span>';
+  return d;
+}
+function revealRow(secret){
+  var d=document.createElement('div');
+  d.className='trow reveal';
+  var cells='',i;
+  for(i=0;i<secret.length;i++)cells+='<div class="dcell">'+secret[i]+'</div>';
+  d.innerHTML='<span class="no rvtag">谜底</span><span class="dg">'+cells+'</span><span class="fb"><span class="rvtag">未能破译</span></span>';
+  return d;
+}
+function pad2(x){return (x<10?'0':'')+x}
+function appendRow(dom){
+  el.tape.classList.remove('empty');
+  el.tape.appendChild(dom);
+  el.tape.scrollTop=el.tape.scrollHeight;
+}
+/* ---------- 对局流程 ---------- */
+function mkSecret(rng,n){
+  var pool=[0,1,2,3,4,5,6,7,8,9],i,j,t;
+  for(i=pool.length-1;i>0;i--){j=(rng()*(i+1))|0;t=pool[i];pool[i]=pool[j];pool[j]=t}
+  return pool.slice(0,n);
+}
+function startGame(seed,mode){
+  S.mode=mode||4;S.n=S.mode;
+  S.rng=mulberry(seed===undefined?((Math.random()*1e9)|0):seed);
+  S.secret=mkSecret(S.rng,S.n);
+  S.cur=[];S.hist=[];S.advLeft=3;S.advSeq++;
+  S.phase='input';S.candCount=fullPerms(S.n).length;
+  el.tape.innerHTML='';el.tape.classList.add('empty');
+  hideAdv();closeEnd();
+  renderCur();renderKeys();updCandHud();
+  el.advN.textContent='×'+S.advLeft;
+  el.btnAdvise.disabled=false;el.btnGiveup.disabled=false;
+}
+function inputDigit(d){
+  if(S.phase!=='input'||S.cur.length>=S.n)return false;
+  if(S.cur.indexOf(d)>=0)return false;
+  S.cur.push(d);SND.key();
+  renderCur();renderKeys();
+  return true;
+}
+function delDigit(){
+  if(S.phase!=='input'||!S.cur.length)return;
+  S.cur.pop();SND.key();
+  renderCur();renderKeys();
+}
+function sendGuess(){
+  if(S.phase!=='input'||S.cur.length!==S.n)return {ok:false,why:'short'};
+  var g=S.cur.slice(),i;
+  for(i=0;i<S.hist.length;i++){
+    if(S.hist[i].g.join('')===g.join('')){
+      el.tape.classList.remove('shake');void el.tape.offsetWidth;el.tape.classList.add('shake');
+      SND.lowB();
+      return {ok:false,why:'dup'};
+    }
+  }
+  var f=judge(g,S.secret);
+  S.hist.push({g:g,a:f.a,b:f.b});
+  S.cur=[];
+  appendRow(tapeRow({g:g,a:f.a,b:f.b},S.hist.length-1));
+  SND.send();setTimeout(function(){SND.print()},160);
+  renderCur();
+  if(f.a===S.n){winRound();return {ok:true,a:f.a,b:f.b,win:true}}
+  recountCand();
+  renderKeys();
+  if(f.a===0&&f.b===0)SND.lowB();
+  return {ok:true,a:f.a,b:f.b,win:false};
+}
+/* 军师：候选集内随机建议（浮出展示，不自动填入） */
+function adviseTip(){
+  if(S.phase!=='input'||S.advLeft<=0)return null;
+  var cand=candidateList();
+  if(!cand.length)return null;
+  var pick=cand[(S.rng()*cand.length)|0];
+  S.advLeft--;
+  el.advN.textContent='×'+S.advLeft;
+  if(S.advLeft<=0)el.btnAdvise.disabled=true;
+  SND.advise();
+  showAdv(pick);
+  return pick;
+}
+function showAdv(pick){
+  hideAdv();
+  var seq=S.advSeq;
+  var d=document.createElement('div');
+  d.className='adv-float';
+  var cells='',i;
+  for(i=0;i<pick.length;i++)cells+='<span class="ad">'+pick[i]+'</span>';
+  d.innerHTML='<span class="alab">军师曰</span>'+cells;
+  document.getElementById('game').appendChild(d);
+  setTimeout(function(){if(S.advSeq===seq)hideAdv()},3600);
+}
+function hideAdv(){
+  var old=document.querySelector('.adv-float');
+  if(old&&old.parentNode)old.parentNode.removeChild(old);
+}
+function giveupRound(){
+  if(S.phase!=='input')return;
+  S.phase='over';S.advSeq++;
+  hideAdv();
+  appendRow(revealRow(S.secret));
+  SND.fail();
+  renderKeys();renderCur();
+  setTimeout(function(){showEnd(false,0,false)},600);
+}
+function winRound(){
+  S.phase='over';S.advSeq++;
+  hideAdv();
+  var steps=S.hist.length,star=starsFor(steps,S.n),isRec=false;
+  if(S.n===4){if(!S.best4||steps<S.best4){S.best4=steps;isRec=true}}
+  else{if(!S.best5||steps<S.best5){S.best5=steps;isRec=true}}
+  saveBest();
+  SND.win();
+  el.wave.classList.add('on');
+  renderKeys();
+  setTimeout(function(){el.wave.classList.remove('on');showEnd(true,star,isRec)},1000);
+}
+function showEnd(win,star,isRec){
+  el.endT.textContent=win?'密电破译':'未能破译';
+  el.endT.className='et '+(win?'win':'fail');
+  var k=star,h='';
+  if(win){for(var i=1;i<=3;i++)h+=starSVG(i<=k)}
+  el.endStars.innerHTML=h;
+  el.endSteps.style.display=win?'':'none';
+  if(win)el.endSteps.innerHTML='第 <b>'+S.hist.length+'</b> 步破译 · '+(S.n===4?'四码':'五码');
+  el.endSecret.style.display=win?'none':'flex';
+  if(!win){el.endSecret.innerHTML=S.secret.map(function(d){return '<span>'+d+'</span>'}).join('')}
+  var b=S.n===4?S.best4:S.best5;
+  el.endBest.innerHTML=(S.n===4?'四码':'五码')+'最快 <b>'+(b||'—')+'</b> 步'+(isRec?'<span class="rec">新最快</span>':'');
+  el.endov.classList.add('on');
+}
+function closeEnd(){el.endov.classList.remove('on')}
+function goMenu(){
+  S.phase='menu';S.advSeq++;
+  hideAdv();closeEnd();
+  el.game.classList.remove('on');el.menu.classList.add('on');
+  showRec();updCandHud();
+}
+function showRec(){
+  var b=loadBest();
+  el.mRec.innerHTML='四码最快 <b>'+(b.b4||'—')+'</b> 步 · 五码最快 <b>'+(b.b5||'—')+'</b> 步';
+}
+/* ---------- 输入 ---------- */
+document.getElementById('btn-start4').addEventListener('click',function(){SND.ui();enterGame(4)});
+document.getElementById('btn-start5').addEventListener('click',function(){SND.ui();enterGame(5)});
+function enterGame(mode){
+  startGame(undefined,mode);
+  el.menu.classList.remove('on');el.game.classList.add('on');
+}
+document.getElementById('btn-how').addEventListener('click',function(){SND.ui();floatHow()});
+document.getElementById('btn-home').addEventListener('click',function(){SND.ui();goMenu()});
+el.keyDel.addEventListener('click',function(){delDigit()});
+el.keySend.addEventListener('click',function(){sendGuess()});
+el.btnAdvise.addEventListener('click',function(){adviseTip()});
+el.btnGiveup.addEventListener('click',function(){giveupRound()});
+document.getElementById('btn-again').addEventListener('click',function(){SND.ui();startGame(undefined,S.mode)});
+document.getElementById('btn-back').addEventListener('click',function(){SND.ui();goMenu()});
+for(var _i=0;_i<el.keys.length;_i++){
+  (function(k){
+    k.addEventListener('click',function(){inputDigit(+k.dataset.k)});
+    k.addEventListener('contextmenu',function(e){e.preventDefault()});
+  })(el.keys[_i]);
+}
+document.addEventListener('contextmenu',function(e){e.preventDefault()});
+document.getElementById('btn-snd').addEventListener('click',function(){
+  S.sndOn=!S.sndOn;this.classList.toggle('off',!S.sndOn);this.textContent=S.sndOn?'♪':'♪̶';
+  store.set('mq_g49_sound',S.sndOn?'1':'0');
+  if(S.sndOn){var a=ac();if(a&&a.state==='suspended')a.resume();SND.ui()}
+});
+function floatHow(){
+  var old=document.getElementById('howtip');if(old)old.parentNode.removeChild(old);
+  var ovo=document.getElementById('howov');if(ovo)ovo.parentNode.removeChild(ovo);
+  var ov=document.createElement('div');ov.id='howov';
+  ov.style.cssText='position:fixed;left:0;top:0;right:0;bottom:0;z-index:98;background:rgba(10,16,20,.55)';
+  var tip=document.createElement('div');tip.id='howtip';
+  tip.style.cssText='position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:99;width:78%;max-width:300px;padding:20px 18px;border-radius:16px;background:linear-gradient(172deg,#243840,#16242a);border:1.4px solid rgba(194,179,132,.4);color:#e8e2d2;font-size:13px;line-height:2;box-shadow:0 16px 44px rgba(0,0,0,.6)';
+  tip.innerHTML='<b style="color:#e2d2a0">密电破译 · 玩法</b><br>电台收到一封密电——0-9 中 n 个<b>互不相同</b>的暗码。<br>· 每发一封猜测，回执批注：<b style="color:#e8d8a4">A</b>=数字对且位置对；<b style="color:#9fb8a8">B</b>=数字在但位置错<br>· 例：谜底 1234，猜 1243 → <b>2A2B</b><br>· 全部猜中 = nA0B，破译成功<br>· <b>军师</b>×3：给一条仍可能的建议码<br>· 划线数字=已排除（0A0B 证伪）<br>· 星线：四码 6/8 步内三星二星，五码 7/9。';
+  var closeHow=function(){if(ov.parentNode)ov.parentNode.removeChild(ov);if(tip.parentNode)tip.parentNode.removeChild(tip)};
+  var x=document.createElement('div');x.textContent='✕';x.style.cssText='position:absolute;top:8px;right:12px;color:#7f97a0;font-size:15px;padding:4px';
+  x.onclick=closeHow;ov.onclick=closeHow;
+  tip.appendChild(x);document.body.appendChild(ov);document.body.appendChild(tip);
+}
+/* ---------- 启动 ---------- */
+(function boot(){
+  var b=loadBest();S.best4=b.b4;S.best5=b.b5;
+  S.sndOn=store.get('mq_g49_sound')==='1';
+  var sb=document.getElementById('btn-snd');
+  sb.classList.toggle('off',!S.sndOn);sb.textContent=S.sndOn?'♪':'♪̶';
+  showRec();updCandHud();
+})();
+
+
+</script>
+</body>
+</html>
