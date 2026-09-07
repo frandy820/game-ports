@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>雪夜滚球</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;position:fixed;background:#0b111c}
+body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;color:#dcebf0;
+  -webkit-user-select:none;user-select:none;touch-action:none}
+#app{position:relative;width:100%;max-width:520px;height:100%;margin:0 auto;overflow:hidden;
+  --sab:env(safe-area-inset-bottom,0px);
+  background:radial-gradient(120% 40% at 50% -4%,rgba(126,200,216,.12) 0%,rgba(126,200,216,0) 52%),#0b111c}
+#cv{position:absolute;left:0;width:100%;display:block;
+  top:calc(64px + env(safe-area-inset-top,0px));
+  height:calc(100% - 64px - env(safe-area-inset-top,0px))}
+#hud{position:absolute;top:0;left:0;right:0;min-height:64px;display:flex;align-items:center;
+  padding:env(safe-area-inset-top,0px) 14px 0;z-index:22;
+  background:linear-gradient(180deg,rgba(11,17,28,.95),rgba(11,17,28,.55) 78%,transparent);
+  transition:opacity .35s}
+#app.menu-on #hud{opacity:0;pointer-events:none}
+.hud-score{min-width:0;overflow:hidden}
+.hud-score b{display:block;font-size:21px;color:#b8e0ec;letter-spacing:.04em;text-shadow:0 0 14px rgba(126,200,216,.45)}
+.hud-score i{font-style:normal;font-size:9.5px;color:#6a8494;letter-spacing:.28em}
+.hud-mid{flex:1;text-align:center;min-width:0;padding:0 8px}
+.hud-mid .lives{display:inline-flex;gap:4px;vertical-align:middle;margin-right:10px}
+.hud-mid .lives i{font-style:normal;font-size:14px;color:#e07a6a;text-shadow:0 0 8px rgba(224,122,106,.5)}
+.hud-mid .lives i.off{color:rgba(224,122,106,.22);text-shadow:none}
+.hud-mid .stars{display:inline-flex;align-items:center;gap:5px;vertical-align:middle;
+  font-size:12.5px;color:#dcebf0;letter-spacing:.06em}
+.hud-mid .stars svg{display:block}
+.hud-mid i.lv{font-style:normal;font-size:9px;color:#6a8494;letter-spacing:.18em;display:block;margin-top:2px}
+.hud-right{display:flex;align-items:center;gap:10px}
+.hud-steps{font-size:11px;color:#aeccd8;letter-spacing:.05em;white-space:nowrap}
+.hud-steps b{color:#b8e0ec;font-size:14px;font-weight:700}
+#btn-snd,#btn-pause{width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,.16);
+  background:rgba(255,255,255,.06);color:#dcebf0;font-size:15px;line-height:1;cursor:pointer;flex:none}
+#btn-pause{font-size:13px}
+.ov{position:absolute;inset:0;z-index:20;display:none;align-items:center;justify-content:center;
+  background:rgba(5,8,14,.78);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+.ov.on{display:flex}
+#menu{position:absolute;inset:0;z-index:15;display:none;flex-direction:column;align-items:center;justify-content:center;
+  background:#0c1420;
+  background-image:radial-gradient(130% 55% at 50% -4%,#16222f 0%,rgba(22,34,47,0) 58%),
+  radial-gradient(120% 34% at 50% 106%,rgba(126,200,216,.22) 0%,rgba(126,200,216,0) 72%)}
+#menu.on{display:flex}
+#menu::after{content:'';position:absolute;left:10%;right:10%;bottom:calc(var(--sab,0px) + 42px);height:2px;
+  background:linear-gradient(90deg,transparent,rgba(184,224,236,.8),transparent);box-shadow:0 0 24px 5px rgba(126,200,216,.3)}
+.m-kicker{font-size:11.5px;letter-spacing:.42em;color:#7e94a4;margin-bottom:14px;padding-left:.42em}
+.m-title{font-size:38px;font-weight:800;letter-spacing:.14em;padding-left:.14em;
+  background:linear-gradient(180deg,#f2fafc,#b8e0ec 58%,#6aa8bc);-webkit-background-clip:text;background-clip:text;color:transparent;
+  text-shadow:0 6px 26px rgba(126,200,216,.22)}
+.m-sub{margin-top:10px;font-size:11px;letter-spacing:.3em;color:#d0e4ea;padding-left:.3em}
+.m-go{margin-top:36px;width:150px;padding:13px 0;border:none;border-radius:14px;cursor:pointer;
+  background:linear-gradient(180deg,#d6f0f8,#6aa8bc);color:#0b111c;font-size:16.5px;font-weight:700;
+  letter-spacing:.3em;padding-left:.3em;font-family:inherit;box-shadow:0 8px 26px rgba(126,200,216,.3)}
+.m-how{margin-top:20px;font-size:11px;line-height:2;color:#7e90a0;text-align:center;letter-spacing:.06em}
+.m-how b{color:#dcebf0;font-weight:600}
+.m-best{margin-top:18px;font-size:12px;color:#c8dce4;letter-spacing:.18em}
+.m-best b{color:#fff;font-size:15px;font-weight:700}
+.m-foot{position:absolute;bottom:calc(var(--sab,0px) + 16px);left:0;right:0;text-align:center;color:#7e94a4;font-size:11px;letter-spacing:.14em}
+.panel{width:min(330px,86%);padding:26px 22px 22px;border-radius:18px;text-align:center;position:relative;
+  background:linear-gradient(180deg,#16222f,#0c1420);border:1px solid rgba(255,255,255,.14);
+  box-shadow:0 18px 50px rgba(0,0,0,.6)}
+.panel.celebrate{border-color:rgba(184,224,236,.6);box-shadow:0 18px 50px rgba(0,0,0,.6),0 0 34px rgba(126,200,216,.22)}
+.panel h3{font-size:19px;letter-spacing:.22em;color:#f0f8fa;margin-bottom:8px}
+.panel.celebrate h3::before{content:'\2744 \2745 \2744';display:block;font-size:14px;letter-spacing:.5em;color:#b8e0ec;margin-bottom:7px;text-shadow:0 0 12px rgba(126,200,216,.6)}
+.ov.on .panel{animation:popin .42s cubic-bezier(.34,1.56,.64,1)}
+@keyframes popin{from{transform:scale(.9) translateY(10px);opacity:1}to{transform:scale(1) translateY(0);opacity:1}}
+.p-sub{font-size:12.5px;color:#7e94a4;line-height:2;margin-bottom:6px}
+.p-sub b{color:#b8e0ec;font-weight:600}
+.p-stats{display:flex;gap:8px;justify-content:center;margin:10px 0 2px}
+.p-stats div{flex:1;padding:8px 2px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)}
+.p-stats b{display:block;font-size:17px;color:#b8e0ec;font-weight:700}
+.p-stats i{font-style:normal;font-size:9px;color:#7e94a4;letter-spacing:.1em}
+.p-btns{display:flex;gap:10px;margin-top:16px}
+.p-btn{flex:1;padding:11px 0;border-radius:12px;cursor:pointer;font-family:inherit;font-size:13.5px;letter-spacing:.14em}
+.p-btn.gold{border:none;background:linear-gradient(180deg,#d6f0f8,#6aa8bc);color:#0b111c;font-weight:700}
+.p-btn.line{background:none;border:1px solid rgba(255,255,255,.22);color:#dcebf0}
+#banner{position:absolute;top:30%;left:0;right:0;text-align:center;z-index:12;pointer-events:none;opacity:0;transition:opacity .3s}
+#banner.on{opacity:1}
+#banner b{display:block;font-size:30px;font-weight:800;letter-spacing:.42em;padding-left:.42em;color:#b8e0ec;
+  text-shadow:0 0 26px rgba(126,200,216,.7),0 4px 14px rgba(0,0,0,.7)}
+#banner.on b{animation:bannerIn .45s ease-out}
+@keyframes bannerIn{from{transform:scale(.86);letter-spacing:.14em}}
+#banner i{display:block;margin-top:6px;font-style:normal;font-size:11.5px;letter-spacing:.3em;color:#dcebf0}
+.hud-mid .lives.low i:not(.off){animation:lifeLow 1s infinite}
+@keyframes lifeLow{50%{opacity:.4}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div class="hud-score"><b id="score">0</b><i>得 分</i></div>
+    <div class="hud-mid">
+      <span class="lives" id="lives-i"><i>♥</i><i>♥</i><i>♥</i></span>
+      <span class="stars"><svg width="13" height="13" viewBox="0 0 13 13"><path d="M6.5 1 L6.5 12 M2 3.5 L11 9.5 M11 3.5 L2 9.5" stroke="#bfe8f2" stroke-width="1.4"/><circle cx="6.5" cy="6.5" r="1.6" fill="#bfe8f2"/></svg><b id="star-i">0/4</b></span>
+      <i class="lv" id="lv-i">LEVEL 1 · 8</i>
+    </div>
+    <div class="hud-right">
+      <div class="hud-steps">个头 <b id="step-i">10</b></div>
+      <button id="btn-pause" aria-label="暂停">Ⅱ</button>
+      <button id="btn-snd" aria-label="声音">♪̶</button>
+    </div>
+  </div>
+  <canvas id="cv"></canvas>
+  <div id="banner"><b id="banner-b"></b><i id="banner-i"></i></div>
+
+  <div id="menu" class="on">
+    <div class="m-kicker">SNOW ROLL · 庙 会 雪 道 滚 雪 球</div>
+    <div class="m-title">雪夜滚球</div>
+    <div class="m-sub">球 自 己 滚 · 你 管 跳</div>
+    <button class="m-go" id="btn-go">滚 起 来</button>
+    <div class="m-best" id="m-best">最佳 <b>0</b></div>
+    <div class="m-how"><b>点按画面任意处=起跳</b>，雪球自己往前滚，空中不沾雪<br><b>越大撞得越狠</b>：雪堆随手碎，小雪人大雪人要养够了个头才撞得动（撞了掉一层雪）<br><b>冰墙雪沟要跳</b>，低木梁要瘦——大有大的难处</div>
+    <div class="m-foot">雪 夜 滚 球 · 大 有 大 的 难 处</div>
+  </div>
+
+  <div class="ov" id="pause-ov">
+    <div class="panel">
+      <h3>暂 停</h3>
+      <div class="p-sub" id="pause-sub">雪球歇在半坡</div>
+      <div class="p-btns">
+        <button class="p-btn gold" id="btn-resume">继续滚</button>
+        <button class="p-btn line" id="btn-restart">从头开始</button>
+        <button class="p-btn line" id="btn-quit">回雪道口</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ov" id="end-ov">
+    <div class="panel" id="end-panel">
+      <h3 id="end-title">到 灯 门 了</h3>
+      <div class="p-sub" id="end-sub"></div>
+      <div class="p-stats" id="end-stats"></div>
+      <div class="p-btns">
+        <button class="p-btn gold" id="btn-retry">再开一局</button>
+        <button class="p-btn line" id="btn-menu">回雪道口</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+'use strict';
+/* ===== 常量（全确定性） ===== */
+var CFG={W:390,H:560,R0:10,RMAX:24,VB:270,GROW:.008,G:1600,VY:-540,
+  GROUND:470,BOTY:620,HAZ_R:18,WALL_W:26,BEAM_H:16,BEAM_T:6,MENLOSS:2.5,STEP:1/120};
+/* 解析：v=270√(10/r)（r10=270,r24≈174）；跳高 540²/3200=91px，滞空 0.675s，跳距 r10≈182/r24≈117 */
+/* 雪人档：kind 0 雪堆(needR0,+20,不掉雪) / 1 小雪人(needR13,rr16,+80,r-2.5) / 2 大雪人(needR18,rr22,+180,r-4) */
+/* 梁净空 clearH：贴地通过条件 2r≤clearH+BEAM_T(6) */
+function WLL(x,h){return{x:x,w:CFG.WALL_W,h:h}}       /* 冰墙（必跳） */
+function PIT(x,w){return{x:x,w:w}}                    /* 雪沟（必跳） */
+function BM(x,w,ch){return{x:x,w:w,clearH:ch}}        /* 低木梁（尺寸门） */
+function MEN(x,k){return{x:x,kind:k}}                 /* 可毁物 */
+function FK(x,y){return{x:x,y:y}}                     /* 雪花 */
+var KINFO=[{needR:0,rr:10,sc:20,loss:0},{needR:13,rr:16,sc:80,loss:CFG.MENLOSS},{needR:18,rr:22,sc:180,loss:4}];
+function mkL(n){
+  var WL=[],PT=[],BM2=[],OB=[],FKS=[],r0=10,goal=1040,len=1100;
+  function wl(){WL.push.apply(WL,arguments)}
+  function pt(){PT.push.apply(PT,arguments)}
+  function bm(){BM2.push.apply(BM2,arguments)}
+  function ob(){OB.push.apply(OB,arguments)}
+  function fk(){FKS.push.apply(FKS,arguments)}
+  var G=CFG.GROUND;
+  if(n===1){ /* 教学：雪堆+两沟教跳（直滚可过，无门槛物） */
+    ob(MEN(220,0),MEN(520,0),MEN(820,0));
+    pt(PIT(340,50),PIT(640,55));
+    fk(FK(150,G-16),FK(365,G-70),FK(545,G-16),FK(900,G-60));
+    goal=1040;len=1100;
+  }else if(n===2){ /* 小雪人阵：r0=11.3，滚到 400 处 r=14.1≥13 撞得动（够径撞/不够径跳的分档教学） */
+    r0=11.3;
+    ob(MEN(400,1),MEN(700,1),MEN(1050,1));
+    pt(PIT(250,50),PIT(880,55));
+    fk(FK(150,G-16),FK(370,G-70),FK(600,G-16),FK(820,G-60),FK(1130,G-16));
+    goal=1190;len=1250;
+  }else if(n===3){ /* 冰墙首现+雪人交替（跳/撞抉择） */
+    r0=11.5;
+    wl(WLL(320,60),WLL(830,60));
+    ob(MEN(540,1),MEN(1240,1),MEN(1300,1));
+    pt(PIT(640,55),PIT(1080,55));
+    fk(FK(180,G-16),FK(500,G-70),FK(760,G-60),FK(1050,G-16),FK(1360,G-60));
+    goal=1410;len=1470;
+  }else if(n===4){ /* 低梁初现+大雪人（瘦身演示：直滚可过梁，大雪人是分不是必需） */
+    r0=13;
+    ob(MEN(350,1),MEN(700,2),MEN(1050,2));
+    bm(BM(880,60,36),BM(1150,60,40)); /* 直滚到 880 r=19.6≤21 / 1150 r=21.8≤23 */
+    pt(PIT(200,48),PIT(540,52));
+    fk(FK(150,G-16),FK(430,G-70),FK(620,G-16),FK(1000,G-60),FK(1230,G-16));
+    goal=1240;len=1300;
+  }else if(n===5){ /* 墙密长道：连跳控径（跳=不沾雪） */
+    r0=12;
+    wl(WLL(380,64),WLL(700,68),WLL(1000,72));
+    ob(MEN(510,1),MEN(940,1),MEN(1160,2));
+    pt(PIT(200,52),PIT(1340,55));
+    fk(FK(150,G-16),FK(310,G-70),FK(450,G-16),FK(760,G-60),FK(1080,G-16),FK(1290,G-60));
+    goal=1480;len=1540;
+  }else if(n===6){ /* 双梁（直滚均可达：560 处 r=16.6≤18 / 1020 处 r=20.3≤22）+大雪人拿分瘦身 */
+    r0=12.5;
+    bm(BM(560,60,30),BM(1020,60,38));
+    ob(MEN(420,2),MEN(640,1),MEN(840,2));
+    pt(PIT(250,48),PIT(1180,55));
+    fk(FK(160,G-16),FK(360,G-70),FK(740,G-16),FK(940,G-60),FK(1100,G-16),FK(1280,G-60));
+    goal=1340;len=1400;
+  }else if(n===7){ /* 必须瘦身关：梁 1290 需 r≤18，直滚 r=22.6——1020 大+1180 小瘦身（1180 与梁间留贴地带，禁塞第二个雪人：二跳弧高91>梁净空30=空中撞梁） */
+    r0=13;
+    wl(WLL(320,64),WLL(880,72));
+    pt(PIT(540,55),PIT(1450,60));
+    ob(MEN(710,1),MEN(1020,2),MEN(1180,1),MEN(1620,1));
+    bm(BM(1290,60,30));
+    fk(FK(180,G-16),FK(460,G-70),FK(620,G-16),FK(830,G-60),FK(980,G-16),FK(1100,G-70),FK(1400,G-16),FK(1700,G-60));
+    goal=1700;len=1760;
+  }else{ /* L8 终局：全要素；双碎瘦身链 640/980（实测 r 波浪 15.3→12.8/15.5→13.0）+雪堆 1180/1760k0 恒碎（needR0：低 r 链 11.8 跳沟落地也撞得动，防贴脸死）+软门禁梁 1240ch34（贴地限 r≤20：撞碎链 r≈12-13 与全跳链 r≈18 均可钻，仅罚不撞不跳极端链）；1400 大雪人 needR18 动态分档（r≥18 可撞=180 分瘦身爽点，<18 必跳），跳窗 [1320,1374] 与梁水平区 [1224,1319] 已脱开；沟后落带只放撞得动物（640/1180k0/1760k0）；1400 距沟 1600=200≥J+26 */
+    r0=13;
+    wl(WLL(350,56),WLL(710,64),WLL(1860,72));
+    pt(PIT(520,55),PIT(1040,55),PIT(1600,55));
+    ob(MEN(640,1),MEN(980,1),MEN(1180,0),MEN(1400,2),MEN(1760,0));
+    bm(BM(1240,60,34));
+    fk(FK(200,G-16),FK(450,G-70),FK(600,G-16),FK(820,G-60),FK(1140,G-16),FK(1200,G-70),FK(1450,G-16),FK(1720,G-60));
+    goal=1960;len=2020;
+  }
+  return{n:n,walls:WL,pits:PT,beams:BM2,objs:OB,flakes:FKS,r0:r0,goal:goal,len:len};
+}
+var LEVELS=[1,2,3,4,5,6,7,8].map(mkL);
+/* ===== 状态 ===== */
+var S={mode:'menu',level:1,score:0,best:0,muted:true,
+  bx:0,by:0,vy:0,onG:true,r:10,lives:3,flakeN:0,flakeTot:4,deaths:0,taps:0,smashN:0,
+  smashed:[],got:[],phase:'roll',waitT:0,parts:[],floats:[],bannerT:0,flash:0,camX:0,rot:0,_lt:0,
+  _nohaz:0,_fz:0,_drop:0};
+var el={};
+function $(i){return document.getElementById(i)}
+function init(){
+  ['cv','hud','score','lives-i','star-i','lv-i','step-i','btn-snd','btn-pause','menu','btn-go','m-best',
+   'banner','banner-b','banner-i','pause-ov','pause-sub','btn-resume','btn-restart','btn-quit','end-ov','end-panel',
+   'end-title','end-sub','end-stats','btn-retry','btn-menu'].forEach(function(k){el[k]=$(k)});
+  S.best=+load('g61_best',0)||0;
+  el['m-best'].innerHTML='最佳 <b>'+S.best+'</b>';
+  el['btn-snd'].textContent=S.muted?'♪̶':'♪';
+  bind();resize();
+  document.getElementById('app').classList.add('menu-on');
+  requestAnimationFrame(loop);
+}
+var store={};
+function load(k,d){try{var v=localStorage.getItem(k);return v===null?d:v}catch(e){return k in store?store[k]:d}}
+function save(k,v){try{localStorage.setItem(k,v)}catch(e){store[k]=v}}
+/* ===== 局程 ===== */
+function loadLevel(n){
+  var L=LEVELS[n-1];
+  S.r=L.r0;S.bx=50;S.by=CFG.GROUND-S.r;S.vy=0;S.onG=true;
+  S.flakeN=0;S.flakeTot=L.flakes.length;
+  S.got=L.flakes.map(function(){return false});
+  S.smashed=L.objs.map(function(){return false});
+  S.smashN=0;S.phase='roll';S.waitT=0;S.parts=[];S.floats=[];S._drop=0;
+  S.bannerT=0;el.banner.className='';
+  S.camX=Math.max(0,Math.min(L.len-CFG.W,S.bx-160));
+  updHUD();
+}
+function startGame(){
+  S.mode='play';S.level=1;S.score=0;S.lives=3;S.deaths=0;S.taps=0;S.smashN=0;
+  S._nohaz=0;S.parts=[];S.floats=[];S.flash=0;S.bannerT=0;
+  loadLevel(1);
+  document.getElementById('app').classList.remove('menu-on');
+  el.menu.classList.remove('on');el['end-ov'].classList.remove('on');el['pause-ov'].classList.remove('on');
+}
+/* ===== 物理（确定性） ===== */
+function speed(){return CFG.VB*Math.sqrt(CFG.R0/Math.max(CFG.R0,S.r))}
+function hitRC(cx,cy,cr,x,y,w,h){ /* 圆-AABB（含容差内缩 2） */
+  var nx=Math.max(x,Math.min(cx,x+w)),ny=Math.max(y,Math.min(cy,y+h));
+  var dx=cx-nx,dy=cy-ny;
+  return dx*dx+dy*dy<(cr-2)*(cr-2)&&cr>2;
+}
+function step(dt){
+  if(S.mode!=='play')return;
+  if(S.phase==='done'){
+    S.waitT+=dt;
+    if(S.waitT>0){
+      if(S.level>=8)endGame(true);
+      else{S.level++;loadLevel(S.level)}
+    }
+    fxStep(dt);return;
+  }
+  var L=LEVELS[S.level-1],i;
+  var v=speed();
+  S.bx+=v*dt;S.rot+=v*dt/Math.max(CFG.R0,S.r);
+  if(S.onG){
+    S.by=CFG.GROUND-S.r;
+    S.r=Math.min(CFG.RMAX,S.r+CFG.GROW*v*dt); /* 贴地沾雪 */
+    S.by=CFG.GROUND-S.r;
+  }else{
+    S.vy+=CFG.G*dt;S.by+=S.vy*dt;
+    if(S.vy>0&&S.by>=CFG.GROUND-S.r&&!S._drop){S.by=CFG.GROUND-S.r;S.onG=true;S.vy=0;SND.land()}
+  }
+  /* 雪沟：圆心入沟区且处于下落/贴地=坠落（_drop 置后必死，出沟不再被接住） */
+  for(i=0;i<L.pits.length;i++){var pt2=L.pits[i];
+    if(S.bx>pt2.x&&S.bx<pt2.x+pt2.w&&S.by>CFG.GROUND-S.r-1&&S.vy>=0){S.onG=false;S._drop=1;if(S.vy===0)S.vy=30}
+  }
+  /* 冰墙/低梁：圆-AABB */
+  if(!S._nohaz){
+    for(i=0;i<L.walls.length;i++){var w2=L.walls[i];
+      if(hitRC(S.bx,S.by,S.r,w2.x,CFG.GROUND-w2.h,w2.w,w2.h)){loseLife('撞 上 冰 墙','这堵得跳过去');return}
+    }
+    for(i=0;i<L.beams.length;i++){var bm=L.beams[i];
+      /* 尺寸门：水平重叠（±3）且球顶越过梁底+6 容差 → 2r>clearH+6 卡梁 */
+      if(S.bx+S.r-3>bm.x&&S.bx-S.r+3<bm.x+bm.w&&S.by-S.r+6<CFG.GROUND-bm.clearH){
+        loseLife('卡 在 梁 下','太胖了，撞雪人瘦身');return}
+    }
+  }
+  /* 可毁物（雪堆/雪人）：圆-圆 */
+  for(i=0;i<L.objs.length;i++){
+    if(S.smashed[i])continue;
+    var o=L.objs[i],ki=KINFO[o.kind];
+    var oy=CFG.GROUND-ki.rr*0.9;
+    var dd=Math.hypot(S.bx-o.x,S.by-oy);
+    if(dd<S.r+ki.rr-3){
+      if(S.r>=ki.needR){ /* 撞毁：得分掉雪 */
+        S.smashed[i]=true;S.smashN++;
+        S.score+=ki.sc;
+        if(ki.loss>0)S.r=Math.max(CFG.R0,S.r-ki.loss);
+        smashFx(o,ki);SND.smash();addFloat(o.x,CFG.GROUND-ki.rr-8,'+'+ki.sc);
+        if(ki.loss>0)addFloat(o.x,CFG.GROUND-ki.rr-24,'个头 '+Math.floor(S.r));
+        updHUD();
+      }else if(!S._nohaz){loseLife('雪 人 太 硬','养到个头 '+ki.needR+' 再来撞');return}
+    }
+  }
+  /* 雪花 */
+  for(i=0;i<L.flakes.length;i++){
+    if(S.got[i])continue;
+    var f=L.flakes[i];
+    if(Math.hypot(S.bx-f.x,S.by-f.y)<CFG.HAZ_R){
+      S.got[i]=true;S.flakeN++;S.score+=5;
+      SND.star();addFloat(f.x,f.y,'+5');updHUD();
+    }
+  }
+  /* 坠沟 */
+  if(S.by>CFG.BOTY){loseLife('掉 进 沟 里','这沟得跳过去');return}
+  /* 终点（goal=数字 x 坐标） */
+  if(S.bx>=L.goal){levelUp();return}
+  /* 相机 */
+  var targ=Math.max(0,Math.min(L.len-CFG.W,S.bx-160));
+  S.camX+=(targ-S.camX)*Math.min(1,dt*8);
+  fxStep(dt);
+}
+function loseLife(b,sub){
+  var L=LEVELS[S.level-1];
+  S.lives--;S.deaths++;flashFx();
+  updHUD();
+  if(S.lives<=0){endGame(false);return}
+  S.r=L.r0;S.bx=50;S.by=CFG.GROUND-S.r;S.vy=0;S.onG=true;S.camX=0;S._drop=0;
+  banner(b,'剩 '+S.lives+' 颗球 · 回雪道口');SND.foul();
+}
+function levelUp(){
+  var bonus=S.lives*30,base=100+S.level*25;
+  S.score+=base+bonus;
+  el['banner-b'].textContent='到 灯 门';
+  el['banner-i'].textContent='收雪 '+S.flakeN+'/'+S.flakeTot+' · 剩命 '+S.lives+' 换 '+bonus+' 分';
+  el.banner.className='on';S.bannerT=1.6;S.flash=.35;
+  SND.level();S.phase='done';S.waitT=-1.2;
+  updHUD();
+}
+function endGame(allClear){
+  S.mode='over';
+  var nb=S.score>S.best&&S.score>0;
+  if(nb){S.best=S.score;save('g61_best',S.best);el['m-best'].innerHTML='最佳 <b>'+S.best+'</b>'}
+  var panel=el['end-panel'];
+  panel.classList.toggle('celebrate',nb||!!allClear);
+  el['end-title'].textContent=allClear?'八段雪道全滚完':(nb?'球 随 雪 涨':'歇 在 半 道');
+  el['end-sub'].innerHTML=allClear?'八段雪道全过 · 总分 <b>'+S.score+'</b>':
+    '总分 <b>'+S.score+'</b> · 滚到第 '+S.level+' 段'+(nb?' · 新纪录':' · 纪录 '+S.best);
+  el['end-stats'].innerHTML=
+    '<div><b>'+S.smashN+'</b><i>撞毁数</i></div>'+
+    '<div><b>'+S.deaths+'</b><i>损球数</i></div>'+
+    '<div><b>'+S.lives+'</b><i>剩命</i></div>';
+  el['end-ov'].classList.add('on');SND.end(nb);
+}
+function toMenu(){
+  if((S.mode==='play'||S.mode==='pause')&&S.score>S.best&&S.score>0){S.best=S.score;save('g61_best',S.best);el['m-best'].innerHTML='最佳 <b>'+S.best+'</b>'}
+  S.mode='menu';S.parts=[];S.floats=[];
+  document.getElementById('app').classList.add('menu-on');
+  el['pause-ov'].classList.remove('on');el['end-ov'].classList.remove('on');el.menu.classList.add('on');
+}
+function addFloat(x,y,txt){S.floats.push({x:x,y:y,t:0,txt:txt})}
+function banner(b,sub){
+  el['banner-b'].textContent=b;el['banner-i'].textContent=sub;
+  el.banner.className='on';S.bannerT=1.4;
+}
+function updHUD(){
+  el.score.textContent=S.score;
+  var lv=el['lives-i'];
+  if(lv){var s='';
+    for(var i=0;i<3;i++)s+='<i'+(i<S.lives?'':' class="off"')+'>♥</i>';
+    lv.innerHTML=s;
+    lv.classList.toggle('low',S.lives===1)}
+  el['star-i'].textContent=S.flakeN+'/'+S.flakeTot;
+  el['lv-i'].textContent='LEVEL '+S.level+' · 8';
+  el['step-i'].textContent=Math.floor(S.r);
+}
+/* ===== 特效 ===== */
+function smashFx(o,ki){
+  var i;
+  for(i=0;i<10;i++){var a=Math.PI*Math.random(),sp=40+Math.random()*60;
+    S.parts.push({x:o.x+(Math.random()-.5)*ki.rr,y:CFG.GROUND-ki.rr-(Math.random())*ki.rr,
+      vx:Math.cos(a)*sp,vy:-Math.abs(Math.sin(a))*sp-40,
+      c:'#e8f2f6',s:2.2+Math.random()*2,t:0,life:.55,grav:300,rot:Math.random()*3})}
+}
+function flashFx(){S.flash=.3}
+function fxStep(dt){
+  var i;
+  for(i=S.parts.length-1;i>=0;i--){var q=S.parts[i];
+    q.t+=dt;q.x+=q.vx*dt;q.y+=q.vy*dt;q.vy+=(q.grav||150)*dt;
+    if(q.t>(q.life||.7))S.parts.splice(i,1)}
+  for(i=S.floats.length-1;i>=0;i--){var f=S.floats[i];
+    f.t+=dt;f.y-=30*dt;if(f.t>1)S.floats.splice(i,1)}
+  if(S.bannerT>0){S.bannerT-=dt;if(S.bannerT<=0)el.banner.className=''}
+  if(S.flash>0)S.flash=Math.max(0,S.flash-dt);
+}
+/* ===== 渲染 ===== */
+var ctx=null,dpr=1,cvW=390,cvH=560;
+var BGLN=(function(){var a=[],s=77,i;
+  function rnd(){s=(s*1103515245+12345)&0x7fffffff;return s/0x7fffffff}
+  for(i=0;i<16;i++)a.push({x:i*130+rnd()*60,y:100+rnd()*200,r:4.5+rnd()*2.5});
+  return a})();
+var SNOW=(function(){var a=[],s=555,i;
+  function rnd(){s=(s*1103515245+12345)&0x7fffffff;return s/0x7fffffff}
+  for(i=0;i<34;i++)a.push({x:rnd()*400,y:rnd()*520,r:1+rnd()*1.6,ph:rnd()*6.28,sp:26+rnd()*30});
+  return a})();
+var MTN=(function(){ /* 远山两层 */
+  return[{para:.12,pts:[0,90,70,60,150,95,240,55,330,92,420,62,500,96],c:'#141d2c'},
+         {para:.22,pts:[0,110,90,75,180,108,280,70,380,105,470,80,560,110],c:'#101825'}]})();
+function resize(){
+  var cv=el.cv;if(!cv)return;
+  var rect=cv.getBoundingClientRect();
+  dpr=Math.min(2,window.devicePixelRatio||1);
+  cvW=rect.width;cvH=rect.height;
+  cv.width=cvW*dpr;cv.height=cvH*dpr;
+  ctx=cv.getContext('2d');if(ctx)ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+function sx(x){return (x-S.camX)*cvW/CFG.W}
+function sy(y){return y*cvH/CFG.H}
+var _acc=0;
+function loop(t){
+  requestAnimationFrame(loop);
+  var dt=Math.min(.05,(t-(loop.t||t))/1000);loop.t=t;
+  if(S.mode==='play'&&!S._fz){
+    _acc+=dt;var n2=0;
+    while(_acc>=CFG.STEP&&n2++<6){step(CFG.STEP);_acc-=CFG.STEP}
+  }else{
+    if(S.mode!=='pause')fxStep(dt); /* 暂停=特效同冻结 */
+  }
+  if(ctx)render(t);
+}
+function render(t){
+  var W=cvW,H=cvH,i,L=LEVELS[Math.max(0,S.level-1)];
+  ctx.clearRect(0,0,W,H);
+  /* 冬夜天 */
+  var g0=ctx.createLinearGradient(0,0,0,H);
+  g0.addColorStop(0,'#131e30');g0.addColorStop(.6,'#0e1622');g0.addColorStop(1,'#0a1018');
+  ctx.fillStyle=g0;ctx.fillRect(0,0,W,H);
+  /* 远山（视差） */
+  for(i=0;i<MTN.length;i++){var m=MTN[i];
+    ctx.fillStyle=m.c;ctx.beginPath();
+    var off=(-S.camX*m.para)%560;
+    ctx.moveTo(off-560,sy(m.pts[m.pts.length-1]));
+    for(var k2=0;k2<m.pts.length;k2+=2){
+      var mx=off-560+m.pts[k2];ctx.lineTo(mx,sy(m.pts[k2+1]));
+    }
+    ctx.lineTo(off+560,sy(m.pts[m.pts.length-1]));ctx.lineTo(off+560,sy(470));ctx.lineTo(off-560,sy(470));
+    ctx.closePath();ctx.fill();
+  }
+  /* 冷青灯笼串（视差 0.5） */
+  for(i=0;i<BGLN.length;i++){var ln=BGLN[i];
+    var px=(ln.x-S.camX*.5)*cvW/CFG.W;
+    if(px<-30||px>W+30)continue;
+    ctx.strokeStyle='rgba(90,120,140,.35)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(px,sy(ln.y-24));ctx.lineTo(px,sy(ln.y));ctx.stroke();
+    var lg=ctx.createRadialGradient(px,sy(ln.y),1,px,sy(ln.y),sy(ln.r)*2.4);
+    lg.addColorStop(0,'rgba(126,200,216,.9)');lg.addColorStop(1,'rgba(126,200,216,0)');
+    ctx.globalAlpha=.3;ctx.fillStyle=lg;
+    ctx.beginPath();ctx.arc(px,sy(ln.y),sy(ln.r)*2.4,0,7);ctx.fill();
+    ctx.globalAlpha=.9;ctx.fillStyle='#7ec8d8';
+    ctx.beginPath();ctx.arc(px,sy(ln.y),sy(ln.r),0,7);ctx.fill();
+    ctx.globalAlpha=1}
+  /* 雪道 */
+  drawGround(L);
+  /* 终点灯门 */
+  drawGoal(L,t);
+  /* 障碍 */
+  for(i=0;i<L.walls.length;i++)drawWall(L.walls[i]);
+  for(i=0;i<L.beams.length;i++)drawBeam(L.beams[i],t);
+  for(i=0;i<L.objs.length;i++)if(!S.smashed[i])drawObj(L.objs[i]);
+  for(i=0;i<L.flakes.length;i++)if(!S.got[i])drawFlake(L.flakes[i],t);
+  /* 首跳引导 */
+  if(S.mode==='play'&&S.taps===0)drawGuide(t);
+  /* 雪球 */
+  drawBall();
+  /* 粒子 */
+  for(i=0;i<S.parts.length;i++){
+    var q=S.parts[i],al2=Math.max(0,1-Math.pow(q.t/(q.life||.7),1.6));
+    ctx.globalAlpha=al2;ctx.fillStyle=q.c;
+    ctx.save();ctx.translate(sx(q.x),sy(q.y));ctx.rotate(q.rot||0);
+    ctx.fillRect(-q.s/2,-q.s/2,q.s,q.s);ctx.restore();ctx.globalAlpha=1;
+  }
+  /* 飘字 */
+  ctx.textAlign='center';
+  for(i=0;i<S.floats.length;i++){
+    var fl=S.floats[i];
+    ctx.globalAlpha=Math.max(0,1-fl.t);
+    ctx.font='700 13px system-ui';ctx.fillStyle='#bfe8f2';
+    ctx.fillText(fl.txt,sx(fl.x),sy(fl.y));ctx.globalAlpha=1;
+  }
+  /* 前景飘雪（纯视觉，基于 t 伪随机） */
+  for(i=0;i<SNOW.length;i++){var sn=SNOW[i];
+    var yy=(sn.y+t/1000*sn.sp)%560;
+    var xx=(sn.x+Math.sin(t/900+sn.ph)*14-S.camX*.8)%400;if(xx<0)xx+=400;
+    ctx.globalAlpha=.35+.3*Math.sin(t/500+sn.ph);
+    ctx.fillStyle='#dceef4';
+    ctx.beginPath();ctx.arc(xx*cvW/CFG.W,sy(yy),sn.r,0,7);ctx.fill()}
+  ctx.globalAlpha=1;
+  if(S.flash>0){ctx.fillStyle='rgba(224,122,106,'+(S.flash*.5)+')';ctx.fillRect(0,0,W,H)}
+}
+function drawGround(L){
+  var W=cvW;
+  /* 沟豁口 */
+  var y=sy(CFG.GROUND);
+  ctx.fillStyle='#0a0f16';
+  ctx.fillRect(0,y,W,cvH-y);
+  /* 雪面 */
+  var g=ctx.createLinearGradient(0,y-4,0,y+14);
+  g.addColorStop(0,'#dcebf2');g.addColorStop(.25,'#aecddc');g.addColorStop(1,'#5a7488');
+  ctx.fillStyle=g;ctx.fillRect(0,y-3,W,10);
+  /* 石板缝 */
+  ctx.strokeStyle='rgba(60,80,100,.5)';ctx.lineWidth=1;
+  var k=Math.floor(S.camX/46);
+  for(var j=0;j<11;j++){
+    var gx=(k*46+j*46-S.camX)*cvW/CFG.W;
+    ctx.beginPath();ctx.moveTo(gx,y+7);ctx.lineTo(gx-6,cvH);ctx.stroke();
+  }
+  /* 沟：把雪面挖开（先画雪面再覆黑沟） */
+  for(var i=0;i<L.pits.length;i++){var p=L.pits[i];
+    var x0=sx(p.x),x1=sx(p.x+p.w);
+    if(x1<-10||x0>cvW+10)continue;
+    ctx.fillStyle='#070b11';
+    ctx.fillRect(x0-2,y-4,x1-x0+4,cvH-y+4);
+    ctx.strokeStyle='rgba(126,200,216,.25)';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(x0-2,y-4);ctx.lineTo(x0+6,y+16);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(x1+2,y-4);ctx.lineTo(x1-6,y+16);ctx.stroke();
+  }
+}
+function drawWall(w2){
+  var x=sx(w2.x),y=sy(CFG.GROUND-w2.h),w=w2.w*cvW/CFG.W,h=sy(w2.h);
+  if(x>cvW+8||x+w<-8)return;
+  ctx.fillStyle='rgba(0,0,0,.4)';
+  ctx.fillRect(x+3,y+4,w,h);
+  var g=ctx.createLinearGradient(x,y,x+w,y+h);
+  g.addColorStop(0,'rgba(190,230,240,.85)');g.addColorStop(.5,'rgba(126,180,200,.75)');g.addColorStop(1,'rgba(80,130,160,.8)');
+  ctx.fillStyle=g;ctx.fillRect(x,y,w,h);
+  ctx.strokeStyle='rgba(230,248,252,.55)';ctx.lineWidth=1;
+  for(var k=8;k<h-4;k+=14){
+    ctx.beginPath();ctx.moveTo(x+2,y+k);ctx.lineTo(x+w-2,y+k);ctx.stroke();
+  }
+  ctx.strokeStyle='rgba(240,250,253,.7)';
+  ctx.strokeRect(x+.5,y+.5,w-1,h-1);
+}
+function drawBeam(bm,t){
+  var x=sx(bm.x),yb=sy(CFG.GROUND-bm.clearH-CFG.BEAM_H),w=bm.w*cvW/CFG.W,h=sy(CFG.BEAM_H);
+  if(x>cvW+8||x+w<-8)return;
+  /* 柱（视觉，在梁两端外侧） */
+  ctx.fillStyle='rgba(0,0,0,.4)';
+  ctx.fillRect(x+3,yb+4,w,h);
+  var g=ctx.createLinearGradient(0,yb,0,yb+h);
+  g.addColorStop(0,'#6a5238');g.addColorStop(.5,'#54402c');g.addColorStop(1,'#3a2c1e');
+  ctx.fillStyle=g;ctx.fillRect(x,yb,w,h);
+  ctx.fillStyle='rgba(200,180,140,.4)';
+  ctx.fillRect(x,yb,w,2);
+  /* 底面冰凌 */
+  ctx.fillStyle='rgba(190,235,245,.8)';
+  for(var k=6;k<w-4;k+=12){
+    var dl=3+2*Math.sin(t/400+k);
+    ctx.beginPath();ctx.moveTo(x+k,yb+h);ctx.lineTo(x+k+3,yb+h);ctx.lineTo(x+k+1.5,yb+h+dl);ctx.closePath();ctx.fill();
+  }
+  /* 净空提示刻度 */
+  ctx.strokeStyle='rgba(126,200,216,'+(.25+.12*Math.sin(t/300))+')';ctx.lineWidth=1;
+  ctx.setLineDash([3,4]);
+  ctx.beginPath();ctx.moveTo(x+4,yb+h+2);ctx.lineTo(x+w-4,yb+h+2);ctx.stroke();
+  ctx.setLineDash([]);
+}
+function drawObj(o){
+  var x=sx(o.x),G=CFG.GROUND;
+  if(o.kind===0){ /* 雪堆 */
+    if(x<-30||x>cvW+30)return;
+    var g=ctx.createLinearGradient(0,sy(G-14),0,sy(G));
+    g.addColorStop(0,'#f0f6fa');g.addColorStop(1,'#a8c4d4');
+    ctx.fillStyle=g;
+    ctx.beginPath();ctx.ellipse(x,sy(G),sy(20),sy(12),0,Math.PI,0);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.7)';
+    ctx.beginPath();ctx.ellipse(x-sy(4),sy(G-4),sy(7),sy(4),0,Math.PI,0);ctx.fill();
+    return;
+  }
+  var ki=KINFO[o.kind],rr=ki.rr;
+  if(x<-50||x>cvW+50)return;
+  var cy=sy(G-rr*0.9),cr=sy(rr);
+  ctx.fillStyle='rgba(0,0,0,.35)';
+  ctx.beginPath();ctx.ellipse(x+cr*.15,sy(G)+3,cr*.95,cr*.3,0,0,7);ctx.fill();
+  if(o.kind===2){ /* 大雪人：双球 */
+    var g2=ctx.createRadialGradient(x-cr*.3,cy-cr*.5,cr*.15,x,cy,cr*1.05);
+    g2.addColorStop(0,'#f8fcfe');g2.addColorStop(.5,'#d8e8f0');g2.addColorStop(1,'#9cb8c8');
+    ctx.fillStyle=g2;
+    ctx.beginPath();ctx.arc(x,cy,cr,0,7);ctx.fill();
+    ctx.beginPath();ctx.arc(x,cy-cr*1.15,cr*.68,0,7);ctx.fill();
+    /* 围巾 */
+    ctx.strokeStyle='#c86a5a';ctx.lineWidth=sy(3);
+    ctx.beginPath();ctx.moveTo(x-cr*.6,cy-cr*.55);ctx.lineTo(x+cr*.6,cy-cr*.6);ctx.stroke();
+    /* 胡萝卜鼻+黑眼 */
+    ctx.fillStyle='#e8964a';
+    ctx.beginPath();ctx.moveTo(x,cy-cr*1.15);ctx.lineTo(x+cr*.5,cy-cr*1.05);ctx.lineTo(x,cy-cr*1.02);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#2a3038';
+    ctx.beginPath();ctx.arc(x-cr*.24,cy-cr*1.28,sy(1.6),0,7);ctx.fill();
+    ctx.beginPath();ctx.arc(x+cr*.24,cy-cr*1.28,sy(1.6),0,7);ctx.fill();
+    ctx.fillStyle='#3a424c';
+    ctx.beginPath();ctx.arc(x,cy,sy(2),0,7);ctx.fill();
+    ctx.beginPath();ctx.arc(x,cy+cr*.4,sy(2),0,7);ctx.fill();
+  }else{ /* 小雪人：单球+帽 */
+    var g3=ctx.createRadialGradient(x-cr*.3,cy-cr*.4,cr*.15,x,cy,cr*1.05);
+    g3.addColorStop(0,'#f8fcfe');g3.addColorStop(.5,'#d8e8f0');g3.addColorStop(1,'#9cb8c8');
+    ctx.fillStyle=g3;
+    ctx.beginPath();ctx.arc(x,cy,cr,0,7);ctx.fill();
+    ctx.fillStyle='#5a8ab8';
+    ctx.fillRect(x-cr*.5,cy-cr*1.18,cr,cr*.3);
+    ctx.fillRect(x-cr*.3,cy-cr*1.5,cr*.6,cr*.4);
+    ctx.fillStyle='#e8964a';
+    ctx.beginPath();ctx.moveTo(x,cy-cr*.15);ctx.lineTo(x+cr*.45,cy-cr*.05);ctx.lineTo(x,cy);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#2a3038';
+    ctx.beginPath();ctx.arc(x-cr*.22,cy-cr*.35,sy(1.4),0,7);ctx.fill();
+    ctx.beginPath();ctx.arc(x+cr*.22,cy-cr*.35,sy(1.4),0,7);ctx.fill();
+  }
+  /* 门槛提示小字（needR） */
+  if(ki.needR>0){
+    ctx.fillStyle='rgba(126,200,216,.75)';
+    ctx.font='700 '+sy(8)+'px system-ui';ctx.textAlign='center';
+    ctx.fillText('个头'+ki.needR,x,cy-(o.kind===2?cr*1.9:cr*1.7));
+  }
+}
+function drawFlake(f,t){
+  var x=sx(f.x),y=sy(f.y);
+  if(x<-16||x>cvW+16)return;
+  var br=.6+.4*Math.sin(t/280+f.x);
+  ctx.strokeStyle='rgba(191,232,242,'+(.5*br+.3)+')';ctx.lineWidth=1.2;
+  var r=sy(6);
+  ctx.beginPath();
+  ctx.moveTo(x-r,y);ctx.lineTo(x+r,y);ctx.moveTo(x,y-r);ctx.lineTo(x,y+r);
+  ctx.moveTo(x-r*.7,y-r*.7);ctx.lineTo(x+r*.7,y+r*.7);ctx.moveTo(x-r*.7,y+r*.7);ctx.lineTo(x+r*.7,y-r*.7);
+  ctx.stroke();
+  ctx.fillStyle='rgba(230,246,250,'+(.6*br+.2)+')';
+  ctx.beginPath();ctx.arc(x,y,sy(1.5),0,7);ctx.fill();
+}
+function drawGoal(L,t){
+  var x=sx(L.goal),gy=sy(CFG.GROUND);
+  if(x<-70||x>cvW+70)return;
+  var br=.6+.3*Math.sin(t/380);
+  var topY=sy(CFG.GROUND-92);
+  var g=ctx.createLinearGradient(x,topY,x,gy);
+  g.addColorStop(0,'rgba(126,200,216,0)');g.addColorStop(.75,'rgba(126,200,216,'+(.22*br+.1)+')');g.addColorStop(1,'rgba(126,200,216,0)');
+  ctx.fillStyle=g;
+  ctx.fillRect(x-sy(30),topY,sy(60),gy-topY);
+  ctx.strokeStyle='#5a8898';ctx.lineWidth=sy(4);
+  ctx.beginPath();ctx.moveTo(x-sy(30),gy);ctx.lineTo(x-sy(30),topY+sy(10));ctx.stroke();
+  ctx.beginPath();ctx.moveTo(x+sy(30),gy);ctx.lineTo(x+sy(30),topY+sy(10));ctx.stroke();
+  /* 顶灯 */
+  var lg=ctx.createRadialGradient(x,topY+sy(6),1,x,topY+sy(6),sy(18));
+  lg.addColorStop(0,'rgba(214,240,248,'+(.5*br+.3)+')');lg.addColorStop(1,'rgba(126,200,216,0)');
+  ctx.fillStyle=lg;ctx.beginPath();ctx.arc(x,topY+sy(6),sy(18),0,7);ctx.fill();
+  ctx.fillStyle='#bfe8f2';
+  ctx.beginPath();ctx.arc(x,topY+sy(6),sy(7),0,7);ctx.fill();
+  ctx.fillStyle='#0b111c';ctx.font='800 '+sy(7)+'px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('门',x,topY+sy(6)+.5);ctx.textBaseline='alphabetic';
+}
+function drawGuide(t){
+  var br=.65+.3*Math.sin(t/420);
+  ctx.globalAlpha=br;
+  ctx.textAlign='center';ctx.font='11.5px system-ui';ctx.fillStyle='#7ec8d8';
+  ctx.fillText('点按画面任意处 = 起跳（空中不沾雪）',cvW/2,sy(300));
+  ctx.globalAlpha=1;
+}
+function drawBall(){
+  var x=sx(S.bx),y=sy(S.by),r=sy(S.r);
+  if(S.by<CFG.GROUND-S.r-1){ /* 空中无影 */
+  }else{
+    ctx.fillStyle='rgba(0,0,0,.3)';
+    ctx.beginPath();ctx.ellipse(x+r*.15,sy(CFG.GROUND)+3,r*.95,r*.25,0,0,7);ctx.fill();
+  }
+  var g=ctx.createRadialGradient(x-r*.35,y-r*.4,r*.12,x,y,r*1.05);
+  g.addColorStop(0,'#fbfeff');g.addColorStop(.45,'#e2eef4');g.addColorStop(.8,'#b0c8d6');g.addColorStop(1,'#7a98aa');
+  ctx.fillStyle=g;
+  ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();
+  /* 滚纹（随 rot 旋转的两条弧斑） */
+  ctx.save();ctx.translate(x,y);ctx.rotate(S.rot);
+  ctx.strokeStyle='rgba(140,170,188,.5)';ctx.lineWidth=Math.max(1,r*.09);
+  ctx.beginPath();ctx.arc(0,0,r*.62,.3,2.2);ctx.stroke();
+  ctx.beginPath();ctx.arc(0,0,r*.62,Math.PI+.3,Math.PI+2.2);ctx.stroke();
+  ctx.fillStyle='rgba(120,150,168,.35)';
+  ctx.beginPath();ctx.arc(r*.3,r*.15,r*.13,0,7);ctx.fill();
+  ctx.beginPath();ctx.arc(-r*.35,-r*.2,r*.1,0,7);ctx.fill();
+  ctx.restore();
+  ctx.fillStyle='rgba(255,255,255,.9)';
+  ctx.beginPath();ctx.ellipse(x-r*.36,y-r*.42,r*.26,r*.15,-.7,0,7);ctx.fill();
+  ctx.strokeStyle='rgba(30,50,60,.25)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.arc(x,y,r-.5,0,7);ctx.stroke();
+}
+/* ===== 音效 ===== */
+var SND=(function(){
+  var ac=null;
+  function ctxA(){if(!ac){try{ac=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}
+    if(ac&&ac.state==='suspended')ac.resume();return ac}
+  function tone(f,d,type,vol,slide){
+    if(S.muted)return;var a=ctxA();if(!a)return;
+    var o=a.createOscillator(),g=a.createGain();
+    o.type=type||'sine';o.frequency.value=f;
+    if(slide)o.frequency.exponentialRampToValueAtTime(slide,a.currentTime+d);
+    g.gain.value=vol||.15;g.gain.exponentialRampToValueAtTime(.001,a.currentTime+d);
+    o.connect(g);g.connect(a.destination);o.start();o.stop(a.currentTime+d);
+  }
+  return{land:function(){tone(150,.07,'sine',.05,240)},
+    smash:function(){tone(220,.12,'square',.06,90);tone(520,.06,'triangle',.05)},
+    star:function(){tone(920,.07,'triangle',.07);tone(1380,.09,'triangle',.045)},
+    foul:function(){tone(140,.16,'sawtooth',.05,110)},
+    level:function(){[392,494,587,784].forEach(function(f,i){setTimeout(function(){tone(f,.2,'triangle',.11)},i*110)})},
+    end:function(nb){[330,262,196].forEach(function(f,i){setTimeout(function(){tone(f,.3,'triangle',.1)},i*150)});
+      if(nb)setTimeout(function(){tone(880,.35,'triangle',.12)},480)},
+    ui:function(){tone(760,.05,'square',.05)},
+    resume:function(){ctxA()}};
+})();
+/* ===== 输入（tap=瞬时事件，无残留态面） ===== */
+function bind(){
+  el.cv.addEventListener('pointerdown',function(e){
+    if(e.button!==undefined&&e.button!==0)return;
+    SND.resume();
+    if(S.mode!=='play'||S.phase!=='roll')return;
+    var __t=Date.now();if(__t-S._lt<100)return;S._lt=__t; /* 多指/连击节流 */
+    if(!S.onG)return; /* 空中点按无效（无二段跳） */
+    S.vy=CFG.VY;S.onG=false;S.taps++;
+  });
+  el['btn-go'].addEventListener('click',function(){SND.resume();startGame();SND.ui()});
+  el['btn-snd'].addEventListener('click',function(){
+    S.muted=!S.muted;el['btn-snd'].textContent=S.muted?'♪̶':'♪';
+    if(!S.muted){SND.resume();SND.ui()}
+  });
+  el['btn-pause'].addEventListener('click',function(){
+    if(S.mode==='play'){
+      S.mode='pause';el['pause-ov'].classList.add('on');
+      var L=LEVELS[S.level-1],left=0,i;
+      for(i=0;i<S.got.length;i++)if(!S.got[i])left++;
+      el['pause-sub'].textContent='第 '+S.level+' 段 · 剩 '+S.lives+' 颗球 · 还有 '+left+' 片雪没收';SND.ui();
+    }
+  });
+  el['btn-resume'].addEventListener('click',function(){
+    if(S.mode==='pause'){S.mode='play';el['pause-ov'].classList.remove('on');SND.ui()}
+  });
+  el['btn-restart'].addEventListener('click',function(){
+    if(S.mode==='pause'){el['pause-ov'].classList.remove('on');
+      if(S.score>S.best&&S.score>0){S.best=S.score;save('g61_best',S.best);el['m-best'].innerHTML='最佳 <b>'+S.best+'</b>'}
+      startGame();SND.ui()}
+  });
+  el['btn-quit'].addEventListener('click',function(){toMenu();SND.ui()});
+  el['btn-menu'].addEventListener('click',function(){toMenu();SND.ui()});
+  el['btn-retry'].addEventListener('click',function(){SND.resume();startGame();SND.ui()});
+  el.cv.addEventListener('contextmenu',function(e){e.preventDefault()});
+  window.addEventListener('resize',function(){resize()});
+}
+init();
+
+</script>
+</body>
+</html>
