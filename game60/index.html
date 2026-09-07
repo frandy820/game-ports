@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>夜巷弹珠</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;position:fixed;background:#0e0c16}
+body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;color:#e8e4f0;
+  -webkit-user-select:none;user-select:none;touch-action:none}
+#app{position:relative;width:100%;max-width:520px;height:100%;margin:0 auto;overflow:hidden;
+  --sab:env(safe-area-inset-bottom,0px);
+  background:radial-gradient(120% 40% at 50% -4%,rgba(154,138,208,.12) 0%,rgba(154,138,208,0) 52%),#0e0c16}
+#cv{position:absolute;left:0;width:100%;display:block;
+  top:calc(64px + env(safe-area-inset-top,0px));
+  height:calc(100% - 64px - env(safe-area-inset-top,0px))}
+#hud{position:absolute;top:0;left:0;right:0;min-height:64px;display:flex;align-items:center;
+  padding:env(safe-area-inset-top,0px) 14px 0;z-index:22;
+  background:linear-gradient(180deg,rgba(14,12,22,.95),rgba(14,12,22,.55) 78%,transparent);
+  transition:opacity .35s}
+#app.menu-on #hud{opacity:0;pointer-events:none}
+.hud-score{min-width:0;overflow:hidden}
+.hud-score b{display:block;font-size:21px;color:#cfc0ee;letter-spacing:.04em;text-shadow:0 0 14px rgba(154,138,208,.45)}
+.hud-score i{font-style:normal;font-size:9.5px;color:#7a7296;letter-spacing:.28em}
+.hud-mid{flex:1;text-align:center;min-width:0;padding:0 8px}
+.hud-mid .lives{display:inline-flex;gap:4px;vertical-align:middle;margin-right:10px}
+.hud-mid .lives i{font-style:normal;font-size:14px;color:#e07a6a;text-shadow:0 0 8px rgba(224,122,106,.5)}
+.hud-mid .lives i.off{color:rgba(224,122,106,.22);text-shadow:none}
+.hud-mid .stars{display:inline-flex;align-items:center;gap:5px;vertical-align:middle;
+  font-size:12.5px;color:#e8e4f0;letter-spacing:.06em}
+.hud-mid .stars svg{display:block}
+.hud-mid i.lv{font-style:normal;font-size:9px;color:#7a7296;letter-spacing:.18em;display:block;margin-top:2px}
+.hud-right{display:flex;align-items:center;gap:10px}
+.hud-steps{font-size:11px;color:#c0b8d8;letter-spacing:.05em;white-space:nowrap}
+.hud-steps b{color:#cfc0ee;font-size:14px;font-weight:700}
+#btn-snd,#btn-pause{width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,.16);
+  background:rgba(255,255,255,.06);color:#e8e4f0;font-size:15px;line-height:1;cursor:pointer;flex:none}
+#btn-pause{font-size:13px}
+.ov{position:absolute;inset:0;z-index:20;display:none;align-items:center;justify-content:center;
+  background:rgba(6,5,12,.78);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+.ov.on{display:flex}
+#menu{position:absolute;inset:0;z-index:15;display:none;flex-direction:column;align-items:center;justify-content:center;
+  background:#100e1a;
+  background-image:radial-gradient(130% 55% at 50% -4%,#1c1830 0%,rgba(28,24,48,0) 58%),
+  radial-gradient(120% 34% at 50% 106%,rgba(154,138,208,.22) 0%,rgba(154,138,208,0) 72%)}
+#menu.on{display:flex}
+#menu::after{content:'';position:absolute;left:10%;right:10%;bottom:calc(var(--sab,0px) + 42px);height:2px;
+  background:linear-gradient(90deg,transparent,rgba(207,192,238,.8),transparent);box-shadow:0 0 24px 5px rgba(154,138,208,.3)}
+.m-kicker{font-size:11.5px;letter-spacing:.42em;color:#8a7fa8;margin-bottom:14px;padding-left:.42em}
+.m-title{font-size:38px;font-weight:800;letter-spacing:.14em;padding-left:.14em;
+  background:linear-gradient(180deg,#f2edfc,#cfc0ee 58%,#8a72c0);-webkit-background-clip:text;background-clip:text;color:transparent;
+  text-shadow:0 6px 26px rgba(154,138,208,.22)}
+.m-sub{margin-top:10px;font-size:11px;letter-spacing:.3em;color:#d8d0ec;padding-left:.3em}
+.m-go{margin-top:36px;width:150px;padding:13px 0;border:none;border-radius:14px;cursor:pointer;
+  background:linear-gradient(180deg,#e2d4fa,#8a72c0);color:#0e0c16;font-size:16.5px;font-weight:700;
+  letter-spacing:.3em;padding-left:.3em;font-family:inherit;box-shadow:0 8px 26px rgba(154,138,208,.3)}
+.m-how{margin-top:20px;font-size:11px;line-height:2;color:#8a80a4;text-align:center;letter-spacing:.06em}
+.m-how b{color:#e8e4f0;font-weight:600}
+.m-best{margin-top:18px;font-size:12px;color:#d0c8e4;letter-spacing:.18em}
+.m-best b{color:#fff;font-size:15px;font-weight:700}
+.m-foot{position:absolute;bottom:calc(var(--sab,0px) + 16px);left:0;right:0;text-align:center;color:#8a7fa8;font-size:11px;letter-spacing:.14em}
+.panel{width:min(330px,86%);padding:26px 22px 22px;border-radius:18px;text-align:center;position:relative;
+  background:linear-gradient(180deg,#1c1830,#100e1a);border:1px solid rgba(255,255,255,.14);
+  box-shadow:0 18px 50px rgba(0,0,0,.6)}
+.panel.celebrate{border-color:rgba(207,192,238,.6);box-shadow:0 18px 50px rgba(0,0,0,.6),0 0 34px rgba(154,138,208,.22)}
+.panel h3{font-size:19px;letter-spacing:.22em;color:#f4f0fa;margin-bottom:8px}
+.panel.celebrate h3::before{content:'\2726 \2727 \2726';display:block;font-size:14px;letter-spacing:.5em;color:#cfc0ee;margin-bottom:7px;text-shadow:0 0 12px rgba(154,138,208,.6)}
+.ov.on .panel{animation:popin .42s cubic-bezier(.34,1.56,.64,1)}
+@keyframes popin{from{transform:scale(.9) translateY(10px);opacity:1}to{transform:scale(1) translateY(0);opacity:1}}
+.p-sub{font-size:12.5px;color:#8a7fa8;line-height:2;margin-bottom:6px}
+.p-sub b{color:#cfc0ee;font-weight:600}
+.p-stats{display:flex;gap:8px;justify-content:center;margin:10px 0 2px}
+.p-stats div{flex:1;padding:8px 2px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)}
+.p-stats b{display:block;font-size:17px;color:#cfc0ee;font-weight:700}
+.p-stats i{font-style:normal;font-size:9px;color:#8a7fa8;letter-spacing:.1em}
+.p-btns{display:flex;gap:10px;margin-top:16px}
+.p-btn{flex:1;padding:11px 0;border-radius:12px;cursor:pointer;font-family:inherit;font-size:13.5px;letter-spacing:.14em}
+.p-btn.gold{border:none;background:linear-gradient(180deg,#e2d4fa,#8a72c0);color:#0e0c16;font-weight:700}
+.p-btn.line{background:none;border:1px solid rgba(255,255,255,.22);color:#e8e4f0}
+#banner{position:absolute;top:30%;left:0;right:0;text-align:center;z-index:12;pointer-events:none;opacity:0;transition:opacity .3s}
+#banner.on{opacity:1}
+#banner b{display:block;font-size:30px;font-weight:800;letter-spacing:.42em;padding-left:.42em;color:#cfc0ee;
+  text-shadow:0 0 26px rgba(154,138,208,.7),0 4px 14px rgba(0,0,0,.7)}
+#banner.on b{animation:bannerIn .45s ease-out}
+@keyframes bannerIn{from{transform:scale(.86);letter-spacing:.14em}}
+#banner i{display:block;margin-top:6px;font-style:normal;font-size:11.5px;letter-spacing:.3em;color:#e8e4f0}
+.hud-mid .lives.low i:not(.off){animation:lifeLow 1s infinite}
+@keyframes lifeLow{50%{opacity:.4}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div class="hud-score"><b id="score">0</b><i>得 分</i></div>
+    <div class="hud-mid">
+      <span class="lives" id="lives-i"><i>♥</i><i>♥</i><i>♥</i></span>
+      <span class="stars"><svg width="13" height="13" viewBox="0 0 13 13"><circle cx="6.5" cy="5.4" r="4.2" fill="#e8b04a"/><rect x="6" y="9.2" width="1" height="2.4" fill="#b0823e"/><path d="M4.2 11.4 L8.8 11.4" stroke="#b0823e" stroke-width="1"/></svg><b id="star-i">0/4</b></span>
+      <i class="lv" id="lv-i">LEVEL 1 · 8</i>
+    </div>
+    <div class="hud-right">
+      <div class="hud-steps">点 <b id="step-i">0</b></div>
+      <button id="btn-pause" aria-label="暂停">Ⅱ</button>
+      <button id="btn-snd" aria-label="声音">♪̶</button>
+    </div>
+  </div>
+  <canvas id="cv"></canvas>
+  <div id="banner"><b id="banner-b"></b><i id="banner-i"></i></div>
+
+  <div id="menu" class="on">
+    <div class="m-kicker">BOUNCE ALLEY · 庙 会 小 巷 蹦 珠 摊</div>
+    <div class="m-title">夜巷弹珠</div>
+    <div class="m-sub">珠 自 己 蹦 · 你 管 方 向</div>
+    <button class="m-go" id="btn-go">进 巷</button>
+    <div class="m-best" id="m-best">最佳 <b>0</b></div>
+    <div class="m-how"><b>点按画面任意处=立即掉头</b>，珠子恒速弹跳自己往前走<br><b>坑和尖刺</b>掉一颗珠，灯笼星路过就收<br><b>落差不够就回一步</b>：借一跳的节奏差上高台、过大坑</div>
+    <div class="m-foot">夜 巷 弹 珠 · 一 错 头 就 是 一 步 棋</div>
+  </div>
+
+  <div class="ov" id="pause-ov">
+    <div class="panel">
+      <h3>暂 停</h3>
+      <div class="p-sub" id="pause-sub">珠悬在半空，歇口气</div>
+      <div class="p-btns">
+        <button class="p-btn gold" id="btn-resume">继续蹦</button>
+        <button class="p-btn line" id="btn-restart">重新开始</button>
+        <button class="p-btn line" id="btn-quit">回弹珠摊</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ov" id="end-ov">
+    <div class="panel" id="end-panel">
+      <h3 id="end-title">出 巷 了</h3>
+      <div class="p-sub" id="end-sub"></div>
+      <div class="p-stats" id="end-stats"></div>
+      <div class="p-btns">
+        <button class="p-btn gold" id="btn-retry">再开一局</button>
+        <button class="p-btn line" id="btn-menu">回弹珠摊</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+'use strict';
+/* ===== 常量（全确定性） ===== */
+var CFG={W:390,H:560,BR:10,G:1300,VY:-420,VX:150,
+  STAR_R:8,GOAL_R:20,BOTY:620,TOL:6,HAZ_R:18,STEP:1/120};
+/* 弹跳解析：h=420²/(2*1300)=67.8px，周期=2*420/1300=0.646s，水平步长=150*0.646=97px */
+/* 台高度档：460 主街 / 410 / 360（相邻差 50<67.8-10 可达） */
+function P(x,y,w){return{x:x,y:y,w:w}} /* 平台（顶面单向） */
+function SP(x,y){return{x:x,y:y}}      /* 尖刺（尖点） */
+function mkL(n){
+  var PL=[],SK=[],ST=[],start={x:60,y:300},goal={x:1060,y:420},len=1100;
+  function pl(){PL.push.apply(PL,arguments)}
+  function sk(){SK.push.apply(SK,arguments)}
+  function st(){ST.push.apply(ST,arguments)}
+  if(n===1){ /* 教学直巷：60px 坑*3+4 星 */
+    pl(P(0,460,260),P(320,460,240),P(620,460,280),P(960,460,140));
+    st({x:290,y:410},{x:590,y:408},{x:890,y:412},{x:1030,y:415});
+    goal={x:1060,y:420};len=1100;
+  }else if(n===2){ /* 首个高台（差 50） */
+    pl(P(0,460,220),P(280,460,200),P(530,410,240),P(820,460,220),P(1090,410,150),P(1300,460,140));
+    st({x:250,y:410},{x:485,y:362},{x:780,y:408},{x:1050,y:360},{x:1350,y:412});
+    goal={x:1360,y:418};len=1400;
+  }else if(n===3){ /* 高低台三层链（差 50/50，坑 55） */
+    pl(P(0,460,210),P(265,410,210),P(530,360,210),P(795,410,210),P(1060,460,210),P(1330,410,210),P(1600,460,140));
+    st({x:230,y:360},{x:495,y:310},{x:760,y:360},{x:1025,y:410},{x:1300,y:360},{x:1570,y:412});
+    goal={x:1680,y:418};len=1720;
+  }else if(n===4){ /* 刺阵首现 */
+    pl(P(0,460,260),P(320,460,320),P(680,460,300),P(1020,460,300),P(1360,460,160));
+    sk({x:450,y:448},{x:780,y:448},{x:840,y:448},{x:1120,y:448},{x:1200,y:448});
+    st({x:380,y:410},{x:640,y:408},{x:960,y:412},{x:1320,y:415});
+    goal={x:1460,y:418};len=1480;
+  }else if(n===5){ /* 窄台连跳（60px 台+55px 坑，首坑 85：一跳 97+容差稳跨） */
+    pl(P(0,460,220),P(305,460,60),P(420,460,60),P(535,460,60),P(650,460,60),P(765,460,60),P(880,460,60),P(995,460,60),P(1110,460,60),P(1220,460,240));
+    st({x:262,y:412},{x:392,y:408},{x:522,y:412},{x:652,y:408},{x:782,y:412},{x:912,y:408},{x:1195,y:415});
+    goal={x:1289,y:418};len=1440;
+  }else if(n===6){ /* 双层：上层(410)主路（星全在上层）；下层(460)为视觉层——缺口下落即被上层回接，刺仅 scenery 无实际威胁 */
+    pl(P(230,410,340),P(650,410,320),P(1020,410,160),
+       P(0,460,160),P(230,460,120),P(430,460,140),P(630,460,120),P(810,460,140),P(1000,460,180),P(1240,460,160));
+    sk({x:500,y:448},{x:700,y:448},{x:870,y:448});
+    st({x:330,y:362},{x:560,y:358},{x:810,y:360},{x:1030,y:362},{x:360,y:410},{x:900,y:412});
+    goal={x:1300,y:398};len=1400;
+  }else if(n===7){ /* 刺+高台组合（坑 55） */
+    pl(P(0,460,230),P(285,410,190),P(530,460,70),P(655,410,70),P(780,460,210),P(1045,410,190),P(1290,460,170));
+    sk({x:340,y:398},{x:890,y:448},{x:950,y:448},{x:1140,y:398});
+    st({x:250,y:410},{x:500,y:408},{x:600,y:360},{x:760,y:410},{x:1010,y:360},{x:1330,y:412});
+    goal={x:1390,y:418};len=1430;
+  }else{ /* L8 终局长巷：全要素+8 星（坑 ≤60） */
+    pl(P(0,460,210),P(265,460,150),P(470,410,130),P(655,460,70),P(780,410,70),P(905,460,230),P(1190,410,150),P(1395,460,110),P(1560,410,160),P(1770,460,180));
+    sk({x:330,y:448},{x:980,y:448},{x:1040,y:448},{x:1240,y:398},{x:1620,y:398});
+    st({x:225,y:410},{x:440,y:412},{x:590,y:360},{x:745,y:358},{x:880,y:410},{x:1160,y:360},{x:1520,y:408},{x:1745,y:412});
+    goal={x:1870,y:418};len=1930;
+  }
+  return{n:n,plats:PL,spikes:SK,stars:ST,start:start,goal:goal,len:len};
+}
+var LEVELS=[1,2,3,4,5,6,7,8].map(mkL);
+/* ===== 状态 ===== */
+var S={mode:'menu',level:1,score:0,best:0,muted:true,
+  bx:0,by:0,bvx:0,bvy:0,lives:3,starN:0,starTot:4,deaths:0,taps:0,
+  collected:[],phase:'roll',waitT:0,parts:[],floats:[],bannerT:0,flash:0,camX:0,trail:[],_lt:0,
+  _nohaz:0,_fz:0};
+var el={};
+function $(i){return document.getElementById(i)}
+function init(){
+  ['cv','hud','score','lives-i','star-i','lv-i','step-i','btn-snd','btn-pause','menu','btn-go','m-best',
+   'banner','banner-b','banner-i','pause-ov','pause-sub','btn-resume','btn-restart','btn-quit','end-ov','end-panel',
+   'end-title','end-sub','end-stats','btn-retry','btn-menu'].forEach(function(k){el[k]=$(k)});
+  S.best=+load('g60_best',0)||0;
+  el['m-best'].innerHTML='最佳 <b>'+S.best+'</b>';
+  el['btn-snd'].textContent=S.muted?'♪̶':'♪';
+  bind();resize();
+  document.getElementById('app').classList.add('menu-on');
+  requestAnimationFrame(loop);
+}
+var store={};
+function load(k,d){try{var v=localStorage.getItem(k);return v===null?d:v}catch(e){return k in store?store[k]:d}}
+function save(k,v){try{localStorage.setItem(k,v)}catch(e){store[k]=v}}
+/* ===== 局程 ===== */
+function loadLevel(n){
+  var L=LEVELS[n-1];
+  S.bx=L.start.x;S.by=L.start.y;S.bvx=CFG.VX;S.bvy=0;
+  S.starN=0;S.starTot=L.stars.length;S.collected=L.stars.map(function(){return false});
+  S.phase='roll';S.waitT=0;S.parts=[];S.floats=[];S.trail=[];
+  S.bannerT=0;el.banner.className='';
+  updHUD();
+}
+function startGame(){
+  S.mode='play';S.level=1;S.score=0;S.lives=3;S.deaths=0;S.taps=0;
+  S._nohaz=0;S.parts=[];S.floats=[];S.flash=0;S.bannerT=0;
+  loadLevel(1);
+  document.getElementById('app').classList.remove('menu-on');
+  el.menu.classList.remove('on');el['end-ov'].classList.remove('on');el['pause-ov'].classList.remove('on');
+}
+/* ===== 物理（确定性） ===== */
+function step(dt){
+  if(S.mode!=='play')return;
+  if(S.phase==='done'){ /* 过关停帧推进 */
+    S.waitT+=dt;
+    if(S.waitT>0){
+      if(S.level>=8)endGame(true);
+      else{S.level++;loadLevel(S.level)}
+    }
+    fxStep(dt);return;
+  }
+  var L=LEVELS[S.level-1],i;
+  var by0=S.by;
+  S.bvy+=CFG.G*dt;
+  S.bx+=S.bvx*dt;S.by+=S.bvy*dt;
+  /* 台面单向碰撞：下落中、上帧珠底在台面上方、本帧穿过台顶 */
+  if(S.bvy>0){
+    for(i=0;i<L.plats.length;i++){var p=L.plats[i];
+      if(S.bx>p.x-CFG.TOL&&S.bx<p.x+p.w+CFG.TOL&&by0+CFG.BR<=p.y+1&&S.by+CFG.BR>p.y){
+        S.by=p.y-CFG.BR;S.bvy=CFG.VY;SND.boing();
+        break;
+      }
+    }
+  }
+  /* 残影 */
+  S.trail.push({x:S.bx,y:S.by,t:0});
+  if(S.trail.length>10)S.trail.shift();
+  /* 星收集 */
+  for(i=0;i<L.stars.length;i++){
+    if(S.collected[i])continue;
+    var st=L.stars[i];
+    if(Math.hypot(S.bx-st.x,S.by-st.y)<CFG.HAZ_R){
+      S.collected[i]=true;S.starN++;S.score+=50;
+      starFx(st);SND.star();addFloat(st.x,st.y,'+50');
+      updHUD();
+    }
+  }
+  /* 刺判定 */
+  if(!S._nohaz)for(i=0;i<L.spikes.length;i++){var sp=L.spikes[i];
+    if(Math.hypot(S.bx-sp.x,S.by-sp.y)<CFG.HAZ_R){loseLife('扎 到 刺','落点差半步');return}
+  }
+  /* 掉坑 */
+  if(S.by>CFG.BOTY){loseLife('掉 进 坑','底下没台了');return}
+  /* 终点 */
+  if(Math.hypot(S.bx-L.goal.x,S.by-L.goal.y)<CFG.GOAL_R){levelUp();return}
+  /* 相机 */
+  var targ=Math.max(0,Math.min(L.len-CFG.W,S.bx-160));
+  S.camX+=(targ-S.camX)*Math.min(1,dt*8);
+  fxStep(dt);
+}
+function loseLife(b,sub){
+  var L=LEVELS[S.level-1];
+  S.lives--;S.deaths++;flashFx();
+  updHUD();
+  if(S.lives<=0){endGame(false);return}
+  S.bx=L.start.x;S.by=L.start.y;S.bvx=CFG.VX;S.bvy=0;S.trail=[];
+  banner(b,'剩 '+S.lives+' 颗珠 · 回巷口');SND.foul();
+}
+function levelUp(){
+  var bonus=S.lives*30,base=100+S.level*25;
+  S.score+=base+bonus;
+  el['banner-b'].textContent='过 巷';
+  el['banner-i'].textContent='收灯 '+S.starN+'/'+S.starTot+' · 剩命 '+S.lives+' 换 '+bonus+' 分';
+  el.banner.className='on';S.bannerT=1.6;S.flash=.35;
+  SND.level();S.phase='done';S.waitT=-1.2;
+  updHUD();
+}
+function endGame(allClear){
+  S.mode='over';
+  var nb=S.score>S.best&&S.score>0;
+  if(nb){S.best=S.score;save('g60_best',S.best);el['m-best'].innerHTML='最佳 <b>'+S.best+'</b>'}
+  var panel=el['end-panel'];
+  panel.classList.toggle('celebrate',nb||!!allClear);
+  el['end-title'].textContent=allClear?'八巷全穿':(nb?'珠 随 巷 转':'出 巷 了');
+  el['end-sub'].innerHTML=allClear?'八条小巷全过 · 总分 <b>'+S.score+'</b>':
+    '总分 <b>'+S.score+'</b> · 打到第 '+S.level+' 巷'+(nb?' · 新纪录':' · 纪录 '+S.best);
+  el['end-stats'].innerHTML=
+    '<div><b>'+S.starN+'</b><i>本巷灯</i></div>'+
+    '<div><b>'+S.deaths+'</b><i>损珠数</i></div>'+
+    '<div><b>'+S.lives+'</b><i>剩命</i></div>';
+  el['end-ov'].classList.add('on');SND.end(nb);
+}
+function toMenu(){
+  S.mode='menu';S.parts=[];S.floats=[];S.trail=[];
+  document.getElementById('app').classList.add('menu-on');
+  el['pause-ov'].classList.remove('on');el['end-ov'].classList.remove('on');el.menu.classList.add('on');
+}
+function addFloat(x,y,txt){S.floats.push({x:x,y:y,t:0,txt:txt})}
+function banner(b,sub){
+  el['banner-b'].textContent=b;el['banner-i'].textContent=sub;
+  el.banner.className='on';S.bannerT=1.4;
+}
+function updHUD(){
+  el.score.textContent=S.score;
+  var lv=el['lives-i'];
+  if(lv){var s='';
+    for(var i=0;i<3;i++)s+='<i'+(i<S.lives?'':' class="off"')+'>♥</i>';
+    lv.innerHTML=s;
+    lv.classList.toggle('low',S.lives===1)}
+  el['star-i'].textContent=S.starN+'/'+S.starTot;
+  el['lv-i'].textContent='LEVEL '+S.level+' · 8';
+  el['step-i'].textContent=S.taps;
+}
+/* ===== 特效 ===== */
+function starFx(st){
+  var i;
+  for(i=0;i<8;i++){var a=Math.PI*2*i/8;
+    S.parts.push({x:st.x,y:st.y,vx:Math.cos(a)*(40+Math.random()*40),vy:Math.sin(a)*(40+Math.random()*40),
+      c:'#e8b04a',s:2.4+Math.random()*1.8,t:0,life:.5,grav:80,rot:Math.random()*3})}
+}
+function flashFx(){S.flash=.3}
+function fxStep(dt){
+  var i;
+  for(i=S.parts.length-1;i>=0;i--){var q=S.parts[i];
+    q.t+=dt;q.x+=q.vx*dt;q.y+=q.vy*dt;q.vy+=(q.grav||150)*dt;
+    if(q.t>(q.life||.7))S.parts.splice(i,1)}
+  for(i=S.floats.length-1;i>=0;i--){var f=S.floats[i];
+    f.t+=dt;f.y-=30*dt;if(f.t>1)S.floats.splice(i,1)}
+  for(i=S.trail.length-1;i>=0;i--){S.trail[i].t+=dt;if(S.trail[i].t>.22)S.trail.splice(i,1)}
+  if(S.bannerT>0){S.bannerT-=dt;if(S.bannerT<=0)el.banner.className=''}
+  if(S.flash>0)S.flash=Math.max(0,S.flash-dt);
+}
+/* ===== 渲染 ===== */
+var ctx=null,dpr=1,cvW=390,cvH=560;
+/* 背景星点（确定性伪随机） */
+var BGST=(function(){var a=[],s=1234,i;
+  function rnd(){s=(s*1103515245+12345)&0x7fffffff;return s/0x7fffffff}
+  for(i=0;i<26;i++)a.push({x:rnd()*2100,y:70+rnd()*300,r:.5+rnd()*1.1,tw:rnd()*6.28});
+  return a})();
+var BGLN=(function(){var a=[],s=99,i;
+  function rnd(){s=(s*1103515245+12345)&0x7fffffff;return s/0x7fffffff}
+  for(i=0;i<18;i++)a.push({x:i*120+rnd()*60,y:120+rnd()*220,c:rnd()<.3?'#e07a6a':'#e8b04a',r:5+rnd()*3});
+  return a})();
+function resize(){
+  var cv=el.cv;if(!cv)return;
+  var rect=cv.getBoundingClientRect();
+  dpr=Math.min(2,window.devicePixelRatio||1);
+  cvW=rect.width;cvH=rect.height;
+  cv.width=cvW*dpr;cv.height=cvH*dpr;
+  ctx=cv.getContext('2d');if(ctx)ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+function sx(x){return (x-S.camX)*cvW/CFG.W}
+function sy(y){return y*cvH/CFG.H}
+var _acc=0;
+function loop(t){
+  requestAnimationFrame(loop);
+  var dt=Math.min(.05,(t-(loop.t||t))/1000);loop.t=t;
+  if(S.mode==='play'&&!S._fz){
+    _acc+=dt;var n2=0;
+    while(_acc>=CFG.STEP&&n2++<6){step(CFG.STEP);_acc-=CFG.STEP}
+  }else{
+    if(S.mode!=='pause')fxStep(dt); /* 暂停=特效同冻结 */
+  }
+  if(ctx)render(t);
+}
+function render(t){
+  var W=cvW,H=cvH,i,L=LEVELS[Math.max(0,S.level-1)];
+  ctx.clearRect(0,0,W,H);
+  /* 夜空 */
+  var g0=ctx.createLinearGradient(0,0,0,H);
+  g0.addColorStop(0,'#17142a');g0.addColorStop(.6,'#110f1e');g0.addColorStop(1,'#0b0a14');
+  ctx.fillStyle=g0;ctx.fillRect(0,0,W,H);
+  /* 星点（视差 0.15） */
+  for(i=0;i<BGST.length;i++){var b=BGST[i];
+    var bx=(b.x-S.camX*.15)%2100;if(bx<-20)bx+=2100;
+    if(bx>400)continue;
+    var tw2=.5+.5*Math.sin(t/700+b.tw);
+    ctx.globalAlpha=.25+.45*tw2;ctx.fillStyle='#cfc8e8';
+    ctx.fillRect(bx*cvW/CFG.W,sy(b.y),b.r,b.r)}
+  ctx.globalAlpha=1;
+  /* 远景灯笼串（视差 0.5） */
+  for(i=0;i<BGLN.length;i++){var ln=BGLN[i];
+    var lx=ln.x-S.camX*.5;
+    var px=lx*cvW/CFG.W;
+    if(px<-30||px>W+30)continue;
+    ctx.strokeStyle='rgba(120,110,150,.3)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(px,sy(ln.y-26));ctx.lineTo(px,sy(ln.y));ctx.stroke();
+    var lg=ctx.createRadialGradient(px,sy(ln.y),1,px,sy(ln.y),sy(ln.r)*2.2);
+    lg.addColorStop(0,ln.c);lg.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.globalAlpha=.35;ctx.fillStyle=lg;
+    ctx.beginPath();ctx.arc(px,sy(ln.y),sy(ln.r)*2.2,0,7);ctx.fill();
+    ctx.globalAlpha=.85;ctx.fillStyle=ln.c;
+    ctx.beginPath();ctx.arc(px,sy(ln.y),sy(ln.r),0,7);ctx.fill();
+    ctx.globalAlpha=1}
+  /* 巷底暗层 */
+  ctx.fillStyle='rgba(5,4,10,.85)';
+  ctx.fillRect(0,sy(524),W,H-sy(524));
+  ctx.strokeStyle='rgba(154,138,208,.14)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(0,sy(524));ctx.lineTo(W,sy(524));ctx.stroke();
+  /* 终点大灯笼（先画底层） */
+  drawGoal(L,t);
+  /* 平台 */
+  for(i=0;i<L.plats.length;i++)drawPlat(L.plats[i]);
+  /* 刺 */
+  for(i=0;i<L.spikes.length;i++)drawSpike(L.spikes[i],t);
+  /* 星（灯笼） */
+  for(i=0;i<L.stars.length;i++)if(!S.collected[i])drawStar(L.stars[i],t);
+  /* 首动引导 */
+  if(S.mode==='play'&&S.taps===0)drawGuide(t);
+  /* 残影 */
+  for(i=0;i<S.trail.length;i++){var tr=S.trail[i];
+    var al=.28*(1-tr.t/.22);
+    if(al<=0)continue;
+    ctx.globalAlpha=al;ctx.fillStyle='#a8a0c0';
+    ctx.beginPath();ctx.arc(sx(tr.x),sy(tr.y),sy(CFG.BR)*(.4+.6*(1-tr.t/.22)),0,7);ctx.fill()}
+  ctx.globalAlpha=1;
+  /* 珠 */
+  drawBall();
+  /* 粒子 */
+  for(i=0;i<S.parts.length;i++){
+    var q=S.parts[i],al2=Math.max(0,1-Math.pow(q.t/(q.life||.7),1.6));
+    ctx.globalAlpha=al2;ctx.fillStyle=q.c;
+    ctx.save();ctx.translate(sx(q.x),sy(q.y));ctx.rotate(q.rot||0);
+    ctx.fillRect(-q.s/2,-q.s/2,q.s,q.s);ctx.restore();ctx.globalAlpha=1;
+  }
+  /* 飘字 */
+  ctx.textAlign='center';
+  for(i=0;i<S.floats.length;i++){
+    var fl=S.floats[i];
+    ctx.globalAlpha=Math.max(0,1-fl.t);
+    ctx.font='700 13px system-ui';ctx.fillStyle='#f0d8a0';
+    ctx.fillText(fl.txt,sx(fl.x),sy(fl.y));ctx.globalAlpha=1;
+  }
+  if(S.flash>0){ctx.fillStyle='rgba(224,122,106,'+(S.flash*.5)+')';ctx.fillRect(0,0,W,H)}
+}
+function drawPlat(p){
+  var x=sx(p.x),y=sy(p.y),w=p.w*cvW/CFG.W,h=sy(14);
+  if(x>cvW+4||x+w<-4)return;
+  ctx.fillStyle='rgba(0,0,0,.4)';
+  ctx.fillRect(x+2,y+3,w,h);
+  var g=ctx.createLinearGradient(0,y,0,y+h);
+  g.addColorStop(0,'#5a5a74');g.addColorStop(.35,'#484860');g.addColorStop(1,'#30304a');
+  ctx.fillStyle=g;ctx.fillRect(x,y,w,h);
+  ctx.fillStyle='rgba(200,196,224,.5)';
+  ctx.fillRect(x,y,w,2);
+  ctx.fillStyle='rgba(154,138,208,.25)';
+  for(var k=10;k<w-6;k+=26)ctx.fillRect(x+k,y+4,1.5,h-6);
+}
+function drawSpike(sp,t){
+  var x=sx(sp.x),yb=sy(sp.y+12),yt=sy(sp.y),w=sy(9);
+  if(x<-20||x>cvW+20)return;
+  var gl=.5+.3*Math.sin(t/300+sp.x);
+  ctx.fillStyle='rgba(224,90,70,.16)';
+  ctx.beginPath();ctx.moveTo(x,yt-sy(4));ctx.lineTo(x+w,yb+2);ctx.lineTo(x-w,yb+2);ctx.closePath();ctx.fill();
+  var g=ctx.createLinearGradient(0,yt,0,yb);
+  g.addColorStop(0,'#f08868');g.addColorStop(1,'#a03828');
+  ctx.fillStyle=g;
+  ctx.beginPath();ctx.moveTo(x,yt);ctx.lineTo(x+w*.72,yb);ctx.lineTo(x-w*.72,yb);ctx.closePath();ctx.fill();
+  ctx.strokeStyle='rgba(255,200,180,'+(.3*gl)+')';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(x,yt+1);ctx.lineTo(x,yb);ctx.stroke();
+}
+function drawStar(st,t){
+  var x=sx(st.x),y=sy(st.y),r=sy(7);
+  if(x<-20||x>cvW+20)return;
+  var br=.75+.25*Math.sin(t/300+st.x);
+  ctx.strokeStyle='rgba(176,130,62,.6)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(x,y+r*.9);ctx.lineTo(x,y+r*1.4);ctx.stroke();
+  var g=ctx.createRadialGradient(x,y,1,x,y,r*2);
+  g.addColorStop(0,'rgba(232,176,74,'+(.4*br)+')');g.addColorStop(1,'rgba(232,176,74,0)');
+  ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r*2,0,7);ctx.fill();
+  ctx.fillStyle='#e8b04a';
+  ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();
+  ctx.fillStyle='rgba(255,244,200,.8)';
+  ctx.beginPath();ctx.arc(x-r*.25,y-r*.25,r*.35,0,7);ctx.fill();
+  ctx.strokeStyle='rgba(120,80,20,.5)';ctx.lineWidth=.8;
+  ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.stroke();
+}
+function drawGoal(L,t){
+  var x=sx(L.goal.x),y=sy(L.goal.y),br=.6+.3*Math.sin(t/380);
+  if(x<-60||x>cvW+60)return;
+  var g=ctx.createRadialGradient(x,y,1,x,y,sy(34));
+  g.addColorStop(0,'rgba(232,176,74,'+(.42*br+.15)+')');g.addColorStop(1,'rgba(232,176,74,0)');
+  ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,sy(34),0,7);ctx.fill();
+  ctx.strokeStyle='#b0823e';ctx.lineWidth=2;
+  ctx.beginPath();ctx.arc(x,y,sy(20),0,7);ctx.stroke();
+  ctx.fillStyle='#e8b04a';
+  ctx.beginPath();ctx.arc(x,y,sy(12),0,7);ctx.fill();
+  ctx.strokeStyle='rgba(255,244,200,.5)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.arc(x,y,sy(12),0,7);ctx.stroke();
+  ctx.strokeStyle='#b0823e';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(x,y+sy(12));ctx.lineTo(x,y+sy(20));ctx.stroke();
+  ctx.fillStyle='#f8ecd0';ctx.font='800 '+sy(8)+'px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('巷',x,y+.5);ctx.textBaseline='alphabetic';
+}
+function drawGuide(t){
+  var br=.65+.3*Math.sin(t/420);
+  ctx.globalAlpha=br;
+  ctx.textAlign='center';ctx.font='11.5px system-ui';ctx.fillStyle='#9a8ad0';
+  ctx.fillText('点按画面任意处 = 立即掉头',cvW/2,sy(300));
+  ctx.globalAlpha=1;
+}
+function drawBall(){
+  var x=sx(S.bx),y=sy(S.by),r=sy(CFG.BR);
+  ctx.fillStyle='rgba(0,0,0,.35)';
+  ctx.beginPath();ctx.ellipse(x+r*.18,y+r*.3,r*.95,r*.6,0,0,7);ctx.fill();
+  var g=ctx.createRadialGradient(x-r*.35,y-r*.4,r*.12,x,y,r*1.05);
+  g.addColorStop(0,'#f8f4ec');g.addColorStop(.4,'#c8c4bc');g.addColorStop(.75,'#8a8680');g.addColorStop(1,'#5a564e');
+  ctx.fillStyle=g;
+  ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.85)';
+  ctx.beginPath();ctx.ellipse(x-r*.36,y-r*.42,r*.26,r*.15,-.7,0,7);ctx.fill();
+  ctx.strokeStyle='rgba(30,26,20,.25)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.arc(x,y,r-.5,0,7);ctx.stroke();
+}
+/* ===== 音效 ===== */
+var SND=(function(){
+  var ac=null;
+  function ctxA(){if(!ac){try{ac=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}
+    if(ac&&ac.state==='suspended')ac.resume();return ac}
+  function tone(f,d,type,vol,slide){
+    if(S.muted)return;var a=ctxA();if(!a)return;
+    var o=a.createOscillator(),g=a.createGain();
+    o.type=type||'sine';o.frequency.value=f;
+    if(slide)o.frequency.exponentialRampToValueAtTime(slide,a.currentTime+d);
+    g.gain.value=vol||.15;g.gain.exponentialRampToValueAtTime(.001,a.currentTime+d);
+    o.connect(g);g.connect(a.destination);o.start();o.stop(a.currentTime+d);
+  }
+  return{boing:function(){tone(180,.09,'sine',.05,300)},
+    drop:function(){tone(300,.22,'triangle',.08,70);tone(120,.14,'sine',.05,60)},
+    star:function(){tone(880,.07,'triangle',.08);tone(1320,.09,'triangle',.05)},
+    foul:function(){tone(140,.16,'sawtooth',.05,110)},
+    level:function(){[392,494,587,784].forEach(function(f,i){setTimeout(function(){tone(f,.2,'triangle',.11)},i*110)})},
+    end:function(nb){[330,262,196].forEach(function(f,i){setTimeout(function(){tone(f,.3,'triangle',.1)},i*150)});
+      if(nb)setTimeout(function(){tone(880,.35,'triangle',.12)},480)},
+    ui:function(){tone(760,.05,'square',.05)},
+    resume:function(){ctxA()}};
+})();
+/* ===== 输入（tap=瞬时事件，无残留态面） ===== */
+function bind(){
+  el.cv.addEventListener('pointerdown',function(e){
+    if(e.button!==undefined&&e.button!==0)return;
+    SND.resume();
+    if(S.mode!=='play'||S.phase!=='roll')return;
+    var __t=Date.now();if(__t-S._lt<100)return;S._lt=__t; /* 多指/连击节流 */
+    S.bvx=-S.bvx;S.taps++;updHUD();
+  });
+  el['btn-go'].addEventListener('click',function(){SND.resume();startGame();SND.ui()});
+  el['btn-snd'].addEventListener('click',function(){
+    S.muted=!S.muted;el['btn-snd'].textContent=S.muted?'♪̶':'♪';
+    if(!S.muted){SND.resume();SND.ui()}
+  });
+  el['btn-pause'].addEventListener('click',function(){
+    if(S.mode==='play'){
+      S.mode='pause';el['pause-ov'].classList.add('on');
+      var L=LEVELS[S.level-1],left=0,i;
+      for(i=0;i<S.collected.length;i++)if(!S.collected[i])left++;
+      el['pause-sub'].textContent='第 '+S.level+' 巷 · 剩 '+S.lives+' 颗珠 · 还有 '+left+' 盏灯没收';SND.ui();
+    }
+  });
+  el['btn-resume'].addEventListener('click',function(){
+    if(S.mode==='pause'){S.mode='play';el['pause-ov'].classList.remove('on');SND.ui()}
+  });
+  el['btn-restart'].addEventListener('click',function(){
+    if(S.mode==='pause'){el['pause-ov'].classList.remove('on');startGame();SND.ui()}
+  });
+  el['btn-quit'].addEventListener('click',function(){toMenu();SND.ui()});
+  el['btn-menu'].addEventListener('click',function(){toMenu();SND.ui()});
+  el['btn-retry'].addEventListener('click',function(){SND.resume();startGame();SND.ui()});
+  el.cv.addEventListener('contextmenu',function(e){e.preventDefault()});
+  window.addEventListener('resize',function(){resize()});
+}
+init();
+
+</script>
+</body>
+</html>
