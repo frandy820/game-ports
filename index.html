@@ -43,6 +43,16 @@ h1 span{background:linear-gradient(100deg,#fff 30%,#ffd9a0 55%,#a8d4ff 80%);
 .guide b{color:#ffb347}
 
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(min-width:760px){
+  .wrap{max-width:900px}
+  .grid{grid-template-columns:repeat(3,1fr);gap:14px}
+}
+@media(min-width:1040px){
+  .wrap{max-width:1180px}
+  .grid{grid-template-columns:repeat(4,1fr);gap:16px}
+}
+.thumb svg{width:100%;height:100%}   /* 等比撑满（preserveAspectRatio 居中不失真） */
+@media(hover:hover){.card:hover{border-color:rgba(140,160,220,.32);transform:translateY(-2px)}}
 .card{
   position:relative;display:block;text-decoration:none;color:#e8ecf8;
   background:linear-gradient(160deg,#182342,#141d33);
@@ -53,6 +63,7 @@ h1 span{background:linear-gradient(100deg,#fff 30%,#ffd9a0 55%,#a8d4ff 80%);
 .card:active{transform:scale(.96)}
 .thumb{height:86px;border-radius:12px;margin-bottom:11px;display:flex;align-items:center;justify-content:center;
   background:#0a0f1d;border:1px solid rgba(255,255,255,.05)}
+.tagline{max-width:640px}
 .gname{font-size:15.5px;font-weight:700;letter-spacing:.02em}
 .gplay{font-size:11.5px;color:#8d99b8;margin-top:5px;line-height:1.55;min-height:34px}
 .gtag{display:inline-block;margin-top:8px;font-size:10.5px;padding:2.5px 9px;border-radius:99px;letter-spacing:.06em}
@@ -120,9 +131,9 @@ footer .dot{margin:0 8px;opacity:.5}
 <body>
 <div class="wrap">
   <header>
-    <div class="kicker">OFFLINE · 43 GAMES</div>
+    <div class="kicker">OFFLINE · 50 GAMES</div>
     <h1><span>口袋游戏机</span></h1>
-    <p class="tagline">四十七款离线小游戏，<b>装到手机桌面</b>，地铁里、被窝里、没网也能随时开玩。分数和进度只存在你自己的手机里。</p>
+    <p class="tagline">五十款离线小游戏，<b>装到手机桌面</b>，地铁里、被窝里、没网也能随时开玩。分数和进度只存在你自己的手机里。</p>
   </header>
 
   <div class="guide" id="guide"></div>
