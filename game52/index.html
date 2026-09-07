@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>天女散花</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;position:fixed;background:#0d1322}
+body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;color:#e9e4d6;
+  -webkit-user-select:none;user-select:none;touch-action:manipulation}
+#app{position:relative;width:100%;max-width:520px;height:100%;margin:0 auto;overflow:hidden;
+  background:radial-gradient(130% 60% at 50% -6%,#1c2750 0%,rgba(28,39,80,0) 55%),#0d1322}
+#cv{position:absolute;top:64px;left:0;width:100%;height:calc(100% - 64px);display:block;cursor:crosshair}
+/* 顶栏 */
+#hud{position:absolute;top:0;left:0;right:0;height:64px;display:flex;align-items:center;
+  padding:0 14px;z-index:5;background:linear-gradient(180deg,rgba(13,19,34,.92),rgba(13,19,34,.55) 78%,transparent)}
+.hud-score{min-width:0;overflow:hidden}
+.hud-score b{display:block;font-size:21px;color:#ffd97e;letter-spacing:.04em;text-shadow:0 0 14px rgba(255,217,126,.35)}
+.hud-score i{font-style:normal;font-size:9.5px;color:#aab6d8;letter-spacing:.28em}
+.hud-mid{flex:1;text-align:center;min-width:0;overflow:hidden}
+.hud-mid b{display:block;font-size:13.5px;letter-spacing:.34em;color:#e9e4d6;padding-left:.34em}
+.hud-mid i{font-style:normal;font-size:9px;color:#aab6d8;letter-spacing:.2em}
+.hud-right{display:flex;align-items:center;gap:10px}
+.hud-balls{font-size:13px;color:#bfe3ff;letter-spacing:.06em;white-space:nowrap}
+.hud-balls b{color:#fff}
+#btn-snd{width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,.16);
+  background:rgba(255,255,255,.06);color:#cfd8ec;font-size:15px;line-height:1;cursor:pointer;flex:none}
+#btn-pause{width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,.16);
+  background:rgba(255,255,255,.06);color:#cfd8ec;font-size:13px;line-height:1;cursor:pointer;flex:none}
+/* 菜单 / 弹层 */
+.ov{position:absolute;inset:0;z-index:20;display:none;align-items:center;justify-content:center;
+  background:rgba(8,11,22,.78);backdrop-filter:blur(4px)}
+.ov.on{display:flex}
+#menu{position:absolute;inset:0;z-index:15;display:none;flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(130% 55% at 50% -4%,#1c2750 0%,rgba(28,39,80,0) 60%),
+  radial-gradient(120% 34% at 50% 106%,rgba(232,140,110,.30) 0%,rgba(232,140,110,0) 72%)}
+#menu.on{display:flex}
+#menu::after{content:'';position:absolute;left:10%;right:10%;bottom:calc(var(--sab,0px) + 42px);height:2px;
+  background:linear-gradient(90deg,transparent,rgba(255,217,126,.75),transparent);box-shadow:0 0 22px 4px rgba(232,180,90,.28)}
+.m-kicker{font-size:11.5px;letter-spacing:.42em;color:#8d99b8;margin-bottom:14px;padding-left:.42em}
+.m-title{font-size:37px;font-weight:800;letter-spacing:.14em;padding-left:.14em;
+  background:linear-gradient(180deg,#fff7e8,#ffd97e 58%,#e8a84a);-webkit-background-clip:text;background-clip:text;color:transparent;
+  text-shadow:0 6px 26px rgba(255,217,126,.22)}
+.m-sub{margin-top:10px;font-size:11px;letter-spacing:.3em;color:#aab6d8;padding-left:.3em}
+.m-lvs{display:flex;gap:11px;margin-top:38px}
+.lv-btn{position:relative;width:88px;padding:15px 0 12px;border-radius:14px;cursor:pointer;
+  border:1px solid rgba(255,217,126,.34);background:linear-gradient(180deg,rgba(255,217,126,.13),rgba(255,217,126,.04));
+  color:#f2ecd8;font-size:16px;letter-spacing:.2em;font-family:inherit}
+.lv-btn small{display:block;margin-top:5px;font-size:10px;letter-spacing:.1em;color:#b8c2dd}
+.lv-btn.locked{border-color:rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#5f6a86;cursor:not-allowed}
+.lv-btn.locked small{color:#525d78}
+.m-foot{position:absolute;bottom:calc(var(--sab,0px) + 16px);left:0;right:0;text-align:center;color:#aab6d8;font-size:11px;letter-spacing:.14em}
+.panel{width:min(320px,84%);padding:26px 22px 22px;border-radius:18px;text-align:center;position:relative;
+  background:linear-gradient(180deg,#1b2440,#141b31);border:1px solid rgba(255,255,255,.14);
+  box-shadow:0 18px 50px rgba(0,0,0,.6)}
+.panel.celebrate{border-color:rgba(255,217,126,.6);box-shadow:0 18px 50px rgba(0,0,0,.6),0 0 34px rgba(255,217,126,.16)}
+.panel h3{font-size:19px;letter-spacing:.22em;color:#f2f6ff;margin-bottom:8px}
+.panel.celebrate h3::before{content:'\2726 \2727 \2726';display:block;font-size:14px;letter-spacing:.5em;color:#ffd97e;margin-bottom:7px;text-shadow:0 0 12px rgba(255,217,126,.6)}
+.ov.on .panel{animation:popin .42s cubic-bezier(.34,1.56,.64,1)}
+@keyframes popin{from{transform:scale(.9) translateY(10px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+.p-sub{font-size:12.5px;color:#aab6d8;line-height:2;margin-bottom:6px}
+.p-sub b{color:#ffd97e;font-weight:600}
+.p-btns{display:flex;gap:10px;margin-top:16px}
+.p-btn{flex:1;padding:11px 0;border-radius:12px;cursor:pointer;font-family:inherit;font-size:13.5px;letter-spacing:.14em}
+.p-btn.gold{border:none;background:linear-gradient(180deg,#ffd97e,#e8a84a);color:#3a2a10;font-weight:700}
+.p-btn.line{background:none;border:1px solid rgba(255,255,255,.22);color:#dfe6f5}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+@keyframes breathe{0%,100%{opacity:.55}50%{opacity:1}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div class="hud-score"><b id="score">0</b><i>SCORE</i></div>
+    <div class="hud-mid"><b id="lv-name">梅 花 坠</b><i id="lv-sub">宫灯 12</i></div>
+    <div class="hud-right">
+      <div class="hud-balls">珠 <b id="balls">8</b></div>
+      <button id="btn-pause" aria-label="暂停">Ⅱ</button>
+      <button id="btn-snd" aria-label="声音">♪̶</button>
+    </div>
+  </div>
+  <canvas id="cv"></canvas>
+
+  <div id="menu" class="on">
+    <div class="m-kicker">PEGGLE · 夜 空 散 花</div>
+    <div class="m-title">天女散花</div>
+    <div class="m-sub">点 击 发 射 · 落 尽 宫 灯</div>
+    <div class="m-lvs" id="lv-btns">
+      <button class="lv-btn" id="lv1">一<small>梅花坠</small></button>
+      <button class="lv-btn locked" id="lv2">二<small>通关解锁</small></button>
+      <button class="lv-btn locked" id="lv3">三<small>通关解锁</small></button>
+    </div>
+    <div class="m-foot">流 光 一 珠 · 花 开 满 天</div>
+  </div>
+
+  <div class="ov" id="pause-ov">
+    <div class="panel">
+      <h3>暂 歇</h3>
+      <div class="p-sub" id="pause-sub">花未散尽，珠尚在手</div>
+      <div class="p-btns">
+        <button class="p-btn gold" id="btn-resume">继续散花</button>
+        <button class="p-btn line" id="btn-quit">回夜空</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ov" id="end-ov">
+    <div class="panel" id="end-panel">
+      <h3 id="end-title">花 未 散 尽</h3>
+      <div class="p-sub" id="end-sub"></div>
+      <div class="p-btns">
+        <button class="p-btn gold" id="btn-retry">再试本关</button>
+        <button class="p-btn line" id="btn-menu">回夜空</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+'use strict';
+/* ===== 常量 ===== */
+var PHY={W:390,H:560,wall:10,top:10,gunX:195,gunY:58,rBall:7,rPeg:9,
+  g:1350,v0:545,ePeg:0.72,eWall:0.82,dt:1/240,sub:4,maxSub:960,
+  slotY:522,freeW:46,freeV:118};
+var SLOTM=[1,1,2,1,1,2,0]; /* 0=FREE 移动槽位标记由运行时定 */
+var LAVS=[
+  {name:'梅 花 坠',sub:'宫灯',balls:8},
+  {name:'山 峦 谜',sub:'宫灯',balls:8},
+  {name:'北 斗 引',sub:'宫灯',balls:8},
+  {name:'双 鱼 戏',sub:'宫灯',balls:9},
+  {name:'飞 天 舞',sub:'宫灯',balls:9}
+];
+/* ===== 钉阵生成（确定性，无随机） ===== */
+function mkPegs(lv){
+  var P=[],id=0;
+  function peg(x,y,key){P.push({x:x,y:y,key:!!key,hit:false,id:id++,glow:0})}
+  var cx=195,i;
+  if(lv===0){ /* 梅花坠：五瓣花+花心宫灯环 */
+    var petals=5,R=118;
+    for(var p=0;p<petals;p++){
+      var a0=-Math.PI/2+p*2*Math.PI/petals;
+      for(var k=0;k<7;k++){ /* 花瓣外弧 */
+        var a=a0-0.42+k*0.14;
+        peg(cx+Math.cos(a)*R,292+Math.sin(a)*R*0.92,false);
+      }
+      peg(cx+Math.cos(a0)*66,292+Math.sin(a0)*66,false); /* 内瓣 */
+      peg(cx+Math.cos(a0)*R*0.62,292+Math.sin(a0)*R*0.62,true); /* 花心辐条宫灯 */
+    }
+    for(i=0;i<6;i++){var aa=i*Math.PI/3+Math.PI/6;peg(cx+Math.cos(aa)*30,292+Math.sin(aa)*30,i===0)} /* 花心环 */
+    peg(cx,292,true);peg(cx,238,true);peg(cx,346,true);peg(cx-58,292,true);peg(cx+58,292,true);
+    for(i=0;i<4;i++){peg(58+i*92,142,false);peg(78+i*78,452,false)}
+  }else if(lv===1){ /* 山峦谜：三层峰 + 峰顶宫灯 */
+    var ridge=function(y0,amp,ph,n,keyAt){
+      for(i=0;i<=n;i++){
+        var x=34+i*322/n;
+        var y=y0-Math.abs(Math.sin(i/n*Math.PI*3+ph))*amp;
+        peg(x,y,keyAt>=0&&i===keyAt);
+      }};
+    ridge(468,96,0,9,4);ridge(424,122,2.1,9,5);ridge(382,144,4.2,8,4);
+    peg(cx,152,true);peg(cx-72,198,true);peg(cx+72,198,true);
+    for(i=0;i<4;i++){peg(102+i*62,124,false)}
+  }else if(lv===2){ /* 北斗引：七星勺 + 环带 + 底阵 */
+    var dip=[[118,190],[158,168],[198,182],[238,214],[286,222],[296,270],[248,282]];
+    for(i=0;i<7;i++)peg(dip[i][0],dip[i][1],true);
+    var ring=[[78,332],[120,352],[164,362],[210,364],[256,356],[300,338],[336,312]];
+    for(i=0;i<7;i++)peg(ring[i][0],ring[i][1],false);
+    for(i=0;i<6;i++)peg(66+i*52,438,false);
+    for(i=0;i<5;i++)peg(92+i*52,472,false);
+    for(i=0;i<6;i++)peg(96+i*40,126+16*Math.sin(i/5*Math.PI),false);
+    peg(48,240,false);peg(342,240,false);
+  }else if(lv===3){ /* 双鱼戏：两条相对弧 + 鱼眼宫灯 */
+    for(i=0;i<=10;i++){var t=i/10*Math.PI;
+      peg(195-150*Math.cos(t),168+64*Math.sin(t),false); /* 上鱼背 */
+      if(i>0&&i<10)peg(195-118*Math.cos(t),168+58*Math.sin(t),i===5);}
+    for(i=0;i<=10;i++){var t2=i/10*Math.PI;
+      peg(195+150*Math.cos(t2),398-64*Math.sin(t2),false); /* 下鱼背 */
+      if(i>0&&i<10)peg(195+118*Math.cos(t2),398-58*Math.sin(t2),i===5);}
+    peg(75,168,true);peg(315,398,true); /* 鱼眼 */
+    peg(195,150,true);peg(195,416,true);
+    peg(45,262,false);peg(345,262,false);peg(88,300,false);peg(302,300,false);peg(132,262,false);peg(258,262,false);
+    for(i=0;i<3;i++){peg(160+i*35,236,false);peg(160+i*35,330,false)}
+  }else{ /* 飞天舞：双飘带 + 璎珞环 + 散花 */
+    for(i=0;i<=8;i++){var t3=i/8;
+      peg(52+t3*286,150+70*Math.sin(t3*Math.PI*1.6),i===4);
+      peg(52+t3*286,410-70*Math.sin(t3*Math.PI*1.6),i===4);}
+    for(i=0;i<8;i++){var a4=i*Math.PI/4;
+      peg(195+46*Math.cos(a4),282+46*Math.sin(a4),i%4===0);}
+    peg(cx,282,true);
+    for(i=0;i<4;i++){peg(88+i*72,120,false);peg(88+i*72,452,false)}
+  }
+  return relax(P,34);
+}
+/* 松弛推开至最小间距，clamp 界内，仍近者删（key 优先保留）——确定性顺序 */
+function relax(P,minD){
+  var i,j;
+  for(var it=0;it<14;it++){
+    var moved=false;
+    for(i=0;i<P.length;i++)for(j=i+1;j<P.length;j++){
+      var dx=P[j].x-P[i].x,dy=P[j].y-P[i].y,d2=dx*dx+dy*dy;
+      if(d2<minD*minD&&d2>0.01){
+        var d=Math.sqrt(d2),push=(minD-d)/2,ux=dx/d,uy=dy/d;
+        P[i].x-=ux*push;P[i].y-=uy*push;P[j].x+=ux*push;P[j].y+=uy*push;moved=true}
+    }
+    if(!moved)break;
+  }
+  for(i=0;i<P.length;i++){
+    P[i].x=Math.max(24,Math.min(366,P[i].x));
+    P[i].y=Math.max(74,Math.min(508,P[i].y));
+  }
+  var out=[];
+  for(i=0;i<P.length;i++){
+    var bad=false;
+    for(j=0;j<out.length;j++){var dx2=out[j].x-P[i].x,dy2=out[j].y-P[i].y;
+      if(dx2*dx2+dy2*dy2<minD*minD){if(P[i].key)out[j].key=true;bad=true;break}}
+    if(!bad)out.push(P[i]);
+  }
+  return out;
+}
+/* ===== 状态 ===== */
+var S={mode:'menu',lv:0,score:0,best:0,maxLv:1,balls:0,pegs:[],keyLeft:0,keyTotal:0,
+  ball:null,shots:0,muted:true,freeX:70,freeDir:1,gen:0,
+  petals:[],trails:[],bursts:[],msg:'',msgT:0,shake:0};
+var el={};
+function $(i){return document.getElementById(i)}
+function init(){
+  ['cv','score','lv-name','lv-sub','balls','btn-snd','btn-pause','menu','lv-btns','lv1','lv2','lv3',
+   'pause-ov','pause-sub','btn-resume','btn-quit','end-ov','end-panel','end-title','end-sub',
+   'btn-retry','btn-menu'].forEach(function(k){el[k]=$(k)});
+  S.best=+load('g52_best',0)||0;S.maxLv=Math.min(5,Math.max(1,+load('g52_lv',1)||1));
+  el['btn-snd'].textContent=S.muted?'♪̶':'♪';
+  refreshLvBtns();bind();resize();
+  for(var i=0;i<20;i++)S.petals.push({x:Math.random()*390,y:Math.random()*560,v:8+Math.random()*14,
+    s:2.4+Math.random()*3,w:Math.random()*Math.PI*2,hue:Math.random()<.65});
+  requestAnimationFrame(loop);
+}
+var store={};
+function load(k,d){try{var v=localStorage.getItem(k);return v===null?d:v}catch(e){return k in store?store[k]:d}}
+function save(k,v){try{localStorage.setItem(k,v)}catch(e){store[k]=v}}
+function refreshLvBtns(){
+  var names=['梅花坠','山峦谜','北斗引','双鱼戏','飞天舞'];
+  for(var i=0;i<3;i++){
+    var li=(S.maxLv-1)+i;if(li>4)break;
+    var b=el['lv'+(i+1)];if(!b)continue;
+    b.style.display='';b.dataset.lv=li;
+    b.childNodes[0].nodeValue='五六七八九十'.charAt(li);
+    var sm=b.querySelector('small');if(sm)sm.textContent=names[li];
+    var locked=(li+1)>S.maxLv;
+    b.classList.toggle('locked',locked);
+    if(sm&&locked)sm.textContent='通关解锁';
+  }
+}
+function startGame(lv){
+  S.gen++;S.lv=lv;S.score=0;S.shots=0;S.mode='play';S.ball=null;S.msg='';S.bursts=[];S.trails=[];
+  S.pegs=mkPegs(lv);
+  S.keyTotal=0;for(var i=0;i<S.pegs.length;i++)if(S.pegs[i].key)S.keyTotal++;
+  S.keyLeft=S.keyTotal;
+  S.balls=LAVS[lv].balls;S.freeX=70;S.freeDir=1;
+  el.menu.classList.remove('on');el['end-ov'].classList.remove('on');el['pause-ov'].classList.remove('on');
+  el['lv-name'].textContent=LAVS[lv].name;updHUD();
+}
+function updHUD(){
+  el.score.textContent=S.score;el.balls.textContent=S.balls;
+  el['lv-sub'].textContent='宫灯 '+S.keyLeft;
+}
+/* ===== 物理（纯函数式推进，sim 与真跑共用） ===== */
+function reflect(vx,vy,nx,ny,e){var d=vx*nx+vy*ny;return[vx-(1+e)*d*nx,vy-(1+e)*d*ny]}
+function aimClamp(ang){var lo=Math.PI*15/180,hi=Math.PI*165/180;return ang<lo?lo:(ang>hi?hi:ang)}
+function launch(x,y){
+  if(S.mode!=='play'||S.ball||S.balls<=0)return false;
+  var ang=aimClamp(Math.atan2(y-PHY.gunY,x-PHY.gunX));
+  S.balls--;S.shots++;
+  S.ball={x:PHY.gunX,y:PHY.gunY,vx:Math.cos(ang)*PHY.v0,vy:Math.sin(ang)*PHY.v0,
+    subs:0,streak:0,hitIds:{},trail:[]};
+  SND.pop();updHUD();return true;
+}
+function substep(b){
+  b.vy+=PHY.g*PHY.dt;b.x+=b.vx*PHY.dt;b.y+=b.vy*PHY.dt;b.subs++;
+  var r=PHY.rBall,w=PHY.wall,W=PHY.W;
+  if(b.x-r<w){b.x=w+r;b.vx=Math.abs(b.vx)*PHY.eWall}
+  if(b.x+r>W-w){b.x=W-w-r;b.vx=-Math.abs(b.vx)*PHY.eWall}
+  if(b.y-r<PHY.top+52){b.y=PHY.top+52+r;b.vy=Math.abs(b.vy)*PHY.eWall}
+  /* 最近穿透钉（同 substep 只处理一个） */
+  var best=-1,bd=1e9,pr=PHY.rPeg+r;
+  for(var i=0;i<S.pegs.length;i++){var p=S.pegs[i];if(p.hit)continue;
+    var dx=b.x-p.x,dy=b.y-p.y,d2=dx*dx+dy*dy;
+    if(d2<pr*pr&&d2<bd){bd=d2;best=i}}
+  if(best>=0){
+    var peg=S.pegs[best];b.hitIds[best]=1;
+    var dd=Math.sqrt(bd)||1,nx=(b.x-peg.x)/dd,ny=(b.y-peg.y)/dd;
+    var rv=reflect(b.vx,b.vy,nx,ny,PHY.ePeg);
+    b.vx=rv[0];b.vy=rv[1];
+    b.x=peg.x+nx*pr;b.y=peg.y+ny*pr;
+    if(!peg.hit){peg.hit=true;peg.glow=1;b.streak++;
+      S.bursts.push({x:peg.x,y:peg.y,key:peg.key,t:0});
+      S.score+=peg.key?100*b.streak:10*b.streak;
+      if(b.streak>=3)flash('连环 '+b.streak+' · '+((peg.key?100:10)*b.streak));
+      SND.chime(b.streak,peg.key);
+      if(peg.key){S.keyLeft--;S.shake=5}
+      updHUD();}
+  }
+  if(b.y-r>PHY.slotY){ /* 落槽 */
+    var slot=slotAt(b.x);
+    b.slot=slot;return false;
+  }
+  return b.subs<PHY.maxSub;
+}
+function slotAt(x){
+  var fx=S.freeX;
+  if(Math.abs(x-fx)<=PHY.freeW/2)return{free:true,m:0};
+  var idx=Math.floor(x/(PHY.W/6));if(idx>5)idx=5;if(idx<0)idx=0;
+  return{free:false,m:SLOTM[idx],idx:idx};
+}
+function finishBall(){
+  var b=S.ball;if(!b)return;
+  if(b.slot){
+    if(b.slot.free){S.balls++;flash('莲座接珠 · +1');SND.slide()}
+    else{var pts=100*b.slot.m;S.score+=pts;flash('底槽 ×'+b.slot.m+' · +'+pts);SND.thud()}
+    updHUD();
+  }
+  /* 清除本珠撞过的钉（撞时已即时爆散+计分，这里齐爆收尾） */
+  for(var i=0;i<S.pegs.length;i++){var p=S.pegs[i];
+    if(p.hit){S.bursts.push({x:p.x,y:p.y,key:p.key,t:0})}}
+  S.pegs=S.pegs.filter(function(p){return !p.hit});
+  S.ball=null;
+  if(S.keyLeft<=0){winLv();return}
+  if(S.balls<=0){endGame(false)}
+}
+function winLv(){
+  var bonus=S.balls*50;S.score+=bonus;
+  if(S.lv+2>S.maxLv&&S.lv+2<=5){S.maxLv=S.lv+2;save('g52_lv',S.maxLv)}
+  SND.win();endGame(true,bonus);
+}
+function endGame(win,bonus){
+  S.mode='over';
+  var panel=el['end-panel'];
+  if(win){panel.classList.add('celebrate');
+    el['end-title'].textContent=S.lv>=4?'散花周天':'花开满天';
+    var sub='剩珠 '+S.balls+' ×50 加成 +'+bonus+'，总分 '+S.score;
+    if(S.lv>=4)sub='飞天舞毕 · 总分 '+S.score;
+    el['end-sub'].innerHTML='本关清灯完成<br><b>'+sub+'</b>';
+    el['btn-retry'].textContent=S.lv>=4?'再舞一回':'再试本关';
+    if(S.score>S.best){S.best=S.score;save('g52_best',S.best);SND.best()}
+  }else{panel.classList.remove('celebrate');
+    el['end-title'].textContent='花未散尽';
+    el['end-sub'].innerHTML='官灯还剩 <b>'+S.keyLeft+'</b> 盏<br>再来一把';
+    el['btn-retry'].textContent='再试本关';
+  }
+  el['end-ov'].classList.add('on');
+}
+function flash(m){S.msg=m;S.msgT=1}
+/* ===== sim（bot/验证共用：克隆状态同步推进） ===== */
+function simShot(lv,pegsSrc,angle,freeX0){
+  angle=aimClamp(angle);
+  var pegs=pegsSrc.map(function(p){return{x:p.x,y:p.y,key:p.key,hit:false}});
+  var keyLeft0=0;for(var i=0;i<pegs.length;i++)if(pegs[i].key)keyLeft0++;
+  var b={x:PHY.gunX,y:PHY.gunY,vx:Math.cos(angle)*PHY.v0,vy:Math.sin(angle)*PHY.v0,
+    subs:0,streak:0,hitIds:{},trail:[]};
+  var sv={pegs:S.pegs,freeX:S.freeX,kl:S.keyLeft,sc:S.score,msg:S.msg,msgT:S.msgT,shake:S.shake,bursts:S.bursts};
+  S.pegs=pegs;S.freeX=freeX0;S.keyLeft=keyLeft0;S.score=0;S.bursts=[];
+  while(substep(b)){}
+  var r={path:b.subs,streak:b.streak,slot:slotAt(b.x),scoreGained:S.score,keyLeftNow:S.keyLeft};
+  S.pegs=sv.pegs;S.freeX=sv.freeX;S.keyLeft=sv.kl;S.score=sv.sc;S.msg=sv.msg;S.msgT=sv.msgT;S.shake=sv.shake;S.bursts=sv.bursts;
+  var hits=[];for(i=0;i<pegs.length;i++)if(pegs[i].hit)hits.push(pegs[i].key?'K':'n');
+  r.keyHits=hits.filter(function(h){return h==='K'}).length;
+  r.hits=hits.length;r.keyLeft=keyLeft0-r.keyHits;
+  r.burst=pegs.filter(function(p){return p.hit});
+  return r;
+}
+/* ===== 渲染 ===== */
+var ctx=null,dpr=1,cvW=390,cvH=560;
+function resize(){
+  var cv=el.cv;if(!cv)return;
+  var rect=cv.getBoundingClientRect();
+  dpr=Math.min(2,window.devicePixelRatio||1);
+  cvW=rect.width;cvH=rect.height;
+  cv.width=cvW*dpr;cv.height=cvH*dpr;
+  ctx=cv.getContext('2d');if(ctx)ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+function sx(x){return x*cvW/PHY.W}
+function sy(y){return y*cvH/PHY.H}
+function loop(t){
+  requestAnimationFrame(loop);
+  var dt=Math.min(0.05,(t-(loop.t||t))/1000);loop.t=t;
+  /* 逻辑推进（固定步长） */
+  if(S.mode==='play'){
+    S.freeX+=S.freeDir*PHY.freeV*dt;
+    if(S.freeX<PHY.freeW/2+14){S.freeX=PHY.freeW/2+14;S.freeDir=1}
+    if(S.freeX>PHY.W-PHY.freeW/2-14){S.freeX=PHY.W-PHY.freeW/2-14;S.freeDir=-1}
+    if(S.ball){
+      var steps=0;
+      while(S.ball&&steps<8){for(var k=0;k<PHY.sub&&S.ball;k++)if(!substep(S.ball)){finishBall();break};steps++}
+      if(S.ball){
+        var bb=S.ball;
+        bb.trail.push(bb.x,bb.y);if(bb.trail.length>26)bb.trail.splice(0,2);
+      }
+    }
+  }
+  for(var i=0;i<S.petals.length;i++){var pt=S.petals[i];
+    pt.y+=pt.v*dt;pt.w+=dt*2;if(pt.y>580){pt.y=-14;pt.x=Math.random()*390}
+    if(pt.x>394)pt.x=-4;if(pt.x<-4)pt.x=394}
+  for(i=S.bursts.length-1;i>=0;i--){S.bursts[i].t+=dt*2.4;if(S.bursts[i].t>1)S.bursts.splice(i,1)}
+  if(S.msgT>0)S.msgT-=dt*0.55;
+  if(S.shake>0)S.shake-=dt*22;
+  for(i=0;i<S.pegs.length;i++){var pg=S.pegs[i];if(pg.glow>0)pg.glow=Math.max(0,pg.glow-dt*0.8)}
+  if(ctx)render(t);
+}
+function render(t){
+  var W=cvW,H=cvH;
+  ctx.clearRect(0,0,W,H);
+  var shx=S.shake>0?(Math.random()-0.5)*S.shake:0,shy=S.shake>0?(Math.random()-0.5)*S.shake:0;
+  ctx.save();ctx.translate(shx,shy);
+  /* 背景星点 */
+  ctx.fillStyle='rgba(210,220,255,.5)';
+  for(var i=0;i<26;i++){
+    var sxp=(i*137.5)%390,syp=(i*89.7)%520;
+    var tw=0.35+0.3*Math.sin(t/900+i);
+    ctx.globalAlpha=tw;ctx.fillRect(sx(sxp),sy(syp),1.6,1.6);
+  }
+  ctx.globalAlpha=1;
+  /* 飘落花瓣 */
+  for(i=0;i<S.petals.length;i++){var pt=S.petals[i];
+    ctx.save();ctx.translate(sx(pt.x),sy(pt.y));ctx.rotate(pt.w);
+    ctx.fillStyle=pt.hue?'rgba(232,150,170,'+(0.15+0.13*Math.sin(pt.w))+')':'rgba(240,220,180,.15)';
+    ctx.beginPath();ctx.ellipse(0,0,pt.s,pt.s*0.55,0,0,7);ctx.fill();ctx.restore()}
+  /* 侧墙与顶檐 */
+  ctx.fillStyle='rgba(255,255,255,.05)';
+  ctx.fillRect(0,0,sx(PHY.wall)-2,H);ctx.fillRect(sx(PHY.W-PHY.wall)+2,0,W-sx(PHY.W-PHY.wall),H);
+  ctx.fillStyle='rgba(126,200,255,.10)';
+  ctx.fillRect(0,0,sx(PHY.wall)-2,H);ctx.fillRect(sx(PHY.W-PHY.wall)+2,0,W-sx(PHY.W-PHY.wall),H);
+  if(S.mode==='menu'){ctx.restore();return}
+  /* 底部接槽 */
+  var slotW=sx(PHY.W/6);
+  ctx.fillStyle='rgba(255,255,255,.05)';
+  ctx.fillRect(0,sy(PHY.slotY),W,H-sy(PHY.slotY));
+  ctx.font='600 11px system-ui';ctx.textAlign='center';
+  for(i=0;i<6;i++){
+    var m=SLOTM[i];
+    ctx.fillStyle=m===2?'rgba(255,217,126,.85)':'rgba(170,182,216,.8)';
+    ctx.fillText('×'+m,sx(PHY.W/12+i*PHY.W/6),sy(PHY.slotY)+24);
+    ctx.strokeStyle=m===2?'rgba(255,217,126,.30)':'rgba(170,182,216,.14)';
+    ctx.strokeRect(sx(i*PHY.W/6)+1,sy(PHY.slotY),slotW-2,H-sy(PHY.slotY)-4);
+  }
+  /* FREE 移动莲花槽 */
+  var fx=sx(S.freeX),fy=sy(PHY.slotY)+8;
+  ctx.save();ctx.translate(fx,fy);
+  ctx.fillStyle='rgba(126,200,255,.16)';
+  ctx.beginPath();ctx.moveTo(-sx(PHY.freeW/2),0);
+  ctx.quadraticCurveTo(0,-16,sx(PHY.freeW/2),0);ctx.closePath();ctx.fill();
+  ctx.strokeStyle='rgba(126,200,255,.75)';ctx.lineWidth=1.4;ctx.stroke();
+  ctx.fillStyle='#9ed4ff';ctx.font='600 11px system-ui';
+  ctx.fillText('莲座',0,14);ctx.restore();
+  /* 钉（撞过=点亮态：更亮+常亮光圈；未撞=常态） */
+  for(i=0;i<S.pegs.length;i++){var p=S.pegs[i],px=sx(p.x),py=sy(p.y),pr=Math.max(5,sx(PHY.rPeg));
+    var lum=p.hit;
+    if(p.glow>0){ /* 撞后 1s 强光圈脉动 */
+      ctx.strokeStyle=p.key?'rgba(255,230,150,'+(p.glow*.95)+')':'rgba(255,214,228,'+(p.glow*.85)+')';
+      ctx.lineWidth=2.6;ctx.beginPath();ctx.arc(px,py,pr+3+p.glow*5,0,7);ctx.stroke()}
+    if(p.key){ /* 宫灯：圆灯身+顶盖吊杆+底框穗珠 */
+      ctx.fillStyle=lum?'#ffe9b0':'#e8924a';
+      ctx.strokeStyle=lum?'rgba(255,240,190,.9)':'rgba(138,60,26,.85)';ctx.lineWidth=1.2;
+      ctx.beginPath();ctx.arc(px,py,pr,0,7);ctx.fill();ctx.stroke();
+      ctx.fillStyle=lum?'#fff8e0':'#ffd9a0';
+      ctx.beginPath();ctx.arc(px-pr*0.28,py-pr*0.30,pr*0.34,0,7);ctx.fill();
+      ctx.lineWidth=1.4;
+      ctx.beginPath();ctx.moveTo(px,py-pr);ctx.lineTo(px,py-pr-3.5);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(px-pr*0.55,py-pr-3.5);ctx.lineTo(px+pr*0.55,py-pr-3.5);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(px-pr*0.4,py+pr+1);ctx.lineTo(px+pr*0.4,py+pr+1);ctx.stroke();
+      ctx.fillStyle=lum?'rgba(255,240,190,.95)':'rgba(255,217,126,.7)';
+      ctx.beginPath();ctx.arc(px,py+pr+4,1.4,0,7);ctx.fill();
+      if(lum){ctx.strokeStyle='rgba(255,230,160,.55)';ctx.lineWidth=1.6;
+        ctx.beginPath();ctx.arc(px,py,pr+2.5,0,7);ctx.stroke()}
+    }else{ /* 花苞 */
+      ctx.fillStyle=lum?'#ffd9e4':'#e896aa';
+      ctx.strokeStyle=lum?'rgba(255,255,255,.75)':'rgba(170,84,104,.55)';ctx.lineWidth=1;
+      ctx.beginPath();ctx.arc(px,py,pr*0.86,0,7);ctx.fill();ctx.stroke();
+      ctx.fillStyle=lum?'rgba(255,255,255,.95)':'rgba(255,244,236,.9)';
+      ctx.beginPath();ctx.arc(px-pr*0.24,py-pr*0.26,pr*0.30,0,7);ctx.fill();
+      ctx.beginPath();ctx.moveTo(px,py-pr*0.8);ctx.quadraticCurveTo(px+pr*0.4,py-pr*0.1,px,py+pr*0.55);ctx.stroke();
+      if(lum){ctx.strokeStyle='rgba(255,214,228,.5)';ctx.lineWidth=1.4;
+        ctx.beginPath();ctx.arc(px,py,pr*0.86+2.5,0,7);ctx.stroke()}
+    }
+  }
+  /* 爆散花瓣 */
+  for(i=0;i<S.bursts.length;i++){var bu=S.bursts[i];
+    for(var k=0;k<6;k++){
+      var a=k/6*Math.PI*2+bu.t*2,rr=6+bu.t*20;
+      ctx.globalAlpha=(1-bu.t)*0.85;
+      ctx.fillStyle=bu.key?'rgba(255,217,126,.95)':'rgba(240,180,196,.9)';
+      ctx.beginPath();ctx.ellipse(sx(bu.x)+Math.cos(a)*rr*0.7,sy(bu.y)+Math.sin(a)*rr*0.7,3.4,1.9,a,0,7);ctx.fill();
+    }ctx.globalAlpha=1}
+  /* 弹道拖尾+珠 */
+  if(S.ball){
+    var bb=S.ball;
+    if(bb.trail.length>3){
+      for(i=0;i<bb.trail.length;i+=2){
+        var al=i/bb.trail.length*0.55;
+        ctx.fillStyle='rgba(255,232,170,'+al+')';
+        ctx.beginPath();ctx.arc(sx(bb.trail[i]),sy(bb.trail[i+1]),1.2+al*3,0,7);ctx.fill();
+      }}
+    var g=ctx.createRadialGradient(sx(bb.x)-2,sy(bb.y)-2,1,sx(bb.x),sy(bb.y),sx(PHY.rBall));
+    g.addColorStop(0,'#ffffff');g.addColorStop(.5,'#fff0c0');g.addColorStop(1,'#e8b45a');
+    ctx.save();ctx.shadowColor='#ffd97e';ctx.shadowBlur=10;
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(sx(bb.x),sy(bb.y),sx(PHY.rBall),0,7);ctx.fill();ctx.restore();
+  }
+  /* 炮口莲台与瞄准线 */
+  var gx=sx(PHY.gunX),gy=sy(PHY.gunY);
+  ctx.strokeStyle='rgba(255,217,126,.75)';ctx.lineWidth=2;
+  ctx.beginPath();ctx.arc(gx,gy,sx(16),0,7);ctx.stroke();
+  ctx.fillStyle='rgba(255,217,126,.14)';ctx.beginPath();ctx.arc(gx,gy,sx(16),0,7);ctx.fill();
+  ctx.fillStyle='#ffd97e';ctx.beginPath();ctx.arc(gx,gy,sx(5),0,7);ctx.fill();
+  if(!S.ball&&S.mode==='play'){
+    var ang2=S.aim?aimClamp(Math.atan2(S.aim.y-PHY.gunY,S.aim.x-PHY.gunX)):Math.PI/2;
+    ctx.setLineDash([3,7]);ctx.strokeStyle='rgba(190,225,255,.30)';ctx.lineWidth=1.4;
+    ctx.beginPath();ctx.moveTo(gx,gy);
+    ctx.lineTo(gx+Math.cos(ang2)*64,gy+Math.sin(ang2)*64);ctx.stroke();ctx.setLineDash([]);
+  }
+  /* 消息 */
+  if(S.msgT>0&&S.msg){
+    ctx.globalAlpha=Math.min(1,S.msgT*1.6);
+    ctx.fillStyle='#ffd97e';ctx.font='700 15px system-ui';ctx.textAlign='center';
+    ctx.fillText(S.msg,sx(195),sy(118));
+    ctx.globalAlpha=1;
+  }
+  ctx.restore();
+}
+/* ===== 音效（WebAudio 程序化） ===== */
+var SND=(function(){
+  var ac=null;
+  function ctxA(){if(!ac){try{ac=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}
+    if(ac&&ac.state==='suspended')ac.resume();return ac}
+  function tone(f,d,type,vol,slide){
+    if(S.muted)return;var a=ctxA();if(!a)return;
+    var o=a.createOscillator(),g=a.createGain();
+    o.type=type||'sine';o.frequency.value=f;
+    if(slide)o.frequency.exponentialRampToValueAtTime(slide,a.currentTime+d);
+    g.gain.value=vol||.15;g.gain.exponentialRampToValueAtTime(.001,a.currentTime+d);
+    o.connect(g);g.connect(a.destination);o.start();o.stop(a.currentTime+d);
+  }
+  var PENTA=[523,587,659,784,880,1046,1175,1318];
+  return{pop:function(){tone(340,.10,'triangle',.16,190)},
+    chime:function(st,key){var f=PENTA[Math.min(7,st-1)];
+      tone(f,.22,'sine',.15);if(key){tone(f*2,.34,'sine',.10);tone(196,.3,'sine',.06)}},
+    thud:function(){tone(150,.16,'triangle',.2,90)},
+    slide:function(){tone(500,.26,'sine',.14,1200)},
+    fail:function(){tone(220,.5,'sawtooth',.08,110)},
+    win:function(){[523,659,784,1046].forEach(function(f,i){setTimeout(function(){tone(f,.30,'sine',.14)},i*110)})},
+    best:function(){[784,1046,1318].forEach(function(f,i){setTimeout(function(){tone(f,.22,'triangle',.10)},i*90)})},
+    ui:function(){tone(760,.05,'square',.05)},
+    resume:function(){ctxA()}};
+})();
+/* ===== 输入 ===== */
+function bind(){
+  el.cv.addEventListener('pointermove',function(e){
+    var r=el.cv.getBoundingClientRect();
+    S.aim={x:(e.clientX-r.left)/r.width*PHY.W,y:(e.clientY-r.top)/r.height*PHY.H};
+  });
+  el.cv.addEventListener('pointerdown',function(e){
+    SND.resume();
+    var r=el.cv.getBoundingClientRect();
+    var x=(e.clientX-r.left)/r.width*PHY.W,y=(e.clientY-r.top)/r.height*PHY.H;
+    if(S.mode==='play')launch(x,y);
+  });
+  el.cv.addEventListener('pointerleave',function(){S.aim=null});
+  el['lv-btns'].addEventListener('click',function(e){
+    var b=e.target.closest('.lv-btn');if(!b||b.classList.contains('locked'))return;
+    SND.resume();startGame(+b.dataset.lv);SND.ui();
+  });
+  el['btn-snd'].addEventListener('click',function(){
+    S.muted=!S.muted;el['btn-snd'].textContent=S.muted?'♪̶':'♪';
+    if(!S.muted){SND.resume();SND.ui()}
+  });
+  el['btn-pause'].addEventListener('click',function(){
+    if(S.mode==='play'){S.mode='pause';el['pause-ov'].classList.add('on');
+      el['pause-sub'].textContent='官灯剩 '+S.keyLeft+' 盏 · 珠剩 '+S.balls;SND.ui()}
+  });
+  el['btn-resume'].addEventListener('click',function(){
+    if(S.mode==='pause'){S.mode='play';el['pause-ov'].classList.remove('on');SND.ui()}
+  });
+  el['btn-quit'].addEventListener('click',function(){toMenu()});
+  el['btn-menu'].addEventListener('click',function(){toMenu()});
+  el['btn-retry'].addEventListener('click',function(){SND.resume();startGame(S.lv);SND.ui()});
+  window.addEventListener('resize',function(){resize()});
+}
+function toMenu(){
+  S.mode='menu';S.ball=null;S.gen++;
+  el['pause-ov'].classList.remove('on');el['end-ov'].classList.remove('on');
+  el.menu.classList.add('on');refreshLvBtns();SND.ui();
+}
+init();
+
+</script>
+</body>
+</html>
