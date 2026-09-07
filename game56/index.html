@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>沙里淘金</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;position:fixed;background:#171009}
+body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;color:#f0e6d2;
+  -webkit-user-select:none;user-select:none;touch-action:none}
+#app{position:relative;width:100%;max-width:520px;height:100%;margin:0 auto;overflow:hidden;
+  --sab:env(safe-area-inset-bottom,0px);
+  background:radial-gradient(120% 40% at 50% -4%,rgba(232,176,74,.10) 0%,rgba(232,176,74,0) 52%),#171009}
+#cv{position:absolute;top:64px;left:0;width:100%;height:calc(100% - 64px);display:block;cursor:pointer;
+  top:calc(64px + env(safe-area-inset-top,0px));
+  height:calc(100% - 64px - env(safe-area-inset-top,0px))}
+#hud{position:absolute;top:0;left:0;right:0;min-height:64px;display:flex;align-items:center;
+  padding:env(safe-area-inset-top,0px) 14px 0;z-index:22;
+  background:linear-gradient(180deg,rgba(23,16,9,.95),rgba(23,16,9,.55) 78%,transparent);
+  transition:opacity .35s}
+#app.menu-on #hud{opacity:0;pointer-events:none}
+.hud-score{min-width:0;overflow:hidden}
+.hud-score b{display:block;font-size:21px;color:#e8b04a;letter-spacing:.04em;text-shadow:0 0 14px rgba(232,176,74,.35)}
+.hud-score i{font-style:normal;font-size:9.5px;color:#b0a488;letter-spacing:.28em}
+.hud-mid{flex:1;text-align:center;min-width:0;padding:0 8px}
+.hud-mid .tbar{height:5px;border-radius:3px;background:rgba(255,255,255,.10);overflow:hidden;margin:3px 6px 2px}
+.hud-mid .tbar i{display:block;height:100%;width:0%;background:linear-gradient(90deg,#e8b04a,#f5d98a);
+  box-shadow:0 0 6px rgba(232,176,74,.6);transition:width .18s}
+.hud-mid i{font-style:normal;font-size:9px;color:#b0a488;letter-spacing:.18em}
+.hud-mid b{font-size:clamp(9.5px,3vw,11.5px);color:#d8cba8;font-weight:600;letter-spacing:.06em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.hud-right{display:flex;align-items:center;gap:10px}
+.hud-best{font-size:11px;color:#d9c690;white-space:nowrap;text-align:right;line-height:1.5}
+.hud-best b{color:#fff}
+#btn-snd,#btn-pause{width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,.16);
+  background:rgba(255,255,255,.06);color:#d8cba8;font-size:15px;line-height:1;cursor:pointer;flex:none}
+#btn-pause{font-size:13px}
+.ov{position:absolute;inset:0;z-index:20;display:none;align-items:center;justify-content:center;
+  background:rgba(10,7,4,.78);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+.ov.on{display:flex}
+#menu{position:absolute;inset:0;z-index:15;display:none;flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(130% 55% at 50% -4%,#2a2010 0%,rgba(42,32,16,0) 58%),
+  radial-gradient(120% 34% at 50% 106%,rgba(232,176,74,.22) 0%,rgba(232,176,74,0) 72%)}
+#menu.on{display:flex}
+#menu::after{content:'';position:absolute;left:10%;right:10%;bottom:calc(var(--sab,0px) + 42px);height:2px;
+  background:linear-gradient(90deg,transparent,rgba(232,176,74,.8),transparent);box-shadow:0 0 24px 5px rgba(232,176,74,.3)}
+.m-kicker{font-size:11.5px;letter-spacing:.42em;color:#a89878;margin-bottom:14px;padding-left:.42em}
+.m-title{font-size:38px;font-weight:800;letter-spacing:.14em;padding-left:.14em;
+  background:linear-gradient(180deg,#f7ecc8,#e8b04a 58%,#a06a1e);-webkit-background-clip:text;background-clip:text;color:transparent;
+  text-shadow:0 6px 26px rgba(232,176,74,.22)}
+.m-sub{margin-top:10px;font-size:11px;letter-spacing:.3em;color:#c4b490;padding-left:.3em}
+.m-go{margin-top:36px;width:150px;padding:13px 0;border:none;border-radius:14px;cursor:pointer;
+  background:linear-gradient(180deg,#f0c866,#b8842e);color:#241604;font-size:16.5px;font-weight:700;
+  letter-spacing:.3em;padding-left:.3em;font-family:inherit;box-shadow:0 8px 26px rgba(232,176,74,.3)}
+.m-how{margin-top:20px;font-size:11px;line-height:2;color:#b0a488;text-align:center;letter-spacing:.06em}
+.m-how b{color:#f0e2bc;font-weight:600}
+.m-best{margin-top:18px;font-size:12px;color:#d9c690;letter-spacing:.18em}
+.m-best b{color:#fff;font-size:15px;font-weight:700}
+.m-foot{position:absolute;bottom:calc(var(--sab,0px) + 16px);left:0;right:0;text-align:center;color:#a89878;font-size:11px;letter-spacing:.14em}
+.panel{width:min(330px,86%);padding:26px 22px 22px;border-radius:18px;text-align:center;position:relative;
+  background:linear-gradient(180deg,#241b0e,#171009);border:1px solid rgba(255,255,255,.14);
+  box-shadow:0 18px 50px rgba(0,0,0,.6)}
+.panel.celebrate{border-color:rgba(232,176,74,.6);box-shadow:0 18px 50px rgba(0,0,0,.6),0 0 34px rgba(232,176,74,.22)}
+.panel h3{font-size:19px;letter-spacing:.22em;color:#f4ecda;margin-bottom:8px}
+.panel.celebrate h3::before{content:'\2726 \2727 \2726';display:block;font-size:14px;letter-spacing:.5em;color:#e8b04a;margin-bottom:7px;text-shadow:0 0 12px rgba(232,176,74,.6)}
+.ov.on .panel{animation:popin .42s cubic-bezier(.34,1.56,.64,1)}
+@keyframes popin{from{transform:scale(.9) translateY(10px);opacity:1}to{transform:scale(1) translateY(0);opacity:1}}
+.p-sub{font-size:12.5px;color:#b0a488;line-height:2;margin-bottom:6px}
+.p-sub b{color:#e8b04a;font-weight:600}
+.p-stats{display:flex;gap:8px;justify-content:center;margin:10px 0 2px}
+.p-stats div{flex:1;padding:8px 2px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)}
+.p-stats b{display:block;font-size:17px;color:#f5d98a;font-weight:700}
+.p-stats i{font-style:normal;font-size:9px;color:#b0a488;letter-spacing:.1em}
+.p-btns{display:flex;gap:10px;margin-top:16px}
+.p-btn{flex:1;padding:11px 0;border-radius:12px;cursor:pointer;font-family:inherit;font-size:13.5px;letter-spacing:.14em}
+.p-btn.gold{border:none;background:linear-gradient(180deg,#f0c866,#b8842e);color:#241604;font-weight:700}
+.p-btn.line{background:none;border:1px solid rgba(255,255,255,.22);color:#e8dfc8}
+#banner{position:absolute;top:30%;left:0;right:0;text-align:center;z-index:12;pointer-events:none;opacity:0;transition:opacity .3s}
+#banner.on{opacity:1}
+#banner b{display:block;font-size:30px;font-weight:800;letter-spacing:.42em;padding-left:.42em;color:#f5d98a;
+  text-shadow:0 0 26px rgba(232,176,74,.7),0 4px 14px rgba(0,0,0,.7)}
+#banner i{display:block;margin-top:6px;font-style:normal;font-size:11.5px;letter-spacing:.3em;color:#d8cba8}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div class="hud-score"><b id="cur">0</b><i>本 关</i></div>
+    <div class="hud-mid">
+      <b id="lv-i">第 1 关 · 目标 350</b>
+      <div class="tbar"><i id="tfill"></i></div>
+      <i>GOAL</i>
+    </div>
+    <div class="hud-right">
+      <div class="hud-best">总资产 <b id="total">0</b><br><span id="time-i" style="font-size:9.5px">60s</span></div>
+      <button id="btn-pause" aria-label="暂停">Ⅱ</button>
+      <button id="btn-snd" aria-label="声音">♪̶</button>
+    </div>
+  </div>
+  <canvas id="cv"></canvas>
+  <div id="banner"><b id="banner-b"></b><i id="banner-i"></i></div>
+
+  <div id="menu" class="on">
+    <div class="m-kicker">GOLD RUSH · 老 矿 坑 淘 金 热</div>
+    <div class="m-title">沙里淘金</div>
+    <div class="m-sub">一 爪 一 个 准 · 重 石 不 如 金</div>
+    <button class="m-go" id="btn-go">开 采</button>
+    <div class="m-best" id="m-best">最佳 <b>0</b></div>
+    <div class="m-how">看准摆角<b>点屏幕放出钩爪</b>，抓住就往回拉<br><b>金贵钻石值钱</b>，顽石又重又慢还贱<br>六十秒凑够目标，<b>资产累计一路闯关</b></div>
+    <div class="m-foot">沙 里 淘 金 · 眼 力 为 上</div>
+  </div>
+
+  <div class="ov" id="pause-ov">
+    <div class="panel">
+      <h3>暂 停</h3>
+      <div class="p-sub" id="pause-sub">矿灯还亮着，歇口气</div>
+      <div class="p-btns">
+        <button class="p-btn gold" id="btn-resume">继续挖</button>
+        <button class="p-btn line" id="btn-quit">回矿口</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ov" id="end-ov">
+    <div class="panel" id="end-panel">
+      <h3 id="end-title">收 工 了</h3>
+      <div class="p-sub" id="end-sub"></div>
+      <div class="p-stats" id="end-stats"></div>
+      <div class="p-btns">
+        <button class="p-btn gold" id="btn-retry">再挖一局</button>
+        <button class="p-btn line" id="btn-menu">回矿口</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+'use strict';
+/* ===== 常量（摆动/伸缩/收回全部几何化，无随机进判定路径） ===== */
+var CFG={W:390,H:560,DUR:60,
+  AX:195,AY:138,ROPE0:44,
+  AMP:1.3090,PER:2.6,VOUT:480,LMAX:560,VR:460,TOL:6,
+  TARGET0:350,TSTEP:250,MARGIN:1.7,
+  OBJ:{sgold:{r:14,v:50,w:.4},lgold:{r:24,v:150,w:2.2},
+       diamond:{r:10,v:300,w:.3},srock:{r:16,v:5,w:1.2},lrock:{r:24,v:15,w:2.8}}};
+/* ===== LCG（mulberry32）：唯一随机源 ===== */
+function rngFactory(seed){
+  var a=seed>>>0;
+  return function(){
+    a|=0;a=a+0x6D2B79F5|0;
+    var t=Math.imul(a^a>>>15,1|a);
+    t=t+Math.imul(t^t>>>7,61|t)^t;
+    return((t^t>>>14)>>>0)/4294967296;
+  };
+}
+/* ===== 纯函数 ===== */
+/* 目标增速随关递减（250→110）：60s 可玩性优先，深关靠多抓凑数而非单价堆高 */
+function targetOf(n){var t=0,i;for(i=1;i<n;i++)t+=Math.max(110,CFG.TSTEP-14*(i-1));return CFG.TARGET0+t}
+/* 保底倍率随关衰减：总值上限(17×300)约束下全程可满足 */
+function marginOf(n){return Math.max(1.2,CFG.MARGIN-0.07*(n-1))}
+function vinOf(w){return CFG.VR/(0.5+w)}
+function angAt(t){return CFG.AMP*Math.sin(6.28318/CFG.PER*t)}
+function hookPos(ang,len){return{x:CFG.AX+Math.sin(ang)*len,y:CFG.AY+Math.cos(ang)*len}}
+/* 关卡类型权重：关越深好物越少（gold/diamond 递减，rock 递增，保底） */
+function levelWeights(n){
+  var k=Math.min(1,(n-1)*0.13);
+  return{sgold:.26*(1-k),lgold:.13*(1-k*.8),diamond:.07*(1-k*.7),srock:.30+0.14*k,lrock:.24+0.21*k};
+}
+function seedOf(base,n){return((base>>>0)*7919+(n>>>0)*104729+1)>>>0}
+/* ===== 布局生成（确定性；总值 ≥ target×MARGIN 保底） ===== */
+function genLevel(base,n){
+  var rng=rngFactory(seedOf(base,n)),objs=[],tries=0,i;
+  var count=9+Math.floor(rng()*4)+Math.min(5,Math.floor((n-1)/2)); /* 9-12，深关渐增至 14-17 */
+  var wt=levelWeights(n),keys=['sgold','lgold','diamond','srock','lrock'];
+  function total(){var s=0;for(i=0;i<objs.length;i++)s+=CFG.OBJ[objs[i].t].v;return s}
+  while(objs.length<count&&tries<500){
+    tries++;
+    var r1=rng(),acc=0,t='sgold';
+    for(i=0;i<5;i++){acc+=wt[keys[i]];if(r1<acc){t=keys[i];break}}
+    if(r1>=acc)t='lrock';
+    var o=CFG.OBJ[t],r=o.r;
+    var x=18+r+rng()*(354-2*r),y=300+r+rng()*(236-2*r);
+    var dx=x-CFG.AX,dy=y-CFG.AY,d=Math.sqrt(dx*dx+dy*dy),phi=Math.atan2(dx,dy);
+    if(Math.abs(phi)>CFG.AMP*0.95)continue;
+    if(d>CFG.LMAX-14||d<CFG.ROPE0+r+24)continue;
+    var okP=true;
+    for(i=0;i<objs.length;i++){var q=objs[i];
+      if(Math.sqrt((q.x-x)*(q.x-x)+(q.y-y)*(q.y-y))<q.r+r+7){okP=false;break}}
+    if(!okP)continue;
+    objs.push({t:t,x:x,y:y,r:r,v:o.v,w:o.w,got:false,rot:rng()*6.2832});
+  }
+  /* 总值保底（三档替换保类型多样性）：lrock→lgold(半径同)、srock→diamond(变小)、顽石耗尽后 lgold→diamond(24→10 变小) */
+  var tg=targetOf(n)*marginOf(n),k2=0;
+  while(total()<tg&&k2<60){
+    k2++;
+    var j=-1;
+    for(i=0;i<objs.length;i++)if(objs[i].t==='lrock'){j=i;break}
+    if(j<0)for(i=0;i<objs.length;i++)if(objs[i].t==='srock'){j=i;break}
+    if(j<0)for(i=0;i<objs.length;i++)if(objs[i].t==='lgold'){j=i;break}
+    if(j<0)break; /* 全钻石无可换（tg ≤ count×300 已数学保证不达此） */
+    var old=objs[j],to=old.t==='lrock'?'lgold':'diamond',rp=CFG.OBJ[to];
+    objs[j]={t:to,x:old.x,y:old.y,r:rp.r,v:rp.v,w:rp.w,got:false,rot:old.rot};
+  }
+  return objs;
+}
+/* ===== 状态 ===== */
+var S={mode:'menu',base:1,level:1,cur:0,total:0,lvlClock:0,clock:0,
+  objs:[],hook:{st:'swing',ang:0,len:CFG.ROPE0,angF:0,hold:null},
+  grabs:0,parts:[],floats:[],flash:0,best:0,muted:true,bannerT:0};
+var el={};
+function $(i){return document.getElementById(i)}
+function init(){
+  ['cv','hud','cur','lv-i','tfill','total','time-i','btn-snd','btn-pause','menu','btn-go','m-best',
+   'banner','banner-b','banner-i','pause-ov','pause-sub','btn-resume','btn-quit','end-ov','end-panel','end-title',
+   'end-sub','end-stats','btn-retry','btn-menu'].forEach(function(k){el[k]=$(k)});
+  S.best=+load('g56_best',0)||0;
+  el.total.textContent=S.total;
+  el['m-best'].innerHTML='最佳 <b>'+S.best+'</b>';
+  el['btn-snd'].textContent=S.muted?'♪̶':'♪';
+  bind();resize();
+  document.getElementById('app').classList.add('menu-on');
+  requestAnimationFrame(loop);
+}
+var store={};
+function load(k,d){try{var v=localStorage.getItem(k);return v===null?d:v}catch(e){return k in store?store[k]:d}}
+function save(k,v){try{localStorage.setItem(k,v)}catch(e){store[k]=v}}
+/* ===== 局程 ===== */
+function startGame(){
+  S.mode='play';
+  S.base=(Date.now()%1e6)+1;
+  S.level=1;S.cur=0;S.total=0;S.lvlClock=0;S.clock=0;
+  S.objs=genLevel(S.base,1);S.grabs=0;S.parts=[];S.floats=[];S.flash=0;S.bannerT=0;
+  S.hook={st:'swing',ang:angAt(0),len:CFG.ROPE0,angF:0,hold:null};
+  document.getElementById('app').classList.remove('menu-on');
+  el.menu.classList.remove('on');el['end-ov'].classList.remove('on');el['pause-ov'].classList.remove('on');
+  updHUD();
+}
+function fire(){
+  var h=S.hook;
+  if(S.mode!=='play'||h.st!=='swing')return false;
+  h.st='out';h.angF=angAt(S.clock);h.len=CFG.ROPE0;
+  var p0=hookPos(h.angF,h.len);h.px=p0.x;h.py=p0.y; /* 扫掠起点 */
+  SND.whoosh();return true;
+}
+/* 点到线段距离平方（扫掠命中用） */
+function segDist2(x,y,x1,y1,x2,y2){
+  var dx=x2-x1,dy=y2-y1,L=dx*dx+dy*dy;
+  var s=L?((x-x1)*dx+(y-y1)*dy)/L:0;s=Math.max(0,Math.min(1,s));
+  var qx=x1+s*dx,qy=y1+s*dy;
+  return (x-qx)*(x-qx)+(y-qy)*(y-qy);
+}
+function tick(dt){
+  var h=S.hook,i,p;
+  S.clock+=dt;S.lvlClock+=dt;
+  h.ang=angAt(S.clock);
+  if(h.st==='out'){
+    h.len+=CFG.VOUT*dt;
+    p=hookPos(h.angF,h.len);
+    if(p.y>CFG.H+30||p.x<-30||p.x>CFG.W+30||h.len>=CFG.LMAX){h.st='back';h.hold=null}
+    else{
+      /* 线段扫掠命中（上一帧尖点→当前尖点），防高帧步进穿透；取最早碰到者 */
+      var hit=null,dB=1e9;
+      for(i=0;i<S.objs.length;i++){var o=S.objs[i];if(o.got)continue;
+        var rr=o.r+CFG.TOL;
+        var d2=segDist2(o.x,o.y,h.px,h.py,p.x,p.y);
+        if(d2<=rr*rr){
+          /* 最早碰到：沿段参数定位最近碰撞点 */
+          var dx=p.x-h.px,dy=p.y-h.py,L2=dx*dx+dy*dy||1;
+          var s=Math.max(0,Math.min(1,((o.x-h.px)*dx+(o.y-h.py)*dy)/L2));
+          if(s<dB){dB=s;hit=o}}
+      }
+      if(hit){hit.got=true;h.st='back';h.hold=hit;SND.grab()}
+    }
+    h.px=p.x;h.py=p.y;
+  }else if(h.st==='back'){
+    var v=h.hold?vinOf(h.hold.w):vinOf(0.05)*1.6;
+    h.len-=v*dt;
+    if(h.len<=CFG.ROPE0){
+      h.len=CFG.ROPE0;h.st='swing';
+      if(h.hold){bagIt(h.hold);h.hold=null}
+    }
+  }
+  /* 特效推进 */
+  for(i=S.parts.length-1;i>=0;i--){var q=S.parts[i];
+    q.t+=dt;q.x+=q.vx*dt;q.y+=q.vy*dt;q.vy+=150*dt;
+    if(q.t>.8)S.parts.splice(i,1)}
+  for(i=S.floats.length-1;i>=0;i--){var f=S.floats[i];
+    f.t+=dt;f.y-=30*dt;if(f.t>1)S.floats.splice(i,1)}
+  if(S.bannerT>0){S.bannerT-=dt;if(S.bannerT<=0)el.banner.className=''}
+  if(S.flash>0)S.flash=Math.max(0,S.flash-dt);
+  /* 过关：达标立刻 */
+  if(S.cur>=targetOf(S.level)){levelUp();return}
+  /* 到时未达标：终局 */
+  if(S.lvlClock>=CFG.DUR){endGame();return}
+  if(el['tfill'])el['tfill'].style.width=Math.min(100,S.cur/targetOf(S.level)*100)+'%';
+  if(el['time-i'])el['time-i'].textContent=Math.max(0,Math.ceil(CFG.DUR-S.lvlClock))+'s';
+}
+function bagIt(o){
+  S.cur+=o.v;S.total+=o.v;S.grabs++;
+  var p=hookPos(S.hook.angF,CFG.ROPE0);
+  coinFx(p.x,p.y,o.v);SND.coin();
+  updHUD();
+}
+function levelUp(){
+  var achieved=targetOf(S.level); /* 达成金额（清零前取） */
+  S.level++;S.cur=0;S.lvlClock=0;
+  S.objs=genLevel(S.base,S.level);
+  S.hook={st:'swing',ang:angAt(S.clock),len:CFG.ROPE0,angF:0,hold:null};
+  el['banner-b'].textContent='过 关';
+  el['banner-i'].textContent='本关 '+achieved+' 入袋 · 第 '+S.level+' 关目标 '+targetOf(S.level);
+  el.banner.className='on';S.bannerT=1.6;S.flash=0.35; /* 达标金色微闪 */
+  SND.level();updHUD();
+}
+function endGame(){
+  S.mode='over';
+  var nb=S.total>S.best&&S.total>0;
+  if(nb){S.best=S.total;save('g56_best',S.best);el['m-best'].innerHTML='最佳 <b>'+S.best+'</b>'}
+  var panel=el['end-panel'];
+  panel.classList.toggle('celebrate',nb);
+  el['end-title'].textContent=nb?'富 甲 一 方':'收 工 了';
+  el['end-sub'].innerHTML='总资产 <b>'+S.total+'</b> · 挖到第 '+S.level+' 关'+
+    (nb?' · 新纪录':' · 纪录 '+S.best);
+  el['end-stats'].innerHTML=
+    '<div><b>'+S.grabs+'</b><i>入袋件数</i></div>'+
+    '<div><b>'+targetOf(S.level)+'</b><i>本关目标</i></div>'+
+    '<div><b>'+Math.min(100,Math.round(S.cur/targetOf(S.level)*100))+'%</b><i>目标进度</i></div>';
+  el['end-ov'].classList.add('on');SND.end(nb);
+}
+function toMenu(){
+  S.mode='menu';S.objs=[];S.parts=[];S.floats=[];S.flash=0;
+  document.getElementById('app').classList.add('menu-on');
+  el['pause-ov'].classList.remove('on');el['end-ov'].classList.remove('on');el.menu.classList.add('on');
+}
+function updHUD(){
+  el.cur.textContent=S.cur;el.total.textContent=S.total;
+  el['lv-i'].textContent='第 '+S.level+' 关 · 目标 '+targetOf(S.level);
+  if(el['tfill'])el['tfill'].style.width=Math.min(100,S.cur/targetOf(S.level)*100)+'%';
+}
+/* ===== 特效 ===== */
+function coinFx(x,y,v){
+  var i;
+  for(i=0;i<10;i++){
+    var a=i/10*6.2832;
+    S.parts.push({x:x,y:y,vx:Math.cos(a)*(40+Math.random()*50),vy:Math.sin(a)*(40+Math.random()*50)-40,
+      c:i%2?'#f5d98a':'#e8b04a',s:2.4+Math.random()*3,t:0,life:.8,grav:170,spark:i%3===0,ph:Math.random()*6.28});
+  }
+  S.floats.push({x:x,y:y,t:0,txt:'+'+v,big:v>=150});
+}
+/* ===== 渲染 ===== */
+var ctx=null,dpr=1,cvW=390,cvH=560;
+function resize(){
+  var cv=el.cv;if(!cv)return;
+  var rect=cv.getBoundingClientRect();
+  dpr=Math.min(2,window.devicePixelRatio||1);
+  cvW=rect.width;cvH=rect.height;
+  cv.width=cvW*dpr;cv.height=cvH*dpr;
+  ctx=cv.getContext('2d');if(ctx)ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+function sx(x){return x*cvW/CFG.W}
+function sy(y){return y*cvH/CFG.H}
+/* 矿层卵石暗纹（固定点阵，无随机） */
+var PEBBLES=[[40,340],[86,368],[132,326],[178,352],[224,318],[268,344],[318,330],[356,362],
+  [58,398],[104,412],[150,388],[196,420],[242,392],[288,416],[336,396],[30,448],
+  [76,466],[122,442],[168,472],[214,450],[260,478],[306,452],[352,470],[52,516],
+  [98,532],[144,508],[190,536],[236,510],[282,538],[328,512],[364,532],[66,560],[210,560],[330,560]];
+function loop(t){
+  requestAnimationFrame(loop);
+  var dt=Math.min(0.05,(t-(loop.t||t))/1000);loop.t=t;
+  if(S.mode==='play')tick(dt);
+  else{ /* 非玩态也推进摆与特效供菜单/结算背景 */
+    var i;
+    S.clock+=dt;S.hook.ang=angAt(S.clock);
+    for(i=S.parts.length-1;i>=0;i--){var q=S.parts[i];
+      q.t+=dt;q.x+=q.vx*dt;q.y+=q.vy*dt;q.vy+=(q.grav||170)*dt;
+      if(q.t>(q.life||.8))S.parts.splice(i,1)}
+    for(i=S.floats.length-1;i>=0;i--){var f=S.floats[i];
+      f.t+=dt;f.y-=30*dt;if(f.t>1)S.floats.splice(i,1)}
+    if(S.bannerT>0){S.bannerT-=dt;if(S.bannerT<=0)el.banner.className=''}
+    if(S.flash>0)S.flash=Math.max(0,S.flash-dt);
+  }
+  if(ctx)render(t);
+}
+function render(t){
+  var W=cvW,H=cvH,i;
+  ctx.clearRect(0,0,W,H);
+  /* 竖井剖面：上段岩壁，下段矿层 */
+  var g0=ctx.createLinearGradient(0,0,0,H);
+  g0.addColorStop(0,'#241a10');g0.addColorStop(.42,'#1d150c');g0.addColorStop(.46,'#2e2113');g0.addColorStop(1,'#171009');
+  ctx.fillStyle=g0;ctx.fillRect(0,0,W,H);
+  /* 矿层分界暗缘 */
+  ctx.fillStyle='rgba(0,0,0,.35)';ctx.fillRect(0,sy(282),W,sy(4));
+  /* 矿工顶灯暖光 */
+  var gL=ctx.createRadialGradient(sx(CFG.AX),sy(CFG.AY),8,sx(CFG.AX),sy(CFG.AY),sx(150));
+  gL.addColorStop(0,'rgba(255,220,140,.14)');gL.addColorStop(1,'rgba(255,220,140,0)');
+  ctx.fillStyle=gL;ctx.fillRect(0,0,W,sy(300));
+  /* 卵石暗纹 */
+  for(i=0;i<PEBBLES.length;i++){
+    var pb=PEBBLES[i];
+    ctx.fillStyle='rgba(255,235,200,.045)';
+    ctx.beginPath();ctx.ellipse(sx(pb[0]),sy(pb[1]),sx(9),sy(6),pb[0]%3,0,7);ctx.fill();
+  }
+  /* 矿晶微光（缓慢闪烁） */
+  for(i=0;i<6;i++){
+    var gx=sx(50+i*58+((i*37)%17)),gy=sy(320+((i*73)%180));
+    var tw=.5+.5*Math.sin(t/860+i*2.1);
+    ctx.fillStyle='rgba(245,217,138,'+(.08+.16*tw)+')';
+    ctx.beginPath();ctx.arc(gx,gy,sx(1.4),0,7);ctx.fill();
+  }
+  /* 物体 */
+  for(i=0;i<S.objs.length;i++){
+    var o=S.objs[i];if(o.got)continue;
+    drawObj(o,t);
+  }
+  /* 矿工+绞盘 */
+  drawMiner(t);
+  /* 绳+钩 */
+  drawHook(t);
+  /* 金币粒子 */
+  var psScale=Math.max(1,cvW/CFG.W);
+  ctx.textAlign='center';
+  for(i=0;i<S.parts.length;i++){
+    var q2=S.parts[i],ps=q2.s*psScale;
+    if(q2.spark){
+      ctx.globalAlpha=Math.max(0,1-q2.t/(q2.life||.8))*(.55+.45*Math.sin(q2.t*30+q2.ph));
+      ctx.fillStyle=q2.c;
+      ctx.save();ctx.translate(sx(q2.x),sy(q2.y));ctx.rotate(.785);
+      ctx.fillRect(-ps/2,-ps/2,ps,ps);ctx.restore();ctx.globalAlpha=1;
+    }else{
+      ctx.globalAlpha=Math.max(0,1-q2.t/(q2.life||.8));
+      ctx.fillStyle=q2.c;
+      ctx.fillRect(sx(q2.x)-ps/2,sy(q2.y)-ps/2,ps,ps);ctx.globalAlpha=1;
+    }
+  }
+  /* 飘字 */
+  for(i=0;i<S.floats.length;i++){
+    var fl=S.floats[i],fa=1-fl.t;
+    ctx.globalAlpha=Math.max(0,fa);
+    ctx.font=(fl.big?'800 16px':'700 13.5px')+' system-ui';
+    ctx.fillStyle=fl.big?'#f5d98a':'#f0e6d2';
+    ctx.fillText(fl.txt,sx(fl.x),sy(fl.y));ctx.globalAlpha=1;
+  }
+  if(S.flash>0){ctx.fillStyle='rgba(255,220,140,'+(S.flash*1.2)+')';ctx.fillRect(0,0,W,H)}
+}
+function drawMiner(t){
+  var px=sx(CFG.AX),py=sy(CFG.AY),i;
+  /* 吊臂横梁 */
+  ctx.fillStyle='#3a2c1a';
+  ctx.fillRect(px-sx(58),py-sy(26),sx(116),sy(7));
+  ctx.fillStyle='#57431f';
+  ctx.fillRect(px-sx(58),py-sy(26),sx(116),sy(2.5));
+  /* 支索 */
+  ctx.strokeStyle='rgba(120,96,60,.5)';ctx.lineWidth=1.2;
+  ctx.beginPath();
+  ctx.moveTo(px-sx(56),py-sy(20));ctx.lineTo(px,py-sy(4));
+  ctx.moveTo(px+sx(56),py-sy(20));ctx.lineTo(px,py-sy(4));ctx.stroke();
+  /* 矿工（右侧坐姿剪影） */
+  var mx=px+sx(40),my=py-sy(8);
+  ctx.fillStyle='#0e0a06';
+  ctx.beginPath();ctx.arc(mx,my-sy(14),sx(6.5),0,7);ctx.fill();              /* 头 */
+  ctx.fillRect(mx-sx(8),my-sy(9),sx(16),sy(11));                             /* 身 */
+  ctx.fillRect(mx-sx(2),my+sy(2),sx(4),sy(8));                               /* 腿 */
+  ctx.fillStyle='#e8b04a';                                                    /* 安全帽 */
+  ctx.beginPath();ctx.arc(mx,my-sy(15.5),sx(6.8),3.34,6.28);ctx.fill();
+  var lamp=.7+.3*Math.sin(t/540);
+  ctx.fillStyle='rgba(255,236,170,'+lamp+')';                                /* 顶灯 */
+  ctx.beginPath();ctx.arc(mx,my-sy(21),sx(1.8),0,7);ctx.fill();
+  ctx.fillStyle='rgba(255,236,170,'+(.1*lamp)+')';
+  ctx.beginPath();ctx.arc(mx,my-sy(21),sx(6),0,7);ctx.fill();
+  /* 绞盘轮 */
+  var sp=t/420%6.2832;
+  ctx.fillStyle='#2c2114';ctx.beginPath();ctx.arc(px,py,sx(9),0,7);ctx.fill();
+  ctx.strokeStyle='#8a6c34';ctx.lineWidth=2;
+  ctx.beginPath();ctx.arc(px,py,sx(9),0,7);ctx.stroke();
+  ctx.strokeStyle='#c8a45a';ctx.lineWidth=1.4;
+  for(i=0;i<3;i++){
+    var a=sp+i*2.0944;
+    ctx.beginPath();ctx.moveTo(px,py);
+    ctx.lineTo(px+Math.cos(a)*sx(7.4),py+Math.sin(a)*sx(7.4));ctx.stroke();
+  }
+}
+function drawHook(t){
+  var h=S.hook,px=sx(CFG.AX),py=sy(CFG.AY);
+  var tip=hookPos(h.st==='swing'?h.ang:h.angF,h.len);
+  var tx=sx(tip.x),ty=sy(tip.y);
+  /* 绳：摆动微弧，伸缩绷直带微震 */
+  ctx.strokeStyle='#cbb98a';ctx.lineWidth=1.6;
+  ctx.beginPath();
+  if(h.st==='swing'){
+    var bow=sx(3)*Math.sin(t/300);
+    ctx.moveTo(px,py);
+    ctx.quadraticCurveTo((px+tx)/2+bow,(py+ty)/2,tx,ty);
+  }else{
+    var jit=Math.sin(t/38)*1.1; /* 收放张力微震 */
+    ctx.moveTo(px,py);
+    ctx.quadraticCurveTo((px+tx)/2+jit,(py+ty)/2,tx,ty);
+  }
+  ctx.stroke();
+  /* 钩爪（三爪，按屏幕绳向旋转，夹紧做 ~0.15s 插值） */
+  var clT=h.hold?0.34:0.72;
+  if(h.cl===undefined)h.cl=clT;
+  h.cl+=(clT-h.cl)*Math.min(1,(t-(drawHook.pt||t))/1000*9);
+  drawHook.pt=t;
+  ctx.save();ctx.translate(tx,ty);ctx.rotate(Math.atan2(tx-px,ty-py));
+  ctx.strokeStyle='#d8c294';ctx.lineWidth=2.2;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(0,-3);ctx.lineTo(0,4);ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(0,2);
+  ctx.quadraticCurveTo(-sx(6)*h.cl,8,-sx(4)*h.cl,12);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(0,2);
+  ctx.quadraticCurveTo(sx(6)*h.cl,8,sx(4)*h.cl,12);
+  ctx.stroke();
+  ctx.strokeStyle='#f0dcae';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(-sx(4)*h.cl,12);ctx.lineTo(-sx(2.6)*h.cl,9.5);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(sx(4)*h.cl,12);ctx.lineTo(sx(2.6)*h.cl,9.5);ctx.stroke();
+  ctx.restore();
+  /* 抓着的物体紧贴爪心 */
+  if(h.hold){
+    var hp=hookPos(h.st==='swing'?h.ang:h.angF,h.len+5+h.hold.r*0.18);
+    drawObj(h.hold,t,hp.x,hp.y);
+  }
+}
+function drawObj(o,t,ox,oy){
+  var x=ox!==undefined?ox:o.x,y=oy!==undefined?oy:o.y;
+  var px=sx(x),py=sy(y),r=sx(o.r),i;
+  ctx.save();ctx.translate(px,py);ctx.rotate(o.rot*0.15);
+  if(o.t==='diamond'){
+    /* 钻石：多面折射 */
+    var dg=ctx.createLinearGradient(0,-r,0,r);
+    dg.addColorStop(0,'#eaf6ff');dg.addColorStop(.45,'#a8d4f0');dg.addColorStop(1,'#5a8ab8');
+    ctx.fillStyle=dg;
+    ctx.beginPath();
+    ctx.moveTo(0,-r*1.15);ctx.lineTo(r, -r*.25);ctx.lineTo(r*.62,r);ctx.lineTo(-r*.62,r);ctx.lineTo(-r,-r*.25);
+    ctx.closePath();ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,.85)';ctx.lineWidth=.9;ctx.stroke();
+    ctx.beginPath();ctx.moveTo(-r,-r*.25);ctx.lineTo(r,-r*.25);ctx.moveTo(0,-r*1.15);ctx.lineTo(0,r);
+    ctx.moveTo(-r*.32,r*.9);ctx.lineTo(r*.32,r*.9);ctx.strokeStyle='rgba(255,255,255,.4)';ctx.stroke();
+    var tw=.5+.5*Math.sin(t/430+o.rot);
+    ctx.fillStyle='rgba(255,255,255,'+(.5*tw)+')';
+    ctx.beginPath();ctx.arc(-r*.3,-r*.5,r*.22,0,7);ctx.fill();
+  }else if(o.t==='sgold'||o.t==='lgold'){
+    /* 金块：八边不规则+切面棱线 */
+    var base=o.t==='lgold'?['#ffe08a','#e8a83a','#8f5c14']:['#ffd86e','#d8922e','#7a4c10'];
+    var gg=ctx.createRadialGradient(-r*.35,-r*.4,r*.1,0,0,r*1.1);
+    gg.addColorStop(0,base[0]);gg.addColorStop(.55,base[1]);gg.addColorStop(1,base[2]);
+    ctx.fillStyle=gg;
+    ctx.beginPath();
+    ctx.moveTo(-r*.9,-r*.4);ctx.lineTo(-r*.35,-r*.95);ctx.lineTo(r*.45,-r*.85);
+    ctx.lineTo(r*.95,-r*.2);ctx.lineTo(r*.7,r*.65);ctx.lineTo(-r*.1,r*.95);
+    ctx.lineTo(-r*.8,r*.55);ctx.closePath();ctx.fill();
+    ctx.strokeStyle='rgba(120,70,10,.55)';ctx.lineWidth=1;ctx.stroke();
+    ctx.strokeStyle='rgba(255,244,200,.75)';ctx.lineWidth=.9;
+    ctx.beginPath();
+    ctx.moveTo(-r*.35,-r*.95);ctx.lineTo(-r*.15,-r*.1);ctx.lineTo(r*.7,r*.5);
+    ctx.moveTo(-r*.15,-r*.1);ctx.lineTo(-r*.8,r*.55);
+    ctx.stroke();
+    var tw2=.5+.5*Math.sin(t/510+o.rot*2);
+    ctx.fillStyle='rgba(255,250,220,'+(.35+.4*tw2)+')';
+    ctx.beginPath();ctx.arc(-r*.3,-r*.45,r*.16,0,7);ctx.fill();
+  }else{
+    /* 顽石：不规则圆+麻点 */
+    var base2=o.t==='lrock'?['#8a8074','#5c554b','#332e27']:['#948a7c','#655d52','#3a342c'];
+    var rg=ctx.createRadialGradient(-r*.3,-r*.35,r*.1,0,0,r*1.05);
+    rg.addColorStop(0,base2[0]);rg.addColorStop(.6,base2[1]);rg.addColorStop(1,base2[2]);
+    ctx.fillStyle=rg;
+    ctx.beginPath();
+    ctx.moveTo(-r*.95,-r*.15);ctx.lineTo(-r*.55,-r*.85);ctx.lineTo(r*.3,-r*.9);
+    ctx.lineTo(r*.92,-r*.3);ctx.lineTo(r*.8,r*.55);ctx.lineTo(r*.05,r*.95);
+    ctx.lineTo(-r*.7,r*.7);ctx.closePath();ctx.fill();
+    ctx.strokeStyle='rgba(20,16,12,.5)';ctx.lineWidth=1;ctx.stroke();
+    ctx.fillStyle='rgba(30,26,20,.4)';
+    ctx.beginPath();ctx.arc(-r*.25,r*.15,r*.13,0,7);ctx.arc(r*.4,-r*.2,r*.1,0,7);ctx.arc(r*.05,r*.5,r*.09,0,7);ctx.fill();
+  }
+  ctx.restore();
+}
+/* ===== 音效 ===== */
+var SND=(function(){
+  var ac=null;
+  function ctxA(){if(!ac){try{ac=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}
+    if(ac&&ac.state==='suspended')ac.resume();return ac}
+  function tone(f,d,type,vol,slide){
+    if(S.muted)return;var a=ctxA();if(!a)return;
+    var o=a.createOscillator(),g=a.createGain();
+    o.type=type||'sine';o.frequency.value=f;
+    if(slide)o.frequency.exponentialRampToValueAtTime(slide,a.currentTime+d);
+    g.gain.value=vol||.15;g.gain.exponentialRampToValueAtTime(.001,a.currentTime+d);
+    o.connect(g);g.connect(a.destination);o.start();o.stop(a.currentTime+d);
+  }
+  return{whoosh:function(){tone(300,.12,'sawtooth',.04,700)},
+    grab:function(){tone(180,.06,'square',.08,120)},
+    coin:function(){tone(880,.07,'triangle',.1);tone(1320,.12,'triangle',.08)},
+    level:function(){[392,494,587,784].forEach(function(f,i){setTimeout(function(){tone(f,.2,'triangle',.11)},i*110)})},
+    end:function(nb){[330,262,196].forEach(function(f,i){setTimeout(function(){tone(f,.3,'triangle',.1)},i*150)});
+      if(nb)setTimeout(function(){tone(880,.35,'triangle',.12)},480)},
+    ui:function(){tone(760,.05,'square',.05)},
+    resume:function(){ctxA()}};
+})();
+/* ===== 输入 ===== */
+function bind(){
+  el.cv.addEventListener('pointerdown',function(e){
+    if(e.button!==undefined&&e.button!==0)return; /* 只认主键/触摸 */
+    SND.resume();
+    if(S.mode!=='play')return;
+    fire();
+  });
+  el['btn-go'].addEventListener('click',function(){SND.resume();startGame();SND.ui()});
+  el['btn-snd'].addEventListener('click',function(){
+    S.muted=!S.muted;el['btn-snd'].textContent=S.muted?'♪̶':'♪';
+    if(!S.muted){SND.resume();SND.ui()}
+  });
+  el['btn-pause'].addEventListener('click',function(){
+    if(S.mode==='play'){
+      S.mode='pause';el['pause-ov'].classList.add('on');
+      el['pause-sub'].textContent='本关 '+S.cur+'/'+targetOf(S.level)+' · 已挖 '+Math.floor(S.lvlClock)+' 秒';SND.ui();
+    }
+  });
+  el['btn-resume'].addEventListener('click',function(){
+    if(S.mode==='pause'){S.mode='play';el['pause-ov'].classList.remove('on');SND.ui()}
+  });
+  el['btn-quit'].addEventListener('click',function(){toMenu();SND.ui()});
+  el['btn-menu'].addEventListener('click',function(){toMenu();SND.ui()});
+  el['btn-retry'].addEventListener('click',function(){SND.resume();startGame();SND.ui()});
+  window.addEventListener('resize',function(){resize()});
+}
+init();
+
+</script>
+</body>
+</html>
