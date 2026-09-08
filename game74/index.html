@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>灯谜会 · 满堂彩</title>
+<style>
+  html,body{margin:0;padding:0;background:#0d0a0c;height:100%;overflow:hidden;
+    font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+  #app{position:relative;width:390px;height:844px;margin:0 auto;background:#171015;overflow:hidden}
+  #hud{position:absolute;top:0;left:0;width:390px;height:64px;z-index:5;
+    background:linear-gradient(180deg,#1d1519,#140f12);border-bottom:1px solid rgba(242,200,106,.22);
+    display:flex;align-items:center;gap:8px;padding:0 10px;box-sizing:border-box}
+  .pill{background:rgba(246,236,212,.07);border:1px solid rgba(246,236,212,.25);border-radius:10px;
+    padding:3px 9px;color:#f6ecd4;font-size:13px;font-weight:600;white-space:nowrap}
+  .pill small{color:rgba(246,236,212,.65);font-weight:500;margin-right:2px}
+  #hud .sp{flex:1}
+  .lives{display:flex;gap:4px;align-items:center}
+  .lamp{width:9px;height:12px;border-radius:45% 45% 40% 40%;background:rgba(224,81,47,.9);
+    border:1px solid rgba(255,190,150,.4);box-shadow:0 0 5px rgba(224,81,47,.5)}
+  .lamp.off{background:rgba(120,100,95,.25);box-shadow:none;border-color:rgba(160,140,135,.25)}
+  .hbtn{width:36px;height:36px;border-radius:50%;border:1px solid rgba(246,236,212,.32);
+    background:rgba(246,236,212,.07);color:#f6ecd4;font-size:16px;display:flex;
+    align-items:center;justify-content:center;cursor:pointer}
+  #cv{position:absolute;top:64px;left:0;width:390px;height:780px;display:block;touch-action:none}
+  .lay{position:absolute;inset:0;z-index:8;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;background:rgba(10,6,8,.85);backdrop-filter:blur(2px)}
+  .lay.hide{display:none}
+  .ttl{font-size:30px;font-weight:800;color:#f6ecd4;letter-spacing:6px;margin-bottom:8px}
+  .sub{font-size:14px;color:rgba(246,236,212,.72);margin-bottom:22px;line-height:1.7;text-align:center}
+  .bigbtn{background:linear-gradient(180deg,#e0512f,#a83318);border:1px solid #ffb090;color:#fdf2e4;
+    font-size:18px;font-weight:700;letter-spacing:4px;padding:13px 42px;border-radius:14px;cursor:pointer;
+    box-shadow:0 4px 16px rgba(224,81,47,.35)}
+  .row{display:flex;gap:14px;align-items:center}
+  .score-big{font-size:42px;font-weight:800;color:#f6ecd4;text-shadow:0 0 18px rgba(246,236,212,.35)}
+  #flashtx{position:absolute;top:84px;left:50%;transform:translateX(-50%);z-index:6;padding:7px 18px;
+    border-radius:11px;background:rgba(246,236,212,.1);border:1px solid rgba(246,236,212,.3);
+    color:#f6ecd4;font-size:14px;font-weight:600;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
+  #flashtx.show{opacity:1}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div class="pill"><small>分</small><span id="scv">0</span></div>
+    <div class="pill"><small>连</small><span id="stv">0</span></div>
+    <div class="lives"><span class="lamp" id="lf0"></span><span class="lamp" id="lf1"></span><span class="lamp" id="lf2"></span></div>
+    <div class="sp"></div>
+    <div class="pill"><small>时</small><span id="tmv">12</span></div>
+    <div class="hbtn" id="btn-snd">🔇</div>
+    <div class="hbtn" id="btn-pause">⏸</div>
+  </div>
+  <canvas id="cv" width="390" height="780"></canvas>
+  <div id="flashtx"></div>
+
+  <div class="lay" id="menu">
+    <div class="ttl">灯 谜 会</div>
+    <div class="sub">夜市灯会 · 满堂彩<br>读谜面，四选一抢答，答对点亮一盏灯笼<br>答错或超时，熄一盏命灯</div>
+    <div class="bigbtn" id="btn-go">入 会</div>
+    <div class="sub" style="margin-top:20px;margin-bottom:0" id="bestline">最高累计 0</div>
+  </div>
+
+  <div class="lay hide" id="pauselay">
+    <div class="ttl">歇 一 会</div>
+    <div class="bigbtn" id="btn-resume">继 续</div>
+    <div style="height:14px"></div>
+    <div class="bigbtn" id="btn-home" style="background:linear-gradient(180deg,#2c2226,#20191c);border-color:#74806e;box-shadow:none">离 场</div>
+  </div>
+
+  <div class="lay hide" id="overlay">
+    <div class="ttl" id="overttl">散 场</div>
+    <div class="score-big" id="overscore">0</div>
+    <div class="sub" id="overstat">点灯 0/8 · 最长连 ×0</div>
+    <div class="bigbtn" id="btn-again">再 来</div>
+  </div>
+</div>
+<script>
+/* ============ 灯谜会 · 满堂彩（game74） ============ */
+/* 100 条公版/自编灯谜（q,a,w[3],c,lv）+ 四选一竞速 + 点灯笼进度 */
+'use strict';
+const $=id=>document.getElementById(id);
+const cv=$('cv'), ctx=cv.getContext('2d');
+let AC=null, SND=false;
+function ensureAC(){ if(AC||!(window.AudioContext||window.webkitAudioContext)) return;
+  try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
+function beep(f,d,t,v){ if(!SND||!AC) return; try{
+  const o=AC.createOscillator(), gn=AC.createGain();
+  o.type=t||'sine'; o.frequency.value=f;
+  gn.gain.setValueAtTime(v||.08, AC.currentTime);
+  gn.gain.exponentialRampToValueAtTime(.0001, AC.currentTime+d);
+  o.connect(gn); gn.connect(AC.destination); o.start(); o.stop(AC.currentTime+d);
+}catch(e){} }
+function snd(k){ if(k==='sel')beep(660,.08,'triangle',.05);
+  else if(k==='ok'){beep(880,.2,'sine',.07);setTimeout(()=>beep(1318,.25,'sine',.05),110);}
+  else if(k==='drum')beep(150,.25,'square',.05);
+  else if(k==='win'){beep(523,.15,'sine',.06);setTimeout(()=>beep(659,.15,'sine',.06),150);
+    setTimeout(()=>beep(784,.3,'sine',.06),300);}
+  else if(k==='bell')beep(1046,.25,'sine',.06);
+  else if(k==='tick')beep(300,.04,'triangle',.04); }
+
+/* ---- 确定 rng（家族 LCG） ---- */
+let RS=1;
+function srand(seed){ RS=(seed>>>0)||1; }
+function rnd(){ RS=(Math.imul(RS,1103515245)+12345)>>>0; return (RS>>>9)/8388608; }
+
+/* ---- 谜库（q谜面 a答案 w干扰×3 c类别 lv难度1-3） ---- */
+const CATS=['物','字','动物','自然','果蔬','用器'];
+const RIDDLES=[
+ /* ---- 字（22） ---- */
+ {q:'山上还有山',a:'出',w:['岳','峰','崇'],c:'字',lv:1},
+ {q:'十口之家，家世久',a:'古',w:['田','叶','只'],c:'字',lv:1},
+ {q:'太阳西边下，月儿东边挂',a:'明',w:['阴','晚','旦'],c:'字',lv:1},
+ {q:'一口咬掉牛尾巴',a:'告',w:['口','舌','召'],c:'字',lv:2},
+ {q:'王姑娘，白姑娘，一起坐在石头上',a:'碧',w:['珀','磊','砚'],c:'字',lv:2},
+ {q:'画时圆，写时方，冬时短，夏时长',a:'日',w:['月','年','天'],c:'字',lv:1},
+ {q:'七十二小时',a:'晶',w:['品','森','磊'],c:'字',lv:2},
+ {q:'一加一',a:'王',w:['三','干','丰'],c:'字',lv:2},
+ {q:'九十天',a:'季',w:['春','年','旬'],c:'字',lv:2},
+ {q:'一斗米',a:'料',w:['米','斗','科'],c:'字',lv:2},
+ {q:'人有他大，天没他大',a:'一',w:['大','天','人'],c:'字',lv:3},
+ {q:'上下一体',a:'卡',w:['占','卜','中'],c:'字',lv:2},
+ {q:'两个夕阳相会',a:'多',w:['夜','岁','梦'],c:'字',lv:1},
+ {q:'需要一半，留下一半',a:'雷',w:['雪','霜','零'],c:'字',lv:3},
+ {q:'目前少了联系',a:'省',w:['看','相','盯'],c:'字',lv:3},
+ {q:'一点一横长，一撇到南洋，南洋有个人，只有一寸长',a:'府',w:['唐','度','付'],c:'字',lv:3},
+ {q:'一人一口',a:'合',w:['吞','含','命'],c:'字',lv:1},
+ {q:'大口套小口',a:'回',w:['吕','品','串'],c:'字',lv:2},
+ {q:'水落石出',a:'泵',w:['砂','汞','沓'],c:'字',lv:3},
+ {q:'半推半就',a:'掠',w:['抗','拢','拣'],c:'字',lv:3},
+ {q:'客人已满',a:'促',w:['位','佩','仙'],c:'字',lv:3},
+ {q:'半个月亮',a:'胖',w:['肥','朋','明'],c:'字',lv:2},
+ /* ---- 动物（19） ---- */
+ {q:'身穿黑缎袍，尾巴像剪刀，冬天去南方，春天又来到',a:'燕子',w:['麻雀','乌鸦','蝙蝠'],c:'动物',lv:1},
+ {q:'头戴红帽子，身穿白袍子，走路摆架子，说话伸脖子',a:'鹅',w:['鸭','鸡','鹤'],c:'动物',lv:1},
+ {q:'耳朵长，尾巴短，只吃菜，不吃饭',a:'兔子',w:['猫','狗','松鼠'],c:'动物',lv:1},
+ {q:'八字须，往上翘，开口就说妙妙妙',a:'猫',w:['虎','豹','狸'],c:'动物',lv:1},
+ {q:'有头没有颈，身上冷冰冰，有翅不能飞，无脚也能行',a:'鱼',w:['蛇','虾','龟'],c:'动物',lv:1},
+ {q:'身披花棉袄，唱歌呱呱叫，田里捉害虫，丰收立功劳',a:'青蛙',w:['蟾蜍','鸭子','水鸟'],c:'动物',lv:1},
+ {q:'尖尖嘴，细细腿，狡猾多疑拖大尾',a:'狐狸',w:['狼','黄鼠狼','狸猫'],c:'动物',lv:1},
+ {q:'背着房子去旅行，走到哪里家在哪',a:'蜗牛',w:['乌龟','田螺','螃蟹'],c:'动物',lv:1},
+ {q:'头上两根须，身穿花衣衫，飞进花丛中，快乐把舞跳',a:'蝴蝶',w:['蜜蜂','蜻蜓','飞蛾'],c:'动物',lv:1},
+ {q:'小小飞机纱翅膀，飞来飞去捉虫忙',a:'蜻蜓',w:['蝴蝶','蚊子','蝙蝠'],c:'动物',lv:1},
+ {q:'坐也是站，立也是站，行也是站，睡也是站',a:'马',w:['鹤','驴','狗'],c:'动物',lv:2},
+ {q:'小时四条腿，长大两条腿，老了三条腿',a:'人',w:['猴','青蛙','鸟'],c:'动物',lv:3},
+ {q:'白胡子老头，赶着一群黑豆，一边走一边漏',a:'羊',w:['牛','驴','马'],c:'动物',lv:2},
+ {q:'小小姑娘一身黑，花丛里面采花忙，酿出甜糖大家尝',a:'蜜蜂',w:['蝴蝶','蚂蚁','燕子'],c:'动物',lv:2},
+ {q:'身子像小山，鼻子长又弯，耳朵像蒲扇，四腿粗如柱',a:'大象',w:['犀牛','河马','骆驼'],c:'动物',lv:1},
+ {q:'一个游泳家，说话呱呱呱，小时有尾没有脚，大时有脚没尾巴',a:'青蛙',w:['蝌蚪','鲤鱼','乌龟'],c:'动物',lv:2},
+ {q:'黑夜潜行者，倒挂金钟睡，出门靠雷达，从来不迷路',a:'蝙蝠',w:['猫头鹰','老鼠','刺猬'],c:'动物',lv:2},
+ {q:'沙漠一只船，背上两座山，远看像小丘，近看挂风帆',a:'骆驼',w:['大象','牦牛','斑马'],c:'动物',lv:2},
+ {q:'头小颈长四脚短，硬壳里面把身安，碰见敌人缩进去，天生胆小不出头',a:'乌龟',w:['蜗牛','甲虫','鳄鱼'],c:'动物',lv:1},
+ /* ---- 自然（15） ---- */
+ {q:'千条线，万条线，掉到水里看不见',a:'雨',w:['雪','雾','风'],c:'自然',lv:1},
+ {q:'弯弯一座桥，挂在半天腰，七色打扮巧，没手难建造',a:'彩虹',w:['月亮','闪电','云朵'],c:'自然',lv:1},
+ {q:'天上白花花，风一吹就跑，像棉又像絮，就是抓不着',a:'云',w:['棉花','雾','风筝'],c:'自然',lv:1},
+ {q:'像烟不是烟，缭绕遮人眼，太阳一出来，跑得不留痕',a:'雾',w:['烟','云','汽'],c:'自然',lv:1},
+ {q:'白色鹅毛满天飞，落在地上盖棉被',a:'雪',w:['雾','霜','絮'],c:'自然',lv:1},
+ {q:'先见一道光，后听一声响，脾气真暴躁，轰隆震天响',a:'雷',w:['风','雨','炮'],c:'自然',lv:1},
+ {q:'生在树上，叶落无踪，听不见声音，看得见树弯',a:'风',w:['雨','雷','电'],c:'自然',lv:2},
+ {q:'一条金腰带，挂在天空外，晴天看不见，雨后跑出来',a:'彩虹',w:['闪电','月亮','云'],c:'自然',lv:2},
+ {q:'天上一面鼓，藏在云深处，响时先见光，声音隆隆出',a:'雷',w:['鼓','闪电','乌云'],c:'自然',lv:2},
+ {q:'冬天窗上开银花，屋檐底下挂尖塔，太阳一出来，化成水滴滴答',a:'冰',w:['雪','雾','露'],c:'自然',lv:2},
+ {q:'清晨草上亮晶晶，圆圆一颗颗，太阳一出来，转眼不见了',a:'露珠',w:['霜','雨','雾'],c:'自然',lv:2},
+ {q:'看不见摸不着，跑起来树弯腰，抓不住留不下，处处听得叫',a:'风',w:['雨','雷','雾'],c:'自然',lv:1},
+ {q:'有时圆有时弯，晚上挂天上，白天躲起来',a:'月亮',w:['太阳','星星','云'],c:'自然',lv:1},
+ {q:'一物亮晶晶，夜晚挂天庭，眨着小眼睛，数也数不清',a:'星星',w:['萤火虫','灯','钻石'],c:'自然',lv:1},
+ {q:'红彤彤一大盆，东边升西边落，晒得人暖烘烘',a:'太阳',w:['火','月亮','炉子'],c:'自然',lv:1},
+ /* ---- 果蔬（16） ---- */
+ {q:'麻屋子，红帐子，里头住个白胖子',a:'花生',w:['黄豆','核桃','杏仁'],c:'果蔬',lv:1},
+ {q:'身穿绿衣裳，肚里水汪汪，生的子儿多，个个黑脸膛',a:'西瓜',w:['南瓜','冬瓜','木瓜'],c:'果蔬',lv:1},
+ {q:'圆圆脸儿像苹果，又酸又甜营养多，既能做菜吃，又可当水果',a:'西红柿',w:['苹果','茄子','辣椒'],c:'果蔬',lv:1},
+ {q:'红公鸡，绿尾巴，身体钻到地底下，又甜又脆营养大',a:'胡萝卜',w:['白萝卜','红薯','洋葱'],c:'果蔬',lv:1},
+ {q:'紫色树，紫色花，紫花谢了结紫瓜，紫瓜里面装芝麻',a:'茄子',w:['葡萄','蓝莓','紫薯'],c:'果蔬',lv:2},
+ {q:'身穿紫色袍，头顶绿缨帽，生在地上跑不了',a:'茄子',w:['萝卜','洋葱','土豆'],c:'果蔬',lv:1},
+ {q:'黄外衣，包银条，弯弯像月牙，剥开皮儿甜味飘',a:'香蕉',w:['月牙','玉米','芒果'],c:'果蔬',lv:1},
+ {q:'小小红果树上挂，酸酸甜甜人人夸，一串一串像玛瑙',a:'山楂',w:['葡萄','樱桃','荔枝'],c:'果蔬',lv:2},
+ {q:'一个黄妈妈，生性手段辣，老来愈厉害，大家才怕它',a:'姜',w:['蒜','辣椒','葱'],c:'果蔬',lv:2},
+ {q:'青青藤，架上爬，浑身小刺顶朵花，脆嫩解暑人人夸',a:'黄瓜',w:['丝瓜','南瓜','葫芦'],c:'果蔬',lv:2},
+ {q:'圆圆脑袋紫白衣，一层一层裹得紧，切开辣得眼泪流',a:'洋葱',w:['大蒜','大葱','萝卜'],c:'果蔬',lv:2},
+ {q:'红嘴绿鹦哥，吃了营养多',a:'菠菜',w:['苋菜','油菜','芹菜'],c:'果蔬',lv:2},
+ {q:'白胖身子埋地里，绿缨迎风立，拔出来洗一洗，脆甜赛过梨',a:'萝卜',w:['红薯','胡萝卜','土豆'],c:'果蔬',lv:1},
+ {q:'黄金布，包银条，中间弯弯两头翘',a:'香蕉',w:['玉米','芒果','南瓜'],c:'果蔬',lv:2},
+ {q:'壳儿硬，壳儿脆，四个姐妹隔墙睡，从小到大背靠背',a:'核桃',w:['花生','瓜子','豆荚'],c:'果蔬',lv:2},
+ {q:'红壳裹白肉，核小甜如蜜，岭南佳果它称奇',a:'荔枝',w:['龙眼','山竹','樱桃'],c:'果蔬',lv:2},
+ /* ---- 用器（14） ---- */
+ {q:'白娃娃，爬黑墙，越爬个儿越变小',a:'粉笔',w:['蜡烛','铅笔','橡皮'],c:'用器',lv:1},
+ {q:'有面没有口，有脚没有手，虽有四只脚，自己不会走',a:'桌子',w:['椅子','床','柜子'],c:'用器',lv:1},
+ {q:'你哭它也哭，你笑它也笑，你问它是谁，它说你知道',a:'镜子',w:['窗户','照片','湖水'],c:'用器',lv:1},
+ {q:'一根棍儿许多骨，晴天收起雨天开',a:'伞',w:['扇子','灯笼','蘑菇'],c:'用器',lv:1},
+ {q:'圆头圆脑脖子长，肚里滚烫藏，倒出一杯冒白气，唱起歌来高八度',a:'热水瓶',w:['茶壶','水杯','酒瓶'],c:'用器',lv:1},
+ {q:'两只小船没有桨，没有帆来没有桅，白天载你到处走，夜里停在你床边',a:'鞋',w:['袜子','手套','小船'],c:'用器',lv:1},
+ {q:'四四方方一座房，冷热饭菜里面藏，通风换气把菌杀，保鲜全靠它帮忙',a:'冰箱',w:['柜子','烤箱','碗橱'],c:'用器',lv:2},
+ {q:'小小一间房，只有一扇窗，对准好风景，咔嚓留个样',a:'照相机',w:['望远镜','放映机','手机'],c:'用器',lv:2},
+ {q:'一匹马儿两人骑，这边高来那边低，马儿虽然不会跑，两人骑着笑嘻嘻',a:'跷跷板',w:['木马','秋千','滑梯'],c:'用器',lv:2},
+ {q:'一间小房没窗户，话儿歌儿里面藏，拧开就能听四方',a:'收音机',w:['电视','电话','留声机'],c:'用器',lv:3},
+ {q:'细长银条一根，专在布上行走，牵着彩线不离手',a:'缝衣针',w:['剪刀','顶针','软尺'],c:'用器',lv:3},
+ {q:'独木造高楼，没瓦没砖头，人在水下走，水在人上流',a:'雨伞',w:['雨衣','斗笠','拱桥'],c:'用器',lv:3},
+ {q:'有硬有软，有长有宽，白天空闲，晚上上班，一到天亮，收起不看',a:'床',w:['被子','枕头','席子'],c:'用器',lv:2},
+ {q:'小小木杆身上扛，专挑重担不嫌沉，钩住货物翘一翘，几斤几两它最清',a:'秤',w:['尺子','剪刀','锄头'],c:'用器',lv:3},
+ /* ---- 物（14） ---- */
+ {q:'五个兄弟，住在一起，名字不同，高矮不齐',a:'手指',w:['筷子','琴键','汤勺'],c:'物',lv:1},
+ {q:'稀奇稀奇真稀奇，拿人鼻子当马骑',a:'眼镜',w:['口罩','围巾','帽子'],c:'物',lv:1},
+ {q:'一件东西两头尖，天天扛起衫和裤',a:'衣架',w:['夹子','别针','熨斗'],c:'物',lv:2},
+ {q:'两个口袋天天带，少一个就把人怪',a:'袜子',w:['手套','鞋子','袖子'],c:'物',lv:1},
+ {q:'圆筒白浆糊，早晚挤一股，兄弟三十二，都说有好处',a:'牙膏',w:['洗面奶','鞋油','胶水'],c:'物',lv:2},
+ {q:'一个小姑娘，坐在水中央，穿着粉红袄，模样真漂亮',a:'荷花',w:['睡莲','芍药','牡丹'],c:'物',lv:1},
+ {q:'屁股一冒烟，直上九重天，身子分几节，载人去太空',a:'火箭',w:['飞机','导弹','烟花'],c:'物',lv:2},
+ {q:'两片小玻璃，架在鼻梁上，两根细藤挂耳朵，帮你把字瞧清楚',a:'眼镜',w:['耳机','放大镜','望远镜'],c:'物',lv:3},
+ {q:'身穿红衣裳，心里亮堂堂，节日挂门前，照得喜洋洋',a:'灯笼',w:['蜡烛','彩灯','红旗'],c:'物',lv:1},
+ {q:'小小纸片四方方，出趟远门少不了，进站剪个小缺口，一路陪你去远方',a:'车票',w:['钞票','地图','请柬'],c:'物',lv:3},
+ {q:'一对兄弟个个高，白天陪你到处跑，晚上床边并排靠',a:'鞋子',w:['袜子','手套','裤腿'],c:'物',lv:2},
+ {q:'小小硬壳房，睡着一姑娘，姑娘一觉醒，房门开两扇',a:'鸡蛋',w:['鸭蛋','核桃','豆荚'],c:'物',lv:1},
+ {q:'远看像座山，近看不是山，上边水直流，下边有人看',a:'瀑布',w:['喷泉','山洪','水坝'],c:'物',lv:3},
+ {q:'四四方方一块田，一块田里两颗星',a:'电视',w:['窗户','棋盘','镜子'],c:'物',lv:3}
+];
+/* 索引 + 一致性 throw（构建即校验：谜面唯一/答案≠干扰/干扰互异/类别难度合法） */
+for(let i=0;i<RIDDLES.length;i++){
+  const r=RIDDLES[i];
+  if(!r.q||!r.a||r.w.length!==3) throw new Error('riddle broken @'+i);
+  if(CATS.indexOf(r.c)<0||r.lv<1||r.lv>3) throw new Error('riddle cat/lv @'+i);
+  if(r.w.indexOf(r.a)>=0) throw new Error('riddle ans in distr @'+i);
+  if(r.w[0]===r.w[1]||r.w[0]===r.w[2]||r.w[1]===r.w[2]) throw new Error('riddle dup distr @'+i);
+  for(let j=0;j<i;j++) if(RIDDLES[j].q===r.q) throw new Error('riddle dup q @'+i);
+}
+
+/* ============ 状态 ============ */
+const BEST_KEY='g74_best';
+const TURN_TIME=12, START_LIVES=3, NEED=8, REUSE_BONUS=100;
+let S=null, G=null;
+/* G={qIdx, used:Set, options:[i×4], correct, reuse} */
+let HIT={opts:[]};
+let flashT=0, shakeT=0;
+function loadBest(){ try{ return +(localStorage.getItem(BEST_KEY)||0); }catch(e){ return 0; } }
+function saveBestNow(){ if(S && S.score>S.best){ S.best=S.score; try{ localStorage.setItem(BEST_KEY,String(S.best)); }catch(e){} } }
+let tipTO=null;
+function flash(msg){ const f=$('flashtx'); f.textContent=msg; f.classList.add('show');
+  clearTimeout(tipTO); tipTO=setTimeout(()=>f.classList.remove('show'),1600); }
+function killFlash(){ clearTimeout(tipTO); $('flashtx').classList.remove('show'); }
+
+/* 难度档：连对<3→[1]；≥3→[1,2]；≥6→[2,3] */
+function tierOf(streak){ return streak>=6?[2,3]:(streak>=3?[1,2]:[1]); }
+function pickIdx(){
+  const t=tierOf(S.streak);
+  /* 出题永不与当前题相同（揭底后原题重出=白送一题，SPEC「重出新题」语义） */
+  let pool=RIDDLES.map((_,i)=>i).filter(i=>!G.used.has(i)&&i!==G.qIdx&&t.indexOf(RIDDLES[i].lv)>=0);
+  if(pool.length===0)                      /* 档位池空→全库档（正常局不可达，防极长局/restore） */
+    pool=RIDDLES.map((_,i)=>i).filter(i=>!G.used.has(i)&&i!==G.qIdx);
+  if(pool.length===0){                     /* 全库尽→循环重用 +100 */
+    G.used.clear(); S.score+=REUSE_BONUS; S.reuse++;
+    flash('谜库重温 · +'+REUSE_BONUS);
+    pool=RIDDLES.map((_,i)=>i).filter(i=>i!==G.qIdx&&t.indexOf(RIDDLES[i].lv)>=0);
+    if(pool.length===0) pool=RIDDLES.map((_,i)=>i).filter(i=>i!==G.qIdx);
+  }
+  return pool[Math.floor(rnd()*pool.length)];
+}
+function buildOptions(){
+  const qi=pickIdx();
+  const r=RIDDLES[qi];
+  /* options=文字牌：1 正确+3 干扰（自带 w），与库索引解耦（同答案多题不互撞） */
+  const opts=[{t:r.a,ok:1},{t:r.w[0],ok:0},{t:r.w[1],ok:0},{t:r.w[2],ok:0}];
+  for(let i=opts.length-1;i>0;i--){ const j=Math.floor(rnd()*(i+1));
+    const t=opts[i]; opts[i]=opts[j]; opts[j]=t; }
+  G.qIdx=qi; G.options=opts; G.correct=opts.findIndex(o=>o.ok===1);
+  S.time=TURN_TIME; S._lt=-1; updHUD();
+}
+function newGame(){
+  S={phase:'menu',time:TURN_TIME,score:0,best:loadBest(),streak:0,maxStreak:0,
+     lives:START_LIVES,lit:0,reuse:0,paused:false,_lt:-1};
+  G=null;
+}
+function startRound(){ killFlash();
+  RS=RS>>>0;
+  S.time=TURN_TIME; S.score=0; S.streak=0; S.maxStreak=0; S.lives=START_LIVES;
+  S.lit=0; S.reuse=0; S.bonus=0;
+  G={qIdx:-1, used:new Set(), options:[], correct:-1};
+  buildOptions(); S.phase='play'; updHUD(); }
+
+function pick(i){
+  if(S.phase!=='play'||!G) return false;
+  if(i<0||i>=4||G.correct<0) return false;
+  const r=RIDDLES[G.qIdx];
+  const right=(i===G.correct);
+  /* 双保险：位置与 ok 标记一致（防 restore 错位） */
+  const right2=(G.options[i].ok===1);
+  if(right!==right2){ try{console.warn('g74 pick mismatch');}catch(e){} return false; }
+  if(right){
+    G.used.add(G.qIdx);
+    S.streak++; S.maxStreak=Math.max(S.maxStreak,S.streak);
+    const mult=1+.5*Math.min(S.streak-1,6);
+    S.score+=Math.floor(100*mult);
+    S.lit++;
+    if(S.lit>=NEED){                     /* 满堂彩 */
+      const bonus=500+Math.ceil(Math.max(0,S.time))*10;
+      S.score+=bonus; S.bonus=bonus;
+      winGame(); updHUD(); return true;
+    }
+    snd('ok');
+    flash('打一'+r.c+' · '+r.a);
+    buildOptions(); updHUD(); return true;
+  } else {
+    loseLife('谜底是「'+RIDDLES[G.qIdx].a+'」'); return true;
+  }
+}
+function loseLife(why){
+  S.streak=0; S.lives--; snd('drum'); shakeT=.4;
+  if(S.lives<=0){ S.lives=0; flash(why); gameOver(); }
+  else { flash(why+' · 熄一灯'); buildOptions(); }
+  updHUD();
+}
+function winGame(){
+  S.phase='win'; saveBestNow(); snd('win');
+  $('overttl').textContent='满 堂 彩';
+  $('overscore').textContent=S.score;
+  $('overstat').textContent='八灯齐明 · 奖励 +'+(S.bonus||0)+' · 最长连 ×'+S.maxStreak;
+  $('overlay').classList.remove('hide');
+}
+function gameOver(){
+  S.phase='over'; saveBestNow();
+  $('overttl').textContent='散 场';
+  $('overscore').textContent=S.score;
+  $('overstat').textContent='点灯 '+S.lit+'/'+NEED+' · 最长连 ×'+S.maxStreak;
+  $('overlay').classList.remove('hide');
+}
+/* ---- HUD ---- */
+function updHUD(){
+  $('scv').textContent=S.score; $('stv').textContent=S.streak;
+  $('tmv').textContent=Math.max(0,Math.ceil(S.time));
+  for(let i=0;i<3;i++) $('lf'+i).className='lamp'+(i<S.lives?'':' off');
+}
+
+/* ---- 绘制 ---- */
+function draw(){
+  ctx.clearRect(0,0,390,780);
+  const bg=ctx.createLinearGradient(0,0,0,780);
+  bg.addColorStop(0,'#1b1317'); bg.addColorStop(1,'#120d10');
+  ctx.fillStyle=bg; ctx.fillRect(0,0,390,780);
+  /* 夜空星点（固定伪随机，不吃 LCG） */
+  ctx.fillStyle='rgba(246,236,212,.25)';
+  for(let i=0;i<24;i++){ const x=(i*167)%390, y=(i*97)%760;
+    if((i*7)%3===0) ctx.fillRect(x,y,2,2); else ctx.fillRect(x,y,1,1); }
+  if(S.phase==='menu'){ drawMenuIdle(); return; }
+  drawLanterns();
+  if(!G){ return; }
+  const shake=shakeT>0?Math.sin(shakeT*40)*3*shakeT:0;
+  /* 谜笺 */
+  drawRiddleCard(shake);
+  /* 香柱倒计时 */
+  const tp=Math.max(0,S.time/TURN_TIME);
+  ctx.fillStyle='rgba(246,236,212,.12)'; roundRect(40,246,310,8,4); ctx.fill();
+  ctx.fillStyle=tp>.3?'#e0512f':'#ffb090'; roundRect(40,246,310*tp,8,4); ctx.fill();
+  if(tp>0){ ctx.fillStyle='#ffd890'; ctx.beginPath();
+    ctx.arc(40+310*tp,250,2.6,0,Math.PI*2); ctx.fill(); }
+  /* 答案牌 2×2 */
+  HIT.opts=[];
+  const w=155,h=72,gap=10,x0=20,y0=282;
+  for(let i=0;i<4;i++){
+    const x=x0+(i%2)*(w+gap), y=y0+Math.floor(i/2)*(h+gap);
+    const ans=G.options[i].t;
+    ctx.save(); ctx.translate(shake,0);
+    const cg=ctx.createLinearGradient(0,y,0,y+h);
+    cg.addColorStop(0,'#f6ecd4'); cg.addColorStop(1,'#e9dcc0');
+    ctx.fillStyle=cg; roundRect(x,y,w,h,12); ctx.fill();
+    ctx.strokeStyle='rgba(80,60,50,.4)'; ctx.lineWidth=1; roundRect(x,y,w,h,12); ctx.stroke();
+    ctx.fillStyle='#33261f'; ctx.font='800 21px system-ui';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(ans,x+w/2,y+h/2);
+    ctx.fillStyle='rgba(224,81,47,.5)'; ctx.font='700 10px system-ui';
+    ctx.fillText('打一'+RIDDLES[G.qIdx].c,x+w/2,y+h-12);
+    ctx.restore();
+    HIT.opts.push({x,y,w,h});
+  }
+  /* 底部灯影装饰 */
+  ctx.fillStyle='rgba(224,81,47,.06)';
+  ctx.beginPath(); ctx.ellipse(195,690,150,60,0,0,Math.PI*2); ctx.fill();
+  if(S.streak>1){ ctx.save(); ctx.translate(330,258); ctx.rotate(.1);
+    ctx.strokeStyle='rgba(224,81,47,.85)'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(0,0,22,0,Math.PI*2); ctx.stroke();
+    ctx.fillStyle='#e0512f'; ctx.font='800 14px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('连×'+S.streak,0,1); ctx.restore(); }
+}
+function drawLanterns(){
+  const lw=38,lh=46,gap=10,x0=8;
+  for(let i=0;i<NEED;i++){
+    const x=x0+i*(lw+gap), on=i<S.lit;
+    const cx=x+lw/2, cy=38;
+    /* 挂绳 */
+    ctx.strokeStyle='rgba(246,236,212,.35)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(cx,0); ctx.lineTo(cx,cy-lh/2-4); ctx.stroke();
+    if(on){
+      const glow=ctx.createRadialGradient(cx,cy,4,cx,cy,lw*.9);
+      glow.addColorStop(0,'rgba(255,150,90,.5)'); glow.addColorStop(1,'rgba(255,120,60,0)');
+      ctx.fillStyle=glow; ctx.fillRect(cx-lw,cy-lh,lw*2,lh*2);
+    }
+    const g=ctx.createLinearGradient(0,cy-lh/2,0,cy+lh/2);
+    if(on){ g.addColorStop(0,'#ff7a4d'); g.addColorStop(1,'#c93a18'); }
+    else{ g.addColorStop(0,'#5a3230'); g.addColorStop(1,'#3d2322'); }
+    ctx.fillStyle=g;
+    ctx.beginPath(); ctx.ellipse(cx,cy,lw/2,lh/2,0,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle=on?'rgba(255,200,150,.8)':'rgba(150,110,100,.35)';
+    ctx.lineWidth=1.2; ctx.stroke();
+    /* 竹骨线 */
+    ctx.strokeStyle=on?'rgba(255,220,180,.35)':'rgba(150,110,100,.2)';
+    ctx.beginPath(); ctx.ellipse(cx,cy,lw/6,lh/2,0,0,Math.PI*2); ctx.stroke();
+    /* 上下盖+流苏 */
+    ctx.fillStyle=on?'#f2c86a':'rgba(150,130,110,.5)';
+    ctx.fillRect(cx-7,cy-lh/2-3,14,5); ctx.fillRect(cx-7,cy+lh/2-2,14,5);
+    if(on){ ctx.strokeStyle='rgba(242,200,106,.8)'; ctx.lineWidth=1.4;
+      ctx.beginPath(); ctx.moveTo(cx,cy+lh/2+3); ctx.lineTo(cx,cy+lh/2+12); ctx.stroke(); }
+  }
+}
+function drawRiddleCard(shake){
+  const r=RIDDLES[G.qIdx];
+  if(!r) return;                              /* restore qIdx=-1 防崩 */
+  const x=40,y=96,w=310,h=132;
+  ctx.save(); ctx.translate(shake,0);
+  const cg=ctx.createLinearGradient(0,y,0,y+h);
+  cg.addColorStop(0,'#f6ecd4'); cg.addColorStop(1,'#eadfc4');
+  ctx.fillStyle=cg; roundRect(x,y,w,h,10); ctx.fill();
+  ctx.strokeStyle='rgba(120,80,60,.4)'; ctx.lineWidth=1; roundRect(x,y,w,h,10); ctx.stroke();
+  /* 红绳结 */
+  ctx.strokeStyle='rgba(224,81,47,.8)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(195,y-14); ctx.lineTo(195,y); ctx.stroke();
+  ctx.fillStyle='#e0512f'; ctx.beginPath(); ctx.arc(195,y-14,4,0,Math.PI*2); ctx.fill();
+  /* 类别章（右上角） */
+  ctx.save(); ctx.translate(x+w-38,y+22); ctx.rotate(.08);
+  ctx.strokeStyle='rgba(224,81,47,.75)'; ctx.lineWidth=1.4;
+  ctx.strokeRect(-26,-13,52,26);
+  ctx.fillStyle='#e0512f'; ctx.font='700 12px system-ui';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('打一'+r.c,0,1); ctx.restore();
+  /* 谜面（自动折行 ≤14 字/行） */
+  ctx.fillStyle='#33261f'; ctx.font='700 17px system-ui';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  const q=r.q; const per=14;
+  const lines=[];
+  for(let i=0;i<q.length;i+=per) lines.push(q.slice(i,i+per));
+  /* 标点避让：行首标点并回上一行尾（VLM 目验排版瑕疵修复） */
+  const PUNC='，。、！？；：';
+  for(let li=1;li<lines.length;li++){
+    while(lines[li].length&&PUNC.indexOf(lines[li][0])>=0&&lines[li-1].length<per+2){
+      lines[li-1]+=lines[li][0]; lines[li]=lines[li].slice(1); } }
+  const lh=26, y0=y+62-(lines.length-1)*lh/2+(lines.length>=3?10:0); /* 3 行首行下移避右上类别章（R2 m-2） */
+  lines.forEach((ln,i)=>ctx.fillText(ln,195,y0+i*lh));
+  /* 难度点 */
+  for(let d=0;d<r.lv;d++){ ctx.fillStyle='rgba(224,81,47,.6)';
+    ctx.beginPath(); ctx.arc(x+18+d*12,y+h-14,3.4,0,Math.PI*2); ctx.fill(); }
+  ctx.restore();
+}
+function drawMenuIdle(){
+  drawLanterns();
+  ctx.fillStyle='rgba(246,236,212,.45)'; ctx.font='600 15px system-ui'; ctx.textAlign='center';
+  ctx.fillText('花灯如昼 · 以谜会友', 195, 620);
+}
+function roundRect(x,y,w,h,r){ ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+
+/* ---- 输入 ---- */
+cv.addEventListener('pointerdown',e=>{
+  e.preventDefault();
+  if(!S||S.phase!=='play') return;
+  const r=cv.getBoundingClientRect();
+  const x=(e.clientX-r.left)*(390/r.width), y=(e.clientY-r.top)*(780/r.height);
+  for(let i=0;i<HIT.opts.length;i++){ const o=HIT.opts[i];
+    if(x>=o.x&&x<=o.x+o.w&&y>=o.y&&y<=o.y+o.h){ HIT.opts=[]; pick(i); return; } }
+});
+
+/* ---- 主循环 ---- */
+let lastT=0;
+function loop(ts){
+  const dt=Math.min(.05,(ts-lastT)/1000||0); lastT=ts;
+  if(S){
+    if(S.phase==='play'&&G){
+      S.time-=dt;
+      if(S.time<=0){ S.time=0; loseLife('时间到'); }
+      else if(Math.ceil(S.time)!==S._lt){ S._lt=Math.ceil(S.time); if(S.time<=5) snd('tick'); updHUD(); }
+    }
+    if(shakeT>0) shakeT-=dt;
+    draw();
+  }
+  requestAnimationFrame(loop);
+}
+
+/* ---- 按钮 ---- */
+$('btn-go').addEventListener('click',()=>{ ensureAC(); $('menu').classList.add('hide'); startRound(); });
+$('btn-again').addEventListener('click',()=>{ $('overlay').classList.add('hide'); ensureAC(); startRound(); });
+$('btn-snd').addEventListener('click',()=>{ SND=!SND; ensureAC(); $('btn-snd').textContent=SND?'🔊':'🔇'; });
+$('btn-pause').addEventListener('click',()=>{ if(S&&S.phase==='play'){S.phase='pause';$('pauselay').classList.remove('hide');} });
+$('btn-resume').addEventListener('click',()=>{ if(S&&S.phase==='pause'){S.phase='play';$('pauselay').classList.add('hide');} });
+$('btn-home').addEventListener('click',()=>{ $('pauselay').classList.add('hide'); $('menu').classList.remove('hide');
+  $('bestline').textContent='最高累计 '+loadBest(); S.phase='menu'; saveBestNow(); });
+
+function onHidden(){ if(document.hidden) saveBestNow(); }
+document.addEventListener('visibilitychange',onHidden);
+window.addEventListener('pagehide',()=>saveBestNow());
+
+newGame();
+$('bestline').textContent='最高累计 '+S.best;
+requestAnimationFrame(loop);
+
+
+</script>
+</body>
+</html>
