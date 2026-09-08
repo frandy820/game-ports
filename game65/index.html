@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>戥秤百草</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;position:fixed;background:#0b0f18}
+body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;color:#e8dcc8;
+  -webkit-user-select:none;user-select:none;touch-action:none}
+#app{position:relative;width:100%;max-width:520px;height:100%;margin:0 auto;overflow:hidden;
+  --sab:env(safe-area-inset-bottom,0px);
+  background:radial-gradient(120% 40% at 50% -4%,rgba(111,168,160,.10) 0%,rgba(111,168,160,0) 52%),#0b0f18}
+#cv{position:absolute;left:0;width:100%;display:block;
+  top:calc(64px + env(safe-area-inset-top,0px));
+  height:calc(100% - 64px - env(safe-area-inset-top,0px))}
+#hud{position:absolute;top:0;left:0;right:0;min-height:64px;display:flex;align-items:center;
+  padding:env(safe-area-inset-top,0px) 14px 0;z-index:22;
+  background:linear-gradient(180deg,rgba(11,15,24,.95),rgba(11,15,24,.55) 78%,transparent);
+  transition:opacity .35s}
+#app.menu-on #hud{opacity:0;pointer-events:none}
+.hud-score{min-width:0;overflow:hidden}
+.hud-score b{display:block;font-size:21px;color:#f2e2c8;letter-spacing:.04em;text-shadow:0 0 14px rgba(111,168,160,.45)}
+.hud-score i{font-style:normal;font-size:9.5px;color:#8a7668;letter-spacing:.28em}
+.hud-mid{flex:1;text-align:center;min-width:0;padding:0 8px}
+.hud-mid .st{display:inline-flex;align-items:center;gap:5px;vertical-align:middle;
+  font-size:11.5px;color:#e8dcc8;letter-spacing:.04em;white-space:nowrap}
+.hud-mid .st b{color:#f2c86a;font-size:13.5px;font-weight:700}
+.hud-mid .st .sep{color:#8a7668;margin:0 2px}
+.hud-mid i.lv{font-style:normal;font-size:9px;color:#8a7668;letter-spacing:.18em;display:block;margin-top:2px}
+.hud-right{display:flex;align-items:center;gap:10px}
+.tm{display:flex;align-items:center;gap:6px}
+.tm i{font-style:normal;font-size:9px;color:#8a7668;letter-spacing:.14em}
+.tm b{display:inline-flex;align-items:center;justify-content:center;min-width:40px;height:26px;border-radius:13px;
+  font-size:13px;font-weight:700;color:#1a2a24;background:linear-gradient(180deg,#d8ecdc,#9ac8b4);
+  box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.tm.low b{color:#2a0f0f;background:linear-gradient(180deg,#f2c0b0,#e08878)}
+#btn-snd,#btn-pause{width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,.16);
+  background:rgba(255,255,255,.06);color:#e8dcc8;font-size:15px;line-height:1;cursor:pointer;flex:none}
+#btn-pause{font-size:13px}
+.ov{position:absolute;inset:0;z-index:20;display:none;align-items:center;justify-content:center;
+  background:rgba(4,6,12,.78);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+.ov.on{display:flex}
+#menu{position:absolute;inset:0;z-index:15;display:none;flex-direction:column;align-items:center;justify-content:center;
+  background:#0e1320;
+  background-image:radial-gradient(130% 55% at 50% -4%,#1e2436 0%,rgba(30,36,54,0) 58%),
+  radial-gradient(120% 34% at 50% 106%,rgba(111,168,160,.20) 0%,rgba(111,168,160,0) 72%)}
+#menu.on{display:flex}
+#menu::after{content:'';position:absolute;left:10%;right:10%;bottom:calc(var(--sab,0px) + 42px);height:2px;
+  background:linear-gradient(90deg,transparent,rgba(242,200,106,.8),transparent);box-shadow:0 0 24px 5px rgba(111,168,160,.3)}
+.m-kicker{font-size:11.5px;letter-spacing:.42em;color:#9a8474;margin-bottom:14px;padding-left:.42em}
+.m-title{font-size:38px;font-weight:800;letter-spacing:.14em;padding-left:.14em;
+  background:linear-gradient(180deg,#faf2e2,#c8e0d2 58%,#6fa8a0);-webkit-background-clip:text;background-clip:text;color:transparent;
+  text-shadow:0 6px 26px rgba(111,168,160,.22)}
+.m-sub{margin-top:10px;font-size:11px;letter-spacing:.3em;color:#e2d4c2;padding-left:.3em}
+.m-go{margin-top:36px;width:150px;padding:13px 0;border:none;border-radius:14px;cursor:pointer;
+  background:linear-gradient(180deg,#d8ecdc,#6fa8a0);color:#0a1814;font-size:16.5px;font-weight:700;
+  letter-spacing:.3em;padding-left:.3em;font-family:inherit;box-shadow:0 8px 26px rgba(111,168,160,.3)}
+.m-how{margin-top:20px;font-size:11px;line-height:2;color:#9a8c7a;text-align:center;letter-spacing:.06em}
+.m-how b{color:#e8dcc8;font-weight:600}
+.m-best{margin-top:18px;font-size:12px;color:#e0d2c0;letter-spacing:.18em}
+.m-best b{color:#fff;font-size:15px;font-weight:700}
+.m-foot{position:absolute;bottom:calc(var(--sab,0px) + 16px);left:0;right:0;text-align:center;color:#9a8474;font-size:11px;letter-spacing:.14em}
+.panel{width:min(330px,86%);padding:26px 22px 22px;border-radius:18px;text-align:center;position:relative;
+  background:linear-gradient(180deg,#1e2436,#0e1320);border:1px solid rgba(255,255,255,.14);
+  box-shadow:0 18px 50px rgba(0,0,0,.6)}
+.p-stats div{flex:1;padding:8px 2px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)}
+.p-stats b{display:block;font-size:17px;color:#f2c86a;font-weight:700}
+.p-stats i{font-style:normal;font-size:9px;color:#9a8c7c;letter-spacing:.1em}
+.panel h3{font-size:19px;letter-spacing:.22em;color:#faf2e2;margin-bottom:8px}
+.p-sub{font-size:12.5px;color:#9a8c7c;line-height:2;margin-bottom:6px}
+.p-sub b{color:#f2c86a;font-weight:600}
+.p-stats{display:flex;gap:8px;justify-content:center;margin:10px 0 2px}
+.p-btns{display:flex;gap:10px;margin-top:16px}
+.p-btn{flex:1;padding:11px 0;border-radius:12px;cursor:pointer;font-family:inherit;font-size:13.5px;letter-spacing:.14em}
+.p-btn.gold{border:none;background:linear-gradient(180deg,#d8ecdc,#6fa8a0);color:#0a1814;font-weight:700}
+.p-btn.line{background:none;border:1px solid rgba(255,255,255,.22);color:#e8dcc8}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div class="hud-score"><b id="score">0</b><i>得 分</i></div>
+    <div class="hud-mid">
+      <span class="st">药成 <b id="ch-i">0</b><span class="sep">·</span>最佳 <b id="best-i">0</b></span>
+      <i class="lv" id="ck-i">连配峰值 ×1</i>
+    </div>
+    <div class="hud-right">
+      <div class="tm" id="tm"><i>剩余</i><b id="time-i">90</b></div>
+      <button id="btn-pause" aria-label="暂停">Ⅱ</button>
+      <button id="btn-snd" aria-label="声音">♪̶</button>
+    </div>
+  </div>
+  <canvas id="cv"></canvas>
+
+  <div id="menu" class="on">
+    <div class="m-kicker">BALANCE HERBS · 药 铺 掌 柜 配 百 草</div>
+    <div class="m-title">戥秤百草</div>
+    <div class="m-sub">点 包 入 盘 · 两 侧 等 重</div>
+    <button class="m-go" id="btn-go">开 张 抓 药</button>
+    <div class="m-best" id="m-best">最佳 <b>0</b></div>
+    <div class="m-how"><b>点一下药包进左盘，再点进右盘，第三次收回</b>，把药包全放完、两盘一样重，这副药就配成<br><b>每配成一副加 10 秒</b>；10 秒内连配=连击翻倍，包越多分越高<br><b>90 秒一局</b>：一味求快会配错，稳中带快才是老掌柜</div>
+    <div class="m-foot">戥 秤 百 草 · 药 性 归 平</div>
+  </div>
+
+  <div class="ov" id="pause-ov">
+    <div class="panel">
+      <h3>暂 停</h3>
+      <div class="p-sub" id="pause-sub">戥秤静悬</div>
+      <div class="p-btns">
+        <button class="p-btn gold" id="btn-resume">接着配</button>
+        <button class="p-btn line" id="btn-restart">重新开张</button>
+        <button class="p-btn line" id="btn-quit">回药铺</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ov" id="over-ov">
+    <div class="panel">
+      <h3>收 摊</h3>
+      <div class="p-sub" id="over-sub">今日药成 <b>0</b> 副</div>
+      <div class="p-stats">
+        <div><b id="ov-score">0</b><i>得 分</i></div>
+        <div><b id="ov-solved">0</b><i>药 成</i></div>
+        <div><b id="ov-combo">×1</b><i>连配峰</i></div>
+      </div>
+      <div class="p-btns">
+        <button class="p-btn gold" id="btn-again">再开一局</button>
+        <button class="p-btn line" id="btn-home">回药铺</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ===== 常量（全确定性；事件驱动+逻辑帧计时） ===== */
+var CFG={W:390,H:560,MASK:0x7fffffff,SEED:20260911,
+  PIVX:195,PIVY:128,ARM:110,ROPE:26,
+  TRAY_X0:65,TRAY_DX:65,TRAY_Y1:425,TRAY_Y2:472};
+/* 页面逻辑坐标（canvas 逻辑高 496=页高 560−HUD 64）：戥秤立柱 x195 y128-215，横梁半长 110（吊点 x85/305），
+   托盘两行 y425/y472（上行 5 包 x=65..325，下行 ≤4 包） */
+function packFace(v){ /* 药包色阶：值越重包色越沉 */
+  if(v<=4)return{a:'#e8e0c8',b:'#b8a878',tx:'#4a3a20'};
+  if(v<=8)return{a:'#d8e8c0',b:'#88a860',tx:'#2a3a14'};
+  if(v<=13)return{a:'#c8e0d0',b:'#6fa8a0',tx:'#123229'};
+  return{a:'#c8c8e0',b:'#7878b0',tx:'#22224a'};
+}
+/* ===== 状态 ===== */
+var S={mode:'menu',score:0,best:0,muted:true,
+  packs:[],sumL:0,sumR:0,unplaced:0,solved:0,fbCount:0,lastTries:0,
+  combo:0,comboMax:1,comboT:0,timeLeft:90,
+  seed:CFG.SEED,rngS:0,
+  parts:[],floats:[],shake:0,beamA:0};
+var el={};
+function $(i){return document.getElementById(i)}
+function init(){
+  ['cv','hud','score','best-i','ch-i','ck-i','time-i','tm','btn-snd','btn-pause','menu','btn-go','m-best',
+   'pause-ov','pause-sub','btn-resume','btn-restart','btn-quit','over-ov','over-sub','ov-score','ov-solved',
+   'ov-combo','btn-again','btn-home'].forEach(function(k){el[k]=$(k)});
+  S.best=+load('g65_best',0)||0;
+  setBest();
+  el['btn-snd'].textContent=S.muted?'♪̶':'♪';
+  bind();resize();
+  document.getElementById('app').classList.add('menu-on');
+  requestAnimationFrame(loop);
+}
+var store={};
+function load(k,d){try{var v=localStorage.getItem(k);return v===null?d:v}catch(e){return k in store?store[k]:d}}
+function save(k,v){try{localStorage.setItem(k,v)}catch(e){store[k]=v}}
+function setBest(){
+  el['m-best'].innerHTML='最佳 <b>'+S.best+'</b>';
+  if(el['best-i'])el['best-i'].textContent=S.best;
+}
+/* ===== 产包（LCG imul 精确乘） ===== */
+function sample(lo,hi){
+  S.rngS=(Math.imul(S.rngS,1103515245)+12345)>>>0&CFG.MASK;
+  return lo+Math.floor(S.rngS/(CFG.MASK+1)*(hi-lo+1));
+}
+/* ===== 唯一解枚举（子集和=total/2 的分组恰一，镜像去重） ===== */
+function subsetCount(w){
+  var total=0,i,m,cnt=0,sol=-1,full=(1<<w.length)-1;
+  for(i=0;i<w.length;i++)total+=w[i];
+  if(total%2)return{cnt:0,mask:-1,total:total};
+  var half=total/2;
+  for(m=1;m<full;m++){
+    if(m>=(full^m))continue; /* mask<comp 才数（镜像同构） */
+    var s=0;
+    for(i=0;i<w.length;i++)if(m>>i&1)s+=w[i];
+    if(s===half){cnt++;sol=m}
+  }
+  return{cnt:cnt,mask:sol,total:total};
+}
+function diffN(){ /* 难度阶梯：4 起，每 3 题 +1，cap 9 */
+  return Math.min(9,4+Math.floor(S.solved/3));
+}
+function diffRange(n){return n>=8?[2,20]:(n>=6?[1,16]:[1,9])}
+function genPuzzle(){ /* 生成唯一解题（重摇 ≤200，兜底 n-1=难度泄压阀，n=9 实测 ~8% 触发） */
+  var n=diffN(),rng=diffRange(n),tries=0,w,i,res;
+  for(;;){
+    w=[];
+    for(i=0;i<n;i++)w.push(sample(rng[0],rng[1]));
+    res=subsetCount(w);
+    if(res.cnt===1)break;
+    if(++tries>=200){tries=0;if(n>3)n--;S.fbCount++;} /* 兜底降包数 */
+  }
+  S.lastTries=tries;
+  S.packs=[];
+  for(i=0;i<w.length;i++)S.packs.push({w:w[i],side:0});
+  S.sumL=0;S.sumR=0;S.unplaced=w.length;
+}
+/* ===== 局程 ===== */
+function startGame(){
+  S.score=0;S.solved=0;S.combo=0;S.comboMax=1;S.comboT=0;S.timeLeft=90;
+  S.rngS=S.seed;
+  S.parts=[];S.floats=[];S.shake=0;
+  genPuzzle();
+  S.mode='play';
+  document.getElementById('app').classList.remove('menu-on');
+  el.menu.classList.remove('on');el['pause-ov'].classList.remove('on');el['over-ov'].classList.remove('on');
+  updHUD();
+}
+/* ===== 三态点选+配平判定 ===== */
+function clickPack(i){
+  var p=S.packs[i];
+  if(!p)return false;
+  p.side=(p.side+1)%3; /* 0 中性 → 1 左 → 2 右 → 0 */
+  SND.tick(p.side);
+  recalc();
+  return true;
+}
+function recalc(){
+  var i,sl=0,sr=0,un=0;
+  for(i=0;i<S.packs.length;i++){
+    var p=S.packs[i];
+    if(p.side===1)sl+=p.w;
+    else if(p.side===2)sr+=p.w;
+    else un++;
+  }
+  S.sumL=sl;S.sumR=sr;S.unplaced=un;
+  if(un===0&&sl===sr&&S.mode==='play')doSolve();
+}
+function doSolve(){
+  var n=S.packs.length,i;
+  S.combo=(S.comboT>0)?S.combo+1:1;
+  if(S.combo>S.comboMax)S.comboMax=S.combo;
+  var mult=1+.5*Math.min(S.combo-1,10); /* 连击倍率封顶 ×6（防无限连分数爆炸） */
+  var pts=Math.floor(10*n*n*mult);
+  S.score+=pts;S.solved++;
+  S.timeLeft=Math.min(120,S.timeLeft+10);
+  for(i=0;i<14;i++)burst(CFG.PIVX+(Math.imul(i+7,53)%160-80),CFG.PIVY+(Math.imul(i+3,31)%60-30));
+  addFloat(CFG.PIVX,100,'药成 +'+pts);
+  if(S.combo>=2){addFloat2(CFG.PIVX-70,150,'连配 ×'+S.combo);SND.chime(S.combo)}
+  if(S.combo>=3)S.shake=Math.min(.5,.12*S.combo);
+  S.comboT=10;
+  genPuzzle();
+  SND.done(n);
+  updHUD();
+}
+function gameOver(){
+  if(S.score>S.best&&S.score>0){S.best=S.score;save('g65_best',S.best);setBest()}
+  S.mode='over';
+  el['over-sub'].innerHTML='今日药成 <b>'+S.solved+'</b> 副';
+  el['ov-score'].textContent=S.score;
+  el['ov-solved'].textContent=S.solved;
+  el['ov-combo'].textContent='×'+S.comboMax;
+  el['over-ov'].classList.add('on');
+}
+function toMenu(){
+  if(S.mode!=='menu'&&S.mode!=='over'&&S.score>S.best&&S.score>0){S.best=S.score;save('g65_best',S.best);setBest()}
+  S.mode='menu';S.packs=[];S.sumL=0;S.sumR=0;S.unplaced=0;
+  S.parts=[];S.floats=[];
+  document.getElementById('app').classList.add('menu-on');
+  el['pause-ov'].classList.remove('on');el['over-ov'].classList.remove('on');el.menu.classList.add('on');
+}
+function burst(x,y){
+  S.parts.push({x:x,y:y,
+    vx:(Math.imul(S.parts.length+9,97)%120-60)/1.2,
+    vy:-(40+Math.imul(S.parts.length+5,71)%70),
+    s:2+Math.imul(S.parts.length+3,13)%2.4,t:0,life:.55});
+}
+function addFloat(x,y,txt){S.floats.push({x:x,y:y,t:0,txt:txt,big:0})}
+function addFloat2(x,y,txt){S.floats.push({x:x,y:y,t:0,txt:txt,big:1})}
+function updHUD(){
+  el.score.textContent=S.score;
+  el['ch-i'].textContent=S.solved;
+  el['best-i'].textContent=Math.max(S.best,S.score); /* 显示层取 max；S.best 仅终局/退出落盘 */
+  el['ck-i'].textContent='连配峰值 ×'+S.comboMax;
+  updTime();
+}
+function updTime(){
+  var t=Math.ceil(S.timeLeft);
+  el['time-i'].textContent=t;
+  el.tm.classList.toggle('low',t<=20);
+}
+/* ===== 特效步进（含逻辑计时） ===== */
+function fxStep(dt){
+  var i;
+  if(S.mode==='play'){
+    S.timeLeft-=dt;
+    if(S.timeLeft<=0){S.timeLeft=0;updTime();gameOver()}
+    else updTime();
+  }
+  if(S.comboT>0)S.comboT=Math.max(0,S.comboT-dt);
+  for(i=S.parts.length-1;i>=0;i--){var q=S.parts[i];
+    q.t+=dt;q.x+=q.vx*dt;q.y+=q.vy*dt;q.vy+=240*dt;
+    if(q.t>q.life)S.parts.splice(i,1)}
+  for(i=S.floats.length-1;i>=0;i--){var f=S.floats[i];
+    f.t+=dt;f.y-=26*dt;if(f.t>1.1)S.floats.splice(i,1)}
+  if(S.shake>0)S.shake=Math.max(0,S.shake-dt*2.5);
+}
+/* ===== 渲染 ===== */
+var ctx=null,dpr=1,cvW=390,cvH=496;
+var DUST=(function(){var a=[],s=777,i; /* 视觉装饰浮尘（imul 同口径） */
+  function rnd(){s=(Math.imul(s,1103515245)+12345)>>>0&0x7fffffff;return s/0x7fffffff}
+  for(i=0;i<16;i++)a.push({x:rnd()*390,y:rnd()*496,r:1+rnd()*1.1,ph:rnd()*6.28});
+  return a})();
+function resize(){
+  var cv=el.cv;if(!cv)return;
+  var rect=cv.getBoundingClientRect();
+  dpr=Math.min(2,window.devicePixelRatio||1);
+  cvW=rect.width;cvH=rect.height;
+  cv.width=cvW*dpr;cv.height=cvH*dpr;
+  ctx=cv.getContext('2d');if(ctx)ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+function sx(x){return x*cvW/CFG.W}
+function sy(y){return y*cvH/(CFG.H-64)}
+function loop(t){
+  requestAnimationFrame(loop);
+  var dt=Math.min(.05,(t-(loop.t||t))/1000);loop.t=t;
+  if(S.mode!=='pause')fxStep(dt);
+  if(ctx)render(t);
+}
+function drawPack(x,y,v,rx,ry,alpha,side){
+  var f=packFace(v);
+  if(alpha!==undefined)ctx.globalAlpha=alpha;
+  var g=ctx.createRadialGradient(x-rx*.3,y-ry*.35,rx*.1,x,y,rx*1.05);
+  g.addColorStop(0,f.a);g.addColorStop(1,f.b);
+  ctx.fillStyle=g;
+  ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,7);ctx.fill();
+  ctx.strokeStyle='rgba(40,30,16,.4)';ctx.lineWidth=1;ctx.stroke();
+  /* 捆绳十字 */
+  ctx.strokeStyle='rgba(60,44,22,.5)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(x-rx,y);ctx.lineTo(x+rx,y);
+  ctx.moveTo(x,y-ry);ctx.lineTo(x,y+ry);ctx.stroke();
+  /* 高光 */
+  ctx.fillStyle='rgba(255,250,240,.4)';
+  ctx.beginPath();ctx.ellipse(x-rx*.32,y-ry*.4,rx*.24,ry*.14,-.6,0,7);ctx.fill();
+  /* 数字+侧标：留影态单独提亮保可读（形状仍留影） */
+  ctx.globalAlpha=alpha===undefined?1:Math.max(alpha,.85);
+  ctx.fillStyle=f.tx;ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.font='800 '+(rx*.78)+'px system-ui';
+  ctx.fillText(String(v),x,y+1);
+  ctx.textBaseline='alphabetic';
+  /* 侧标 */
+  if(side===1||side===2){
+    var bx=x+rx*.72,by=y-ry*.72;
+    ctx.fillStyle=side===1?'#6fa8a0':'#d89060';
+    ctx.beginPath();ctx.arc(bx,by,sx(7.5),0,7);ctx.fill();
+    ctx.fillStyle='#0c1814';ctx.font='700 8px system-ui';
+    ctx.fillText(side===1?'左':'右',bx,by+1);
+  }
+  ctx.globalAlpha=1;
+}
+function beamTarget(){ /* 差值→倾角（左沉为正） */
+  var d=S.sumL-S.sumR;
+  return Math.max(-.24,Math.min(.24,d*.012));
+}
+function render(t){
+  var W=cvW,H=cvH,i;
+  ctx.clearRect(0,0,W,H);
+  var shx=S.shake>0?Math.sin(t/28)*S.shake*3:0;
+  ctx.save();ctx.translate(shx,0);
+  /* 底 */
+  var g0=ctx.createLinearGradient(0,0,0,H);
+  g0.addColorStop(0,'#121820');g0.addColorStop(.6,'#0d1218');g0.addColorStop(1,'#080c12');
+  ctx.fillStyle=g0;ctx.fillRect(-4,0,W+8,H);
+  /* 浮尘 */
+  for(i=0;i<DUST.length;i++){var dn=DUST[i];
+    var yy=(dn.y+t/1000*10)%(CFG.H-64);
+    ctx.globalAlpha=.18+.13*Math.sin(t/600+dn.ph);
+    ctx.fillStyle='#d8e0d0';
+    ctx.beginPath();ctx.ellipse(sx(dn.x),sy(yy),sx(dn.r),sy(dn.r),0,0,7);ctx.fill()}
+  ctx.globalAlpha=1;
+  /* 药柜格（背景装饰） */
+  ctx.strokeStyle='rgba(216,190,140,.07)';ctx.lineWidth=1;
+  for(i=0;i<4;i++){
+    var gy=sy(236+i*36);
+    ctx.strokeRect(sx(14),gy,sx(50),sy(30));
+    ctx.strokeRect(sx(326),gy,sx(50),sy(30));
+  }
+  /* 计时条 */
+  if(S.mode==='play'||S.mode==='pause'){
+    var frac=S.timeLeft/120; /* 满刻度=120s（开局 90/120=75%，G3-R1 m8 口径注明） */
+    ctx.fillStyle='rgba(255,255,255,.08)';
+    ctx.fillRect(sx(14),sy(96),sx(362),sy(3));
+    ctx.fillStyle=S.timeLeft<=20?'#e08878':'#9ac8b4';
+    ctx.fillRect(sx(14),sy(96),sx(362*frac),sy(3));
+  }
+  /* 戥秤立柱+底座 */
+  ctx.fillStyle='#3a2c1c';
+  ctx.fillRect(sx(CFG.PIVX-3),sy(CFG.PIVY),sx(6),sy(215-CFG.PIVY));
+  ctx.fillStyle='#2a2014';
+  rr(sx(CFG.PIVX-34),sy(211),sx(68),sy(9),4);ctx.fill();
+  ctx.strokeStyle='rgba(242,200,106,.25)';ctx.lineWidth=1;
+  rr(sx(CFG.PIVX-34),sy(211),sx(68),sy(9),4);ctx.stroke();
+  /* 横梁（缓动倾斜） */
+  S.beamA+=(beamTarget()-S.beamA)*.18;
+  var c=Math.cos(S.beamA),si=Math.sin(S.beamA);
+  var lx=CFG.PIVX-CFG.ARM*c,rx2=CFG.PIVX+CFG.ARM*c;
+  var ly=CFG.PIVY+CFG.ARM*si,ry2=CFG.PIVY-CFG.ARM*si; /* beamA>0=左重 → 左端下沉 */
+  ctx.strokeStyle='#c8a070';ctx.lineWidth=sx(4);ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(sx(lx),sy(ly));ctx.lineTo(sx(rx2),sy(ry2));ctx.stroke();
+  ctx.strokeStyle='rgba(255,240,200,.35)';ctx.lineWidth=sx(1.2);
+  ctx.beginPath();ctx.moveTo(sx(lx),sy(ly-1.5));ctx.lineTo(sx(rx2),sy(ry2-1.5));ctx.stroke();
+  /* 支点饰 */
+  ctx.fillStyle='#e8c890';
+  ctx.beginPath();ctx.arc(sx(CFG.PIVX),sy(CFG.PIVY),sx(4),0,7);ctx.fill();
+  /* 吊绳+铜盘+盘上读数 */
+  ctx.strokeStyle='rgba(216,190,140,.7)';ctx.lineWidth=sx(1.5);
+  var panY;
+  panY=ly+CFG.ROPE;
+  ctx.beginPath();ctx.moveTo(sx(lx),sy(ly));ctx.lineTo(sx(lx),sy(panY));ctx.stroke();
+  panY=ry2+CFG.ROPE;
+  ctx.beginPath();ctx.moveTo(sx(rx2),sy(ry2));ctx.lineTo(sx(rx2),sy(panY));ctx.stroke();
+  var panL={x:lx,y:ly+CFG.ROPE};
+  var panR={x:rx2,y:ry2+CFG.ROPE};
+  drawPan(panL.x,panL.y,S.sumL,S.sumL>=S.sumR);
+  drawPan(panR.x,panR.y,S.sumR,S.sumR>=S.sumL);
+  /* 盘上包数徽记 */
+  var nl=0,nr=0;
+  for(i=0;i<S.packs.length;i++){if(S.packs[i].side===1)nl++;else if(S.packs[i].side===2)nr++}
+  if(nl){ctx.fillStyle='#6fa8a0';ctx.beginPath();
+    ctx.arc(sx(panL.x+58),sy(panL.y-10),sx(8),0,7);ctx.fill();
+    ctx.fillStyle='#0c1814';ctx.font='700 9px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(String(nl),sx(panL.x+58),sy(panL.y-10)+1);ctx.textBaseline='alphabetic'}
+  if(nr){ctx.fillStyle='#d89060';ctx.beginPath();
+    ctx.arc(sx(panR.x+58),sy(panR.y-10),sx(8),0,7);ctx.fill();
+    ctx.fillStyle='#1a0e08';ctx.font='700 9px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(String(nr),sx(panR.x+58),sy(panR.y-10)+1);ctx.textBaseline='alphabetic'}
+  /* 差值提示 */
+  var diff=S.sumL-S.sumR;
+  if(diff!==0&&(S.sumL>0||S.sumR>0)){
+    var heavy=diff>0;
+    ctx.fillStyle='#f0b080';
+    ctx.font='700 11px system-ui';ctx.textAlign='center';
+    ctx.fillText('重 '+Math.abs(diff),sx(heavy?panL.x:panR.x),sy((heavy?ly:ry2)-14));
+  }
+  /* 托盘药包 */
+  for(i=0;i<S.packs.length;i++){
+    var pos=trayPos(i);
+    var pk=S.packs[i];
+    var alpha=pk.side===0?1:.45; /* 已上盘的包托盘位留影半透明 */
+    drawPack(sx(pos.x),sy(pos.y),pk.w,sx(26),sy(22),alpha,pk.side);
+  }
+  /* 托盘字并入顶部状态行（原 y508 超出逻辑高 496 被裁剪，G3-R1 M1 修复） */
+  /* 粒子 */
+  for(i=0;i<S.parts.length;i++){var q2=S.parts[i],al2=Math.max(0,1-Math.pow(q2.t/q2.life,1.6));
+    ctx.globalAlpha=al2;
+    ctx.fillStyle=i%2?'#f2d0a0':'#9ac8b4';
+    ctx.fillRect(sx(q2.x)-sx(q2.s)/2,sy(q2.y)-sy(q2.s)/2,sx(q2.s),sy(q2.s));ctx.globalAlpha=1}
+  /* 飘字 */
+  ctx.textAlign='center';
+  for(i=0;i<S.floats.length;i++){var f2=S.floats[i];
+    ctx.globalAlpha=Math.max(0,1-f2.t/1.1);
+    if(f2.big){ctx.font='800 15px system-ui';ctx.fillStyle='#f2c86a'}
+    else{ctx.font='700 12.5px system-ui';ctx.fillStyle='#e8f0e2'}
+    ctx.fillText(f2.txt,sx(f2.x),sy(f2.y));
+    ctx.globalAlpha=1}
+  /* 顶部状态行：首题引导 / 未入盘计数 / 满配提示（G3-R1 M1：与原托盘底提示合并于此） */
+  if(S.mode==='play'){
+    ctx.globalAlpha=.85;
+    ctx.fillStyle='#9ac8b4';
+    ctx.font='10.5px system-ui';ctx.textAlign='center';
+    ctx.fillText(S.solved===0?'点 包 入 盘 · 全 放 完 等 重 即 药 成':
+      (S.unplaced>0?'还 有 '+S.unplaced+' 包 未 入 盘':'查 看 两 盘 是 否 等 重'),sx(195),sy(52));
+    ctx.globalAlpha=1;
+  }
+  ctx.restore();
+}
+function drawPan(x,y,sum,heavy){
+  var g=ctx.createLinearGradient(0,sy(y),0,sy(y+8));
+  g.addColorStop(0,'#d8b080');g.addColorStop(1,'#8a6438');
+  ctx.fillStyle=g;
+  ctx.beginPath();ctx.ellipse(sx(x),sy(y),sx(46),sy(10),0,0,7);ctx.fill();
+  ctx.strokeStyle=heavy&&sum>0?'rgba(242,200,106,.8)':'rgba(60,44,22,.6)';
+  ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.ellipse(sx(x),sy(y),sx(46),sy(10),0,0,7);ctx.stroke();
+  /* 侧和大字 */
+  if(sum>0){
+    ctx.fillStyle=(S.sumL!==S.sumR&&heavy)?'#f2e2c8':'#cdbb9e';
+    ctx.font='800 13px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(String(sum),sx(x),sy(y-14));
+    ctx.textBaseline='alphabetic';
+  }
+}
+function trayPos(i){ /* 上行 5 包 x=65..325 y425；下行 y472 */
+  var up=Math.min(5,S.packs.length);
+  if(i<up)return{x:CFG.TRAY_X0+i*CFG.TRAY_DX,y:CFG.TRAY_Y1};
+  return{x:CFG.TRAY_X0+32+(i-up)*CFG.TRAY_DX,y:CFG.TRAY_Y2};
+}
+function rr(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);
+  ctx.closePath();
+}
+/* ===== 音效 ===== */
+var SND=(function(){
+  var ac=null;
+  function ctxA(){if(!ac){try{ac=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}
+    if(ac&&ac.state==='suspended')ac.resume();return ac}
+  function tone(f,d,type,vol,slide){
+    if(S.muted)return;var a=ctxA();if(!a)return;
+    var o=a.createOscillator(),g=a.createGain();
+    o.type=type||'sine';o.frequency.value=f;
+    if(slide)o.frequency.exponentialRampToValueAtTime(slide,a.currentTime+d);
+    g.gain.value=vol||.15;g.gain.exponentialRampToValueAtTime(.001,a.currentTime+d);
+    o.connect(g);g.connect(a.destination);o.start();o.stop(a.currentTime+d);
+  }
+  return{tick:function(n){tone(380+n*90,.05,'square',.05)},
+    done:function(n){tone(520+n*18,.16,'triangle',.11,760);tone(260,.2,'sine',.07)},
+    chime:function(n){tone(660+n*110,.14,'triangle',.1)},
+    ui:function(){tone(760,.05,'square',.05)},
+    resume:function(){ctxA()}};
+})();
+/* ===== 输入（三态点选；无连续手势无死锁面） ===== */
+function packAt(lx,ly){ /* 命中窗内取中心最近（上下行 y 双义带按距离裁决，G3-R1 m1） */
+  var i,best=-1,bd=1e9;
+  for(i=0;i<S.packs.length;i++){
+    var p=trayPos(i),dx=lx-p.x,dy=ly-p.y;
+    if(Math.abs(dx)<32&&Math.abs(dy)<28){var d=dx*dx+dy*dy*2;if(d<bd){bd=d;best=i}}
+  }
+  return best;
+}
+function bind(){
+  el.cv.addEventListener('pointerdown',function(e){
+    if(e.button!==undefined&&e.button!==0)return;
+    SND.resume();
+    if(S.mode!=='play')return;
+    var rect=el.cv.getBoundingClientRect();
+    var lx=(e.clientX-rect.left)*CFG.W/rect.width;
+    var ly=(e.clientY-rect.top)*(CFG.H-64)/rect.height; /* canvas 逻辑 y（与渲染 sy 同基准） */
+    var i=packAt(lx,ly);
+    if(i>=0)clickPack(i);
+  });
+  el.cv.addEventListener('contextmenu',function(e){e.preventDefault()});
+  el['btn-go'].addEventListener('click',function(){SND.resume();startGame();SND.ui()});
+  el['btn-snd'].addEventListener('click',function(){
+    S.muted=!S.muted;el['btn-snd'].textContent=S.muted?'♪̶':'♪';
+    if(!S.muted){SND.resume();SND.ui()}
+  });
+  el['btn-pause'].addEventListener('click',function(){
+    if(S.mode==='play'){
+      S.mode='pause';el['pause-ov'].classList.add('on');
+      el['pause-sub'].textContent='已配 '+S.solved+' 副 · 剩 '+Math.ceil(S.timeLeft)+' 秒';SND.ui();
+    }
+  });
+  el['btn-resume'].addEventListener('click',function(){
+    if(S.mode==='pause'){S.mode='play';el['pause-ov'].classList.remove('on');SND.ui()}
+  });
+  el['btn-restart'].addEventListener('click',function(){
+    if(S.mode==='pause'){el['pause-ov'].classList.remove('on');
+      if(S.score>S.best&&S.score>0){S.best=S.score;save('g65_best',S.best);setBest()}
+      startGame();SND.ui()}
+  });
+  el['btn-quit'].addEventListener('click',function(){toMenu();SND.ui()});
+  el['btn-again'].addEventListener('click',function(){SND.resume();startGame();SND.ui()});
+  el['btn-home'].addEventListener('click',function(){toMenu();SND.ui()});
+  window.addEventListener('resize',function(){resize()});
+  /* 刷新/关页/切后台途中落盘 best（G3-R1 M2：SPEC 承诺「退出/刷新落盘」） */
+  window.addEventListener('pagehide',saveBestExit);
+  document.addEventListener('visibilitychange',function(){if(document.hidden)saveBestExit()});
+}
+function saveBestExit(){
+  if((S.mode==='play'||S.mode==='pause')&&S.score>S.best&&S.score>0){S.best=S.score;save('g65_best',S.best)}
+}
+init();
+
+</script>
+</body>
+</html>
