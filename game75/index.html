@@ -1,0 +1,624 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>拆字大师 · 活字工坊</title>
+<style>
+  html,body{margin:0;padding:0;background:#0f0b08;height:100%;overflow:hidden;
+    font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+  #app{position:relative;width:390px;height:844px;margin:0 auto;background:#221a13;overflow:hidden}
+  #hud{position:absolute;top:0;left:0;width:390px;height:64px;z-index:5;
+    background:linear-gradient(180deg,#2b2118,#1d1610);border-bottom:1px solid rgba(201,163,90,.25);
+    display:flex;align-items:center;gap:8px;padding:0 10px;box-sizing:border-box}
+  .pill{background:rgba(246,236,212,.07);border:1px solid rgba(246,236,212,.25);border-radius:10px;
+    padding:3px 7px;color:#f6ecd4;font-size:12px;font-weight:600;white-space:nowrap}
+  .pill small{color:rgba(246,236,212,.65);font-weight:500;margin-right:2px}
+  #hud .sp{flex:1}
+  .cubes{display:flex;gap:2px;align-items:center}
+  .cube{width:6px;height:7px;border-radius:2px;background:rgba(120,100,80,.3);
+    border:1px solid rgba(160,130,100,.3)}
+  .cube.on{background:#c9a35a;box-shadow:0 0 4px rgba(201,163,90,.6);border-color:#e8cd94}
+  .hbtn{width:36px;height:36px;border-radius:50%;border:1px solid rgba(246,236,212,.32);
+    background:rgba(246,236,212,.07);color:#f6ecd4;font-size:16px;display:flex;
+    align-items:center;justify-content:center;cursor:pointer}
+  #cv{position:absolute;top:64px;left:0;width:390px;height:780px;display:block;touch-action:none}
+  .lay{position:absolute;inset:0;z-index:8;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;background:rgba(12,8,5,.85);backdrop-filter:blur(2px)}
+  .lay.hide{display:none}
+  .ttl{font-size:30px;font-weight:800;color:#f6ecd4;letter-spacing:6px;margin-bottom:8px}
+  .sub{font-size:14px;color:rgba(246,236,212,.72);margin-bottom:22px;line-height:1.7;text-align:center}
+  .bigbtn{background:linear-gradient(180deg,#c9a35a,#9a7530);border:1px solid #ecd9a8;color:#2b2118;
+    font-size:18px;font-weight:700;letter-spacing:4px;padding:13px 42px;border-radius:14px;cursor:pointer;
+    box-shadow:0 4px 16px rgba(201,163,90,.35)}
+  .score-big{font-size:42px;font-weight:800;color:#f6ecd4;text-shadow:0 0 18px rgba(246,236,212,.35)}
+  #flashtx{position:absolute;top:84px;left:50%;transform:translateX(-50%);z-index:6;padding:7px 18px;
+    border-radius:11px;background:rgba(246,236,212,.1);border:1px solid rgba(246,236,212,.3);
+    color:#f6ecd4;font-size:14px;font-weight:600;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
+  #flashtx.show{opacity:1}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div class="pill"><small>分</small><span id="scv">0</span></div>
+    <div class="pill"><small>连</small><span id="stv">0</span></div>
+    <div class="cubes" id="cubes"></div>
+    <div class="sp"></div>
+    <div class="pill"><small>时</small><span id="tmv">60</span></div>
+    <div class="hbtn" id="btn-snd">🔇</div>
+    <div class="hbtn" id="btn-pause">⏸</div>
+  </div>
+  <canvas id="cv" width="390" height="780"></canvas>
+  <div id="flashtx"></div>
+
+  <div class="lay" id="menu">
+    <div class="ttl">拆 字 大 师</div>
+    <div class="sub">活字工坊 · 大成之路<br>按书写顺序点选部件，拼出目标汉字<br>点错断连扣时，拼满十五字为大成</div>
+    <div class="bigbtn" id="btn-go">开 拓</div>
+    <div class="sub" style="margin-top:20px;margin-bottom:0" id="bestline">最高累计 0</div>
+  </div>
+
+  <div class="lay hide" id="pauselay">
+    <div class="ttl">歇 手</div>
+    <div class="bigbtn" id="btn-resume">继 续</div>
+    <div style="height:14px"></div>
+    <div class="bigbtn" id="btn-home" style="background:linear-gradient(180deg,#2c2418,#201a10);border-color:#8a7a5a;box-shadow:none;color:#f6ecd4">收 工</div>
+  </div>
+
+  <div class="lay hide" id="overlay">
+    <div class="ttl" id="overttl">收 工</div>
+    <div class="score-big" id="overscore">0</div>
+    <div class="sub" id="overstat">拼字 0/15 · 最长连 ×0</div>
+    <div class="bigbtn" id="btn-again">再 来</div>
+  </div>
+</div>
+<script>
+/* ============ 拆字大师 · 活字工坊（game75） ============ */
+/* 常用字部件拆解库（ch,parts[书写序],lv）+ 部件序列点选 + 60s 冲分兼大成 */
+'use strict';
+const $=id=>document.getElementById(id);
+const cv=$('cv'), ctx=cv.getContext('2d');
+let AC=null, SND=false;
+function ensureAC(){ if(AC||!(window.AudioContext||window.webkitAudioContext)) return;
+  try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
+function beep(f,d,t,v){ if(!SND||!AC) return; try{
+  const o=AC.createOscillator(), gn=AC.createGain();
+  o.type=t||'sine'; o.frequency.value=f;
+  gn.gain.setValueAtTime(v||.08, AC.currentTime);
+  gn.gain.exponentialRampToValueAtTime(.0001, AC.currentTime+d);
+  o.connect(gn); gn.connect(AC.destination); o.start(); o.stop(AC.currentTime+d);
+}catch(e){} }
+function snd(k){ if(k==='sel')beep(520,.06,'triangle',.05);
+  else if(k==='ok'){beep(720,.12,'triangle',.07);setTimeout(()=>beep(1080,.16,'triangle',.05),90);}
+  else if(k==='drum')beep(140,.22,'square',.05);
+  else if(k==='win'){beep(523,.15,'sine',.06);setTimeout(()=>beep(659,.15,'sine',.06),150);
+    setTimeout(()=>beep(784,.3,'sine',.06),300);}
+  else if(k==='bell')beep(1046,.22,'sine',.05);
+  else if(k==='tick')beep(300,.04,'triangle',.04); }
+
+/* ---- 确定 rng（家族 LCG） ---- */
+let RS=1;
+function srand(seed){ RS=(seed>>>0)||1; }
+function rnd(){ RS=(Math.imul(RS,1103515245)+12345)>>>0; return (RS>>>9)/8388608; }
+
+/* ---- 字表（ch 目标字 parts 部件书写序 lv 难度档；拆法=识字教学通行拆解） ---- */
+/* lv1=2 部件 / lv2=3 部件 / lv3=4-5 部件；允许叠部件（朋=月月/器=犬犬口口） */
+const CHARS=[
+ /* ---- lv1：2 部件（180） ---- */
+ {ch:'明',parts:['日','月'],lv:1},
+ {ch:'休',parts:['亻','木'],lv:1},
+ {ch:'你',parts:['亻','尔'],lv:1},
+ {ch:'什',parts:['亻','十'],lv:1},
+ {ch:'们',parts:['亻','门'],lv:1},
+ {ch:'住',parts:['亻','主'],lv:1},
+ {ch:'体',parts:['亻','本'],lv:1},
+ {ch:'信',parts:['亻','言'],lv:1},
+ {ch:'偏',parts:['亻','扁'],lv:1},
+ {ch:'好',parts:['女','子'],lv:1},
+ {ch:'妈',parts:['女','马'],lv:1},
+ {ch:'如',parts:['女','口'],lv:1},
+ {ch:'姓',parts:['女','生'],lv:1},
+ {ch:'妹',parts:['女','未'],lv:1},
+ {ch:'姐',parts:['女','且'],lv:1},
+ {ch:'怕',parts:['忄','白'],lv:1},
+ {ch:'惊',parts:['忄','京'],lv:1},
+ {ch:'忙',parts:['忄','亡'],lv:1},
+ {ch:'怀',parts:['忄','不'],lv:1},
+ {ch:'性',parts:['忄','生'],lv:1},
+ {ch:'思',parts:['田','心'],lv:1},
+ {ch:'忠',parts:['中','心'],lv:1},
+ {ch:'忘',parts:['亡','心'],lv:1},
+ {ch:'念',parts:['今','心'],lv:1},
+ {ch:'悲',parts:['非','心'],lv:1},
+ {ch:'江',parts:['氵','工'],lv:1},
+ {ch:'河',parts:['氵','可'],lv:1},
+ {ch:'池',parts:['氵','也'],lv:1},
+ {ch:'沙',parts:['氵','少'],lv:1},
+ {ch:'洗',parts:['氵','先'],lv:1},
+ {ch:'活',parts:['氵','舌'],lv:1},
+ {ch:'法',parts:['氵','去'],lv:1},
+ {ch:'海',parts:['氵','每'],lv:1},
+ {ch:'泡',parts:['氵','包'],lv:1},
+ {ch:'泪',parts:['氵','目'],lv:1},
+ {ch:'说',parts:['讠','兑'],lv:1},
+ {ch:'讲',parts:['讠','井'],lv:1},
+ {ch:'许',parts:['讠','午'],lv:1},
+ {ch:'让',parts:['讠','上'],lv:1},
+ {ch:'话',parts:['讠','舌'],lv:1},
+ {ch:'时',parts:['日','寸'],lv:1},
+ {ch:'晚',parts:['日','免'],lv:1},
+ {ch:'昨',parts:['日','乍'],lv:1},
+ {ch:'星',parts:['日','生'],lv:1},
+ {ch:'字',parts:['宀','子'],lv:1},
+ {ch:'安',parts:['宀','女'],lv:1},
+ {ch:'完',parts:['宀','元'],lv:1},
+ {ch:'灾',parts:['宀','火'],lv:1},
+ {ch:'花',parts:['艹','化'],lv:1},
+ {ch:'苗',parts:['艹','田'],lv:1},
+ {ch:'芳',parts:['艹','方'],lv:1},
+ {ch:'笔',parts:['⺮','毛'],lv:1},
+ {ch:'简',parts:['⺮','间'],lv:1},
+ {ch:'筝',parts:['⺮','争'],lv:1},
+ {ch:'秋',parts:['禾','火'],lv:1},
+ {ch:'和',parts:['禾','口'],lv:1},
+ {ch:'种',parts:['禾','中'],lv:1},
+ {ch:'香',parts:['禾','日'],lv:1},
+ {ch:'秒',parts:['禾','少'],lv:1},
+ {ch:'季',parts:['禾','子'],lv:1},
+ {ch:'听',parts:['口','斤'],lv:1},
+ {ch:'唱',parts:['口','昌'],lv:1},
+ {ch:'吃',parts:['口','乞'],lv:1},
+ {ch:'吹',parts:['口','欠'],lv:1},
+ {ch:'咬',parts:['口','交'],lv:1},
+ {ch:'地',parts:['土','也'],lv:1},
+ {ch:'坡',parts:['土','皮'],lv:1},
+ {ch:'男',parts:['田','力'],lv:1},
+ {ch:'界',parts:['田','介'],lv:1},
+ {ch:'问',parts:['门','口'],lv:1},
+ {ch:'间',parts:['门','日'],lv:1},
+ {ch:'闪',parts:['门','人'],lv:1},
+ {ch:'闲',parts:['门','木'],lv:1},
+ {ch:'雷',parts:['雨','田'],lv:1},
+ {ch:'零',parts:['雨','令'],lv:1},
+ {ch:'功',parts:['工','力'],lv:1},
+ {ch:'加',parts:['口','力'],lv:1},
+ {ch:'动',parts:['云','力'],lv:1},
+ {ch:'站',parts:['立','占'],lv:1},
+ {ch:'亲',parts:['立','木'],lv:1},
+ {ch:'音',parts:['立','日'],lv:1},
+ {ch:'童',parts:['立','里'],lv:1},
+ {ch:'远',parts:['元','辶'],lv:1},
+ {ch:'连',parts:['车','辶'],lv:1},
+ {ch:'过',parts:['寸','辶'],lv:1},
+ {ch:'边',parts:['力','辶'],lv:1},
+ {ch:'进',parts:['井','辶'],lv:1},
+ {ch:'迷',parts:['米','辶'],lv:1},
+ {ch:'这',parts:['文','辶'],lv:1},
+ {ch:'阳',parts:['阝','日'],lv:1},
+ {ch:'阴',parts:['阝','月'],lv:1},
+ {ch:'阵',parts:['阝','车'],lv:1},
+ {ch:'郊',parts:['交','阝'],lv:1},
+ {ch:'都',parts:['者','阝'],lv:1},
+ {ch:'灯',parts:['火','丁'],lv:1},
+ {ch:'灿',parts:['火','山'],lv:1},
+ {ch:'灶',parts:['火','土'],lv:1},
+ {ch:'烟',parts:['火','因'],lv:1},
+ {ch:'炉',parts:['火','户'],lv:1},
+ {ch:'烧',parts:['火','尧'],lv:1},
+ {ch:'烛',parts:['火','虫'],lv:1},
+ {ch:'打',parts:['扌','丁'],lv:1},
+ {ch:'把',parts:['扌','巴'],lv:1},
+ {ch:'找',parts:['扌','戈'],lv:1},
+ {ch:'拉',parts:['扌','立'],lv:1},
+ {ch:'抱',parts:['扌','包'],lv:1},
+ {ch:'跑',parts:['足','包'],lv:1},
+ {ch:'跳',parts:['足','兆'],lv:1},
+ {ch:'路',parts:['足','各'],lv:1},
+ {ch:'踢',parts:['足','易'],lv:1},
+ {ch:'踩',parts:['足','采'],lv:1},
+ {ch:'蚂',parts:['虫','马'],lv:1},
+ {ch:'蚁',parts:['虫','义'],lv:1},
+ {ch:'虾',parts:['虫','下'],lv:1},
+ {ch:'蚊',parts:['虫','文'],lv:1},
+ {ch:'蚕',parts:['天','虫'],lv:1},
+ {ch:'蛾',parts:['虫','我'],lv:1},
+ {ch:'蛛',parts:['虫','朱'],lv:1},
+ {ch:'朋',parts:['月','月'],lv:1},
+ {ch:'比',parts:['匕','匕'],lv:1},
+ {ch:'从',parts:['人','人'],lv:1},
+ {ch:'双',parts:['又','又'],lv:1},
+ {ch:'吕',parts:['口','口'],lv:1},
+ {ch:'多',parts:['夕','夕'],lv:1},
+ {ch:'昌',parts:['日','日'],lv:1},
+ {ch:'铁',parts:['钅','失'],lv:1},
+ {ch:'针',parts:['钅','十'],lv:1},
+ {ch:'钉',parts:['钅','丁'],lv:1},
+ {ch:'材',parts:['木','才'],lv:1},
+ {ch:'村',parts:['木','寸'],lv:1},
+ {ch:'相',parts:['木','目'],lv:1},
+ {ch:'对',parts:['又','寸'],lv:1},
+ {ch:'观',parts:['又','见'],lv:1},
+ {ch:'欢',parts:['又','欠'],lv:1},
+ {ch:'屋',parts:['尸','至'],lv:1},
+ {ch:'居',parts:['尸','古'],lv:1},
+ {ch:'尾',parts:['尸','毛'],lv:1},
+ {ch:'尼',parts:['尸','匕'],lv:1},
+ {ch:'空',parts:['穴','工'],lv:1},
+ {ch:'突',parts:['穴','犬'],lv:1},
+ {ch:'穿',parts:['穴','牙'],lv:1},
+ {ch:'岩',parts:['山','石'],lv:1},
+ {ch:'岭',parts:['山','令'],lv:1},
+ {ch:'峡',parts:['山','夹'],lv:1},
+ {ch:'破',parts:['石','皮'],lv:1},
+ {ch:'硬',parts:['石','更'],lv:1},
+ {ch:'矿',parts:['石','广'],lv:1},
+ {ch:'码',parts:['石','马'],lv:1},
+ {ch:'看',parts:['手','目'],lv:1},
+ {ch:'眠',parts:['目','民'],lv:1},
+ {ch:'盯',parts:['目','丁'],lv:1},
+ {ch:'省',parts:['少','目'],lv:1},
+ {ch:'园',parts:['囗','元'],lv:1},
+ {ch:'困',parts:['囗','木'],lv:1},
+ {ch:'团',parts:['囗','才'],lv:1},
+ {ch:'因',parts:['囗','大'],lv:1},
+ {ch:'回',parts:['囗','口'],lv:1},
+ {ch:'国',parts:['囗','玉'],lv:1},
+ {ch:'红',parts:['纟','工'],lv:1},
+ {ch:'纪',parts:['纟','己'],lv:1},
+ {ch:'纯',parts:['纟','屯'],lv:1},
+ {ch:'组',parts:['纟','且'],lv:1},
+ {ch:'细',parts:['纟','田'],lv:1},
+ {ch:'结',parts:['纟','吉'],lv:1},
+ {ch:'玩',parts:['王','元'],lv:1},
+ {ch:'珠',parts:['王','朱'],lv:1},
+ {ch:'骑',parts:['马','奇'],lv:1},
+ {ch:'驾',parts:['加','马'],lv:1},
+ {ch:'骆',parts:['马','各'],lv:1},
+ {ch:'驼',parts:['马','它'],lv:1},
+ {ch:'鲜',parts:['鱼','羊'],lv:1},
+ {ch:'鲁',parts:['鱼','日'],lv:1},
+ {ch:'鲸',parts:['鱼','京'],lv:1},
+ {ch:'舰',parts:['舟','见'],lv:1},
+ {ch:'床',parts:['广','木'],lv:1},
+ {ch:'店',parts:['广','占'],lv:1},
+ {ch:'庙',parts:['广','由'],lv:1},
+ {ch:'射',parts:['身','寸'],lv:1},
+ {ch:'躲',parts:['身','朵'],lv:1},
+ {ch:'胜',parts:['月','生'],lv:1},
+ /* ---- lv2：3 部件（44） ---- */
+ {ch:'想',parts:['木','目','心'],lv:2},
+ {ch:'树',parts:['木','又','寸'],lv:2},
+ {ch:'湖',parts:['氵','古','月'],lv:2},
+ {ch:'谢',parts:['讠','身','寸'],lv:2},
+ {ch:'意',parts:['立','日','心'],lv:2},
+ {ch:'解',parts:['角','刀','牛'],lv:2},
+ {ch:'霸',parts:['雨','革','月'],lv:2},
+ {ch:'露',parts:['雨','足','各'],lv:2},
+ {ch:'霜',parts:['雨','木','目'],lv:2},
+ {ch:'踏',parts:['足','水','曰'],lv:2},
+ {ch:'算',parts:['⺮','目','廾'],lv:2},
+ {ch:'篇',parts:['⺮','户','册'],lv:2},
+ {ch:'盟',parts:['日','月','皿'],lv:2},
+ {ch:'岸',parts:['山','厂','干'],lv:2},
+ {ch:'型',parts:['开','刂','土'],lv:2},
+ {ch:'般',parts:['舟','几','又'],lv:2},
+ {ch:'船',parts:['舟','几','口'],lv:2},
+ {ch:'温',parts:['氵','日','皿'],lv:2},
+ {ch:'荣',parts:['艹','冖','木'],lv:2},
+ {ch:'落',parts:['艹','氵','各'],lv:2},
+ {ch:'苦',parts:['艹','十','口'],lv:2},
+ {ch:'荷',parts:['艹','亻','可'],lv:2},
+ {ch:'菜',parts:['艹','爫','木'],lv:2},
+ {ch:'茶',parts:['艹','人','木'],lv:2},
+ {ch:'草',parts:['艹','日','十'],lv:2},
+ {ch:'森',parts:['木','木','木'],lv:2},
+ {ch:'品',parts:['口','口','口'],lv:2},
+ {ch:'晶',parts:['日','日','日'],lv:2},
+ {ch:'聂',parts:['耳','又','又'],lv:2},
+ {ch:'磊',parts:['石','石','石'],lv:2},
+ {ch:'骂',parts:['口','口','马'],lv:2},
+ {ch:'劳',parts:['艹','冖','力'],lv:2},
+ {ch:'愁',parts:['禾','火','心'],lv:2},
+ {ch:'强',parts:['弓','虫','口'],lv:2},
+ {ch:'粥',parts:['弓','米','弓'],lv:2},
+ {ch:'数',parts:['米','女','攵'],lv:2},
+ {ch:'直',parts:['十','目','一'],lv:2},
+ {ch:'圆',parts:['囗','口','贝'],lv:2},
+ {ch:'麻',parts:['广','木','木'],lv:2},
+ {ch:'语',parts:['讠','五','口'],lv:2},
+ {ch:'碧',parts:['王','白','石'],lv:2},
+ {ch:'瓣',parts:['辛','瓜','辛'],lv:2},
+ {ch:'辩',parts:['辛','讠','辛'],lv:2},
+ {ch:'辨',parts:['辛','刀','辛'],lv:2},
+ /* ---- lv3：4-5 部件（11） ---- */
+ {ch:'燕',parts:['廿','口','北','灬'],lv:3},      /* 廿口中间北两边灬=16画 */
+ {ch:'器',parts:['口','口','犬','口','口'],lv:3},   /* 两口犬两口=规范笔顺16画 */
+ {ch:'赢',parts:['亡','口','月','贝','凡'],lv:3},
+ {ch:'朝',parts:['十','日','十','月'],lv:3},
+ {ch:'崖',parts:['山','厂','土','土'],lv:3},
+ {ch:'境',parts:['土','立','日','儿'],lv:3},
+ {ch:'得',parts:['彳','日','一','寸'],lv:3},
+ {ch:'愿',parts:['厂','白','小','心'],lv:3},
+ {ch:'座',parts:['广','人','人','土'],lv:3},
+ {ch:'蟹',parts:['角','刀','牛','虫'],lv:3},
+ {ch:'樱',parts:['木','贝','贝','女'],lv:3}
+];
+/* 索引 + 一致性 throw（构建即校验：目标字唯一/lv↔部件数锁定/部件非空/目标∉部件） */
+const ALL_PARTS=[];
+for(let i=0;i<CHARS.length;i++){
+  const c=CHARS[i];
+  if(!c.ch||!c.parts||c.parts.length<2) throw new Error('char broken @'+i);
+  const want=c.lv===1?2:(c.lv===2?3:null);          /* lv3=4-5 皆可 */
+  if(c.lv<1||c.lv>3||(want!==null&&c.parts.length!==want)) throw new Error('char lv/parts @'+i);
+  if(c.parts.length<4||c.parts.length>5){ if(c.lv===3) throw new Error('char lv3 parts @'+i); }
+  for(const p of c.parts){ if(!p) throw new Error('char empty part @'+i);
+    if(p===c.ch) throw new Error('char self part @'+i); ALL_PARTS.push(p); }
+  for(let j=0;j<i;j++) if(CHARS[j].ch===c.ch) throw new Error('char dup @'+i);
+}
+const PARTS_SET=[...new Set(ALL_PARTS)];
+
+/* ============ 状态 ============ */
+const BEST_KEY='g75_best';
+const TOTAL_TIME=60, NEED=15, WRONG_PEN=3;
+let S=null, G=null;
+/* G={cIdx, used:Set, pool:[{t,ok,mark}], slots:[已选文字], reveal:bool} */
+let HIT={parts:[]};
+let flashT=0, shakeT=0;
+function loadBest(){ try{ return +(localStorage.getItem(BEST_KEY)||0); }catch(e){ return 0; } }
+function saveBestNow(){ if(S && S.score>S.best){ S.best=S.score; try{ localStorage.setItem(BEST_KEY,String(S.best)); }catch(e){} } }
+let tipTO=null;
+function flash(msg){ const f=$('flashtx'); f.textContent=msg; f.classList.add('show');
+  clearTimeout(tipTO); tipTO=setTimeout(()=>f.classList.remove('show'),1600); }
+function killFlash(){ clearTimeout(tipTO); $('flashtx').classList.remove('show'); }
+
+/* 难度档：连对<3→lv1；3-5→lv2；≥6→lv3 */
+function tierOf(streak){ return streak>=6?3:(streak>=3?2:1); }
+function pickCharIdx(){
+  const t=tierOf(S.streak);
+  /* 出题永不与当前题相同（家族 M-3 范式） */
+  let pool=CHARS.map((_,i)=>i).filter(i=>!G.used.has(i)&&i!==G.cIdx&&CHARS[i].lv===t);
+  if(pool.length===0)                      /* 档位池空→全库档（正常局不可达，防极长局/restore） */
+    pool=CHARS.map((_,i)=>i).filter(i=>!G.used.has(i)&&i!==G.cIdx);
+  if(pool.length===0){                     /* 全库尽→循环重用不计分 */
+    G.used.clear();
+    pool=CHARS.map((_,i)=>i).filter(i=>i!==G.cIdx&&CHARS[i].lv===t);
+    if(pool.length===0) pool=CHARS.map((_,i)=>i).filter(i=>i!==G.cIdx);
+  }
+  return pool[Math.floor(rnd()*pool.length)];
+}
+function buildPool(){
+  const ci=pickCharIdx();
+  const c=CHARS[ci];
+  /* 干扰：全库部件集中抽（≠本题部件、≠目标字、互异），补足池至 6 */
+  const banned=new Set([...c.parts,c.ch]);
+  const decoys=[];
+  let guard=0;
+  while(decoys.length<6-c.parts.length&&guard<500){
+    guard++;
+    const p=PARTS_SET[Math.floor(rnd()*PARTS_SET.length)];
+    if(!banned.has(p)&&decoys.indexOf(p)<0) decoys.push(p);
+  }
+  const pool=c.parts.map(p=>({t:p,ok:1})).concat(decoys.map(p=>({t:p,ok:0})));
+  for(let i=pool.length-1;i>0;i--){ const j=Math.floor(rnd()*(i+1));
+    const t=pool[i]; pool[i]=pool[j]; pool[j]=t; }
+  G.cIdx=ci; G.pool=pool; G.slots=[]; G.usedCells=[]; G.reveal=false; S._lt=-1; updHUD();
+}
+function newGame(){
+  S={phase:'menu',time:TOTAL_TIME,score:0,best:loadBest(),streak:0,maxStreak:0,
+     spelt:0,paused:false,_lt:-1};
+  G=null;
+}
+function startRound(){ killFlash();
+  RS=RS>>>0;
+  S.time=TOTAL_TIME; S.score=0; S.streak=0; S.maxStreak=0;
+  S.spelt=0; S.bonus=0; S.penN=0;
+  G={cIdx:-1, used:new Set(), pool:[], slots:[], usedCells:[], reveal:false};
+  buildPool(); S.phase='play'; updHUD(); }
+
+function pick(i){
+  if(S.phase!=='play'||!G||G.reveal) return false;
+  if(i<0||i>=G.pool.length) return false;
+  if(G.usedCells.indexOf(i)>=0) return false;      /* 已用块拒点（叠部件块独立计） */
+  const cell=G.pool[i];
+  const want=CHARS[G.cIdx].parts[G.slots.length];
+  if(cell.t===want&&cell.ok===1){
+    /* 同帧双保险：文字=期望部件 且 ok 标记一致（防 restore 错位） */
+    G.slots.push(cell.t); G.usedCells.push(i);
+    snd('sel');
+    if(G.slots.length===CHARS[G.cIdx].parts.length){   /* 槽满=拼成 */
+      G.used.add(G.cIdx);
+      S.streak++; S.maxStreak=Math.max(S.maxStreak,S.streak);
+      const base=100+50*(CHARS[G.cIdx].lv-1);
+      S.score+=Math.floor(base*(1+.5*Math.min(S.streak-1,6)));
+      S.spelt++;
+      if(S.spelt>=NEED){                               /* 大成 */
+        S.bonus=500; S.score+=500;
+        winGame(); updHUD(); return true;
+      }
+      snd('ok');
+      flash(CHARS[G.cIdx].ch+' = '+CHARS[G.cIdx].parts.join(''));
+      buildPool(); updHUD(); return true;
+    }
+    updHUD(); return true;
+  } else {
+    /* 点错：揭正确序 1.6s，断连 −3s 换字 */
+    S.streak=0; S.time=Math.max(0,S.time-WRONG_PEN); S.penN++;
+    G.reveal=true; snd('drum'); shakeT=.4;
+    const c=CHARS[G.cIdx];
+    /* 池中标记正确序号（同部件叠字按位匹配首个未标者） */
+    const used={};
+    c.parts.forEach((p,pi)=>{
+      for(let k=0;k<G.pool.length;k++){
+        if(G.pool[k].t===p&&G.pool[k].ok===1&&!used[k]){ used[k]=1; G.pool[k].mark=pi+1; break; }
+      }
+    });
+    flash(c.ch+' = '+c.parts.join('')+' · −'+WRONG_PEN+'s');
+    setTimeout(()=>{ if(S&&G&&G.reveal&&(S.phase==='play'||S.phase==='pause')){ buildPool(); } },1600);
+    updHUD(); return true;
+  }
+}
+function winGame(){
+  S.phase='win'; saveBestNow(); snd('win');
+  $('overttl').textContent='大 成';
+  $('overscore').textContent=S.score;
+  $('overstat').textContent='十五字功成 · 奖励 +'+(S.bonus||0)+' · 最长连 ×'+S.maxStreak;
+  $('overlay').classList.remove('hide');
+}
+function gameOver(){
+  S.phase='over'; saveBestNow();
+  $('overttl').textContent='收 工';
+  $('overscore').textContent=S.score;
+  $('overstat').textContent='拼字 '+S.spelt+'/'+NEED+' · 最长连 ×'+S.maxStreak;
+  updHUD(); $('overlay').classList.remove('hide');
+}
+/* ---- HUD ---- */
+function updHUD(){
+  $('scv').textContent=S.score; $('stv').textContent=S.streak;
+  $('tmv').textContent=Math.max(0,Math.ceil(S.time));
+  const cb=$('cubes');
+  if(cb.childElementCount!==NEED){ cb.innerHTML='';
+    for(let i=0;i<NEED;i++){ const d=document.createElement('span'); d.className='cube'; cb.appendChild(d); } }
+  for(let i=0;i<NEED;i++) cb.children[i].className='cube'+(i<S.spelt?' on':'');
+}
+
+/* ---- 绘制 ---- */
+function draw(){
+  ctx.clearRect(0,0,390,780);
+  const bg=ctx.createLinearGradient(0,0,0,780);
+  bg.addColorStop(0,'#261d14'); bg.addColorStop(1,'#1a140e');
+  ctx.fillStyle=bg; ctx.fillRect(0,0,390,780);
+  /* 木纹（固定伪随机横纹，不吃 LCG） */
+  ctx.strokeStyle='rgba(180,140,90,.05)';
+  for(let i=0;i<14;i++){ const y=(i*131)%760+8;
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(390,y+(i%3-1)*3); ctx.stroke(); }
+  if(S.phase==='menu'){ drawMenuIdle(); return; }
+  if(!G){ return; }
+  const shake=shakeT>0?Math.sin(shakeT*40)*3*shakeT:0;
+  const c=CHARS[G.cIdx];
+  if(c){
+    /* 目标字卷轴卡 */
+    const x=95,y=96,w=200,h=120;
+    ctx.save(); ctx.translate(shake,0);
+    const cg=ctx.createLinearGradient(0,y,0,y+h);
+    cg.addColorStop(0,'#f6ecd4'); cg.addColorStop(1,'#eadfc4');
+    ctx.fillStyle=cg; roundRect(x,y,w,h,10); ctx.fill();
+    ctx.strokeStyle='rgba(120,80,60,.45)'; ctx.lineWidth=1; roundRect(x,y,w,h,10); ctx.stroke();
+    /* 卷轴杆 */
+    ctx.fillStyle='#8a6a3f'; ctx.fillRect(x-8,y-4,6,h+8); ctx.fillRect(x+w+2,y-4,6,h+8);
+    ctx.fillStyle='#33261f'; ctx.font='800 64px system-ui';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(c.ch,195,y+62);
+    /* 结构提示章（右上角） */
+    ctx.save(); ctx.translate(x+w-4,y+18); ctx.rotate(.08);
+    ctx.strokeStyle='rgba(201,68,54,.8)'; ctx.lineWidth=1.4;
+    ctx.strokeRect(-26,-12,52,24);
+    ctx.fillStyle='#c94436'; ctx.font='700 11px system-ui';
+    ctx.fillText(c.lv+' 段',0,1); ctx.restore();
+    ctx.restore();
+    /* 答题槽 */
+    const pn=c.parts.length, sw=52, sh=44, sgap=10;
+    const sx0=195-(pn*sw+(pn-1)*sgap)/2, sy=252;
+    for(let i=0;i<pn;i++){
+      const sx=sx0+i*(sw+sgap);
+      const filled=i<G.slots.length;
+      ctx.fillStyle=filled?'#c9a35a':'rgba(246,236,212,.08)';
+      roundRect(sx,sy,sw,sh,8); ctx.fill();
+      ctx.strokeStyle=filled?'#ecd9a8':'rgba(246,236,212,.3)';
+      ctx.lineWidth=1; roundRect(sx,sy,sw,sh,8); ctx.stroke();
+      if(filled){ ctx.fillStyle='#2b2118'; ctx.font='800 22px system-ui';
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText(G.slots[i],sx+sw/2,sy+sh/2+1); }
+      else{ ctx.fillStyle='rgba(246,236,212,.18)'; ctx.font='700 15px system-ui';
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText(String(i+1),sx+sw/2,sy+sh/2+1); }
+    }
+  }
+  /* 部件池 6 块 2×3 */
+  HIT.parts=[];
+  const pw=112,ph=64,pgap=12,px0=29,py0=330;
+  for(let i=0;i<G.pool.length;i++){
+    const x=px0+(i%2)*(pw+pgap), y=py0+Math.floor(i/2)*(ph+pgap);
+    const cell=G.pool[i];
+    const usedUp=G.usedCells.indexOf(i)>=0;
+    ctx.save(); ctx.translate(shake,0);
+    const g2=ctx.createLinearGradient(0,y,0,y+ph);
+    if(cell.mark){ g2.addColorStop(0,'#e8b98a'); g2.addColorStop(1,'#c98a4a'); }
+    else if(usedUp){ g2.addColorStop(0,'#8a7a5f'); g2.addColorStop(1,'#6f6350'); }
+    else{ g2.addColorStop(0,'#f6ecd4'); g2.addColorStop(1,'#e9dcc0'); }
+    ctx.fillStyle=g2; roundRect(x,y,pw,ph,10); ctx.fill();
+    ctx.strokeStyle=cell.mark?'#8a4a1f':(usedUp?'rgba(120,100,80,.5)':'rgba(80,60,50,.45)');
+    ctx.lineWidth=cell.mark?2:1; roundRect(x,y,pw,ph,10); ctx.stroke();
+    ctx.fillStyle=usedUp?'rgba(60,48,38,.5)':'#33261f';
+    ctx.font='800 30px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(cell.t,x+pw/2,y+ph/2+1);
+    if(cell.mark){ ctx.fillStyle='#7a2f14'; ctx.font='800 15px system-ui';
+      ctx.fillText('①②③④⑤'.charAt(cell.mark-1),x+pw-16,y+15); }
+    ctx.restore();
+    HIT.parts.push({x,y,w:pw,h:ph});
+  }
+  /* 底部印纹装饰 */
+  ctx.fillStyle='rgba(201,68,54,.06)';
+  ctx.beginPath(); ctx.ellipse(195,700,150,55,0,0,Math.PI*2); ctx.fill();
+  if(S.streak>1){ ctx.save(); ctx.translate(338,316); ctx.rotate(.1);
+    ctx.strokeStyle='rgba(201,68,54,.85)'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(0,0,22,0,Math.PI*2); ctx.stroke();
+    ctx.fillStyle='#c94436'; ctx.font='800 14px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('连×'+S.streak,0,1); ctx.restore(); }
+}
+function drawMenuIdle(){
+  ctx.fillStyle='rgba(246,236,212,.45)'; ctx.font='600 15px system-ui'; ctx.textAlign='center';
+  ctx.fillText('一字一世界 · 拆合见功夫', 195, 620);
+}
+function roundRect(x,y,w,h,r){ ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+
+/* ---- 输入 ---- */
+cv.addEventListener('pointerdown',e=>{
+  e.preventDefault();
+  if(!S||S.phase!=='play'||!G||G.reveal) return;
+  const r=cv.getBoundingClientRect();
+  const x=(e.clientX-r.left)*(390/r.width), y=(e.clientY-r.top)*(780/r.height);
+  for(let i=0;i<HIT.parts.length;i++){ const o=HIT.parts[i];
+    if(x>=o.x&&x<=o.x+o.w&&y>=o.y&&y<=o.y+o.h){ HIT.parts=[]; pick(i); return; } }
+});
+
+/* ---- 主循环 ---- */
+let lastT=0;
+function loop(ts){
+  const dt=Math.min(.05,(ts-lastT)/1000||0); lastT=ts;
+  if(S){
+    if(S.phase==='play'&&G){
+      S.time-=dt;
+      if(S.time<=0){ S.time=0; gameOver(); }
+      else if(Math.ceil(S.time)!==S._lt){ S._lt=Math.ceil(S.time); if(S.time<=10) snd('tick'); updHUD(); }
+    }
+    if(shakeT>0) shakeT-=dt;
+    draw();
+  }
+  requestAnimationFrame(loop);
+}
+
+/* ---- 按钮 ---- */
+$('btn-go').addEventListener('click',()=>{ ensureAC(); $('menu').classList.add('hide'); startRound(); });
+$('btn-again').addEventListener('click',()=>{ $('overlay').classList.add('hide'); ensureAC(); startRound(); });
+$('btn-snd').addEventListener('click',()=>{ SND=!SND; ensureAC(); $('btn-snd').textContent=SND?'🔊':'🔇'; });
+$('btn-pause').addEventListener('click',()=>{ if(S&&S.phase==='play'){S.phase='pause';$('pauselay').classList.remove('hide');} });
+$('btn-resume').addEventListener('click',()=>{ if(S&&S.phase==='pause'){S.phase='play';$('pauselay').classList.add('hide');} });
+$('btn-home').addEventListener('click',()=>{ $('pauselay').classList.add('hide'); $('menu').classList.remove('hide');
+  $('bestline').textContent='最高累计 '+loadBest(); S.phase='menu'; saveBestNow(); });
+
+function onHidden(){ if(document.hidden) saveBestNow(); }
+document.addEventListener('visibilitychange',onHidden);
+window.addEventListener('pagehide',()=>saveBestNow());
+
+newGame();
+$('bestline').textContent='最高累计 '+S.best;
+requestAnimationFrame(loop);
+
+
+</script>
+</body>
+</html>
