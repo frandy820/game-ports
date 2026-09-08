@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>错字捕快</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:#1c1610;overflow:hidden;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+#app{position:relative;width:390px;height:844px;margin:0 auto;background:#1c1610;overflow:hidden}
+#cv{position:absolute;left:0;top:64px;width:390px;height:780px;touch-action:none}
+/* ---- HUD ---- */
+#hud{position:absolute;left:0;top:0;width:390px;height:64px;display:flex;align-items:center;gap:6px;
+ padding:0 10px;background:#241c12;border-bottom:2px solid #3a2c1c;z-index:5;user-select:none}
+.pill{display:flex;align-items:center;gap:4px;padding:3px 7px;border-radius:8px;
+ background:rgba(233,221,192,.08);border:1px solid rgba(233,221,192,.14)}
+.pill b{font-size:11px;color:#9c8a6a;font-weight:600}
+.pill span{font-size:12px;color:#e9ddc0;font-weight:800;font-variant-numeric:tabular-nums;min-width:14px;text-align:center}
+#cubes{display:flex;gap:2px;padding:3px 7px;border-radius:8px;background:rgba(233,221,192,.08);border:1px solid rgba(233,221,192,.14)}
+.cube{width:6px;height:7px;border-radius:1.5px;background:rgba(233,221,192,.14)}
+.cube.on{background:#c0392b}
+#hud .sp{flex:1}
+.hbtn{width:34px;height:34px;border-radius:9px;border:1px solid rgba(233,221,192,.2);background:rgba(233,221,192,.07);
+ color:#e9ddc0;font-size:15px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.hbtn:active{transform:scale(.92)}
+/* ---- 菜单/遮罩/结算 ---- */
+#menu{position:absolute;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;
+ background:radial-gradient(120% 90% at 50% 30%,#2a2014 0%,#1c1610 70%);gap:14px}
+#menu.hide,#pauselay.hide,#overlay.hide{display:none}
+#menu .mk{width:74px;height:74px;border-radius:14px;display:flex;align-items:center;justify-content:center;
+ background:linear-gradient(160deg,#e9ddc0,#d9c9a4);border:2px solid #b39d72;font-size:38px;
+ box-shadow:0 6px 22px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.5)}
+#menu h1{color:#e9ddc0;font-size:30px;letter-spacing:8px;font-weight:800}
+#menu .sub{color:#9c8a6a;font-size:13px;letter-spacing:2px}
+#menu .best{color:#c0392b;font-size:13px;font-weight:700}
+#menu .rule{color:#7a6c52;font-size:11.5px;max-width:290px;text-align:center;line-height:1.9}
+.go{margin-top:6px;padding:13px 44px;border-radius:12px;border:none;cursor:pointer;
+ background:linear-gradient(160deg,#d24a35,#b03323);color:#f6ead2;font-size:17px;font-weight:800;letter-spacing:6px;
+ box-shadow:0 5px 16px rgba(192,57,43,.4)}
+.go:active{transform:scale(.95)}
+.lay{position:absolute;inset:0;z-index:8;background:rgba(18,14,9,.78);backdrop-filter:blur(2px);
+ display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
+.lay h2{color:#e9ddc0;font-size:22px;letter-spacing:5px}
+.lay .st{color:#9c8a6a;font-size:13px;line-height:2}
+.lay .row{display:flex;gap:12px}
+.lay button{padding:11px 30px;border-radius:11px;border:1px solid rgba(233,221,192,.25);cursor:pointer;
+ background:rgba(233,221,192,.1);color:#e9ddc0;font-size:14px;font-weight:700}
+.lay button.pri{background:linear-gradient(160deg,#d24a35,#b03323);border:none;color:#f6ead2}
+#overlay{z-index:9}
+#overttl{font-size:34px;letter-spacing:10px;color:#c0392b;font-weight:800}
+#overscore{font-size:44px;font-weight:800;color:#e9ddc0;font-variant-numeric:tabular-nums}
+#flashbar{position:absolute;left:0;top:70px;width:390px;text-align:center;z-index:6;pointer-events:none;
+ color:#e9ddc0;font-size:13px;font-weight:700;opacity:0;transition:opacity .18s}
+#flashbar.show{opacity:1}
+</style>
+</head>
+<body>
+<div id="app">
+ <div id="hud">
+  <div class="pill"><b>分</b><span id="scv">0</span></div>
+  <div class="pill"><b>连</b><span id="stv">0</span></div>
+  <div id="cubes"></div>
+  <div class="pill"><b>时</b><span id="tmv">60</span></div>
+  <div class="sp"></div>
+  <button class="hbtn" id="btn-snd">🔇</button>
+  <button class="hbtn" id="btn-pause">⏸</button>
+ </div>
+ <div id="flashbar"></div>
+ <canvas id="cv" width="390" height="780"></canvas>
+ <div id="menu">
+  <div class="mk">捕</div>
+  <h1>错字捕快</h1>
+  <div class="sub">衙 门 缉 拿 · 一 网 打 尽</div>
+  <div class="best" id="mbest"></div>
+  <div class="rule">告示句中藏着一个错字逃犯，点字格拿获归案。<br>连对越高句子越长、混淆越刁；<br>点错惊堂木伺候 −5s。60 秒拿获 15 案，成就神捕。</div>
+  <button class="go" id="btn-go">升 堂</button>
+ </div>
+ <div id="pauselay" class="lay hide">
+  <h2>暂 停</h2>
+  <div class="st">休庭片刻 · 案卷已封存</div>
+  <div class="row">
+   <button class="pri" id="btn-resume">继续</button>
+   <button id="btn-home">收工</button>
+  </div>
+ </div>
+ <div id="overlay" class="lay hide">
+  <div id="overttl">收 工</div>
+  <div id="overscore">0</div>
+  <div class="st" id="overstat"></div>
+  <button class="go" id="btn-again">再 开 一 堂</button>
+ </div>
+</div>
+<script>
+'use strict';
+/* ---- 错字对照库：{s:正确句, i:正字位, w:错字, lv}；展示时 s[i]→w ---- */
+const PAIRS={   /* 正字→错字[]（一正字可多错向：地→的/得） */
+ '的':['得'],'地':['的','得'],'得':['地'],'在':['再'],'再':['在'],'晴':['清'],'清':['晴'],
+ '园':['圆'],'圆':['园'],'做':['作'],'作':['做'],'像':['象'],'象':['像'],'慢':['漫'],'漫':['慢'],
+ '静':['净'],'净':['静'],'折':['拆'],'拆':['折'],'州':['川'],'川':['州'],'报':['抱'],'抱':['报'],
+ '拔':['拨'],'拨':['拔'],'蓝':['篮'],'篮':['蓝'],'峰':['锋'],'锋':['峰'],'查':['察'],'察':['查'],
+ '须':['需'],'需':['须'],'克':['刻'],'刻':['克'],'蜜':['密'],'密':['蜜'],'驰':['弛'],'弛':['驰'],
+ '陪':['赔'],'赔':['陪'],'蜓':['廷'],'竞':['竟'],'竟':['竞'],'应':['映'],'映':['应'],'工':['功'],
+ '功':['工'],'记':['纪'],'纪':['记'],'忘':['妄'],'妄':['忘'],'历':['厉'],'厉':['历'],'彩':['采'],
+ '采':['彩'],'洒':['酒'],'治':['冶'],'冶':['治'],'炼':['练'],'练':['炼'],'幕':['暮'],'暮':['幕']
+};
+const LIB=[
+/* ---- lv1：4-6 字短句（51） ---- */
+ {s:'我的书包',i:1,w:'得',lv:1},{s:'你的铅笔',i:1,w:'得',lv:1},{s:'他的跳绳',i:1,w:'得',lv:1},
+ {s:'红红的太阳',i:2,w:'得',lv:1},
+ {s:'慢慢地走',i:2,w:'的',lv:1},{s:'轻轻地听',i:2,w:'的',lv:1},{s:'飞快地跑',i:2,w:'的',lv:1},
+ {s:'认真地说',i:2,w:'的',lv:1},{s:'高兴地笑',i:2,w:'的',lv:1},
+ {s:'轻轻地说',i:2,w:'得',lv:1},
+ {s:'跑得真快',i:1,w:'地',lv:1},{s:'玩得开心',i:1,w:'地',lv:1},{s:'唱得动听',i:1,w:'地',lv:1},
+ {s:'我在家里',i:1,w:'再',lv:1},{s:'他在学校',i:1,w:'再',lv:1},{s:'现在出发',i:1,w:'再',lv:1},
+ {s:'再见朋友',i:0,w:'在',lv:1},{s:'明天再来',i:2,w:'在',lv:1},{s:'再三思考',i:0,w:'在',lv:1},
+ {s:'池水清澈',i:2,w:'晴',lv:1},{s:'雨过天晴',i:3,w:'清',lv:1},{s:'晴空万里',i:0,w:'清',lv:1},
+ {s:'清澈见底',i:0,w:'晴',lv:1},{s:'山清水秀',i:1,w:'晴',lv:1},{s:'清风徐来',i:0,w:'晴',lv:1},
+ {s:'公园里玩',i:1,w:'圆',lv:1},{s:'果园飘香',i:1,w:'圆',lv:1},
+ {s:'花好月圆',i:3,w:'园',lv:1},
+ {s:'做个好人',i:0,w:'作',lv:1},{s:'做事认真',i:0,w:'作',lv:1},
+ {s:'写作素材',i:1,w:'做',lv:1},{s:'杰作诞生',i:1,w:'做',lv:1},
+ {s:'好像下雨',i:1,w:'象',lv:1},{s:'画像逼真',i:1,w:'象',lv:1},
+ {s:'大象戏水',i:1,w:'像',lv:1},{s:'万象更新',i:1,w:'像',lv:1},
+ {s:'慢走不送',i:0,w:'漫',lv:1},{s:'时间很慢',i:3,w:'漫',lv:1},
+ {s:'漫天飞雪',i:0,w:'慢',lv:1},{s:'漫山遍野',i:0,w:'慢',lv:1},
+ {s:'教室安静',i:3,w:'净',lv:1},{s:'夜深人静',i:3,w:'净',lv:1},
+ {s:'干净整洁',i:1,w:'静',lv:1},{s:'窗明几净',i:3,w:'静',lv:1},
+ {s:'折纸飞机',i:0,w:'拆',lv:1},{s:'百折不挠',i:1,w:'拆',lv:1},
+ {s:'拆除危房',i:0,w:'折',lv:1},
+ {s:'苏州评弹',i:1,w:'川',lv:1},{s:'山川壮美',i:1,w:'州',lv:1},
+ {s:'拔河比赛',i:0,w:'拨',lv:1},{s:'选拔人才',i:1,w:'拨',lv:1},
+/* ---- lv2：7-9 字句（55） ---- */
+ {s:'今天天气很晴朗',i:5,w:'清',lv:2},{s:'湖水清澈如明镜',i:2,w:'晴',lv:2},
+ {s:'他再也没有迟到',i:1,w:'在',lv:2},{s:'期待他下次再来',i:5,w:'在',lv:2},
+ {s:'认真做好每件事',i:2,w:'作',lv:2},{s:'这部作品很感人',i:2,w:'做',lv:2},
+ {s:'公园里鲜花盛开',i:1,w:'圆',lv:2},{s:'十五的月亮真圆',i:6,w:'园',lv:2},
+ {s:'他的字写得工整',i:4,w:'地',lv:2},{s:'春天悄悄地来了',i:4,w:'的',lv:2},
+ {s:'兴高采烈地欢呼',i:4,w:'得',lv:2},
+ {s:'蓝天上飘着白云',i:0,w:'篮',lv:2},{s:'篮球比赛很激烈',i:0,w:'蓝',lv:2},
+ {s:'登山队员登上顶峰',i:7,w:'锋',lv:2},{s:'他是锋线主力球员',i:2,w:'峰',lv:2},
+ {s:'复习时要查漏补缺',i:4,w:'察',lv:2},{s:'弟弟拨打了电话',i:2,w:'拔',lv:2},
+ {s:'我们必须遵守规则',i:3,w:'需',lv:2},{s:'学习需要多思考',i:2,w:'须',lv:2},
+ {s:'攻克难关靠大家',i:1,w:'刻',lv:2},{s:'一刻钟很快过去',i:1,w:'克',lv:2},
+ {s:'香甜的蜂蜜水好喝',i:4,w:'密',lv:2},{s:'请保守这个秘密',i:6,w:'蜜',lv:2},
+ {s:'新闻播报很及时',i:3,w:'抱',lv:2},{s:'他抱着奖杯笑了',i:1,w:'报',lv:2},
+ {s:'哥哥拔得比赛头筹',i:2,w:'拨',lv:2},{s:'请拨打电话查询',i:1,w:'拔',lv:2},
+ {s:'漫步在乡间小路',i:0,w:'慢',lv:2},{s:'他做事总是很慢',i:6,w:'漫',lv:2},
+ {s:'夜幕降临华灯初上',i:1,w:'暮',lv:2},{s:'日暮时分渔船归航',i:1,w:'幕',lv:2},
+ {s:'草原上骏马奔驰',i:6,w:'弛',lv:2},{s:'绷紧的神经松弛下来',i:6,w:'驰',lv:2},
+ {s:'妈妈陪我做作业',i:2,w:'赔',lv:2},{s:'他赔了夫人又折兵',i:1,w:'陪',lv:2},
+ {s:'蜻蜓点水掠过湖面',i:1,w:'廷',lv:2},{s:'苏州园林甲天下',i:1,w:'川',lv:2},
+ {s:'百舸争流千帆竞发',i:6,w:'竟',lv:2},{s:'他竟然跑了个第一',i:1,w:'竞',lv:2},
+ {s:'我答应了他的请求',i:2,w:'映',lv:2},{s:'湖面倒映着青山',i:3,w:'应',lv:2},
+ {s:'同学们认真地听讲',i:5,w:'的',lv:2},{s:'坚持锻炼身体好',i:3,w:'练',lv:2},
+ {s:'请记下这个电话',i:1,w:'纪',lv:2},{s:'这段历史值得纪念',i:6,w:'记',lv:2},
+ {s:'忘不了那次旅行',i:0,w:'妄',lv:2},{s:'痴心妄想要不得',i:2,w:'忘',lv:2},
+ {s:'日历翻到了新年',i:1,w:'厉',lv:2},{s:'再接再厉不要骄傲',i:3,w:'历',lv:2},
+ {s:'晚会上节目真精彩',i:7,w:'采',lv:2},{s:'兴高采烈去春游',i:2,w:'彩',lv:2},
+ {s:'金色的阳光洒满地',i:5,w:'酒',lv:2},{s:'治病救人是医德',i:0,w:'冶',lv:2},
+ {s:'她的笑容像春天',i:4,w:'象',lv:2},{s:'大象的鼻子真长',i:1,w:'像',lv:2},
+/* ---- lv3：10-12 字长句（28） ---- */
+ {s:'秋天的晚霞映红了半边天',i:5,w:'应',lv:3},
+ {s:'他刻苦锻炼终于夺得了冠军',i:4,w:'练',lv:3},
+ {s:'每天坚持练习书法进步很快',i:4,w:'炼',lv:3},
+ {s:'我们必须养成好的习惯',i:3,w:'需',lv:3},
+ {s:'学习需要持之以恒的精神',i:2,w:'须',lv:3},
+ {s:'时光匆匆一刻也不能浪费',i:5,w:'克',lv:3},
+ {s:'攻克难关要靠大家齐心协力',i:1,w:'刻',lv:3},
+ {s:'晚会的节目个个精彩纷呈',i:8,w:'采',lv:3},
+ {s:'蜜蜂在花丛中采蜜忙个不停',i:6,w:'彩',lv:3},
+ {s:'夜幕下的城市一片灯火辉煌',i:1,w:'暮',lv:3},
+ {s:'日暮时分的江面格外宁静',i:1,w:'幕',lv:3},
+ {s:'这个秘密只有他们俩知道',i:3,w:'蜜',lv:3},
+ {s:'他竟然一口气跑了十圈不止',i:1,w:'竞',lv:3},
+ {s:'运动会百米竞赛即将开始',i:5,w:'竟',lv:3},
+ {s:'哥哥拔河比赛得了第一名',i:2,w:'拨',lv:3},
+ {s:'请拨打热线电话查询成绩',i:1,w:'拔',lv:3},
+ {s:'他抱着奖杯开心地走出会场',i:1,w:'报',lv:3},
+ {s:'记者报道了这场比赛盛况',i:2,w:'抱',lv:3},
+ {s:'假期里他漫步在林荫道上',i:4,w:'慢',lv:3},
+ {s:'爷爷慢悠悠地在院子里浇花',i:2,w:'漫',lv:3},
+ {s:'考场里静得掉根针都听得见',i:3,w:'净',lv:3},
+ {s:'打扫干净教室我们去春游',i:3,w:'静',lv:3},
+ {s:'工人们正在拆除危旧围墙',i:5,w:'折',lv:3},
+ {s:'这张纸他折了一只纸飞机',i:4,w:'拆',lv:3},
+ {s:'大禹治水三过家门而不入',i:2,w:'冶',lv:3},
+ {s:'多读好书能够陶冶人的性情',i:7,w:'治',lv:3},
+ {s:'骏马在辽阔草原上奔驰',i:9,w:'弛',lv:3},
+ {s:'他陪着她走过了许多岁月',i:1,w:'赔',lv:3}
+];
+/* ---- 构建期库校验（throw 家族模板） ---- */
+(function(){
+ const seen={};
+ for(let k=0;k<LIB.length;k++){
+  const r=LIB[k];
+  if(!r.s||typeof r.i!=='number'||!r.w||!r.lv) throw new Error('lib broken @'+k);
+  if(seen[r.s]) throw new Error('lib dup @'+k);
+  seen[r.s]=1;
+  if(r.s.length<4||r.s.length>12) throw new Error('lib len @'+k);
+  if(r.i<0||r.i>=r.s.length) throw new Error('lib idx @'+k);
+  if(!PAIRS[r.s[r.i]]||PAIRS[r.s[r.i]].indexOf(r.w)<0) throw new Error('lib pair @'+k+' '+r.s+' '+r.s[r.i]+'->'+r.w);
+  for(let j=0;j<r.s.length;j++){ if(j!==r.i&&r.s[j]===r.w) throw new Error('lib twin @'+k); }
+ }
+})();
+const NEED=15, TOTAL_TIME=60, WRONG_PEN=5;
+
+/* ---- RNG（LCG 家族模板） ---- */
+let RS=1;
+function srand(seed){ RS=(seed>>>0)||1; }
+function rnd(){ RS=(Math.imul(RS,1103515245)+12345)>>>0; return (RS>>>9)/8388608; }
+
+/* ---- 状态 ---- */
+const $=id=>document.getElementById(id);
+const cv=$('cv'), ctx=cv.getContext('2d');
+let S=null, G=null, flashT=0, flashMsg='', shakeT=0, circT=0, sndOn=false, AC=null;
+let HIT={cells:[]};
+
+function tierOf(st){ return st<3?1:(st<6?2:3); }
+function pickIdx(t){
+ let pool=LIB.map((_,k)=>k).filter(k=>!G.used.has(k)&&k!==G.idx&&LIB[k].lv===t);
+ if(pool.length===0) pool=LIB.map((_,k)=>k).filter(k=>!G.used.has(k)&&k!==G.idx);
+ if(pool.length===0) return -1;                    /* 穷尽交 deal 处理（clear 后重用须标 reused） */
+ return pool[Math.floor(rnd()*pool.length)];
+}
+function deal(){
+ const t=tierOf(S.streak);
+ let nx=pickIdx(t);
+ if(nx<0){ G.used.clear(); nx=pickIdx(t); G.reused=true; }   /* 全库尽重用=不计分（正常局不可达兜底） */
+ else{ G.reused=G.used.has(nx); }
+ G.idx=nx; G.used.add(nx); G.reveal=false; G.hitCell=-1;
+}
+function startRound(){ killFlash();
+ RS=RS>>>0;
+ S={phase:'play',time:TOTAL_TIME,score:0,streak:0,maxStreak:0,got:0,bonus:0,penN:0,
+    best:+(localStorage.getItem('g76_best')||0),_lt:TOTAL_TIME};
+ G={idx:-1,used:new Set(),reveal:false,hitCell:-1,reused:false};
+ deal(); updHUD();
+}
+function newGame(){ startRound(); }
+
+/* ---- 音效（默认静音） ---- */
+function ensureAC(){ if(!sndOn) return; try{ if(!AC) AC=new (window.AudioContext||window.webkitAudioContext)(); if(AC.state==='suspended') AC.resume(); }catch(e){} }
+function tone(f,t0,d,type,vol){ if(!AC) return; try{
+ const o=AC.createOscillator(),g=AC.createGain();
+ o.type=type||'sine'; o.frequency.value=f;
+ g.gain.setValueAtTime(0,AC.currentTime+t0);
+ g.gain.linearRampToValueAtTime(vol||.12,AC.currentTime+t0+.012);
+ g.gain.exponentialRampToValueAtTime(.0001,AC.currentTime+t0+d);
+ o.connect(g).connect(AC.destination); o.start(AC.currentTime+t0); o.stop(AC.currentTime+t0+d+.05);
+}catch(e){} }
+function snd(k){ if(!sndOn||!AC) return;
+ if(k==='ok'){ tone(660,0,.09,'triangle',.14); tone(880,.07,.12,'triangle',.12); }
+ else if(k==='sel'){ tone(520,0,.05,'square',.06); }
+ else if(k==='win'){ tone(523,0,.14,'triangle',.14); tone(659,.12,.14,'triangle',.14); tone(784,.24,.22,'triangle',.15); }
+ else if(k==='drum'){ tone(120,0,.16,'sine',.22); tone(78,.02,.2,'sine',.18); }
+ else if(k==='tick'){ tone(940,0,.04,'square',.05); }
+}
+
+/* ---- 提示条 ---- */
+let flashTimer=null;
+function flash(m){ flashMsg=m; $('flashbar').textContent=m; $('flashbar').classList.add('show');
+ flashT=1.6; if(flashTimer) clearTimeout(flashTimer);
+ flashTimer=setTimeout(()=>{ $('flashbar').classList.remove('show'); flashTimer=null; },1600); }
+function killFlash(){ if(flashTimer){ clearTimeout(flashTimer); flashTimer=null; } $('flashbar').classList.remove('show'); }
+
+/* ---- 判定 ---- */
+function pick(i){
+ if(S.phase!=='play'||!G||G.reveal) return false;
+ if(G.hitCell>=0) return false;                 /* 拿获展示期拒点 */
+ if(i<0||i>=LIB[G.idx].s.length) return false;
+ if(i===LIB[G.idx].i){                      /* 拿获真凶 */
+  G.hitCell=i;
+  S.streak++; S.maxStreak=Math.max(S.maxStreak,S.streak);
+  const base=100+50*(LIB[G.idx].lv-1);
+  const gain=Math.floor(base*(1+.5*Math.min(S.streak-1,6)));
+  if(!G.reused) S.score+=gain;               /* 重用旧案不计分 */
+  S.got++; circT=.5; snd('ok');
+  flash(G.reused?('重温旧案 · 不计分'):('拿获归案 · +'+gain));
+  if(S.got>=NEED){ S.bonus=500; S.score+=500; winGame(); updHUD(); return true; }
+  setTimeout(()=>{ if(S&&G&&G.reveal===false&&G.hitCell===i&&S.got<NEED&&(S.phase==='play'||S.phase==='pause')){ deal(); } },600);
+  updHUD(); return true;
+ } else {                                    /* 点错：断连 −5s 揭正句 */
+  S.streak=0; S.time=Math.max(0,S.time-WRONG_PEN); S.penN++;
+  G.reveal=true; snd('drum'); shakeT=.45;
+  const r=LIB[G.idx];
+  flash('真凶是「'+r.s[r.i]+'」· −'+WRONG_PEN+'s');
+  setTimeout(()=>{ if(S&&G&&G.reveal&&(S.phase==='play'||S.phase==='pause')){ deal(); } },1600);
+  updHUD(); return true;
+ }
+}
+function winGame(){ S.phase='win'; saveBestNow();
+ $('overttl').textContent='神 捕';
+ $('overscore').textContent=S.score;
+ $('overstat').textContent='十五案归案 · 奖励 +'+(S.bonus||0)+' · 最长连 ×'+S.maxStreak;
+ updHUD(); $('overlay').classList.remove('hide'); snd('win');
+}
+function gameOver(){ S.phase='over'; saveBestNow();
+ $('overttl').textContent='收 工';
+ $('overscore').textContent=S.score;
+ $('overstat').textContent='拿获 '+S.got+'/'+NEED+' · 最长连 ×'+S.maxStreak;
+ updHUD(); $('overlay').classList.remove('hide');
+}
+function saveBestNow(){ if(S&&S.score>S.best){ S.best=S.score; try{localStorage.setItem('g76_best',String(S.score));}catch(e){} } }
+function onHidden(){ if(S&&(S.phase==='play')){ S.phase='pause'; $('pauselay').classList.remove('hide'); } saveBestNow(); }
+
+/* ---- HUD ---- */
+function updHUD(){
+ $('scv').textContent=S.score; $('stv').textContent=S.streak;
+ $('tmv').textContent=Math.ceil(S.time);
+ const box=$('cubes');
+ while(box.childElementCount>NEED) box.removeChild(box.lastChild);
+ while(box.childElementCount<NEED){ const d=document.createElement('div'); d.className='cube'; box.appendChild(d); }
+ const kids=box.children;
+ for(let k=0;k<kids.length;k++) kids[k].className='cube'+(k<S.got?' on':'');
+}
+
+/* ---- 绘制 ---- */
+function layout(){
+ const r=LIB[G.idx], len=r.s.length;
+ const cols=len<=6?len:Math.ceil(len/2);
+ const cw=44, gap=8, rows=Math.ceil(len/cols);
+ const totalW=cols*cw+(cols-1)*gap;
+ const x0=(390-totalW)/2, y0=352-(rows*(cw+gap)-gap)/2+120;
+ const cells=[]; let n=0;
+ for(let row=0;row<rows;row++){
+  const inRow=Math.min(cols,len-n);
+  const rw=inRow*cw+(inRow-1)*gap;
+  const rx=(390-rw)/2;
+  for(let c=0;c<inRow;c++){ cells.push({x:rx+c*(cw+gap),y:y0+row*(cw+gap)}); n++; }
+ }
+ return {cells,cols,rows};
+}
+function draw(){
+ ctx.clearRect(0,0,390,780);
+ const shake=shakeT>0?(Math.sin(shakeT*60)*4*shakeT/.45):0;
+ /* 底纹 */
+ ctx.fillStyle='#221a11'; ctx.fillRect(0,0,390,780);
+ ctx.strokeStyle='rgba(233,221,192,.04)'; ctx.lineWidth=1;
+ for(let y=40;y<780;y+=46){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(390,y); ctx.stroke(); }
+ if(!S||S.phase==='menu'){ drawMenuIdle(); return; }
+ const r=LIB[G.idx];
+ const {cells}=layout();
+ /* 公文戳 */
+ ctx.save(); ctx.translate(64,120); ctx.rotate(-.06);
+ ctx.strokeStyle='rgba(192,57,43,.75)'; ctx.lineWidth=2; ctx.strokeRect(-42,-18,84,36);
+ ctx.fillStyle='#c0392b'; ctx.font='800 13px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
+ ctx.fillText('第 '+(S.got+1)+' 案',0,1); ctx.restore();
+ /* 告示纸卡（盖字格区） */
+ const L=layout(); const maxY=Math.max.apply(null,L.cells.map(c=>c.y));
+ const minY=L.cells[0].y;
+ const cardY=minY-52, cardH=(maxY-minY)+44+52+26;
+ ctx.save(); ctx.translate(shake,0);
+ ctx.fillStyle='#e9ddc0';
+ ctx.shadowColor='rgba(0,0,0,.45)'; ctx.shadowBlur=14; ctx.shadowOffsetY=5;
+ roundRect(20,cardY,350,cardH,10); ctx.fill();
+ ctx.shadowColor='transparent'; ctx.shadowBlur=0; ctx.shadowOffsetY=0;
+ ctx.strokeStyle='#b39d72'; ctx.lineWidth=1.5; roundRect(20,cardY,350,cardH,10); ctx.stroke();
+ ctx.strokeStyle='rgba(179,157,114,.4)'; ctx.lineWidth=.8; roundRect(26,cardY+6,338,cardH-12,7); ctx.stroke();
+ /* 告示头行 */
+ ctx.fillStyle='#7a6c52'; ctx.font='700 11px system-ui'; ctx.textAlign='center';
+ ctx.fillText('缉 拿 错 字 逃 犯 · 归 案 有 赏',195,minY-30);
+ /* 字格 */
+ ctx.textAlign='center'; ctx.textBaseline='middle';
+ for(let k=0;k<r.s.length;k++){
+  const c=cells[k];
+  const ch=r.s[k];
+  const isCulprit=(k===r.i);
+  const shown=G.reveal?ch:(isCulprit?r.w:ch);      /* 揭底=正句 */
+  /* 格底 */
+  ctx.fillStyle='rgba(44,36,24,.06)';
+  roundRect(c.x+2,c.y+2,cw0,cw0,6); ctx.fill();
+  ctx.strokeStyle='rgba(44,36,24,.16)'; ctx.lineWidth=1; roundRect(c.x+2,c.y+2,cw0,cw0,6); ctx.stroke();
+  /* 字 */
+  ctx.fillStyle='#2c2418'; ctx.font='800 26px system-ui';
+  ctx.fillText(shown,c.x+2+cw0/2,c.y+2+cw0/2+1);
+  /* 拿获朱圈 */
+  if(isCulprit&&G.hitCell===r.i&&!G.reveal){
+   ctx.save(); ctx.strokeStyle='rgba(192,57,43,.95)';
+   ctx.lineWidth=3.5; ctx.beginPath();
+   ctx.arc(c.x+2+cw0/2,c.y+2+cw0/2,25,0,Math.PI*2); ctx.stroke();
+   ctx.fillStyle='#c0392b'; ctx.font='800 11px system-ui';
+   ctx.fillText('拿获',c.x+2+cw0/2,c.y+2+cw0/2-32); ctx.restore();
+  }
+  /* 揭底：真凶位朱点标 */
+  if(isCulprit&&G.reveal){
+   ctx.strokeStyle='#c0392b'; ctx.lineWidth=3;
+   ctx.beginPath(); ctx.arc(c.x+2+cw0/2,c.y+2+cw0/2,25,0,Math.PI*2); ctx.stroke();
+   ctx.fillStyle='#c0392b'; ctx.font='800 11px system-ui';
+   ctx.fillText('真凶',c.x+2+cw0/2,c.y+2+cw0/2-32);
+  }
+ }
+ /* 案情脚注 */
+ ctx.fillStyle='#9c8a6a'; ctx.font='600 10.5px system-ui'; ctx.textAlign='center';
+ ctx.fillText('点选句中的错字 · 点错 −5s',195,cardY+cardH-13);
+ ctx.restore();
+ /* 连击章 */
+ if(S.streak>1){ ctx.save(); ctx.translate(322,300); ctx.rotate(.1);
+  ctx.strokeStyle='rgba(192,57,43,.85)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.arc(0,0,22,0,Math.PI*2); ctx.stroke();
+  ctx.fillStyle='#c0392b'; ctx.font='800 14px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('连×'+S.streak,0,1); ctx.restore(); }
+ HIT.cells=cells;
+}
+const cw0=44;
+function drawMenuIdle(){
+ ctx.fillStyle='rgba(233,221,192,.45)'; ctx.font='600 15px system-ui'; ctx.textAlign='center';
+ ctx.fillText('火眼金睛 · 缉拿文墨逃犯', 195, 620);
+}
+function roundRect(x,y,w,h,r){ ctx.beginPath();
+ ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+ ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+
+/* ---- 输入 ---- */
+cv.addEventListener('pointerdown',e=>{
+ e.preventDefault();
+ if(!S||S.phase!=='play'||!G||G.reveal) return;
+ const r=cv.getBoundingClientRect();
+ const x=(e.clientX-r.left)*(390/r.width), y=(e.clientY-r.top)*(780/r.height);
+ for(let i=0;i<HIT.cells.length;i++){ const o=HIT.cells[i];
+  if(x>=o.x&&x<=o.x+cw0+4&&y>=o.y&&y<=o.y+cw0+4){ pick(i); return; } }
+});
+
+/* ---- 主循环 ---- */
+let lastT=0;
+function loop(ts){
+ const dt=Math.min(.05,(ts-lastT)/1000||0); lastT=ts;
+ if(S){
+  if(S.phase==='play'&&G){
+   S.time-=dt;
+   if(S.time<=0){ S.time=0; gameOver(); }
+   else if(Math.ceil(S.time)!==S._lt){ S._lt=Math.ceil(S.time); if(S.time<=10) snd('tick'); updHUD(); }
+  }
+  if(shakeT>0) shakeT-=dt;
+  if(circT>0) circT-=dt;
+  if(flashT>0) flashT-=dt;
+  draw();
+ }
+ requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* ---- 按钮 ---- */
+$('btn-go').addEventListener('click',()=>{ ensureAC(); $('menu').classList.add('hide'); startRound(); });
+$('btn-again').addEventListener('click',()=>{ $('overlay').classList.add('hide'); ensureAC(); startRound(); });
+$('btn-snd').addEventListener('click',()=>{ sndOn=!sndOn; ensureAC(); $('btn-snd').textContent=sndOn?'🔊':'🔇'; });
+$('btn-pause').addEventListener('click',()=>{ if(S&&S.phase==='play'){S.phase='pause';$('pauselay').classList.remove('hide');} });
+$('btn-resume').addEventListener('click',()=>{ if(S&&S.phase==='pause'){S.phase='play';$('pauselay').classList.add('hide');} });
+$('btn-home').addEventListener('click',()=>{ $('pauselay').classList.add('hide'); $('menu').classList.remove('hide');
+ if(S) saveBestNow(); if(S) S.phase='menu'; if(S&&G) G=null; $('mbest').textContent=S&&S.best>0?'★ 最高断案 '+S.best:''; });
+document.addEventListener('visibilitychange',onHidden);
+window.addEventListener('pagehide',()=>saveBestNow());
+
+/* ---- 初始化 ---- */
+(function(){
+ const b=+(localStorage.getItem('g76_best')||0);
+ if(b>0) $('mbest').textContent='★ 最高断案 '+b;
+ S={phase:'menu',time:TOTAL_TIME,score:0,streak:0,maxStreak:0,got:0,bonus:0,penN:0,best:b,_lt:TOTAL_TIME};
+ G=null; updHUD(); draw();
+})();
+
+/* ---- DEV 钩子（构建剥离） ---- */
+
+</script>
+</body>
+</html>
