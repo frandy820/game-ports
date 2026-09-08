@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>灯火楼阵</title>
+<style>
+  html,body{margin:0;padding:0;background:#0b1220;height:100%;overflow:hidden;
+    font-family:"PingFang SC","Microsoft YaHei",sans-serif;-webkit-user-select:none;user-select:none;
+    -webkit-tap-highlight-color:transparent}
+  #app{position:relative;width:390px;max-width:100vw;height:560px;margin:0 auto;background:#0d1524}
+  .hud{position:absolute;top:0;left:0;right:0;height:64px;display:flex;align-items:center;
+    gap:8px;padding:0 12px;box-sizing:border-box;background:linear-gradient(180deg,#101a30,#0d1524);
+    border-bottom:1px solid #1c2a4a;z-index:5}
+  .hud .stat{display:flex;flex-direction:column;align-items:flex-start;min-width:44px}
+  .hud .stat .lb{font-size:9px;color:#5a6c8c;letter-spacing:1px}
+  .hud .stat .vl{font-size:15px;color:#e8dcc0;font-weight:600;line-height:1.1}
+  .hud .sp{flex:1}
+  .hud button{background:#16223e;border:1px solid #2a3c62;color:#c8d4ec;border-radius:8px;
+    font-size:12px;padding:6px 9px;cursor:pointer;font-family:inherit}
+  .hud button:active{background:#1e2f52}
+  .hud button.mini{padding:6px 7px;font-size:13px}
+  #cv{position:absolute;top:64px;left:0;width:390px;height:496px;touch-action:none;cursor:pointer}
+  .ov{position:absolute;inset:0;background:rgba(8,13,24,.86);backdrop-filter:blur(3px);
+    display:none;align-items:center;justify-content:center;z-index:10}
+  .ov.on{display:flex}
+  .panel{width:300px;background:linear-gradient(180deg,#131f38,#0f1930);border:1px solid #2a3c62;
+    border-radius:16px;padding:26px 22px;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+  .panel h1{margin:0 0 4px;font-size:26px;color:#ecdfc2;letter-spacing:6px;font-weight:700}
+  .panel .sub{font-size:11px;color:#7a8bb0;letter-spacing:3px;margin-bottom:14px}
+  .panel .mb{font-size:12px;color:#d89868;margin-bottom:18px}
+  .panel button{display:block;width:100%;margin:10px 0 0;padding:12px;border-radius:10px;border:1px solid #3a4a70;
+    background:linear-gradient(180deg,#22345c,#1a2848);color:#e8e2d0;font-size:15px;letter-spacing:4px;
+    cursor:pointer;font-family:inherit}
+  .panel button:active{transform:translateY(1px)}
+  .panel .desc{font-size:11px;color:#6c7d9e;line-height:1.7;margin-top:14px;text-align:left}
+  .panel .pz{font-size:14px;color:#c8d4ec;margin:6px 0 14px;letter-spacing:2px}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="hud">
+    <div class="stat"><span class="lb">得分</span><span class="vl" id="score">0</span></div>
+    <div class="stat"><span class="lb">盘数</span><span class="vl" id="ch-i">0</span></div>
+    <div class="stat"><span class="lb">连算</span><span class="vl" id="ck-i">×1</span></div>
+    <div class="stat"><span class="lb">TIME</span><span class="vl" id="time-i">0</span></div>
+    <div class="sp"></div>
+    <button id="btn-swap" class="mini">换</button>
+    <button id="btn-hint" class="mini">查·3</button>
+    <button id="btn-snd" class="mini">♪̶</button>
+    <button id="btn-pause" class="mini">‖</button>
+  </div>
+  <canvas id="cv" width="390" height="496"></canvas>
+  <div id="menu" class="ov on">
+    <div class="panel">
+      <h1>灯火楼阵</h1>
+      <div class="sub">凭栏数楼 · 楼高不重</div>
+      <div class="mb" id="m-best"></div>
+      <button id="btn-go">开 局</button>
+      <div class="desc">夜里凭窗看街区：每格一栋楼，高度 1 到 N，同一行、同一列里高度不重复。街口的数字是从那头能看见几栋楼——高的挡住矮的。把每格楼层填对，四边数字全对上就通。卡住可「查」一格（每盘 3 次），填错当场红窗提醒。</div>
+    </div>
+  </div>
+  <div id="pause-ov" class="ov">
+    <div class="panel">
+      <h1 style="font-size:20px;letter-spacing:4px">暂 停</h1>
+      <div class="pz" id="pz-time"></div>
+      <button id="btn-resume">继 续</button>
+      <button id="btn-restart">重开一卷</button>
+      <button id="btn-quit">回 书 架</button>
+    </div>
+  </div>
+</div>
+<script>
+'use strict';
+/* ================= 灯火楼阵（Skyscrapers）=================
+   拉丁方+四边可见性；先造解后出题零废盘；MRV 求解器；
+   LCG imul 全确定性；dev 钩子在标记块内（构建时整段剥离） */
+const CFG = {
+  W: 390, H: 496, MASK: 0x7fffffff,
+  SEED: 20260913,
+  CELL: [0, 0, 0, 0, 64, 56, 50, 44],   /* cell 随 n=4..7 */
+  TIP: 22,                               /* 边缘提示带宽 */
+  KEY: { y1: 415, y2: 457, kh: 36, kw: 62, gap: 8 },
+  COL: {
+    sky: '#0d1524', block: '#1a2338', blockHi: '#223050',
+    brick: '#2a3452', brickEdge: '#3a4668', win: '#e8c890', winBad: '#e07070',
+    num: '#ece4d0', numHint: '#d89868', numBad: '#e07070',
+    clue: '#d8c9a8', clueOff: '#3a4668', clueBad: '#e07070', arrow: '#6a86c8',
+    sel: '#e8d8a8', rowHi: 'rgba(216,152,104,.10)', gold: '#e8d8a8'
+  }
+};
+let S = {
+  mode: 'menu', score: 0, solved: 0, combo: 0, best: 0,
+  n: 4, vals: [], bad: [], hinted: [], sel: -1, hints: 3, hintUsed: 0,
+  puzTime: 0, rngS: CFG.SEED, genRngs: 0, fb: 0, glast: 0,
+  clue: null, mask: null, edgebad: {}, sndOn: false
+};
+/* ---------- LCG ---------- */
+function ri(a, b) { S.rngS = (Math.imul(S.rngS, 1103515245) + 12345) >>> 0 & CFG.MASK; return a + S.rngS % (b - a + 1); }
+function perm(n) { const p = []; for (let i = 0; i < n; i++) p.push(i); for (let i = n - 1; i > 0; i--) { const j = ri(0, i); const t = p[i]; p[i] = p[j]; p[j] = t; } return p; }
+/* ---------- 阶梯 ---------- */
+function levelN() { return 4 + Math.min(3, Math.floor(S.solved / 2)); }
+function maskCount(n) { const L = Math.min(3, Math.floor(S.solved / 2)); const M = [0, Math.round(4 * n * .15), Math.round(4 * n * .3), Math.round(4 * n * .3)]; return M[L]; }
+/* ---------- 可见性 ---------- */
+function visOf(hs) { let v = 0, mx = 0; for (let i = 0; i < hs.length; i++) if (hs[i] > mx) { mx = hs[i]; v++; } return v; }
+/* ---------- 生成（先造解后出题）---------- */
+function genPuzzle() {
+  S.genRngs = S.rngS; const t0 = Date.now();
+  const n = levelN(); S.n = n; S.glast = 0;
+  const pr = perm(n), pc = perm(n), pv = perm(n);
+  const sol = [];
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) sol.push(pv[(pr[i] + pc[j]) % n] + 1);
+  const clue = { t: [], b: [], l: [], r: [] }, mask = { t: [], b: [], l: [], r: [] };
+  for (let j = 0; j < n; j++) {
+    const col = []; for (let i = 0; i < n; i++) col.push(sol[i * n + j]);
+    clue.t[j] = visOf(col); clue.b[j] = visOf(col.slice().reverse());
+    mask.t[j] = 1; mask.b[j] = 1;
+  }
+  for (let i = 0; i < n; i++) {
+    const row = sol.slice(i * n, i * n + n);
+    clue.l[i] = visOf(row); clue.r[i] = visOf(row.slice().reverse());
+    mask.l[i] = 1; mask.r[i] = 1;
+  }
+  /* 抹除 m 个提示位（t/b/l/r × n 不重复抽样：部分洗牌取前 m） */
+  const m = maskCount(n);
+  const slots = [];
+  for (const sd2 of ['t', 'b', 'l', 'r']) for (let k = 0; k < n; k++) slots.push([sd2, k]);
+  for (let k = 0; k < m && k < slots.length; k++) {
+    const j = ri(k, slots.length - 1);
+    const t = slots[k]; slots[k] = slots[j]; slots[j] = t;
+    mask[slots[k][0]][slots[k][1]] = 0;
+  }
+  S.clue = clue; S.mask = mask;
+  S.vals = new Array(n * n).fill(0); S.bad = new Array(n * n).fill(0);
+  S.hinted = new Array(n * n).fill(0); S.sel = -1; S.hints = 3; S.hintUsed = 0; S.puzTime = 0;
+  S.edgebad = {}; S.glast = Date.now() - t0;
+}
+/* ---------- 求解器：行排列过滤 + 行序 DFS + 列视线增量剪枝 ---------- */
+let PERM_CACHE = {};
+function permsOf(n) {
+  if (PERM_CACHE[n]) return PERM_CACHE[n];
+  let ps = [[]];
+  for (let k = 1; k <= n; k++) {
+    const nx = [];
+    for (const p of ps) for (let i = 0; i < k; i++) { const q = p.slice(); q.splice(i, 0, k); nx.push(q); }
+    ps = nx;
+  }
+  return PERM_CACHE[n] = ps;
+}
+function solve(fixed) {
+  const n = S.n, clue = S.clue, mask = S.mask;
+  const vals = (fixed || S.vals).slice();
+  /* 行列冲突的 fixed 值直接无解 */
+  for (let a = 0; a < n * n; a++) {
+    if (!vals[a]) continue;
+    const r = Math.floor(a / n), c = a % n;
+    for (let b2 = 0; b2 < n; b2++) {
+      if (b2 !== c && vals[r * n + b2] === vals[a]) return null;
+      if (b2 !== r && vals[b2 * n + c] === vals[a]) return null;
+    }
+  }
+  /* 每行候选排列：l/r 可见数吻合 + fixed 位吻合（行内 l/r 全约束前置） */
+  const ps = permsOf(n);
+  let rowsC = [];
+  for (let i = 0; i < n; i++) {
+    const c = [];
+    for (const p of ps) {
+      if (mask.l[i] && visOf(p) !== clue.l[i]) continue;
+      if (mask.r[i] && visOf(p.slice().reverse()) !== clue.r[i]) continue;
+      let ok = true;
+      for (let j = 0; j < n; j++) { const f = vals[i * n + j]; if (f && f !== p[j]) { ok = false; break } }
+      if (ok) c.push(p);
+    }
+    if (!c.length) return null;
+    rowsC.push(c);
+  }
+  const gridRow = new Array(n).fill(null);
+  const cUsed = [];
+  for (let j = 0; j < n; j++) cUsed.push(new Array(n + 1).fill(0));
+  /* 列候选排列集（t/b 全约束前置）：放置行时按位过滤，空集即剪 */
+  let colC = [];
+  for (let j = 0; j < n; j++) {
+    const c = [];
+    for (const p of ps) {
+      if (mask.t[j] && visOf(p) !== clue.t[j]) continue;
+      if (mask.b[j] && visOf(p.slice().reverse()) !== clue.b[j]) continue;
+      c.push(p);
+    }
+    if (!c.length) return null;
+    colC.push(c);
+  }
+  /* MRV 行序（列约束已全在 colC 排列级，行放置顺序无关前缀）+行候选传播 */
+  const placed = new Array(n).fill(false);
+  function bt(cnt) {
+    if (cnt === n) return true;
+    let bi = -1, bl = 1e9;
+    for (let i = 0; i < n; i++) if (!placed[i] && rowsC[i].length < bl) { bl = rowsC[i].length; bi = i; if (bl === 1) break }
+    for (const p of rowsC[bi]) {
+      let ok = true;
+      for (let j = 0; j < n; j++) if (cUsed[j][p[j]]) { ok = false; break }
+      if (!ok) continue;
+      const savedCol = colC.slice(), savedRows = rowsC.slice();
+      for (let j = 0; j < n; j++) {
+        const nx = [];
+        for (const q of colC[j]) if (q[bi] === p[j]) nx.push(q);
+        if (!nx.length) { colC = savedCol; rowsC = savedRows; ok = false; break }
+        colC[j] = nx;
+      }
+      if (!ok) continue;
+      /* 未放行候选按 colC 每列可行值收缩 */
+      for (let i = 0; i < n; i++) {
+        if (placed[i] || i === bi) continue;
+        const allow = [];
+        for (let j = 0; j < n; j++) { const a2 = []; for (const q of colC[j]) if (a2.indexOf(q[i]) < 0) a2.push(q[i]); allow.push(a2) }
+        const nx = [];
+        for (const q2 of rowsC[i]) {
+          let good = true;
+          for (let j = 0; j < n; j++) if (allow[j].indexOf(q2[j]) < 0) { good = false; break }
+          if (good) nx.push(q2);
+        }
+        if (!nx.length) { colC = savedCol; rowsC = savedRows; ok = false; break }
+        rowsC[i] = nx;
+      }
+      if (!ok) continue;
+      for (let j = 0; j < n; j++) cUsed[j][p[j]] = 1;
+      gridRow[bi] = p; placed[bi] = true;
+      if (bt(cnt + 1)) return true;
+      for (let j = 0; j < n; j++) cUsed[j][p[j]] = 0;
+      gridRow[bi] = null; placed[bi] = false;
+      colC = savedCol; rowsC = savedRows;
+    }
+    return false;
+  }
+  if (!bt(0)) return null;
+  const out = [];
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) out.push(gridRow[i][j]);
+  return out;
+}
+/* ---------- 冲突/边缘校验 ---------- */
+function recalc() {
+  const n = S.n, vals = S.vals; S.bad.fill(0);
+  for (let r = 0; r < n; r++) {
+    const seen = {};
+    for (let c = 0; c < n; c++) { const v = vals[r * n + c]; if (v) (seen[v] = seen[v] || []).push(r * n + c); }
+    for (const v in seen) if (seen[v].length > 1) seen[v].forEach(a => S.bad[a] = 1);
+  }
+  for (let c = 0; c < n; c++) {
+    const seen = {};
+    for (let r = 0; r < n; r++) { const v = vals[r * n + c]; if (v) (seen[v] = seen[v] || []).push(r * n + c); }
+    for (const v in seen) if (seen[v].length > 1) seen[v].forEach(a => S.bad[a] = 1);
+  }
+  S.edgebad = {};
+  for (let j = 0; j < n; j++) {
+    let full = true; const col = [];
+    for (let i = 0; i < n; i++) { col.push(vals[i * n + j]); if (!vals[i * n + j]) full = false; }
+    if (full) {
+      if (S.mask.t[j] && visOf(col) !== S.clue.t[j]) S.edgebad['t' + j] = 1;
+      if (S.mask.b[j] && visOf(col.slice().reverse()) !== S.clue.b[j]) S.edgebad['b' + j] = 1;
+    }
+  }
+  for (let i = 0; i < n; i++) {
+    let full = true;
+    for (let j = 0; j < n; j++) if (!vals[i * n + j]) full = false;
+    if (full) {
+      const row = vals.slice(i * n, i * n + n);
+      if (S.mask.l[i] && visOf(row) !== S.clue.l[i]) S.edgebad['l' + i] = 1;
+      if (S.mask.r[i] && visOf(row.slice().reverse()) !== S.clue.r[i]) S.edgebad['r' + i] = 1;
+    }
+  }
+}
+function rowMiss(r) { const have = {}; for (let j = 0; j < S.n; j++) have[S.vals[r * S.n + j]] = 1; const out = []; for (let v = 1; v <= S.n; v++) if (!have[v]) out.push(v); return out; }
+function colMiss(c) { const have = {}; for (let i = 0; i < S.n; i++) have[S.vals[i * S.n + c]] = 1; const out = []; for (let v = 1; v <= S.n; v++) if (!have[v]) out.push(v); return out; }
+/* ---------- 几何 ---------- */
+function gridGeom() {
+  const n = S.n, cell = CFG.CELL[n], tip = CFG.TIP;
+  const gw = n * cell + 2 * tip, gh = gw;
+  const x0 = (CFG.W - gw) / 2, y0 = 34;
+  return { n, cell, tip, x0, y0, gw, gh };
+}
+function cellXY(idx) { const g = gridGeom(), n = S.n; return { x: g.x0 + g.tip + (idx % n) * g.cell, y: g.y0 + g.tip + Math.floor(idx / n) * g.cell }; }
+function idxAt(x, y) {
+  const g = gridGeom();
+  const cx = Math.floor((x - g.x0 - g.tip) / g.cell), cy = Math.floor((y - g.y0 - g.tip) / g.cell);
+  if (cx < 0 || cy < 0 || cx >= g.n || cy >= g.n) return -1;
+  return cy * g.n + cx;
+}
+function keyRows() {
+  const n = S.n;
+  if (n <= 5) { const r1 = []; for (let v = 1; v <= n; v++) r1.push(v); r1.push(0); return [r1]; }
+  const r1 = [1, 2, 3, 4, 5], r2 = []; for (let v = 6; v <= n; v++) r2.push(v); r2.push(0); return [r1, r2];
+}
+/* 键宽随行键数收窄（G3-m1：n=5 单行 6 键 62 宽超 390 画布） */
+function keyW(row) { return Math.min(CFG.KEY.kw, Math.floor((CFG.W - 8 - (row.length - 1) * CFG.KEY.gap) / row.length)); }
+function keyAt(x, y) {
+  const rows = keyRows(), K = CFG.KEY;
+  const nRows = rows.length;
+  const ys = nRows === 1 ? [447 - K.kh / 2 - 4] : [K.y1, K.y2];
+  for (let ri2 = 0; ri2 < nRows; ri2++) {
+    const row = rows[ri2], kw = keyW(row), wTot = row.length * kw + (row.length - 1) * K.gap;
+    const x0 = (CFG.W - wTot) / 2;
+    for (let i = 0; i < row.length; i++) {
+      const kx = x0 + i * (kw + K.gap);
+      if (x >= kx && x <= kx + kw && y >= ys[ri2] && y <= ys[ri2] + K.kh) return row[i];
+    }
+  }
+  return -1;
+}
+/* ---------- 输入 ---------- */
+function tap(idx) {
+  if (S.mode !== 'play') return false;
+  if (idx < 0 || idx >= S.n * S.n) return false;
+  S.sel = idx; draw(); return true;
+}
+function key(d) {
+  if (S.mode !== 'play' || S.sel < 0 || d < 0 || d > S.n) return false;
+  S.vals[S.sel] = d; S.hinted[S.sel] = 0; recalc(); updHUD();
+  doSolve(); draw(); return true;
+}
+function erase() {
+  if (S.mode !== 'play' || S.sel < 0) return false;
+  S.vals[S.sel] = 0; S.hinted[S.sel] = 0; recalc(); updHUD(); draw(); return true;
+}
+function doHint() {
+  if (S.mode !== 'play') return false;
+  if (S.hints <= 0) { flashInfo('查的额度已用完'); return false; }
+  if (S.sel < 0) { flashInfo('先点选一格再查'); return false; }
+  const sol = solve();
+  if (!sol) { flashInfo('盘面有冲突或已无解，先清红格'); return false; }
+  S.vals[S.sel] = sol[S.sel]; S.hinted[S.sel] = 1; S.hints--; S.hintUsed = 1;
+  recalc(); updHUD(); doSolve(); draw(); return true;
+}
+function doSwap() {
+  if (S.mode !== 'play') return false;
+  S.combo = 0;
+  genPuzzle(); recalc(); updHUD(); draw(); return true;
+}
+/* ---------- 过盘判定 ---------- */
+function boardDone() {
+  return S.vals.every(v => v) && S.bad.every(b => !b) && Object.keys(S.edgebad).length === 0;
+}
+function doSolve() {
+  if (!boardDone()) return false;
+  const n = S.n, w = n * n;
+  let mult = 1;
+  if (S.hintUsed) S.combo = 0; else S.combo++;
+  mult = 1 + .5 * Math.min(Math.max(S.combo - 1, 0), 6);
+  const gain = Math.floor((w * 10 + Math.max(0, Math.floor(w * 6 - S.puzTime)) * 2 + (S.hintUsed ? 0 : 50)) * mult);
+  S.score += gain; S.solved++;
+  if (S.score > S.best) { S.best = S.score; saveBest(); }
+  burst(gain); genPuzzle(); recalc(); updHUD();
+  return true;
+}
+/* ---------- best ---------- */
+function saveBest() { try { localStorage.setItem('g67_best', String(S.best)); } catch (e) { } }
+function loadBest() { try { const v = localStorage.getItem('g67_best'); if (v) S.best = +v || 0; } catch (e) { } }
+function saveBestNow() { if (S.score > S.best) { S.best = S.score; saveBest(); } }
+/* ---------- 特效 ---------- */
+let FX = { parts: [], floats: [] };
+function burst(gain) {
+  const g = gridGeom(), cx = g.x0 + g.gw / 2, cy = g.y0 + g.gh / 2;
+  for (let i = 0; i < 46; i++) {
+    const a = Math.random() * Math.PI * 2, sp = 60 + Math.random() * 150;
+    FX.parts.push({ x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40, life: .8 + Math.random() * .5, t: 0, c: Math.random() < .7 ? CFG.COL.win : CFG.COL.gold });
+  }
+  FX.floats.push({ x: cx, y: cy - 30, txt: '数成 +' + gain, t: 0, life: 1.2, c: CFG.COL.gold });
+  if (S.combo > 1) FX.floats.push({ x: cx, y: cy - 52, txt: '连算 ×' + (1 + .5 * Math.min(S.combo - 1, 6)), t: 0, life: 1.4, c: CFG.COL.numHint });
+  beep(660, .09); setTimeout(() => beep(880, .12), 90);
+}
+function fxStep(dt) {
+  for (let i = FX.parts.length - 1; i >= 0; i--) {
+    const p = FX.parts[i]; p.t += dt; if (p.t > p.life) { FX.parts.splice(i, 1); continue; }
+    p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 220 * dt;
+  }
+  for (let i = FX.floats.length - 1; i >= 0; i--) {
+    const f = FX.floats[i]; f.t += dt; if (f.t > f.life) { FX.floats.splice(i, 1); continue; }
+    f.y -= 22 * dt;
+  }
+}
+/* ---------- 音效（默认静音）---------- */
+let AC = null;
+function beep(f, d) {
+  if (!S.sndOn) return;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    if (AC.state === 'suspended') AC.resume();
+    const o = AC.createOscillator(), gn = AC.createGain();
+    o.type = 'sine'; o.frequency.value = f;
+    gn.gain.setValueAtTime(.12, AC.currentTime);
+    gn.gain.exponentialRampToValueAtTime(.001, AC.currentTime + d);
+    o.connect(gn); gn.connect(AC.destination); o.start(); o.stop(AC.currentTime + d);
+  } catch (e) { }
+}
+/* ---------- HUD ---------- */
+function updHUD() {
+  document.getElementById('score').textContent = S.score;
+  document.getElementById('ch-i').textContent = S.solved;
+  document.getElementById('ck-i').textContent = '×' + (1 + .5 * Math.min(Math.max(S.combo, 1) - 1, 6) || 1);
+  document.getElementById('btn-hint').textContent = '查·' + S.hints;
+}
+function fxHUD() { document.getElementById('time-i').textContent = Math.floor(S.puzTime); }
+/* ---------- 绘制 ---------- */
+const cvEl = document.getElementById('cv');
+const ctx = cvEl.getContext('2d');
+function hash2(a, b) { return ((Math.imul(a, 73856093) ^ Math.imul(b, 19349663)) >>> 0); }
+function draw() {
+  const W = CFG.W, H = CFG.H, C = CFG.COL;
+  ctx.clearRect(0, 0, W, H);
+  /* 夜空底+星点（纯函数，不动 LCG） */
+  ctx.fillStyle = C.sky; ctx.fillRect(0, 0, W, H);
+  for (let i = 0; i < 26; i++) {
+    const h = hash2(i, 31337), x = h % W, y = (h >>> 8) % 300;
+    ctx.fillStyle = i % 3 ? 'rgba(200,214,240,.28)' : 'rgba(232,200,144,.35)';
+    ctx.fillRect(x, y, 1.5, 1.5);
+  }
+  const g = gridGeom(), n = g.n, cell = g.cell, tip = g.tip;
+  if (!S.clue) { return; }   /* menu 态无盘：只画星空底 */
+  /* 行列高亮（选中格所在行列） */
+  if (S.sel >= 0) {
+    const r = Math.floor(S.sel / n), c = S.sel % n;
+    ctx.fillStyle = C.rowHi;
+    ctx.fillRect(g.x0 + tip, g.y0 + tip + r * cell, n * cell, cell);
+    ctx.fillRect(g.x0 + tip + c * cell, g.y0 + tip, cell, n * cell);
+  }
+  /* 边缘提示带 */
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (let j = 0; j < n; j++) {
+    const cx = g.x0 + tip + j * cell + cell / 2;
+    drawClue(cx, g.y0 + tip / 2, 't', j, Math.PI / 2);          /* 上：视线向下 */
+    drawClue(cx, g.y0 + tip + n * cell + tip / 2, 'b', j, -Math.PI / 2);
+  }
+  for (let i = 0; i < n; i++) {
+    const cy = g.y0 + tip + i * cell + cell / 2;
+    drawClue(g.x0 + tip / 2, cy, 'l', i, 0);
+    drawClue(g.x0 + tip + n * cell + tip / 2, cy, 'r', i, Math.PI);
+  }
+  /* 楼格 */
+  for (let idx = 0; idx < n * n; idx++) {
+    const x = g.x0 + tip + (idx % n) * cell, y = g.y0 + tip + Math.floor(idx / n) * cell;
+    drawCell(x, y, cell, idx);
+  }
+  /* 选中金框 */
+  if (S.sel >= 0) {
+    const p = cellXY(S.sel);
+    ctx.strokeStyle = C.sel; ctx.lineWidth = 2.5;
+    ctx.strokeRect(p.x + 1.5, p.y + 1.5, cell - 3, cell - 3);
+  }
+  /* 信息条 */
+  drawInfo();
+  /* 键盘 */
+  drawKeys();
+  /* 特效 */
+  for (const p of FX.parts) {
+    ctx.globalAlpha = Math.max(0, 1 - p.t / p.life);
+    ctx.fillStyle = p.c; ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+  }
+  ctx.globalAlpha = 1;
+  for (const f of FX.floats) {
+    ctx.globalAlpha = Math.max(0, 1 - f.t / f.life);
+    ctx.fillStyle = f.c; ctx.font = 'bold 18px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.fillText(f.txt, f.x, f.y);
+  }
+  ctx.globalAlpha = 1;
+}
+function drawClue(x, y, side, idx, ang) {
+  const C = CFG.COL, on = S.mask[side][idx], bad = S.edgebad[side + idx];
+  if (!on) { ctx.fillStyle = C.clueOff; ctx.font = '13px sans-serif'; ctx.fillText('·', x, y); return; }
+  ctx.save(); ctx.translate(x, y);
+  ctx.fillStyle = bad ? C.clueBad : C.clue;
+  ctx.font = 'bold 15px "PingFang SC",sans-serif';
+  ctx.fillText(String(S.clue[side][idx]), 0, 0);
+  ctx.rotate(ang);
+  ctx.strokeStyle = C.arrow; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(-9, 0); ctx.lineTo(-4, 0); ctx.moveTo(-6.5, -2.5); ctx.lineTo(-4, 0); ctx.lineTo(-6.5, 2.5); ctx.stroke();
+  ctx.restore();
+}
+function drawCell(x, y, cell, idx) {
+  const C = CFG.COL, n = S.n, v = S.vals[idx], bad = S.bad[idx], hinted = S.hinted[idx];
+  ctx.fillStyle = v ? C.blockHi : C.block;
+  roundRect(x + 2, y + 2, cell - 4, cell - 4, 4); ctx.fill();
+  if (v) {
+    const lh = (cell - 16) / n, bw = cell - 16;
+    for (let k = 1; k <= v; k++) {
+      const by = y + cell - 8 - k * lh;
+      ctx.fillStyle = bad ? '#4a2830' : C.brick;
+      ctx.fillRect(x + 8, by, bw, Math.max(2, lh - 2));
+      ctx.strokeStyle = bad ? '#6a3840' : C.brickEdge; ctx.lineWidth = .8;
+      ctx.strokeRect(x + 8, by, bw, Math.max(2, lh - 2));
+      const h = hash2(idx + 1, k);
+      const wx = x + 12 + (h % Math.max(4, (bw - 10)));
+      ctx.fillStyle = bad ? C.winBad : (hinted && k === v ? C.numHint : C.win);
+      ctx.fillRect(wx, by + 1.5, 3, Math.max(1.5, lh - 5));
+    }
+  }
+  if (v) {
+    ctx.fillStyle = bad ? C.numBad : (hinted ? C.numHint : C.num);
+    ctx.font = 'bold 13px "PingFang SC",sans-serif';
+    ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+    ctx.fillText(String(v), x + cell - 6, y + 4);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  }
+}
+function drawInfo() {
+  ctx.font = '11px "PingFang SC",sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  if (infoFlashAt && Date.now() - infoFlashAt < 2000) {   /* 查失败文案 2s 闪现（G3-M1） */
+    ctx.fillStyle = '#e0a070';
+    ctx.fillText(infoFlashTxt, CFG.W / 2, 14); return;
+  }
+  infoFlashAt = 0;
+  ctx.fillStyle = 'rgba(216,152,104,.9)';
+  if (S.sel < 0) { ctx.fillText('点一格楼位，数字键填高度', CFG.W / 2, 14); return; }
+  const r = Math.floor(S.sel / S.n), c = S.sel % S.n;
+  const rm = rowMiss(r).join(',') || '齐', cm = colMiss(c).join(',') || '齐';
+  ctx.fillText('行 ▸ 缺 ' + rm + '　·　列 ▸ 缺 ' + cm, CFG.W / 2, 14);
+}
+function drawKeys() {
+  const C = CFG.COL, K = CFG.KEY, rows = keyRows();
+  const nRows = rows.length;
+  const ys = nRows === 1 ? [447 - K.kh / 2 - 4] : [K.y1, K.y2];
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (let ri2 = 0; ri2 < nRows; ri2++) {
+    const row = rows[ri2], kw = keyW(row), wTot = row.length * kw + (row.length - 1) * K.gap;
+    const x0 = (CFG.W - wTot) / 2;
+    for (let i = 0; i < row.length; i++) {
+      const d = row[i], kx = x0 + i * (kw + K.gap), ky = ys[ri2];
+      const hot = S.sel >= 0 && S.vals[S.sel] === d && d > 0;
+      ctx.fillStyle = d === 0 ? '#221c2a' : (hot ? '#2c3e66' : '#16223e');
+      roundRect(kx, ky, kw, K.kh, 8); ctx.fill();
+      ctx.strokeStyle = d === 0 ? '#4a3a52' : '#2a3c62'; ctx.lineWidth = 1;
+      roundRect(kx, ky, kw, K.kh, 8); ctx.stroke();
+      ctx.fillStyle = d === 0 ? '#c8a0c0' : '#dce4f4';
+      ctx.font = 'bold 16px "PingFang SC",sans-serif';
+      ctx.fillText(d === 0 ? '擦' : String(d), kx + kw / 2, ky + K.kh / 2);
+    }
+  }
+}
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+/* ---------- 主循环 ---------- */
+let lastT = 0;
+function loop(ts) {
+  const dt = Math.min(.05, (ts - lastT) / 1000 || 0); lastT = ts;
+  if (S.mode === 'play') { S.puzTime += dt; fxHUD(); }
+  if (S.mode !== 'pause') fxStep(dt);   /* 暂停冻结动画（G3-m3） */
+  draw();
+  requestAnimationFrame(loop);
+}
+/* ---------- 输入接线 ---------- */
+cvEl.addEventListener('pointerdown', e => {
+  if (S.mode !== 'play') return;
+  const rect = cvEl.getBoundingClientRect();
+  const sx = CFG.W / rect.width, sy = CFG.H / rect.height;
+  const x = (e.clientX - rect.left) * sx, y = (e.clientY - rect.top) * sy;
+  const idx = idxAt(x, y);
+  if (idx >= 0) { tap(idx); beep(420, .03); return; }
+  const k = keyAt(x, y);
+  if (k > 0) { key(k); beep(480, .03); }
+  else if (k === 0) erase();
+});
+function bindBtn(id, fn) { document.getElementById(id).addEventListener('click', () => { fn(); }); }
+bindBtn('btn-go', () => { document.getElementById('menu').classList.remove('on'); S.mode = 'play'; S.score = 0; S.solved = 0; S.combo = 0; genPuzzle(); recalc(); updHUD(); draw(); beep(520, .06); });
+bindBtn('btn-pause', () => { if (S.mode !== 'play') return; S.mode = 'pause'; document.getElementById('pause-ov').classList.add('on'); document.getElementById('pz-time').textContent = '本卷用时 ' + Math.floor(S.puzTime) + ' 秒'; draw(); });
+bindBtn('btn-resume', () => { if (S.mode !== 'pause') return; S.mode = 'play'; document.getElementById('pause-ov').classList.remove('on'); draw(); });
+bindBtn('btn-restart', () => { saveBestNow(); S.mode = 'play'; S.score = 0; S.solved = 0; S.combo = 0; document.getElementById('pause-ov').classList.remove('on'); genPuzzle(); recalc(); updHUD(); draw(); });
+bindBtn('btn-quit', () => { saveBestNow(); S.mode = 'menu'; document.getElementById('pause-ov').classList.remove('on'); document.getElementById('menu').classList.add('on'); document.getElementById('m-best').innerHTML = S.best > 0 ? '最佳算成 <b>' + S.best + '</b>' : ''; draw(); });
+bindBtn('btn-swap', () => { doSwap(); });
+bindBtn('btn-hint', () => { doHint(); });
+bindBtn('btn-snd', () => { S.sndOn = !S.sndOn; document.getElementById('btn-snd').textContent = S.sndOn ? '♪' : '♪̶'; });
+let infoFlashTxt = '', infoFlashAt = 0;
+function flashInfo(txt) { infoFlashTxt = txt; infoFlashAt = Date.now(); }
+document.addEventListener('visibilitychange', () => { if (document.hidden) saveBestNow(); });
+window.addEventListener('pagehide', () => saveBestNow());
+/* ---------- init ---------- */
+function init() {
+  loadBest();
+  document.getElementById('m-best').innerHTML = S.best > 0 ? '最佳算成 <b>' + S.best + '</b>' : '';
+  updHUD(); fxHUD(); draw();
+  requestAnimationFrame(loop);
+}
+init();
+
+</script>
+</body>
+</html>
