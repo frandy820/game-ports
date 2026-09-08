@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>廿四点 · 夜市算摊</title>
+<style>
+  html,body{margin:0;padding:0;background:#0d0a06;height:100%;overflow:hidden;
+    font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+  #app{position:relative;width:390px;height:844px;margin:0 auto;background:#161009;overflow:hidden}
+  #hud{position:absolute;top:0;left:0;width:390px;height:64px;z-index:5;
+    background:linear-gradient(180deg,#1d1610,#150f09);border-bottom:1px solid rgba(242,200,106,.22);
+    display:flex;align-items:center;gap:8px;padding:0 10px;box-sizing:border-box}
+  .pill{background:rgba(242,200,106,.08);border:1px solid rgba(242,200,106,.25);border-radius:10px;
+    padding:3px 9px;color:#f2c86a;font-size:13px;font-weight:600;white-space:nowrap}
+  .pill small{color:rgba(242,222,182,.7);font-weight:500;margin-right:2px}
+  .pill.red{color:#e88a7e;border-color:rgba(224,90,78,.4);background:rgba(224,90,78,.10)}
+  #hud .sp{flex:1}
+  .hbtn{width:36px;height:36px;border-radius:50%;border:1px solid rgba(242,200,106,.35);
+    background:rgba(242,200,106,.08);color:#f2c86a;font-size:16px;display:flex;
+    align-items:center;justify-content:center;cursor:pointer}
+  #cv{position:absolute;top:64px;left:0;width:390px;height:780px;display:block;touch-action:none}
+  .lay{position:absolute;inset:0;z-index:8;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;background:rgba(10,7,4,.82);backdrop-filter:blur(2px)}
+  .lay.hide{display:none}
+  .ttl{font-size:30px;font-weight:800;color:#f2c86a;letter-spacing:6px;margin-bottom:8px}
+  .sub{font-size:14px;color:rgba(242,222,182,.75);margin-bottom:22px;line-height:1.7;text-align:center}
+  .bigbtn{background:linear-gradient(180deg,#e0684e,#b34a3c);border:1px solid #f2a08a;color:#fff4ea;
+    font-size:18px;font-weight:700;letter-spacing:4px;padding:13px 42px;border-radius:14px;cursor:pointer;
+    box-shadow:0 4px 16px rgba(224,90,78,.35)}
+  .row{display:flex;gap:14px;align-items:center}
+  .score-big{font-size:42px;font-weight:800;color:#f2c86a;text-shadow:0 0 18px rgba(242,200,106,.4)}
+  #flashtx{position:absolute;top:84px;left:50%;transform:translateX(-50%);z-index:6;padding:7px 18px;
+    border-radius:11px;background:rgba(242,200,106,.12);border:1px solid rgba(242,200,106,.3);
+    color:#f2c86a;font-size:14px;font-weight:600;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
+  #flashtx.show{opacity:1}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div class="pill"><small>分</small><span id="scv">0</span></div>
+    <div class="pill"><small>题</small><span id="qcv">0</span></div>
+    <div class="pill red"><small>连</small><span id="stv">×0</span></div>
+    <div class="sp"></div>
+    <div class="pill"><small>时</small><span id="tmv">60</span></div>
+    <div class="hbtn" id="btn-snd">🔇</div>
+    <div class="hbtn" id="btn-pause">⏸</div>
+  </div>
+  <canvas id="cv" width="390" height="780"></canvas>
+  <div id="flashtx"></div>
+
+  <div class="lay" id="menu">
+    <div class="ttl">廿四点</div>
+    <div class="sub">夜市算摊开张<br>四张牌凑二十四 · 六十秒看你能算多少题<br>算不出来？敢不敢判它无解</div>
+    <div class="bigbtn" id="btn-go">开 算</div>
+    <div class="sub" style="margin-top:20px;margin-bottom:0" id="bestline">最高累计 0</div>
+  </div>
+
+  <div class="lay hide" id="pauselay">
+    <div class="ttl">歇 一 会</div>
+    <div class="bigbtn" id="btn-resume">继 续</div>
+    <div style="height:14px"></div>
+    <div class="bigbtn" id="btn-home" style="background:linear-gradient(180deg,#3a3026,#2a221a);border-color:#8a7a5e;box-shadow:none">回 摊</div>
+  </div>
+
+  <div class="lay hide" id="overlay">
+    <div class="ttl">收 摊</div>
+    <div class="score-big" id="overscore">0</div>
+    <div class="sub" id="overstat">算对 0 题 · 判无解 0 题 · 最长连 ×0</div>
+    <div class="bigbtn" id="btn-again">再 来</div>
+  </div>
+</div>
+<script>
+/* ============ 廿四点 · 夜市算摊（game72） ============ */
+/* 有理数精确运算 + 递归 solver + 确定性 LCG 题库 */
+'use strict';
+const $=id=>document.getElementById(id);
+const cv=$('cv'), ctx=cv.getContext('2d');
+let AC=null, SND=false;
+function ensureAC(){ if(AC||!(window.AudioContext||window.webkitAudioContext)) return;
+  try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
+function beep(f,d,t,v){ if(!SND||!AC) return; try{
+  const o=AC.createOscillator(), gn=AC.createGain();
+  o.type=t||'sine'; o.frequency.value=f;
+  gn.gain.setValueAtTime(v||.08, AC.currentTime);
+  gn.gain.exponentialRampToValueAtTime(.0001, AC.currentTime+d);
+  o.connect(gn); gn.connect(AC.destination); o.start(); o.stop(AC.currentTime+d);
+}catch(e){} }
+function snd(k){ if(k==='sel')beep(420,.07,'triangle',.06);
+  else if(k==='op')beep(520,.09,'triangle',.07);
+  else if(k==='ok'){beep(523,.1);setTimeout(()=>beep(659,.12),90);setTimeout(()=>beep(784,.16),190);}
+  else if(k==='bell'){beep(880,.2,'triangle',.09);setTimeout(()=>beep(1174,.25,'triangle',.08),120);}
+  else if(k==='bad')beep(160,.22,'square',.05);
+  else if(k==='tick')beep(300,.04,'triangle',.04); }
+
+/* ---- 确定 rng（家族 LCG） ---- */
+let RS=1;
+function srand(seed){ RS=(seed>>>0)||1; }
+function rnd(){ RS=(Math.imul(RS,1103515245)+12345)>>>0; return (RS>>>9)/8388608; }
+
+/* ---- 有理数 ---- */
+function gcd(a,b){ while(b){ const t=a%b; a=b; b=t; } return a; }
+function frac(n,d){ if(d===0) return null;
+  if(d<0){ n=-n; d=-d; }
+  const g=gcd(Math.abs(n),d)||1;
+  return {n:n/g, d:d/g}; }
+const F=x=>({n:x,d:1});
+function fAdd(a,b){ return frac(a.n*b.d+b.n*a.d, a.d*b.d); }
+function fSub(a,b){ return frac(a.n*b.d-b.n*a.d, a.d*b.d); }
+function fMul(a,b){ return frac(a.n*b.n, a.d*b.d); }
+function fDiv(a,b){ return b.n===0?null:frac(a.n*b.d, a.d*b.n); }
+function is24(f){ return f.n===24*f.d; }
+function fEq(a,b){ return a.n===b.n&&a.d===b.d; }
+function fStr(f){ return f.d===1?String(f.n):(f.n<0?'-':'')+Math.abs(f.n)+'/'+f.d; }
+
+/* ---- solver：任取两数×6 运算递归（−/÷ 双向） ---- */
+function applyOp(a,b,op){ return op==='+'?fAdd(a,b) : op==='−'?fSub(a,b) : op==='×'?fMul(a,b) : fDiv(a,b); }
+function solve(nums){
+  if(nums.length===1) return is24(nums[0])?[]:null;
+  for(let i=0;i<nums.length;i++) for(let j=0;j<nums.length;j++){
+    if(i===j) continue;
+    const rest=[]; for(let k=0;k<nums.length;k++) if(k!==i&&k!==j) rest.push(nums[k]);
+    const ops = i<j ? ['+','−','×','÷'] : ['−','÷'];   /* i<j 全四种；i>j 补非交换两种（a−b/b−a、a÷/b÷a） */
+    for(const op of ops){
+      const r=applyOp(nums[i],nums[j],op);
+      if(!r) continue;
+      const sub=solve(rest.concat([r]));
+      if(sub) return [{a:nums[i],b:nums[j],op,r}].concat(sub);
+    }
+  }
+  return null;
+}
+
+/* ============ 状态 ============ */
+const BEST_KEY='g72_best';
+const ROUND_TIME=60, NO_EVERY=7;
+let S=null, Q=null;   /* Q={orig:[frac×4], solvable, cards:[{f,res}..], ops, sel} */
+let HIT={cards:[],ops:[],noSol:null,pass:null};
+let flashT=0, flashMsg='', winFx=0, shakeT=0;
+function loadBest(){ try{ return +(localStorage.getItem(BEST_KEY)||0); }catch(e){ return 0; } }
+function saveBestNow(){ if(S && S.score>S.best){ S.best=S.score; try{ localStorage.setItem(BEST_KEY,String(S.best)); }catch(e){} } }
+
+function flash(msg){ flashMsg=msg; flashT=1.6; const f=$('flashtx'); f.textContent=msg; f.classList.add('show');
+  clearTimeout(flash._t); flash._t=setTimeout(()=>f.classList.remove('show'),1600); }
+
+/* ---- 牌元素 {f,res}：res=合成结果牌（青玉），原牌暖金 ---- */
+function mkQ(nums, solvable){
+  return {orig:nums.slice(), solvable, cards:nums.map(f=>({f,res:false})), ops:[], sel:[]};
+}
+/* ---- 发题：LCG 抽 4 数（1-10），按位次决定有解/无解 ---- */
+function genQ(qN){
+  const needNo = qN%NO_EVERY===NO_EVERY-1;
+  for(let t=0;t<400;t++){
+    const ns=[]; for(let k=0;k<4;k++) ns.push(F(1+Math.floor(rnd()*10)));
+    const sol=solve(ns);
+    if(needNo && sol===null) return mkQ(ns,false);
+    if(!needNo && sol!==null) return mkQ(ns,true);
+  }
+  /* 兜底：理论到不了（1-10 内两类都大量存在） */
+  const fb = needNo ? [F(1),F(1),F(1),F(1)] : [F(3),F(3),F(8),F(8)];
+  return mkQ(fb,!needNo);
+}
+function dealNext(){ Q=genQ(S.qN); layoutCards(); }
+/* 发题调度统一走单句柄：补发前清旧定时器，杜绝 double dealNext（换掉玩家正在看的题） */
+let dealTO=null;
+function scheduleDeal(ms){ clearTimeout(dealTO); dealTO=setTimeout(()=>{dealTO=null; if(S.phase==='play') dealNext();},ms); }
+
+function newGame(){
+  S={phase:'menu',time:ROUND_TIME,score:0,best:loadBest(),streak:0,maxStreak:0,
+     solvedN:0,noSolN:0,qN:0,paused:false};
+  Q=null;
+}
+function startRound(){ clearTimeout(dealTO); S.time=ROUND_TIME; S.score=0; S.streak=0; S.maxStreak=0; S.solvedN=0; S.noSolN=0; S.qN=0;
+  dealNext(); S.phase='play'; updHUD(); }   /* 清残留发题定时器（m-r2-1） */
+
+/* ---- 布局：牌横排居中（4/3/2/1 张） ---- */
+function layoutCards(){
+  HIT.cards=[]; const n=Q.cards.length;
+  const w=78,h=108,gap=10, tot=n*w+(n-1)*gap;
+  const x0=(390-tot)/2, y=120;
+  for(let i=0;i<n;i++) HIT.cards.push({x:x0+i*(w+gap), y, w, h});
+}
+function opEnabled(op){ if(!Q||Q.sel.length!==2) return false;
+  const a=Q.cards[Q.sel[0]].f, b=Q.cards[Q.sel[1]].f;
+  if(op==='÷'&&b.n===0) return false;
+  return true; }
+
+/* ---- 操作 ---- */
+function tapCard(i){
+  if(S.phase!=='play'||!Q) return false;
+  const k=Q.sel.indexOf(i);
+  if(k>=0){ Q.sel.splice(k,1); snd('sel'); return true; }
+  if(Q.sel.length>=2) Q.sel.shift();          /* 第三张顶掉最早一张 */
+  Q.sel.push(i); snd('sel'); return true;
+}
+function tapOp(op){
+  if(S.phase!=='play'||!Q) return false;
+  if(Q.sel.length!==2){ flash('先选两张牌'); return false; }
+  const ia=Q.sel[0], ib=Q.sel[1];
+  const a=Q.cards[ia].f, b=Q.cards[ib].f;
+  if(op==='÷'&&b.n===0){ flash('除数不能为零'); shakeT=.3; return false; }
+  const r=applyOp(a,b,op);
+  /* sel 从大到小删，再拼结果（结果牌落 lo 位，res=true 青玉） */
+  const hi=Math.max(ia,ib), lo=Math.min(ia,ib);
+  Q.cards.splice(hi,1); Q.cards.splice(lo,1);
+  Q.cards.splice(lo,0,{f:r,res:true});
+  Q.ops.push({a,b,op,r});
+  Q.sel=[]; snd('op'); layoutCards();
+  if(Q.cards.length===1){
+    if(is24(Q.cards[0].f)){ winQ(); }
+    else { flash(fStr(Q.cards[0].f)+' ≠ 24 · 重来'); shakeT=.45; Q.cards=Q.orig.map(f=>({f,res:false})); Q.ops=[]; layoutCards(); }
+  }
+  return true;
+}
+function winQ(){
+  S.streak++; S.maxStreak=Math.max(S.maxStreak,S.streak);
+  const mult=1+.5*Math.min(S.streak-1,6);
+  S.score+=Math.floor(100*mult);
+  S.solvedN++; S.qN++; winFx=1; Q=null;      /* 锁输入（500ms 粒子窗内 tap/noSol/pass 全拒） */
+  snd('ok'); flash('二十四！ +'+Math.floor(100*mult));
+  scheduleDeal(500);
+  updHUD();
+}
+function judgeNoSol(){
+  if(S.phase!=='play'||!Q) return false;
+  if(!Q.solvable){                          /* 判对 */
+    S.streak++; S.maxStreak=Math.max(S.maxStreak,S.streak);
+    const mult=1+.5*Math.min(S.streak-1,6);
+    S.score+=Math.floor(120*mult);
+    S.noSolN++; S.qN++; winFx=1; Q=null;
+    snd('bell'); flash('真无解！ +'+Math.floor(120*mult));
+    scheduleDeal(500);
+  } else {                                   /* 错判：扣 10s 断连 */
+    S.streak=0; S.time=Math.max(0,S.time-10); shakeT=.5; Q=null;
+    snd('bad'); flash('有解！罚 10 秒');
+    S.qN++; scheduleDeal(600);
+  }
+  updHUD(); return true;
+}
+function passQ(){
+  if(S.phase!=='play'||!Q) return false;
+  S.streak=0; S.qN++;
+  flash('过 · 换一题');
+  dealNext(); updHUD(); return true;
+}
+function timeUp(){
+  S.phase='over'; saveBestNow();
+  $('overscore').textContent=S.score;
+  $('overstat').textContent='算对 '+S.solvedN+' 题 · 判无解 '+S.noSolN+' 题 · 最长连 ×'+S.maxStreak;
+  $('overlay').classList.remove('hide');
+}
+
+/* ---- HUD ---- */
+function updHUD(){
+  $('scv').textContent=S.score; $('qcv').textContent=S.qN;   /* 题=已发题数（含「过」）与 qN 同口径 */
+  $('stv').textContent='×'+S.streak; $('tmv').textContent=Math.ceil(S.time);
+}
+
+/* ---- 绘制 ---- */
+function draw(){
+  ctx.clearRect(0,0,390,780);
+  /* 摊位底 */
+  const bg=ctx.createLinearGradient(0,0,0,780);
+  bg.addColorStop(0,'#1a130b'); bg.addColorStop(1,'#120d07');
+  ctx.fillStyle=bg; ctx.fillRect(0,0,390,780);
+  /* 灯笼串 */
+  ctx.strokeStyle='rgba(242,200,106,.25)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(0,14); ctx.quadraticCurveTo(195,30,390,14); ctx.stroke();
+  for(let i=0;i<5;i++){ const lx=30+i*82, ly=17+10*Math.sin(i*1.2);
+    ctx.fillStyle='rgba(224,90,78,.75)';
+    ctx.beginPath(); ctx.ellipse(lx,ly+6,7,9,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='rgba(255,220,150,.9)';
+    ctx.beginPath(); ctx.arc(lx,ly+6,2.2,0,Math.PI*2); ctx.fill(); }
+  if(S.phase==='menu'){ drawMenuIdle(); return; }
+
+  /* 计时条（灯绳） */
+  const tp=Math.max(0,S.time/ROUND_TIME);
+  const tg=ctx.createLinearGradient(0,0,390,0);
+  tg.addColorStop(0,'#f2c86a'); tg.addColorStop(1,'#e05a4e');
+  ctx.fillStyle='rgba(242,200,106,.12)'; ctx.fillRect(24,6,342,10);
+  ctx.fillStyle=tg; ctx.fillRect(24,6,342*tp,10);
+  ctx.strokeStyle='rgba(242,200,106,.3)'; ctx.strokeRect(24,6,342,10);
+
+  if(!Q){ HIT.cards=[];HIT.ops=[];HIT.noSol=null;HIT.pass=null;   /* 清命中区：锁窗内 pointerdown 无残留热区 */
+    if(winFx>0){ for(let i=0;i<14;i++){ const a=i/14*Math.PI*2, rr=(1-winFx)*130;
+      ctx.fillStyle=i%2?'rgba(242,200,106,.85)':'rgba(154,216,200,.8)';
+      ctx.beginPath(); ctx.arc(195+Math.cos(a)*rr, 210+Math.sin(a)*rr*.6, 3*winFx, 0, Math.PI*2); ctx.fill(); } }
+    return; }
+  /* 牌 */
+  const shake=shakeT>0?Math.sin(shakeT*40)*3*shakeT:0;
+  for(let i=0;i<Q.cards.length;i++){
+    const r=HIT.cards[i]; if(!r) continue;
+    const cd=Q.cards[i], f=cd.f, selIdx=Q.sel.indexOf(i);
+    const isSel=selIdx>=0;
+    ctx.save(); ctx.translate(r.x+shake, r.y+(isSel?-8:0));
+    const cg=ctx.createLinearGradient(0,0,0,r.h);
+    cg.addColorStop(0,'#3d2f1e'); cg.addColorStop(.5,'#2c2114'); cg.addColorStop(1,'#1f170d');
+    ctx.fillStyle=cg;
+    roundRect(0,0,r.w,r.h,10); ctx.fill();
+    ctx.strokeStyle=isSel?'#e05a4e':'rgba(242,200,106,.3)'; ctx.lineWidth=isSel?2.5:1;
+    roundRect(0,0,r.w,r.h,10); ctx.stroke();
+    if(isSel){ ctx.shadowColor='rgba(224,90,78,.5)'; ctx.shadowBlur=12;
+      roundRect(0,0,r.w,r.h,10); ctx.stroke(); ctx.shadowBlur=0; }
+    /* 木纹 */
+    ctx.strokeStyle='rgba(0,0,0,.18)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(8,20); ctx.quadraticCurveTo(r.w/2,26,r.w-8,22); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(8,r.h-24); ctx.quadraticCurveTo(r.w/2,r.h-30,r.w-8,r.h-26); ctx.stroke();
+    /* 数字 */
+    const s=fStr(f); const fs=s.length>2?30:s.length>1?36:42;
+    ctx.fillStyle=cd.res?'#9ad8c8':(f.d===1?'#f2c86a':'#e8a0a0');
+    ctx.font='800 '+fs+'px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(s, r.w/2, r.h/2+2);
+    if(f.d!==1){ ctx.fillStyle='rgba(154,216,200,.6)'; ctx.font='600 11px system-ui';
+      ctx.fillText('分', r.w/2, r.h-16); }
+    ctx.restore();
+  }
+  /* 算式历史 */
+  ctx.textAlign='center'; ctx.fillStyle='rgba(242,222,182,.7)'; ctx.font='600 14px system-ui';
+  const hx=Q.ops.map(o=>fStr(o.a)+o.op+fStr(o.b)+'='+fStr(o.r)).join('   ·   ');
+  ctx.fillText(hx, 195, 268);
+  /* 运算符 */
+  const OPS=['+','−','×','÷'], ow=62, og=14, otot=4*ow+3*og, ox0=(390-otot)/2, oy=560;
+  HIT.ops=[];
+  for(let i=0;i<4;i++){
+    const x=ox0+i*(ow+og), en=opEnabled(OPS[i]);
+    HIT.ops.push({x,y:oy,w:ow,h:ow,op:OPS[i]});
+    ctx.beginPath(); ctx.arc(x+ow/2, oy+ow/2, ow/2-4, 0, Math.PI*2);
+    ctx.fillStyle=en?'rgba(242,200,106,.14)':'rgba(242,200,106,.05)'; ctx.fill();
+    ctx.strokeStyle=en?'rgba(242,200,106,.75)':'rgba(242,200,106,.2)'; ctx.lineWidth=1.5; ctx.stroke();
+    ctx.fillStyle=en?'#f2c86a':'rgba(242,200,106,.3)';
+    ctx.font='800 30px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(OPS[i], x+ow/2, oy+ow/2+2);
+  }
+  /* 判无解 + 过 */
+  HIT.noSol={x:52,y:666,w:132,h:54}; HIT.pass={x:206,y:666,w:132,h:54};
+  drawSeal(HIT.noSol,'判 无 解','#e05a4e');
+  drawSeal(HIT.pass,'过','rgba(242,200,106,.85)',true);
+  /* 连对章（右上画布区） */
+  if(S.streak>1){
+    ctx.save(); ctx.translate(330,318); ctx.rotate(-.12);
+    ctx.strokeStyle='rgba(224,90,78,.85)'; ctx.lineWidth=2.5;
+    ctx.beginPath(); ctx.arc(0,0,26,0,Math.PI*2); ctx.stroke();
+    ctx.fillStyle='#e88a7e'; ctx.font='800 16px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('连×'+S.streak, 0, 1); ctx.restore();
+  }
+}
+function drawSeal(r,txt,col,small){
+  ctx.save();
+  ctx.fillStyle='rgba(224,90,78,.10)'; roundRect(r.x,r.y,r.w,r.h,12); ctx.fill();
+  ctx.strokeStyle=col; ctx.lineWidth=2; roundRect(r.x,r.y,r.w,r.h,12); ctx.stroke();
+  ctx.fillStyle=col; ctx.font=(small?'700 22px':'800 20px')+' system-ui';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(txt, r.x+r.w/2, r.y+r.h/2+1);
+  ctx.restore();
+}
+function drawMenuIdle(){
+  ctx.fillStyle='rgba(242,222,182,.5)'; ctx.font='600 15px system-ui'; ctx.textAlign='center';
+  ctx.fillText('四张牌 · 凑二十四', 195, 620);
+}
+function roundRect(x,y,w,h,r){ ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+
+/* ---- 输入 ---- */
+cv.addEventListener('pointerdown',e=>{
+  e.preventDefault();
+  if(!S||S.phase!=='play') return;
+  const r=cv.getBoundingClientRect();
+  const x=(e.clientX-r.left)*(390/r.width), y=(e.clientY-r.top)*(780/r.height);
+  for(let i=0;i<HIT.cards.length;i++){ const c=HIT.cards[i];
+    if(x>=c.x&&x<=c.x+c.w&&y>=c.y&&y<=c.y+c.h){ tapCard(i); return; } }
+  for(const o of HIT.ops){ if(x>=o.x&&x<=o.x+o.w&&y>=o.y&&y<=o.y+o.h){
+    if(opEnabled(o.op)) tapOp(o.op); else flash('先选两张牌'); return; } }
+  if(HIT.noSol&&x>=HIT.noSol.x&&x<=HIT.noSol.x+HIT.noSol.w&&y>=HIT.noSol.y&&y<=HIT.noSol.y+HIT.noSol.h){ judgeNoSol(); return; }
+  if(HIT.pass&&x>=HIT.pass.x&&x<=HIT.pass.x+HIT.pass.w&&y>=HIT.pass.y&&y<=HIT.pass.y+HIT.pass.h){ passQ(); return; }
+});
+
+/* ---- 主循环 ---- */
+let lastT=0;
+function loop(ts){
+  const dt=Math.min(.05,(ts-lastT)/1000||0); lastT=ts;
+  if(S){
+    if(S.phase==='play'){
+      S.time-=dt;
+      if(S.time<=0){ S.time=0; timeUp(); }
+      else if(Math.ceil(S.time)!==S._lt){ S._lt=Math.ceil(S.time); if(S.time<=10) snd('tick'); updHUD(); }
+    }
+    if(flashT>0) flashT-=dt;
+    if(winFx>0) winFx-=dt*2.2;
+    if(shakeT>0) shakeT-=dt;
+    draw();
+  }
+  requestAnimationFrame(loop);
+}
+
+/* ---- 按钮 ---- */
+$('btn-go').addEventListener('click',()=>{ ensureAC(); $('menu').classList.add('hide'); startRound(); });
+$('btn-again').addEventListener('click',()=>{ $('overlay').classList.add('hide'); ensureAC(); startRound(); });
+$('btn-snd').addEventListener('click',()=>{ SND=!SND; ensureAC(); $('btn-snd').textContent=SND?'🔊':'🔇'; });
+$('btn-pause').addEventListener('click',()=>{ if(S&&S.phase==='play'){S.phase='pause';$('pauselay').classList.remove('hide');} });
+$('btn-resume').addEventListener('click',()=>{ if(S&&S.phase==='pause'){S.phase='play';$('pauselay').classList.add('hide');
+  if(!Q){ clearTimeout(dealTO); dealNext(); }} });   /* M1：锁窗内暂停吞掉自动发题 → 恢复时补发（清旧定时器防 double） */
+$('btn-home').addEventListener('click',()=>{ $('pauselay').classList.add('hide'); $('menu').classList.remove('hide');
+  $('bestline').textContent='最高累计 '+loadBest(); S.phase='menu'; saveBestNow(); });
+
+function onHidden(){ if(document.hidden) saveBestNow(); }
+document.addEventListener('visibilitychange',onHidden);
+window.addEventListener('pagehide',()=>saveBestNow());
+
+newGame();
+$('bestline').textContent='最高累计 '+S.best;
+requestAnimationFrame(loop);
+
+/* ============ DEV 钩子（构建剥离） ============ */
+</script>
+</body>
+</html>
