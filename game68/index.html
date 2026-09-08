@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>灯影迷宫</title>
+<style>
+  html,body{margin:0;padding:0;background:#0a0b14;height:100%;overflow:hidden;
+    font-family:"PingFang SC","Microsoft YaHei",sans-serif;-webkit-user-select:none;user-select:none;
+    -webkit-tap-highlight-color:transparent}
+  #app{position:relative;width:390px;max-width:100vw;height:560px;margin:0 auto;background:#0e0f1c}
+  .hud{position:absolute;top:0;left:0;right:0;height:64px;display:flex;align-items:center;
+    gap:8px;padding:0 12px;box-sizing:border-box;background:linear-gradient(180deg,#12131f,#0e0f1c);
+    border-bottom:1px solid #232538;z-index:5}
+  .hud .stat{display:flex;flex-direction:column;align-items:flex-start;min-width:40px}
+  .hud .stat .lb{font-size:9px;color:#5a5f78;letter-spacing:1px}
+  .hud .stat .vl{font-size:15px;color:#e8dcc0;font-weight:600;line-height:1.1}
+  .hud .sp{flex:1}
+  .hud button{background:#1a1c2e;border:1px solid #2e3352;color:#c8cce8;border-radius:8px;
+    font-size:12px;padding:6px 9px;cursor:pointer;font-family:inherit}
+  .hud button:active{background:#242743}
+  .hud button.mini{padding:6px 7px;font-size:13px}
+  #oilwrap{width:90px}
+  #oilwrap .lb{font-size:9px;color:#5a5f78;letter-spacing:1px}
+  #oilbar{height:8px;background:#1a1c2e;border:1px solid #2e3352;border-radius:4px;overflow:hidden;margin-top:3px}
+  #oilfill{height:100%;width:100%;background:linear-gradient(90deg,#e6c06a,#d8a84a);transition:width .2s linear}
+  #oilfill.low{background:#e07070;animation:oilblink .5s steps(2,start) infinite}
+  @keyframes oilblink{50%{opacity:.35}}
+  #lamps{font-size:13px;letter-spacing:2px;color:#e6c06a}
+  #lamps .out{color:#3a3a4a}
+  #cv{position:absolute;top:64px;left:0;width:390px;height:496px;touch-action:none;cursor:crosshair}
+  .ov{position:absolute;inset:0;background:rgba(8,9,16,.88);backdrop-filter:blur(3px);
+    display:none;align-items:center;justify-content:center;z-index:10}
+  .ov.on{display:flex}
+  .panel{width:300px;background:linear-gradient(180deg,#151726,#101122);border:1px solid #2e3352;
+    border-radius:16px;padding:26px 22px;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+  .panel h1{margin:0 0 4px;font-size:26px;color:#ecdfc2;letter-spacing:6px;font-weight:700}
+  .panel .sub{font-size:11px;color:#7a7f9e;letter-spacing:3px;margin-bottom:14px}
+  .panel .mb{font-size:12px;color:#e6c06a;margin-bottom:18px}
+  .panel button{display:block;width:100%;margin:10px 0 0;padding:12px;border-radius:10px;border:1px solid #3a4070;
+    background:linear-gradient(180deg,#242848,#1a1d38);color:#e8e2d0;font-size:15px;letter-spacing:4px;
+    cursor:pointer;font-family:inherit}
+  .panel button:active{transform:translateY(1px)}
+  .panel .desc{font-size:11px;color:#6c7194;line-height:1.7;margin-top:14px;text-align:left}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="hud">
+    <div class="stat"><span class="lb">得分</span><span class="vl" id="score">0</span></div>
+    <div class="stat"><span class="lb">关数</span><span class="vl" id="lv-i">0</span></div>
+    <div class="stat"><span class="lb">连行</span><span class="vl" id="ck-i">×1</span></div>
+    <div class="sp"></div>
+    <div id="oilwrap"><span class="lb">灯油</span><div id="oilbar"><div id="oilfill"></div></div></div>
+    <div id="lamps">●●●</div>
+    <button id="btn-swap" class="mini">换</button>
+    <button id="btn-snd" class="mini">♪̶</button>
+    <button id="btn-pause" class="mini">‖</button>
+  </div>
+  <canvas id="cv" width="390" height="496"></canvas>
+  <div id="menu" class="ov on">
+    <div class="panel">
+      <h1>灯影迷宫</h1>
+      <div class="sub">提灯夜巷 · 画线寻路</div>
+      <div class="mb" id="m-best"></div>
+      <button id="btn-go">开 局</button>
+      <div class="desc">拖笔画线，线头就是你——顺着亮着的巷道一格一格走，画到墙是过不去的。巷子里锁着机关门，踩到同色钥匙，门就开。灯笼里的油在烧，油尽熄一盏灯、原路重走；三盏熄了这趟就到头。走到出口灯笼，就出了这条巷。</div>
+    </div>
+  </div>
+  <div id="pause-ov" class="ov">
+    <div class="panel">
+      <h1 style="font-size:20px;letter-spacing:4px">暂 停</h1>
+      <div class="pz" id="pz-oil" style="font-size:14px;color:#e6c06a;margin:6px 0 14px;letter-spacing:2px"></div>
+      <button id="btn-resume">继 续</button>
+      <button id="btn-restart">重开一局</button>
+      <button id="btn-quit">回 巷 口</button>
+    </div>
+  </div>
+</div>
+<script>
+'use strict';
+/* ================= 灯影迷宫（画线机关迷宫）=================
+   递归回溯完美迷宫+串联色门（钥匙在门前可达区）；画线步进；
+   灯油限时+三盏灯；LCG imul 全确定性；dev 钩子在标记块内（构建时整段剥离） */
+const CFG = {
+  W: 390, H: 496, MASK: 0x7fffffff,
+  SEED: 20260915,
+  DOORCOL: ['#c86a6a', '#6ab0c8', '#a88ac8'],
+  COL: {
+    bg: '#0e0f1c', wall: 'rgba(122,130,168,.55)', wallDim: 'rgba(84,90,122,.42)',
+    glow: 'rgba(230,192,106,.26)', trail: 'rgba(230,192,106,.10)',
+    lamp: '#e6c06a', flame: '#f2dc9a', exit: '#e8b46a',
+    info: 'rgba(230,192,106,.9)'
+  }
+};
+let S = {
+  mode: 'menu', score: 0, solved: 0, combo: 0, best: 0,
+  n: 9, walls: null, doors: [], keys: null, keyPos: [],
+  pos: 0, exitPos: 0, walked: null,
+  lamps: 3, lampLost: 0, oilMax: 63, oilLeft: 63,
+  rngS: CFG.SEED, genRngs: 0, glast: 0, sndOn: false
+};
+/* ---------- LCG ---------- */
+function ri(a, b) { S.rngS = (Math.imul(S.rngS, 1103515245) + 12345) >>> 0 & CFG.MASK; return a + S.rngS % (b - a + 1); }
+/* ---------- 阶梯 ---------- */
+function levelN() { return 9 + 2 * Math.min(2, Math.floor(S.solved / 2)); }
+function doorCount() { return 1 + Math.min(2, Math.floor(S.solved / 2)); }
+/* ---------- 生成（递归回溯迭代栈版）---------- */
+function genPuzzle() {
+  S.genRngs = S.rngS; const t0 = Date.now();
+  const n = levelN(); S.n = n; S.glast = 0;
+  const N = n * n;
+  const walls = new Uint8Array(N).fill(15);          /* bit1上2右4下8左 */
+  const seen = new Uint8Array(N);
+  const stack = [0]; seen[0] = 1;
+  const DX = [0, 1, 0, -1], DY = [-1, 0, 1, 0], BIT = [1, 2, 4, 8], OPP = [4, 8, 1, 2];
+  while (stack.length) {
+    const cur = stack[stack.length - 1];
+    const cx = cur % n, cy = (cur / n) | 0;
+    const ds = [0, 1, 2, 3];                          /* 四方向 LCG 洗牌（确定性） */
+    for (let i2 = 3; i2 > 0; i2--) { const j = ri(0, i2); const t = ds[i2]; ds[i2] = ds[j]; ds[j] = t; }
+    let moved = false;
+    for (const idx of ds) {
+      const nx2 = cx + DX[idx], ny2 = cy + DY[idx];
+      if (nx2 < 0 || ny2 < 0 || nx2 >= n || ny2 >= n) continue;
+      const np = ny2 * n + nx2;
+      if (seen[np]) continue;
+      walls[cur] &= ~BIT[idx]; walls[np] &= ~OPP[idx];
+      seen[np] = 1; stack.push(np); moved = true; break;
+    }
+    if (!moved) stack.pop();
+  }
+  S.walls = walls;
+  S.doors = [];                                    /* 先清旧门：P0 须无视门（openSet=null=全关） */
+  S.exitPos = N - 1;
+  /* 树路径 P0（完美迷宫无门全通） */
+  const P0 = pathBfs(0, S.exitPos, null);
+  /* 门选位：P0 上均分取 doorCount 个墙位（串联） */
+  const k = doorCount();
+  const edges = [];
+  for (let i = 0; i + 1 < P0.length; i++) edges.push([P0[i], P0[i + 1]]);
+  const doors = [];
+  for (let c = 0; c < k; c++) {
+    const t = Math.floor((c + 1) * edges.length / (k + 1));
+    doors.push({ a: edges[t][0], b: edges[t][1], c: c });
+  }
+  S.doors = doors;
+  /* 钥匙 i：门 0..i-1 开、门 i..k-1 关时，起点可达区内取较远处（互斥不共格） */
+  S.keyPos = new Array(k).fill(-1);
+  const used = new Set();
+  for (let c = 0; c < k; c++) {
+    const open = new Set();
+    for (let j = 0; j < c; j++) open.add(j);
+    const { dist, prev } = bfsFrom(0, open);
+    const cand = [];
+    let mx = 0;
+    for (let p = 0; p < N; p++) if (dist[p] >= 0 && p !== S.exitPos && !used.has(p)) { cand.push(p); if (dist[p] > mx) mx = dist[p]; }
+    const far = cand.filter(p => dist[p] >= mx * .55);
+    S.keyPos[c] = far.length ? far[ri(0, far.length - 1)] : cand[ri(0, cand.length - 1)];
+    used.add(S.keyPos[c]);
+  }
+  /* 复位 */
+  S.keys = new Set();
+  S.pos = 0; S.walked = new Uint8Array(N); S.walked[0] = 1;
+  S.lampLost = 0; S.oilMax = 45 + n * 2; S.oilLeft = S.oilMax;
+  S.glast = Date.now() - t0;
+}
+/* ---------- BFS（openSet=已开门色集）---------- */
+function canWalk(a, dir, openSet) {
+  if (S.walls[a] & (1 << dir)) return false;
+  const n = S.n, b = a + [ -n, 1, n, -1 ][dir];
+  for (const d of S.doors) {
+    if ((d.a === a && d.b === b) || (d.a === b && d.b === a)) {
+      if (!openSet || !openSet.has(d.c)) return false;
+    }
+  }
+  return true;
+}
+function bfsFrom(from, openSet) {
+  const N = S.n * S.n;
+  const dist = new Int16Array(N).fill(-1), prev = new Int16Array(N).fill(-1);
+  const q = [from]; dist[from] = 0;
+  for (let h = 0; h < q.length; h++) {
+    const cur = q[h];
+    for (let dir = 0; dir < 4; dir++) {
+      if (!canWalk(cur, dir, openSet)) continue;
+      const b = cur + [-S.n, 1, S.n, -1][dir];
+      if (dist[b] < 0) { dist[b] = dist[cur] + 1; prev[b] = cur; q.push(b); }
+    }
+  }
+  return { dist, prev };
+}
+function pathBfs(from, to, openSet) {
+  const { dist, prev } = bfsFrom(from, openSet);
+  if (dist[to] < 0) return null;
+  const p = []; let x = to;
+  while (x !== from) { p.push(x); x = prev[x]; }
+  p.push(from); p.reverse(); return p;
+}
+/* ---------- 步进（画线核心）---------- */
+function step(dir) {
+  if (S.mode !== 'play') return false;
+  if (dir < 0 || dir > 3) return false;
+  if (!canWalk(S.pos, dir, S.keys)) return false;
+  S.pos += [-S.n, 1, S.n, -1][dir];
+  S.walked[S.pos] = 1;
+  onEnterCell();
+  updHUD(); draw(); return true;
+}
+function onEnterCell() {
+  const p = S.pos;
+  for (let c = 0; c < S.keyPos.length; c++) {
+    if (S.keyPos[c] === p && !S.keys.has(c)) {
+      S.keys.add(c);
+      keyBurst(c); doorBurst(c); flashInfo('拾得钥匙 · ' + doorName(c) + '门开');
+      beep(700, .07);
+    }
+  }
+  if (p === S.exitPos) doWin();
+}
+function doorName(c) { return ['红', '青', '紫'][c] || ''; }
+/* ---------- 过关 ---------- */
+function doWin() {
+  const n = S.n;
+  if (S.lampLost) S.combo = 0; else S.combo++;
+  const mult = 1 + .5 * Math.min(Math.max(S.combo - 1, 0), 6);
+  const gain = Math.floor((n * n * 5 + Math.floor(Math.max(0, S.oilLeft)) * 3 + (S.lampLost ? 0 : 40)) * mult);
+  S.score += gain; S.solved++;
+  if (S.score > S.best) { S.best = S.score; saveBest(); }
+  burst(gain); genPuzzle(); updHUD();
+}
+/* ---------- best ---------- */
+function saveBest() { try { localStorage.setItem('g68_best', String(S.best)); } catch (e) { } }
+function loadBest() { try { const v = localStorage.getItem('g68_best'); if (v) S.best = +v || 0; } catch (e) { } }
+function saveBestNow() { if (S.score > S.best) { S.best = S.score; saveBest(); } }
+/* ---------- 油与灯 ---------- */
+function oilStep(dt) {
+  if (S.mode !== 'play') return;
+  S.oilLeft -= dt;
+  if (S.oilLeft <= 0) {
+    S.lamps--; S.lampLost = 1;
+    if (S.lamps <= 0) {
+      flashInfo('三盏灯都熄了 · 这趟到头');
+      saveBestNow(); S.mode = 'menu';
+      document.getElementById('menu').classList.add('on');
+      document.getElementById('m-best').innerHTML = S.best > 0 ? '最亮一程 <b>' + S.best + '</b>' : '';
+      updHUD(); draw(); return;
+    }
+    flashInfo('油尽熄一盏灯 · 原路重走');
+    S.pos = 0; S.walked = new Uint8Array(S.n * S.n); S.walked[0] = 1;
+    S.oilLeft = S.oilMax;
+    beep(220, .2); updHUD();
+  }
+}
+/* ---------- 特效 ---------- */
+let FX = { parts: [], floats: [], flashes: [] };
+function burst(gain) {
+  const g = gridGeom(), cx = g.x0 + (S.exitPos % S.n + .5) * g.cell, cy = g.y0 + (((S.exitPos / S.n) | 0) + .5) * g.cell;
+  for (let i = 0; i < 46; i++) {
+    const a = Math.random() * Math.PI * 2, sp = 60 + Math.random() * 150;
+    FX.parts.push({ x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40, life: .8 + Math.random() * .5, t: 0, c: Math.random() < .7 ? CFG.COL.lamp : CFG.COL.flame });
+  }
+  FX.floats.push({ x: cx, y: cy - 30, txt: '出巷 +' + gain, t: 0, life: 1.2, c: CFG.COL.lamp });
+  if (S.combo > 1) FX.floats.push({ x: cx, y: cy - 52, txt: '连行 ×' + (1 + .5 * Math.min(S.combo - 1, 6)), t: 0, life: 1.4, c: CFG.COL.exit });
+  beep(660, .09); setTimeout(() => beep(880, .12), 90);
+}
+function doorBurst(color) {
+  const d = S.doors.find(x => x.c === color);
+  if (!d) return;
+  const g = gridGeom();
+  const ax = g.x0 + (d.a % S.n + .5) * g.cell, ay = g.y0 + (((d.a / S.n) | 0) + .5) * g.cell;
+  for (let i = 0; i < 18; i++) {
+    const a = Math.random() * Math.PI * 2, sp = 30 + Math.random() * 80;
+    FX.parts.push({ x: ax, y: ay, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 30, life: .6 + Math.random() * .3, t: 0, c: CFG.DOORCOL[color] });
+  }
+}
+function keyBurst(color) {                   /* 拾钥匙格闪光（扩散环，确定性无 rng） */
+  const c = cellC(S.keyPos[color]);
+  FX.flashes.push({ x: c.x, y: c.y, t: 0, life: .45, c: CFG.DOORCOL[color] });
+}
+function fxStep(dt) {
+  for (let i = FX.parts.length - 1; i >= 0; i--) {
+    const p = FX.parts[i]; p.t += dt; if (p.t > p.life) { FX.parts.splice(i, 1); continue; }
+    p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 220 * dt;
+  }
+  for (let i = FX.floats.length - 1; i >= 0; i--) {
+    const f = FX.floats[i]; f.t += dt; if (f.t > f.life) { FX.floats.splice(i, 1); continue; }
+    f.y -= 22 * dt;
+  }
+  for (let i = FX.flashes.length - 1; i >= 0; i--) {
+    const f = FX.flashes[i]; f.t += dt; if (f.t > f.life) FX.flashes.splice(i, 1);
+  }
+}
+/* ---------- 音效（默认静音）---------- */
+let AC = null;
+function beep(f, d) {
+  if (!S.sndOn) return;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    if (AC.state === 'suspended') AC.resume();
+    const o = AC.createOscillator(), gn = AC.createGain();
+    o.type = 'sine'; o.frequency.value = f;
+    gn.gain.setValueAtTime(.12, AC.currentTime);
+    gn.gain.exponentialRampToValueAtTime(.001, AC.currentTime + d);
+    o.connect(gn); gn.connect(AC.destination); o.start(); o.stop(AC.currentTime + d);
+  } catch (e) { }
+}
+/* ---------- HUD ---------- */
+function updHUD() {
+  document.getElementById('score').textContent = S.score;
+  document.getElementById('lv-i').textContent = S.solved;
+  document.getElementById('ck-i').textContent = '×' + (1 + .5 * Math.min(Math.max(S.combo, 1) - 1, 6) || 1);
+  const fill = document.getElementById('oilfill');
+  const r = Math.max(0, S.oilLeft / S.oilMax);
+  fill.style.width = (r * 100).toFixed(1) + '%';
+  fill.className = S.oilLeft < 5 ? 'low' : '';
+  const lm = document.getElementById('lamps');
+  let t2 = '';
+  for (let i = 0; i < 3; i++) t2 += i < S.lamps ? '●' : '<span class="out">●</span>';
+  lm.innerHTML = t2;
+}
+/* ---------- 绘制 ---------- */
+const cvEl = document.getElementById('cv');
+const ctx = cvEl.getContext('2d');
+function gridGeom() {
+  const n = S.n, cell = Math.floor((CFG.W - 16) / n);
+  const gw = n * cell, x0 = (CFG.W - gw) / 2, y0 = 34;
+  return { n, cell, x0, y0, gw };
+}
+function cellC(p) { const g = gridGeom(); return { x: g.x0 + (p % g.n + .5) * g.cell, y: g.y0 + (((p / g.n) | 0) + .5) * g.cell }; }
+function draw() {
+  const W = CFG.W, H = CFG.H, C = CFG.COL;
+  ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+  if (!S.walls) return;                            /* menu 态无盘：只画夜底 */
+  const g = gridGeom(), n = g.n, cell = g.cell;
+  /* 余晖（走过格） */
+  ctx.fillStyle = C.trail;
+  for (let p = 0; p < n * n; p++) if (S.walked[p]) {
+    ctx.fillRect(g.x0 + (p % n) * cell, g.y0 + ((p / n) | 0) * cell, cell, cell);
+  }
+  /* 光圈（玩家） */
+  const pc = cellC(S.pos);
+  const rg = ctx.createRadialGradient(pc.x, pc.y, cell * .3, pc.x, pc.y, cell * 1.6);
+  rg.addColorStop(0, C.glow); rg.addColorStop(1, 'rgba(230,192,106,0)');
+  ctx.fillStyle = rg; ctx.fillRect(pc.x - cell * 1.7, pc.y - cell * 1.7, cell * 3.4, cell * 3.4);
+  /* 墙（走前区暗、走过区亮） */
+  ctx.lineWidth = 2; ctx.lineCap = 'round';
+  for (let p = 0; p < n * n; p++) {
+    const x = g.x0 + (p % n) * cell, y = g.y0 + ((p / n) | 0) * cell;
+    const lit = S.walked[p];
+    ctx.strokeStyle = lit ? C.wall : C.wallDim;
+    ctx.beginPath();
+    if (S.walls[p] & 1) { ctx.moveTo(x, y); ctx.lineTo(x + cell, y); }
+    if (S.walls[p] & 8) { ctx.moveTo(x, y); ctx.lineTo(x, y + cell); }
+    if ((S.walls[p] & 2) && (p % n) === n - 1) { ctx.moveTo(x + cell, y); ctx.lineTo(x + cell, y + cell); }
+    if ((S.walls[p] & 4) && p >= n * n - n) { ctx.moveTo(x, y + cell); ctx.lineTo(x + cell, y + cell); }
+    ctx.stroke();
+  }
+  /* 门（未开） */
+  for (const d of S.doors) {
+    if (S.keys.has(d.c)) continue;
+    const horiz = (d.b === d.a + 1);              /* 右邻=门在两格间竖墙位 */
+    const ax = g.x0 + (d.a % n) * cell, ay = g.y0 + ((d.a / n) | 0) * cell;
+    ctx.strokeStyle = CFG.DOORCOL[d.c]; ctx.lineWidth = 5; ctx.lineCap = 'round';
+    ctx.beginPath();
+    if (horiz) { ctx.moveTo(ax + cell, ay); ctx.lineTo(ax + cell, ay + cell); }
+    else { ctx.moveTo(ax, ay + cell); ctx.lineTo(ax + cell, ay + cell); }
+    ctx.stroke();
+    ctx.fillStyle = CFG.DOORCOL[d.c];
+    ctx.beginPath(); ctx.arc(horiz ? ax + cell : ax + cell / 2, horiz ? ay + cell / 2 : ay + cell, 3, 0, 7); ctx.fill();
+  }
+  /* 钥匙（未拾）：小钥匙形（环+柄+齿） */
+  for (let c = 0; c < S.keyPos.length; c++) {
+    if (S.keys.has(c) || S.keyPos[c] < 0) continue;
+    const k = cellC(S.keyPos[c]);
+    ctx.strokeStyle = CFG.DOORCOL[c]; ctx.fillStyle = CFG.DOORCOL[c]; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.arc(k.x - 2.5, k.y - 2, 3, 0, 7); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(k.x + .5, k.y - 2); ctx.lineTo(k.x + 6, k.y + 3.5);
+    ctx.moveTo(k.x + 4, k.y + 4.5); ctx.lineTo(k.x + 6, k.y + 2.5);
+    ctx.moveTo(k.x + 2.2, k.y + 2.7); ctx.lineTo(k.x + 4.2, k.y + .7);
+    ctx.stroke();
+  }
+  /* 出口灯笼（呼吸光） */
+  const ec = cellC(S.exitPos);
+  const br = S.mode === 'pause' ? .55 : .55 + .3 * Math.sin(Date.now() / 400);   /* pause 冻结呼吸 */
+  ctx.globalAlpha = br;
+  ctx.fillStyle = C.exit; ctx.beginPath(); ctx.arc(ec.x, ec.y, cell * .34, 0, 7); ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = C.flame; ctx.beginPath(); ctx.arc(ec.x, ec.y, cell * .15, 0, 7); ctx.fill();
+  /* 玩家（暖光点） */
+  ctx.fillStyle = C.flame; ctx.beginPath(); ctx.arc(pc.x, pc.y, cell * .3, 0, 7); ctx.fill();
+  ctx.strokeStyle = 'rgba(242,220,154,.6)'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.arc(pc.x, pc.y, cell * .3 + 2, 0, 7); ctx.stroke();
+  /* 顶部信息条 */
+  drawInfo();
+  /* 底部钥匙图例 */
+  drawLegend(g);
+  /* 特效 */
+  for (const p of FX.parts) {
+    ctx.globalAlpha = Math.max(0, 1 - p.t / p.life);
+    ctx.fillStyle = p.c; ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+  }
+  for (const f of FX.flashes) {
+    const r2 = f.t / f.life;
+    ctx.globalAlpha = Math.max(0, 1 - r2);
+    ctx.strokeStyle = f.c; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(f.x, f.y, 5 + 20 * r2, 0, 7); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  for (const f of FX.floats) {
+    ctx.globalAlpha = Math.max(0, 1 - f.t / f.life);
+    ctx.fillStyle = f.c; ctx.font = 'bold 18px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.fillText(f.txt, f.x, f.y);
+  }
+  ctx.globalAlpha = 1;
+}
+let infoFlashTxt = '', infoFlashAt = 0;
+function flashInfo(txt) { infoFlashTxt = txt; infoFlashAt = Date.now(); }
+function drawInfo() {
+  ctx.font = '11px "PingFang SC",sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  if (infoFlashAt && Date.now() - infoFlashAt < 2000) {
+    ctx.fillStyle = '#e0b070';
+    ctx.fillText(infoFlashTxt, CFG.W / 2, 14); return;
+  }
+  infoFlashAt = 0;
+  ctx.fillStyle = CFG.COL.info;
+  const miss = S.keyPos.filter((p, c) => !S.keys.has(c)).length;
+  ctx.fillText(miss ? '还差 ' + miss + ' 把钥匙 · 顺亮巷画线走' : '寻出口灯笼 · 顺亮巷画线走', CFG.W / 2, 14);
+}
+function drawLegend(g) {
+  let x = CFG.W / 2 - (S.keyPos.length * 14) / 2 + 7;
+  for (let c = 0; c < S.keyPos.length; c++) {
+    ctx.globalAlpha = S.keys.has(c) ? .25 : 1;
+    ctx.fillStyle = CFG.DOORCOL[c];
+    ctx.beginPath(); ctx.arc(x, g.y0 + g.n * g.cell + 22, 4, 0, 7); ctx.fill();
+    x += 14;
+  }
+  ctx.globalAlpha = 1;
+}
+/* ---------- 主循环 ---------- */
+let lastT = 0;
+function loop(ts) {
+  const dt = Math.min(.05, (ts - lastT) / 1000 || 0); lastT = ts;
+  if (S.mode === 'play') { oilStep(dt); updOilBar(); }
+  if (S.mode !== 'pause') fxStep(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+function updOilBar() {
+  const fill = document.getElementById('oilfill');
+  const r = Math.max(0, S.oilLeft / S.oilMax);
+  fill.style.width = (r * 100).toFixed(1) + '%';
+  fill.className = S.oilLeft < 5 ? 'low' : '';
+}
+/* ---------- 输入接线（画线 + M1 加固）---------- */
+let dragging = false;
+function toLogic(e) {
+  const rect = cvEl.getBoundingClientRect();
+  const sx = CFG.W / rect.width, sy = CFG.H / rect.height;
+  return { x: (e.clientX - rect.left) * sx, y: (e.clientY - rect.top) * sy };
+}
+function dragStep(tx, ty) {
+  /* 线头朝 pointer 方向沿通路步进（每 move 至多追 3 步，四向不斜走） */
+  const g = gridGeom();
+  let moved = false;
+  for (let i2 = 0; i2 < 3; i2++) {
+    const px = g.x0 + (S.pos % g.n + .5) * g.cell, py = g.y0 + (((S.pos / g.n) | 0) + .5) * g.cell;
+    const dx = tx - px, dy = ty - py;
+    if (Math.abs(dx) < g.cell * .25 && Math.abs(dy) < g.cell * .25) break;
+    const cands = Math.abs(dx) > Math.abs(dy)
+      ? [[dx > 0 ? 1 : 3], [dy > 0 ? 2 : 0]]
+      : [[dy > 0 ? 2 : 0], [dx > 0 ? 1 : 3]];
+    let ok2 = false;
+    for (const [d] of cands) if (step(d)) { ok2 = true; break; }
+    if (!ok2) break;
+    moved = true;
+  }
+  if (moved) beep(420, .02);
+}
+function clearDrag() { dragging = false; }
+cvEl.addEventListener('pointerdown', e => {
+  if (S.mode !== 'play') return;
+  dragging = true;
+  const { x, y } = toLogic(e); dragStep(x, y);
+});
+cvEl.addEventListener('pointermove', e => {
+  if (!dragging || S.mode !== 'play') return;
+  const { x, y } = toLogic(e); dragStep(x, y);
+});
+window.addEventListener('pointerup', () => clearDrag());
+window.addEventListener('pointercancel', () => clearDrag());
+window.addEventListener('blur', () => clearDrag());
+document.addEventListener('visibilitychange', () => { if (document.hidden) { clearDrag(); saveBestNow(); } });
+window.addEventListener('pagehide', () => saveBestNow());
+function bindBtn(id, fn) { document.getElementById(id).addEventListener('click', () => { fn(); }); }
+bindBtn('btn-go', () => {
+  document.getElementById('menu').classList.remove('on');
+  S.mode = 'play'; S.score = 0; S.solved = 0; S.combo = 0; S.lamps = 3;
+  genPuzzle(); updHUD(); draw(); beep(520, .06);
+});
+bindBtn('btn-pause', () => {
+  if (S.mode !== 'play') return;
+  clearDrag();
+  S.mode = 'pause'; document.getElementById('pause-ov').classList.add('on');
+  document.getElementById('pz-oil').textContent = '灯油剩 ' + Math.max(0, Math.floor(S.oilLeft)) + ' 秒 · 灯 ' + S.lamps + ' 盏';
+  draw();
+});
+bindBtn('btn-resume', () => { if (S.mode !== 'pause') return; S.mode = 'play'; document.getElementById('pause-ov').classList.remove('on'); draw(); });
+bindBtn('btn-restart', () => {
+  saveBestNow(); S.mode = 'play'; S.score = 0; S.solved = 0; S.combo = 0; S.lamps = 3;
+  document.getElementById('pause-ov').classList.remove('on');
+  genPuzzle(); updHUD(); draw();
+});
+bindBtn('btn-quit', () => {
+  saveBestNow(); S.mode = 'menu';
+  document.getElementById('pause-ov').classList.remove('on');
+  document.getElementById('menu').classList.add('on');
+  document.getElementById('m-best').innerHTML = S.best > 0 ? '最亮一程 <b>' + S.best + '</b>' : '';
+  draw();
+});
+bindBtn('btn-swap', () => {
+  if (S.mode !== 'play') return;
+  saveBestNow(); S.combo = 0; genPuzzle(); updHUD(); draw();
+});
+bindBtn('btn-snd', () => { S.sndOn = !S.sndOn; document.getElementById('btn-snd').textContent = S.sndOn ? '♪' : '♪̶'; });
+/* ---------- init ---------- */
+function init() {
+  loadBest();
+  document.getElementById('m-best').innerHTML = S.best > 0 ? '最亮一程 <b>' + S.best + '</b>' : '';
+  updHUD(); draw();
+  requestAnimationFrame(loop);
+}
+init();
+
+</script>
+</body>
+</html>
