@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>电路连通</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+  html,body{height:100%;overflow:hidden;background:#0b1416;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+  #app{position:relative;max-width:390px;margin:0 auto;height:100%;background:#0b1416}
+  #hud{position:absolute;top:0;left:0;right:0;height:64px;display:flex;align-items:center;padding:0 12px;gap:8px;
+       background:linear-gradient(180deg,#0f1d20,#0a1113);border-bottom:1px solid rgba(126,240,212,.18);z-index:5}
+  .hpill{display:flex;flex-direction:column;justify-content:center;padding:4px 10px;border-radius:10px;
+         background:rgba(126,240,212,.08);border:1px solid rgba(126,240,212,.22)}
+  .hpill .k{font-size:9px;color:#6f8f8a;letter-spacing:1px}
+  .hpill .v{font-size:14px;font-weight:700;color:#dcefe9}
+  #lvbadge .v{color:#7ef0d4}
+  #litv{color:#ffd98a}
+  #stars{display:flex;gap:3px;margin-left:2px}
+  #stars .st{width:14px;height:14px;position:relative}
+  #stars .st::before,#stars .st::after{content:"";position:absolute;left:7px;top:1px;width:2.6px;height:11px;border-radius:2px;
+        background:rgba(126,240,212,.16);transform:translateX(-1.3px)}
+  #stars .st::after{transform:translateX(-1.3px) rotate(72deg)}
+  #stars .st.on::before,#stars .st.on::after{background:#7ef0d4;box-shadow:0 0 5px rgba(126,240,212,.7)}
+  #stars .st:nth-child(2)::before{transform:translateX(-1.3px) rotate(-72deg)}
+  .hbtn{width:38px;height:38px;border-radius:11px;border:1px solid rgba(126,240,212,.25);
+        background:rgba(126,240,212,.07);color:#7ef0d4;font-size:14px;display:flex;align-items:center;justify-content:center}
+  .hbtn:active{background:rgba(126,240,212,.18)}
+  .grow{flex:1}
+  #cv{position:absolute;top:64px;left:0;width:390px;height:780px;touch-action:none}
+  .lay{position:absolute;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;
+       background:rgba(6,14,15,.88);backdrop-filter:blur(4px)}
+  .lay.hide{display:none}
+  .ttl{font-size:30px;font-weight:800;letter-spacing:6px;color:#eafff8;text-shadow:0 0 18px rgba(126,240,212,.45)}
+  .sub{margin-top:10px;font-size:13px;color:#6f8f8a;letter-spacing:2px}
+  .glowline{margin:26px 0 6px;width:200px;height:2px;background:linear-gradient(90deg,transparent,#7ef0d4,transparent);
+        box-shadow:0 0 12px rgba(126,240,212,.8);animation:beamp 2.2s ease-in-out infinite}
+  @keyframes beamp{50%{opacity:.45;transform:scaleX(.82)}}
+  .gbtn{margin-top:26px;padding:13px 44px;border-radius:14px;border:1px solid rgba(126,240,212,.5);
+        background:linear-gradient(180deg,rgba(126,240,212,.22),rgba(126,240,212,.10));color:#eafff8;
+        font-size:17px;font-weight:700;letter-spacing:4px}
+  .gbtn:active{transform:scale(.97)}
+  .gbtn.dim{border-color:rgba(111,143,138,.4);background:rgba(111,143,138,.10);color:#8fb3ac;font-size:14px;letter-spacing:2px;margin-top:14px;padding:10px 30px}
+  .help{margin-top:18px;padding:0 34px;font-size:12.5px;line-height:1.9;color:#7fa39c;text-align:center}
+  .help b{color:#ffd98a;font-weight:600}
+  #flashtx{position:absolute;top:72px;left:50%;transform:translateX(-50%);z-index:6;padding:7px 18px;border-radius:11px;
+       background:rgba(15,29,32,.92);border:1px solid rgba(126,240,212,.35);color:#c8f5e9;font-size:13px;
+       letter-spacing:1px;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
+  #flashtx.show{opacity:1}
+  #winlay .cname{font-size:27px;font-weight:800;letter-spacing:7px;color:#ffe9c0;text-shadow:0 0 16px rgba(255,217,138,.5);margin-top:4px}
+  #winlay .cquip{margin-top:10px;font-size:12.5px;color:#9cc8bf;letter-spacing:2px}
+  #winlay .stars-big{display:flex;gap:14px;margin:20px 0 4px}
+  #winlay .sb{width:44px;height:44px;position:relative;opacity:.95}
+  #winlay .sb::before,#winlay .sb::after{content:"";position:absolute;left:22px;top:4px;width:8px;height:34px;border-radius:6px;
+        background:rgba(126,240,212,.14);transform:translateX(-4px)}
+  #winlay .sb::after{transform:translateX(-4px) rotate(72deg)}
+  #winlay .sb:nth-child(2)::before{transform:translateX(-4px) rotate(-72deg)}
+  #winlay .sb.on::before,#winlay .sb.on::after{background:linear-gradient(180deg,#c8f5e9,#7ef0d4);box-shadow:0 0 14px rgba(126,240,212,.8)}
+  #winscore{font-size:15px;color:#dcefe9;margin-top:8px}
+  #winscore b{color:#ffd98a;font-size:19px}
+  #gainf{font-size:12px;color:#6f8f8a;margin-top:5px;letter-spacing:1px}
+  #parline{font-size:11.5px;color:#4f6f6a;margin-top:14px}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div class="hpill" id="lvbadge"><span class="k">电路</span><span class="v" id="lvv">1/12</span></div>
+    <div class="hpill"><span class="k">亮灯</span><span class="v" id="litv">0/1</span></div>
+    <div id="stars"><span class="st"></span><span class="st"></span><span class="st"></span></div>
+    <div class="grow"></div>
+    <div class="hbtn" id="btn-reset">⟲</div>
+    <div class="hbtn" id="btn-snd">🔇</div>
+    <div class="hbtn" id="btn-pause">⏸</div>
+  </div>
+  <canvas id="cv" width="390" height="780"></canvas>
+  <div id="flashtx"></div>
+
+  <div class="lay" id="menu">
+    <div class="ttl">电路连通</div>
+    <div class="sub">CIRCUIT · LIGHT THEM ALL</div>
+    <div class="glowline"></div>
+    <div class="sub" id="bestline">最高累计 0</div>
+    <div class="gbtn" id="btn-go">开始接线</div>
+    <div class="gbtn dim" id="btn-help">玩法说明</div>
+    <div class="help" id="helptx" style="display:none">
+      <b>tap 导线块</b>顺时针转 90°，把铜线接成通路：<br>
+      从<b>电源 ⎓</b>出发，一路导通到每个<b>灯泡 ◉</b>，全亮过关。<br>
+      旋转次数越接近参考步数，星越多；<b>⟲</b> 可整关重摆（步数照计）。<br>
+      十二块电路板接完，还有更密的<b>第二周目</b>。
+    </div>
+  </div>
+
+  <div class="lay hide" id="pauselay">
+    <div class="ttl" style="font-size:24px">暂停中</div>
+    <div class="gbtn" id="btn-resume">继续</div>
+    <div class="gbtn dim" id="btn-home">回到首页</div>
+  </div>
+
+  <div class="lay hide" id="winlay">
+    <div class="sub" style="letter-spacing:4px">全 线 贯 通</div>
+    <div class="cname" id="cnamev">首块电路板</div>
+    <div class="cquip" id="cquipv"></div>
+    <div class="stars-big"><span class="sb"></span><span class="sb"></span><span class="sb"></span></div>
+    <div id="winscore">本关 <b>+0</b></div>
+    <div id="gainf"></div>
+    <div class="gbtn" id="btn-next">下一关</div>
+    <div class="gbtn dim" id="btn-replay">重摆本关</div>
+    <div id="parline"></div>
+  </div>
+</div>
+<script>
+'use strict';
+/* ============ 电路连通 game71 ============ */
+/* 路径铺设器：paths → 块端口并集（对向=I/垂直=L/3口=T/4口=X），先造解再打乱 */
+
+/* 方向：N=1,E=2,S=4,W=8；顺时针旋转 90°: (m<<1|m>>3)&15 */
+const DIRS=[{dx:0,dy:-1,m:1},{dx:1,dy:0,m:2},{dx:0,dy:1,m:4},{dx:-1,dy:0,m:8}];
+const OPP={1:4,4:1,2:8,8:2};
+function rotM(m){ return ((m<<1)|(m>>3))&15; }
+
+/* 关卡：sz=[C,R]；srcs/bulbs 显式声明电源格与灯格；paths 铺线格序列（可交叠→端口并集，
+   分叉 path 起点可为任一块；环回 path 终点可为非灯块——srcs/bulbs 与 paths 解耦） */
+const LVLDATA=[
+ {nm:'首块电路板',qu:'第一股电流，怯生生亮起',sz:[4,4],srcs:[[0,1]],bulbs:[[3,2]],paths:[
+   [[0,1],[1,1],[2,1],[2,2],[3,2]]]},
+ {nm:'双灯分线',qu:'一线进，两灯出',sz:[4,4],srcs:[[1,1]],bulbs:[[1,0],[3,2]],paths:[
+   [[1,1],[1,0]],
+   [[1,1],[2,1],[2,2],[3,2]]]},
+ {nm:'丁字三径',qu:'电流在丁字口分流',sz:[5,5],srcs:[[0,2]],bulbs:[[2,0],[3,4]],paths:[
+   [[0,2],[1,2],[2,2],[2,1],[2,0]],
+   [[2,2],[3,2],[3,3],[3,4]]]},
+ {nm:'三灯网',qu:'一条主线，三盏灯等电',sz:[5,5],srcs:[[2,0]],bulbs:[[2,3],[4,1],[1,4]],paths:[
+   [[2,0],[2,1],[2,2],[2,3]],
+   [[2,0],[3,0],[4,0],[4,1]],
+   [[2,2],[1,2],[1,3],[1,4]]]},
+ {nm:'十字枢纽',qu:'十字路口，四方来电',sz:[5,5],srcs:[[2,0]],bulbs:[[0,2],[2,3],[3,3]],paths:[
+   [[2,0],[2,1],[1,1],[0,1],[0,2]],
+   [[2,0],[2,1],[2,2],[2,3]],
+   [[2,1],[3,1],[3,2],[3,3]]]},
+ {nm:'长径绕行',qu:'绕远路，也是路',sz:[6,6],srcs:[[0,0]],bulbs:[[5,2],[2,4],[3,1]],paths:[
+   [[0,0],[1,0],[2,0],[2,1],[1,1],[1,2],[1,3],[2,3],[3,3],[4,3],[4,2],[5,2]],
+   [[3,3],[3,4],[2,4]],
+   [[1,2],[2,2],[3,2],[3,1]]]},
+ {nm:'双源供电',qu:'两处电源，各自点亮',sz:[6,6],srcs:[[0,2],[5,2]],bulbs:[[2,0],[3,4],[2,4]],paths:[
+   [[0,2],[1,2],[2,2],[2,1],[2,0]],
+   [[5,2],[4,2],[3,2],[3,3],[3,4]],
+   [[2,2],[2,3],[2,4]]]},
+ {nm:'双源四灯',qu:'干线交叉，支线开花',sz:[6,6],srcs:[[0,0],[5,5]],bulbs:[[4,2],[2,4],[1,4],[4,1]],paths:[
+   [[0,0],[1,0],[2,0],[2,1],[2,2],[3,2],[4,2]],
+   [[5,5],[4,5],[3,5],[2,5],[2,4]],
+   [[2,2],[1,2],[1,3],[1,4]],
+   [[3,2],[3,1],[4,1]]]},
+ {nm:'环形回路',qu:'电流绕了一圈，回到原地',sz:[6,6],srcs:[[0,3],[1,5]],bulbs:[[4,3],[4,2],[1,1],[1,4]],paths:[
+   [[0,3],[1,3],[2,3],[2,2],[3,2],[3,3],[4,3]],
+   [[2,3],[2,4],[3,4],[3,3]],
+   [[3,2],[3,1],[4,1],[4,2]],
+   [[2,2],[1,2],[1,1]],
+   [[1,5],[1,4]]]},
+ {nm:'稀疏远郊',qu:'郊区走线，宁疏勿绕',sz:[6,6],srcs:[[0,1],[0,4]],bulbs:[[5,1],[1,3],[5,3],[2,5]],paths:[
+   [[0,1],[1,1],[2,1],[3,1],[4,1],[5,1]],
+   [[3,1],[3,2],[3,3],[2,3],[1,3]],
+   [[3,3],[4,3],[5,3]],
+   [[0,4],[1,4],[2,4],[2,5]]]},
+ {nm:'五灯大网',qu:'全网检修，一处处点亮',sz:[6,6],srcs:[[0,2],[5,4]],bulbs:[[5,1],[2,4],[3,5],[5,3],[2,1]],paths:[
+   [[0,2],[1,2],[2,2],[3,2],[4,2],[4,1],[5,1]],
+   [[0,2],[1,2],[1,3],[1,4],[2,4]],
+   [[2,2],[2,3],[3,3],[3,4],[3,5]],
+   [[5,4],[4,4],[4,3],[3,3]],
+   [[4,2],[4,3],[5,3]],
+   [[3,2],[3,1],[2,1]]]},
+ {nm:'终局迷阵',qu:'最后一板，线如迷阵',sz:[6,6],srcs:[[0,0],[0,5]],bulbs:[[5,4],[5,5],[4,1],[4,2],[0,3]],paths:[
+   [[0,0],[1,0],[2,0],[2,1],[2,2],[1,2],[1,3],[1,4],[2,4],[3,4],[4,4],[5,4]],
+   [[0,5],[1,5],[2,5],[3,5],[4,5],[5,5]],
+   [[2,2],[3,2],[3,1],[4,1]],
+   [[3,2],[3,3],[4,3],[4,2]],
+   [[1,3],[0,3]]]}
+];
+
+/* ---- 构建关卡（解态）：块表 + SRC/BULB 索引 ---- */
+function buildLevel(D){
+  const C=D.sz[0], R=D.sz[1];
+  const masks=new Array(C*R).fill(0);
+  const isSrc=new Array(C*R).fill(false);
+  const isBulb=new Array(C*R).fill(false);
+  D.srcs.forEach(p=>{ isSrc[p[1]*C+p[0]]=true; });
+  D.bulbs.forEach(p=>{ isBulb[p[1]*C+p[0]]=true; });
+  D.paths.forEach(p=>{
+    /* 沿步进累计端口（srcs/bulbs 已解耦，paths 纯铺线） */
+    if(p.length<2) throw new Error('path<2 @L'+D.nm);
+    for(let k=0;k<p.length-1;k++){
+      const x1=p[k][0], y1=p[k][1], x2=p[k+1][0], y2=p[k+1][1];
+      const dx=x2-x1, dy=y2-y1;
+      const d=DIRS.find(q=>q.dx===dx&&q.dy===dy);
+      if(!d) throw new Error('path step not adjacent @L'+D.nm);
+      masks[y1*C+x1]|=d.m;
+      masks[y2*C+x2]|=OPP[d.m];
+    }
+  });
+  /* srcs/bulbs 格必须被 paths 覆盖（否则 BFS 无源/灯无口=静默死局，G3-M1） */
+  if(!D.srcs.length) throw new Error('no srcs @L'+D.nm);   /* 空声明=永久点不亮（G3-R2 minor-A） */
+  D.srcs.concat(D.bulbs).forEach(p=>{
+    const x=p[0], y=p[1];
+    if(x<0||y<0||x>=C||y>=R||!masks[y*C+x]) throw new Error('src/bulb cell not on paths @L'+D.nm);
+  });
+  /* BULB 单口校验（SRC 允许 1..4 口） */
+  for(let i=0;i<C*R;i++) if(isBulb[i]){ let n=0; for(const q of DIRS) if(masks[i]&q.m) n++;
+    if(n!==1) throw new Error('bulb mask!=1 @'+D.nm); }
+  const blocks=[];
+  for(let i=0;i<C*R;i++){
+    if(!masks[i]) continue;
+    let t; let n=0; for(const q of DIRS) if(masks[i]&q.m) n++;
+    t = n===4?'X' : n===3?'T' : n===2 ? ((masks[i]===5||masks[i]===10)?'I':'L') : '?';
+    if(t==='?'){ if(isSrc[i]) t='SRC'; else if(isBulb[i]) t='BULB'; else throw new Error('port count 1 non-bulb non-src @'+D.nm); }
+    blocks.push({i, m0:masks[i], t, scr:isSrc[i], bulb:isBulb[i]});
+  }
+  /* 解态可达性：任一 BULB 从 SRC 不可达=数据断链（构建期拦截，G3-R2 minor-B） */
+  {
+    const seen=new Array(C*R).fill(false), q=[];
+    D.srcs.forEach(p=>{ const i=p[1]*C+p[0]; seen[i]=true; q.push(i); });
+    while(q.length){
+      const i=q.pop(), cx=i%C, cy=(i-cx)/C, m=masks[i];
+      for(const d of DIRS){
+        if(!(m&d.m)) continue;
+        const nx=cx+d.dx, ny=cy+d.dy;
+        if(nx<0||ny<0||nx>=C||ny>=R) continue;
+        const j=ny*C+nx;
+        if(seen[j]||!(masks[j]&OPP[d.m])) continue;
+        seen[j]=true; q.push(j);
+      }
+    }
+    D.bulbs.forEach(p=>{ if(!seen[p[1]*C+p[0]]) throw new Error('bulb unreachable @L'+D.nm); });
+  }
+  return {C,R,blocks,masks,isSrc,isBulb};
+}
+
+/* ---- 确定 rng（家族 LCG） ---- */
+let RS=1;
+function srand(seed){ RS=(seed>>>0)||1; }
+function rnd(){ RS=(Math.imul(RS,1103515245)+12345)>>>0; return (RS>>>9)/8388608; }
+
+/* ============ 状态 ============ */
+const BEST_KEY='g71_best';
+let S=null, LV=null;
+const $=id=>document.getElementById(id);
+const cv=$('cv'), ctx=cv.getContext('2d');
+let AC=null, SND=false;
+function beep(f,d,t,v){ if(!SND||!AC) return; try{
+  const o=AC.createOscillator(), gn=AC.createGain();
+  o.type=t||'sine'; o.frequency.value=f;
+  gn.gain.setValueAtTime(v||.08, AC.currentTime);
+  gn.gain.exponentialRampToValueAtTime(.0001, AC.currentTime+d);
+  o.connect(gn); gn.connect(AC.destination); o.start(); o.stop(AC.currentTime+d);
+}catch(e){} }
+function snd(kind){
+  if(kind==='tap') beep(380,.05,'triangle',.05);
+  else if(kind==='lit'){ beep(660,.08,'sine',.06); setTimeout(()=>beep(880,.1,'sine',.06),70); }
+  else if(kind==='win'){ [523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.16,'sine',.07), i*90)); }
+  else if(kind==='star'){ [880,1174].forEach((f,i)=>setTimeout(()=>beep(f,.1,'triangle',.06), i*80)); }
+}
+
+/* 几何：网格居中于画区 (36..354)×(36..594) */
+function geoOf(){
+  const C=LV.C, R=LV.R;
+  let cell=Math.min(318/C,558/R); cell=Math.max(44,Math.min(68,cell));
+  const ox=36+(318-C*cell)/2, oy=36+(558-R*cell)/2;
+  return {cell,ox,oy};
+}
+function curMask(b){ let m=b.m0; for(let k=0;k<b.rot;k++) m=rotM(m); return m; }
+
+/* 打乱：L/T/SRC/BULB∈{1,2,3}、I∈{1,3}、X 不转；密度 loop0=0.85 / loop≥1=1 */
+function scramble(lv, loop){
+  const D=LVLDATA[lv];
+  srand((lv+1)*7919 + loop*104729 + 31);
+  const rot={};
+  const dens = loop>0 ? 1 : .85;
+  for(const b of LV.blocks){
+    if(b.t==='X'){ rot[b.i]=0; continue; }
+    if(rnd()>dens){ rot[b.i]=0; continue; }
+    rot[b.i] = b.t==='I' ? (rnd()<.5?1:3) : (1+Math.floor(rnd()*3));
+  }
+  return rot;
+}
+function parOfRot(){
+  let par=0;
+  for(const b of LV.blocks){
+    const r=b.rot;
+    if(!r||b.t==='X'){ continue; }
+    par += b.t==='I' ? 1 : (4-r);   /* I 对称阶 2：转 1 或 3 都 1 次可回；其余 4-r 次 */
+  }
+  return par;
+}
+
+function unscrambleFix(){                          /* 打乱后若已全亮，全体+1 再校验（≤8 轮，尽退=病态数据 throw） */
+  for(let k=0;k<8;k++){
+    recompute();
+    if(!allLit()) return;
+    for(const b of LV.blocks) b.rot=(b.rot+1)%4;
+  }
+  throw new Error('unscrambable level: overlit after 8 rounds');
+}
+function loadLevel(lv, loop){
+  LV=buildLevel(LVLDATA[lv]);
+  LV.map={}; LV.blocks.forEach(b=>LV.map[b.i]=b);
+  LV.srcIdx=LV.blocks.filter(b=>b.scr).map(b=>b.i);
+  LV.bulbIdx=LV.blocks.filter(b=>b.bulb).map(b=>b.i);
+  S.lv=lv; S.loop=loop;
+  const scr=scramble(lv,loop);
+  for(const b of LV.blocks) b.rot=scr[b.i];
+  unscrambleFix();
+  S.par=parOfRot();
+  S.moves=0; S.phase='play'; S.animI=-1; S.animT=0;
+  recompute(); S._lit=litCount(); updHUD();
+}
+function newGame(){
+  S={lv:0,loop:0,moves:0,par:0,score:0,best:loadBest(),starsArr:[],streak:0,phase:'menu',
+     animI:-1,animT:0,flashMsg:'',conn:[],_lit:0};
+  loadLevel(0,0); S.phase='menu'; updHUD();
+}
+function loadBest(){ try{ return +(localStorage.getItem(BEST_KEY)||0); }catch(e){ return 0; } }
+function saveBestNow(){ if(S.score>S.best){ S.best=S.score; try{ localStorage.setItem(BEST_KEY,String(S.best)); }catch(e){} } }
+
+/* 连通 BFS：从各 SRC 沿端口对接传播 */
+function recompute(){
+  const conn=new Array(LV.C*LV.R).fill(false);
+  const q=[];
+  for(const si of LV.srcIdx) if(si!==undefined){ conn[si]=true; q.push(si); }
+  while(q.length){
+    const i=q.pop(), c=i%LV.C, r=(i-c)/LV.C;
+    const b=LV.map[i], m=curMask(b);
+    for(const d of DIRS){
+      if(!(m&d.m)) continue;
+      const nc=c+d.dx, nr=r+d.dy;
+      if(nc<0||nr<0||nc>=LV.C||nr>=LV.R) continue;
+      const j=nr*LV.C+nc, b2=LV.map[j];
+      if(!b2||conn[j]) continue;
+      if(curMask(b2)&OPP[d.m]){ conn[j]=true; q.push(j); }
+    }
+  }
+  S.conn=conn;
+}
+function litCount(){ let n=0; for(const bi of LV.bulbIdx) if(S.conn[bi]) n++; return n; }
+function allLit(){ return litCount()===LV.bulbIdx.length; }
+
+function updHUD(){
+  $('lvv').textContent=(S.loop>0?(S.loop+1)+'×':'')+Math.min(S.lv+1,12)+'/12';
+  $('litv').textContent=litCount()+'/'+LV.bulbIdx.length;
+  const st=starOf().earned;
+  document.querySelectorAll('#stars .st').forEach((el,i)=>el.classList.toggle('on', i<st && S.phase!=='menu'));
+}
+function starOf(){ return {earned: S.moves<=S.par?3 : S.moves<=S.par+4?2 : 1}; }
+
+function flash(msg){
+  S.flashMsg=msg;
+  const f=$('flashtx'); f.textContent=msg; f.classList.add('show');
+  clearTimeout(flash._t);
+  flash._t=setTimeout(()=>f.classList.remove('show'),2000);
+}
+function tapCell(i){
+  if(S.phase!=='play') return false;
+  const b=LV.map[i];
+  if(!b) return false;
+  b.rot=(b.rot+1)%4;
+  S.moves++;
+  S.animI=i; S.animT=1;
+  const before=S._lit||0;
+  recompute();
+  const now=litCount();
+  snd('tap');
+  if(now>before) snd('lit');
+  S._lit=now;
+  if(allLit()) doWin();
+  updHUD();
+  return true;
+}
+function resetLvl(){                                   /* 恢复打乱态；moves 保留（防刷星） */
+  if(S.phase!=='play') return;
+  const scr=scramble(S.lv,S.loop);
+  for(const b of LV.blocks) b.rot=scr[b.i];
+  unscrambleFix();
+  S.animI=-1; S._lit=litCount(); updHUD();
+}
+function doWin(){
+  S.phase='win';
+  const st=starOf().earned;
+  const NB=LV.blocks.length;
+  S.starsArr[S.loop*12+S.lv]=Math.max(S.starsArr[S.loop*12+S.lv]||0,st);
+  if(st===3) S.streak++; else S.streak=0;
+  const mult=1+.5*Math.min(S.streak-1<0?0:S.streak-1,6);
+  const loopMul=Math.min(1+.2*S.loop,4);
+  const gain=Math.floor((40*(S.lv+1)+30*st+6*NB)*mult*loopMul);
+  S.score+=gain; S.lastGain=gain;
+  saveBestNow();
+  burstAll();
+  snd('win'); if(st===3) setTimeout(()=>snd('star'),360);
+  setTimeout(()=>{
+    document.querySelectorAll('#winlay .sb').forEach((el,i)=>el.classList.toggle('on',i<st));
+    $('cnamev').textContent=LVLDATA[S.lv].nm;
+    $('cquipv').textContent='· '+LVLDATA[S.lv].qu+' ·';
+    $('winscore').innerHTML='本关 <b>+'+gain+'</b>';
+    $('gainf').textContent='总分 '+S.score+(mult>1?' · 连星 ×'+mult.toFixed(1):'')+(loopMul>1?' · 周目 ×'+loopMul.toFixed(1):'');
+    $('parline').textContent='旋转 '+S.moves+' 次（参考 '+S.par+'）　最高累计 '+S.best;
+    $('btn-next').textContent=(S.lv===11)?'进入下一周目':'下一关';
+    $('winlay').classList.remove('hide');
+  },820);
+  updHUD();
+}
+function nextLevel(){
+  $('winlay').classList.add('hide');
+  if(S.lv===11) loadLevel(0,S.loop+1);
+  else loadLevel(S.lv+1,S.loop);
+}
+
+/* ============ FX ============ */
+let FX={parts:[]};
+function burstAll(){
+  for(let i=0;i<64;i++){
+    FX.parts.push({x:(i*61)%386+2,y:-8-((i*37)%40),vx:((i*29)%10-5)*6,vy:60+((i*17)%50),
+                   t:0,life:.9+((i*13)%40)/100,c:i%3===0?'#ffd98a':'#7ef0d4'});
+  }
+}
+function fxStep(dt){
+  for(const p of FX.parts){ p.t+=dt; p.x+=p.vx*dt; p.y+=p.vy*dt; }
+  FX.parts=FX.parts.filter(p=>p.t<p.life&&p.y<800);
+  if(S){
+    if(S.animT>0) S.animT=Math.max(0,S.animT-dt*6);
+  }
+}
+
+function draw(){
+  ctx.clearRect(0,0,390,780);
+  if(!S||!LV) return;
+  const g=geoOf(), cell=g.cell;
+  const dim=S.phase==='pause';
+  /* 焊点微光底纹（确定式） */
+  for(let i=0;i<40;i++){
+    const sx=((i*97)%386)+2, sy=((i*173)%760)+8;
+    ctx.globalAlpha=dim?.15:.08+.08*Math.sin((Date.now()/1000)+i%5);
+    ctx.fillStyle='#7ef0d4';
+    ctx.fillRect(sx,sy,1.4,1.4);
+  }
+  ctx.globalAlpha=1;
+  /* 网格底槽 */
+  ctx.fillStyle='rgba(126,240,212,.045)';
+  for(let r=0;r<LV.R;r++) for(let c=0;c<LV.C;c++){
+    ctx.fillRect(g.ox+c*cell+2,g.oy+r*cell+2,cell-4,cell-4);
+  }
+  const now=Date.now();
+  /* 块 */
+  for(const b of LV.blocks){
+    const i=b.i, c=i%LV.C, r=(i-c)/LV.C;
+    const cx=g.ox+c*cell+cell/2, cy=g.oy+r*cell+cell/2;
+    const on=S.conn[i];
+    let ang=b.rot*Math.PI/2;
+    if(S.animI===i&&S.animT>0){ ang-=(S.animT*S.animT)*Math.PI/2; }   /* ease-out 收尾 */
+    const m=curMask(b);
+    ctx.save();
+    ctx.translate(cx,cy);
+    /* 块底 */
+    ctx.fillStyle= on?'rgba(126,240,212,.10)':'rgba(126,240,212,.055)';
+    ctx.strokeStyle= on?'rgba(126,240,212,.45)':'rgba(126,240,212,.14)';
+    ctx.lineWidth=1;
+    const h=cell/2-3;
+    ctx.beginPath();
+    if(ctx.roundRect) ctx.roundRect(-h,-h,cell-6,cell-6,7);
+    else ctx.rect(-h,-h,cell-6,cell-6);
+    ctx.fill(); ctx.stroke();
+    /* 导线：画解态口 m0，画布已 rotate(rot) → 落点=当前掩码方向（勿用当前掩码判向，否则双重旋转） */
+    ctx.rotate(ang);
+    if(on){ ctx.strokeStyle='#7ef0d4'; ctx.lineWidth=Math.max(3,cell*.085);
+      ctx.shadowColor='rgba(126,240,212,.8)'; ctx.shadowBlur=9; }
+    else{ ctx.strokeStyle='#c98f4e'; ctx.lineWidth=Math.max(2.5,cell*.075);
+      ctx.shadowColor='rgba(201,143,78,.35)'; ctx.shadowBlur=dim?0:4; }
+    ctx.lineCap='round';
+    const L=h-2, m0=b.m0;
+    const port=(dm)=>{ const dd=DIRS.find(q=>q.m===dm);
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(dd.dx*L,dd.dy*L); ctx.stroke(); };
+    for(const q of DIRS) if(m0&q.m) port(q.m);
+    ctx.shadowBlur=0;
+    /* 通电流动虚线 */
+    if(on&&!dim){
+      ctx.save();
+      ctx.strokeStyle='rgba(234,255,248,.55)';
+      ctx.lineWidth=1.4;
+      ctx.setLineDash([3,9]); ctx.lineDashOffset=-(now/28)%12;
+      for(const q of DIRS) if(m0&q.m){ const dd=DIRS.find(z=>z.m===q.m);
+        ctx.beginPath(); ctx.moveTo(dd.dx*3,dd.dy*3); ctx.lineTo(dd.dx*(L-2),dd.dy*(L-2)); ctx.stroke(); }
+      ctx.restore();
+    }
+    ctx.restore();
+    /* 端口节点（不随 ang——位置由当前掩码决定，画在边缘中点） */
+    for(const q of DIRS) if(m&q.m){
+      const px=cx+q.dx*(cell/2-3), py=cy+q.dy*(cell/2-3);
+      ctx.beginPath(); ctx.arc(px,py,on?2.6:2,0,7);
+      ctx.fillStyle= on?'#c8f5e9':'rgba(201,143,78,.9)';
+      ctx.fill();
+    }
+    /* SRC 符号（块心，不随角转——电池图形） */
+    if(b.scr){
+      ctx.save(); ctx.translate(cx,cy);
+      const glow=.7+.3*Math.sin(now/300);
+      ctx.shadowColor='rgba(126,240,212,.9)'; ctx.shadowBlur=10*glow+3;
+      ctx.strokeStyle='#c8f5e9'; ctx.lineWidth=1.6; ctx.lineCap='round';
+      const s=Math.max(5,cell*.14);
+      ctx.beginPath(); ctx.moveTo(-s,-s*.45); ctx.lineTo(-s,s*.45); ctx.stroke();          /* 长 */
+      ctx.beginPath(); ctx.moveTo(-s*.45,-s*.25); ctx.lineTo(-s*.45,s*.25); ctx.stroke();  /* 短 */
+      ctx.beginPath(); ctx.moveTo(s*.2,-s*.7); ctx.lineTo(s*.2,s*.7); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(s*.05,0); ctx.lineTo(s*.85,0); ctx.lineTo(s*.55,-s*.3); ctx.moveTo(s*.85,0); ctx.lineTo(s*.55,s*.3); ctx.stroke();
+      ctx.restore();
+    }
+    /* BULB 灯泡 */
+    if(b.bulb){
+      ctx.save(); ctx.translate(cx,cy);
+      const lit=S.conn[i];
+      const br= lit ? .8+.2*Math.sin(now/260) : 0;
+      const rb=Math.max(6,cell*.16);
+      if(lit){ ctx.shadowColor='rgba(255,217,138,.95)'; ctx.shadowBlur=14*br+4; }
+      ctx.beginPath(); ctx.arc(0,-rb*.15,rb,0,7);
+      ctx.fillStyle= lit?'#ffd98a':'rgba(201,143,78,.28)';
+      ctx.fill();
+      ctx.strokeStyle= lit?'#ffe9c0':'#c98f4e'; ctx.lineWidth=1.4; ctx.stroke();
+      ctx.shadowBlur=0;
+      ctx.strokeStyle= lit?'#fff6dd':'rgba(201,143,78,.7)';
+      ctx.beginPath(); ctx.moveTo(-rb*.4,rb*.75); ctx.lineTo(rb*.4,rb*.75);
+      ctx.moveTo(-rb*.3,rb*1.05); ctx.lineTo(rb*.3,rb*1.05); ctx.stroke();
+      ctx.restore();
+    }
+  }
+  /* FX */
+  for(const p of FX.parts){
+    ctx.globalAlpha=Math.max(0,1-p.t/p.life);
+    ctx.fillStyle=p.c;
+    ctx.beginPath(); ctx.arc(p.x,p.y,2.2,0,7); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+}
+
+/* ============ 主循环 ============ */
+let lastT=0;
+function loop(ts){
+  const dt=Math.min(.05,(ts-lastT)/1000||.016); lastT=ts;
+  if(S&&S.phase!=='pause') fxStep(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+/* ============ 输入 ============ */
+cv.addEventListener('pointerdown',e=>{
+  e.preventDefault();
+  if(!S||S.phase!=='play') return;
+  const r=cv.getBoundingClientRect();
+  const x=(e.clientX-r.left)*(390/r.width), y=(e.clientY-r.top)*(780/r.height);
+  const g=geoOf();
+  const c=Math.floor((x-g.ox)/g.cell), rr=Math.floor((y-g.oy)/g.cell);
+  if(c<0||rr<0||c>=LV.C||rr>=LV.R) return;
+  tapCell(rr*LV.C+c);
+});
+
+/* ============ 按钮 ============ */
+function ensureAC(){ if(!AC){ try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } }
+$('btn-go').addEventListener('click',()=>{ ensureAC(); $('menu').classList.add('hide'); S.phase='play'; S._lit=litCount(); flash('tap 转动导线 · 点亮所有灯'); updHUD(); });
+$('btn-help').addEventListener('click',()=>{ const h=$('helptx'); h.style.display=h.style.display==='none'?'block':'none'; });
+$('btn-snd').addEventListener('click',()=>{ SND=!SND; ensureAC(); $('btn-snd').textContent=SND?'🔊':'🔇'; });
+$('btn-pause').addEventListener('click',()=>{ if(S.phase==='play'){S.phase='pause';$('pauselay').classList.remove('hide');} });
+$('btn-resume').addEventListener('click',()=>{ if(S.phase==='pause'){S.phase='play';$('pauselay').classList.add('hide');} });
+$('btn-home').addEventListener('click',()=>{ $('pauselay').classList.add('hide'); $('menu').classList.remove('hide');
+  $('bestline').textContent='最高累计 '+S.best; S.phase='menu'; updHUD(); });
+$('btn-reset').addEventListener('click',()=>resetLvl());
+$('btn-next').addEventListener('click',()=>nextLevel());
+$('btn-replay').addEventListener('click',()=>{ $('winlay').classList.add('hide');
+  const m=S.moves;                                 /* 重摆保留 moves（防刷星；loadLevel 不触碰 streak） */
+  loadLevel(S.lv,S.loop);
+  S.moves=m; S.phase='play'; S._lit=litCount(); updHUD();
+});
+
+function onHidden(){ if(document.hidden) saveBestNow(); }
+document.addEventListener('visibilitychange',onHidden);
+window.addEventListener('pagehide',()=>saveBestNow());
+
+newGame();
+$('bestline').textContent='最高累计 '+S.best;
+requestAnimationFrame(loop);
+
+/* ============ DEV 钩子（构建剥离） ============ */
+</script>
+</body>
+</html>
