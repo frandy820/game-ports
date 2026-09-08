@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>飞花令 · 曲水诗笺</title>
+<style>
+  html,body{margin:0;padding:0;background:#0a0e10;height:100%;overflow:hidden;
+    font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+  #app{position:relative;width:390px;height:844px;margin:0 auto;background:#10161a;overflow:hidden}
+  #hud{position:absolute;top:0;left:0;width:390px;height:64px;z-index:5;
+    background:linear-gradient(180deg,#141b20,#0e1418);border-bottom:1px solid rgba(127,184,164,.22);
+    display:flex;align-items:center;gap:8px;padding:0 10px;box-sizing:border-box}
+  .pill{background:rgba(244,236,216,.07);border:1px solid rgba(244,236,216,.25);border-radius:10px;
+    padding:3px 9px;color:#f4ecd8;font-size:13px;font-weight:600;white-space:nowrap}
+  .pill small{color:rgba(244,236,216,.65);font-weight:500;margin-right:2px}
+  #hud .sp{flex:1}
+  .lives{display:flex;gap:4px;align-items:center}
+  .lamp{width:9px;height:12px;border-radius:45% 45% 40% 40%;background:rgba(216,84,74,.9);
+    border:1px solid rgba(255,180,160,.4);box-shadow:0 0 5px rgba(216,84,74,.5)}
+  .lamp.off{background:rgba(120,110,100,.25);box-shadow:none;border-color:rgba(160,150,140,.25)}
+  .hbtn{width:36px;height:36px;border-radius:50%;border:1px solid rgba(244,236,216,.32);
+    background:rgba(244,236,216,.07);color:#f4ecd8;font-size:16px;display:flex;
+    align-items:center;justify-content:center;cursor:pointer}
+  #cv{position:absolute;top:64px;left:0;width:390px;height:780px;display:block;touch-action:none}
+  .lay{position:absolute;inset:0;z-index:8;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;background:rgba(6,10,12,.84);backdrop-filter:blur(2px)}
+  .lay.hide{display:none}
+  .ttl{font-size:30px;font-weight:800;color:#f4ecd8;letter-spacing:6px;margin-bottom:8px}
+  .sub{font-size:14px;color:rgba(244,236,216,.72);margin-bottom:22px;line-height:1.7;text-align:center}
+  .bigbtn{background:linear-gradient(180deg,#cf5a4c,#a83e33);border:1px solid #f0a08e;color:#fdf6e8;
+    font-size:18px;font-weight:700;letter-spacing:4px;padding:13px 42px;border-radius:14px;cursor:pointer;
+    box-shadow:0 4px 16px rgba(216,84,74,.3)}
+  .row{display:flex;gap:14px;align-items:center}
+  .score-big{font-size:42px;font-weight:800;color:#f4ecd8;text-shadow:0 0 18px rgba(244,236,216,.35)}
+  #flashtx{position:absolute;top:84px;left:50%;transform:translateX(-50%);z-index:6;padding:7px 18px;
+    border-radius:11px;background:rgba(244,236,216,.1);border:1px solid rgba(244,236,216,.3);
+    color:#f4ecd8;font-size:14px;font-weight:600;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
+  #flashtx.show{opacity:1}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div class="pill"><small>分</small><span id="scv">0</span></div>
+    <div class="pill"><small>轮</small><span id="rnv">1</span></div>
+    <div class="lives"><span class="lamp" id="lf0"></span><span class="lamp" id="lf1"></span><span class="lamp" id="lf2"></span></div>
+    <div class="sp"></div>
+    <div class="pill"><small>时</small><span id="tmv">10</span></div>
+    <div class="hbtn" id="btn-snd">🔇</div>
+    <div class="hbtn" id="btn-pause">⏸</div>
+  </div>
+  <canvas id="cv" width="390" height="780"></canvas>
+  <div id="flashtx"></div>
+
+  <div class="lay" id="menu">
+    <div class="ttl">飞 花 令</div>
+    <div class="sub">曲水诗笺 · 以字行令<br>与诗翁轮流说含令字的诗句<br>接不上、选错句，熄一盏灯</div>
+    <div class="bigbtn" id="btn-go">入 席</div>
+    <div class="sub" style="margin-top:20px;margin-bottom:0" id="bestline">最高累计 0</div>
+  </div>
+
+  <div class="lay hide" id="pauselay">
+    <div class="ttl">歇 一 会</div>
+    <div class="bigbtn" id="btn-resume">继 续</div>
+    <div style="height:14px"></div>
+    <div class="bigbtn" id="btn-home" style="background:linear-gradient(180deg,#2c3438,#20272b);border-color:#74827e;box-shadow:none">离 席</div>
+  </div>
+
+  <div class="lay hide" id="overlay">
+    <div class="ttl">曲 终</div>
+    <div class="score-big" id="overscore">0</div>
+    <div class="sub" id="overstat">接句 0 · 换令 0 · 最长连 ×0</div>
+    <div class="bigbtn" id="btn-again">再 来</div>
+  </div>
+</div>
+<script>
+/* ============ 飞花令 · 曲水诗笺（game73） ============ */
+/* 公版名句库（每句 {t,p,n,k}）+ 按字索引 + 与 AI 轮流接句 */
+'use strict';
+const $=id=>document.getElementById(id);
+const cv=$('cv'), ctx=cv.getContext('2d');
+let AC=null, SND=false;
+function ensureAC(){ if(AC||!(window.AudioContext||window.webkitAudioContext)) return;
+  try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
+function beep(f,d,t,v){ if(!SND||!AC) return; try{
+  const o=AC.createOscillator(), gn=AC.createGain();
+  o.type=t||'sine'; o.frequency.value=f;
+  gn.gain.setValueAtTime(v||.08, AC.currentTime);
+  gn.gain.exponentialRampToValueAtTime(.0001, AC.currentTime+d);
+  o.connect(gn); gn.connect(AC.destination); o.start(); o.stop(AC.currentTime+d);
+}catch(e){} }
+function snd(k){ if(k==='sel')beep(660,.08,'triangle',.05);
+  else if(k==='ok')beep(880,.3,'sine',.07);
+  else if(k==='bell'){beep(1046,.25,'sine',.06);setTimeout(()=>beep(1318,.3,'sine',.05),120);}
+  else if(k==='qin')beep(440,.2,'triangle',.06);
+  else if(k==='bad')beep(150,.25,'square',.05);
+  else if(k==='tick')beep(300,.04,'triangle',.04); }
+
+/* ---- 确定 rng（家族 LCG） ---- */
+let RS=1;
+function srand(seed){ RS=(seed>>>0)||1; }
+function rnd(){ RS=(Math.imul(RS,1103515245)+12345)>>>0; return (RS>>>9)/8388608; }
+
+/* ---- 诗词库（公版名句，k=主令字；同诗不同句可分属不同令字） ---- */
+const KEYS=['花','月','风','春','江','雪','夜','山','水','酒'];
+const POEMS=[
+ /* 花 */
+ {t:'花落知多少',p:'孟浩然',n:'春晓',k:'花'},
+ {t:'感时花溅泪',p:'杜甫',n:'春望',k:'花'},
+ {t:'竹外桃花三两枝',p:'苏轼',n:'惠崇春江晚景',k:'花'},
+ {t:'花间一壶酒',p:'李白',n:'月下独酌',k:'花'},
+ {t:'牧童遥指杏花村',p:'杜牧',n:'清明',k:'花'},
+ {t:'千树万树梨花开',p:'岑参',n:'白雪歌送武判官归京',k:'花'},
+ {t:'禅房花木深',p:'常建',n:'题破山寺后禅院',k:'花'},
+ {t:'花重锦官城',p:'杜甫',n:'春夜喜雨',k:'花'},
+ {t:'还来就菊花',p:'孟浩然',n:'过故人庄',k:'花'},
+ {t:'霜叶红于二月花',p:'杜牧',n:'山行',k:'花'},
+ /* 月 */
+ {t:'床前明月光',p:'李白',n:'静夜思',k:'月'},
+ {t:'月落乌啼霜满天',p:'张继',n:'枫桥夜泊',k:'月'},
+ {t:'举杯邀明月',p:'李白',n:'月下独酌',k:'月'},
+ {t:'海上生明月',p:'张九龄',n:'望月怀远',k:'月'},
+ {t:'月是故乡明',p:'杜甫',n:'月夜忆舍弟',k:'月'},
+ {t:'明月松间照',p:'王维',n:'山居秋暝',k:'月'},
+ {t:'秦时明月汉时关',p:'王昌龄',n:'出塞',k:'月'},
+ {t:'月有阴晴圆缺',p:'苏轼',n:'水调歌头',k:'月'},
+ {t:'海上明月共潮生',p:'张若虚',n:'春江花月夜',k:'月'},
+ {t:'露似真珠月似弓',p:'白居易',n:'暮江吟',k:'月'},
+ /* 风 */
+ {t:'夜来风雨声',p:'孟浩然',n:'春晓',k:'风'},
+ {t:'春风又绿江南岸',p:'王安石',n:'泊船瓜洲',k:'风'},
+ {t:'忽如一夜春风来',p:'岑参',n:'白雪歌送武判官归京',k:'风'},
+ {t:'春风吹又生',p:'白居易',n:'赋得古原草送别',k:'风'},
+ {t:'风吹草低见牛羊',p:'北朝民歌',n:'敕勒歌',k:'风'},
+ {t:'吹面不寒杨柳风',p:'志南',n:'绝句',k:'风'},
+ {t:'随风潜入夜',p:'杜甫',n:'春夜喜雨',k:'风'},
+ {t:'长风破浪会有时',p:'李白',n:'行路难',k:'风'},
+ {t:'北风卷地白草折',p:'岑参',n:'白雪歌送武判官归京',k:'风'},
+ {t:'风烟望五津',p:'王勃',n:'送杜少府之任蜀州',k:'风'},
+ /* 春 */
+ {t:'春眠不觉晓',p:'孟浩然',n:'春晓',k:'春'},
+ {t:'当春乃发生',p:'杜甫',n:'春夜喜雨',k:'春'},
+ {t:'春风花草香',p:'杜甫',n:'绝句',k:'春'},
+ {t:'春来发几枝',p:'王维',n:'相思',k:'春'},
+ {t:'二月春风似剪刀',p:'贺知章',n:'咏柳',k:'春'},
+ {t:'春色满园关不住',p:'叶绍翁',n:'游园不值',k:'春'},
+ {t:'报得三春晖',p:'孟郊',n:'游子吟',k:'春'},
+ {t:'阳春布德泽',p:'汉乐府',n:'长歌行',k:'春'},
+ {t:'春风不度玉门关',p:'王之涣',n:'凉州词',k:'春'},
+ {t:'城春草木深',p:'杜甫',n:'春望',k:'春'},
+ /* 江 */
+ {t:'春江潮水连海平',p:'张若虚',n:'春江花月夜',k:'江'},
+ {t:'唯见长江天际流',p:'李白',n:'黄鹤楼送孟浩然之广陵',k:'江'},
+ {t:'日出江花红胜火',p:'白居易',n:'忆江南',k:'江'},
+ {t:'江上往来人',p:'范仲淹',n:'江上渔者',k:'江'},
+ {t:'独钓寒江雪',p:'柳宗元',n:'江雪',k:'江'},
+ {t:'江船火独明',p:'杜甫',n:'春夜喜雨',k:'江'},
+ {t:'月涌大江流',p:'杜甫',n:'旅夜书怀',k:'江'},
+ {t:'不尽长江滚滚来',p:'杜甫',n:'登高',k:'江'},
+ {t:'春来江水绿如蓝',p:'白居易',n:'忆江南',k:'江'},
+ {t:'半江瑟瑟半江红',p:'白居易',n:'暮江吟',k:'江'},
+ /* 雪 */
+ {t:'窗含西岭千秋雪',p:'杜甫',n:'绝句',k:'雪'},
+ {t:'遥知不是雪',p:'王安石',n:'梅花',k:'雪'},
+ {t:'风雪夜归人',p:'刘长卿',n:'逢雪宿芙蓉山主人',k:'雪'},
+ {t:'燕山雪花大如席',p:'李白',n:'北风行',k:'雪'},
+ {t:'五月天山雪',p:'李白',n:'塞下曲',k:'雪'},
+ {t:'大雪压青松',p:'陈毅',n:'青松',k:'雪'},
+ {t:'大雪满弓刀',p:'卢纶',n:'塞下曲',k:'雪'},
+ {t:'晚来天欲雪',p:'白居易',n:'问刘十九',k:'雪'},
+ {t:'雪尽马蹄轻',p:'王维',n:'观猎',k:'雪'},
+ {t:'梅须逊雪三分白',p:'卢梅坡',n:'雪梅',k:'雪'},
+ /* 夜 */
+ {t:'夜半钟声到客船',p:'张继',n:'枫桥夜泊',k:'夜'},
+ {t:'夜吟应觉月光寒',p:'李商隐',n:'无题',k:'夜'},
+ {t:'昼出耘田夜绩麻',p:'范成大',n:'四时田园杂兴',k:'夜'},
+ {t:'今夜偏知春气暖',p:'刘方平',n:'月夜',k:'夜'},
+ {t:'夜阑卧听风吹雨',p:'陆游',n:'十一月四日风雨大作',k:'夜'},
+ {t:'可怜九月初三夜',p:'白居易',n:'暮江吟',k:'夜'},
+ {t:'寒雨连江夜入吴',p:'王昌龄',n:'芙蓉楼送辛渐',k:'夜'},
+ {t:'一夜征人尽望乡',p:'李益',n:'夜上受降城闻笛',k:'夜'},
+ {t:'去年元夜时',p:'欧阳修',n:'生查子·元夕',k:'夜'},
+ {t:'小楼一夜听春雨',p:'陆游',n:'临安春雨初霁',k:'夜'},
+ /* 山 */
+ {t:'白日依山尽',p:'王之涣',n:'登鹳雀楼',k:'山'},
+ {t:'一览众山小',p:'杜甫',n:'望岳',k:'山'},
+ {t:'不识庐山真面目',p:'苏轼',n:'题西林壁',k:'山'},
+ {t:'千山鸟飞绝',p:'柳宗元',n:'江雪',k:'山'},
+ {t:'空山新雨后',p:'王维',n:'山居秋暝',k:'山'},
+ {t:'一片孤城万仞山',p:'王之涣',n:'凉州词',k:'山'},
+ {t:'青山郭外斜',p:'孟浩然',n:'过故人庄',k:'山'},
+ {t:'两岸青山相对出',p:'李白',n:'望天门山',k:'山'},
+ {t:'山重水复疑无路',p:'陆游',n:'游山西村',k:'山'},
+ {t:'明月出天山',p:'李白',n:'关山月',k:'山'},
+ /* 水 */
+ {t:'曾经沧海难为水',p:'元稹',n:'离思',k:'水'},
+ {t:'桃花潭水深千尺',p:'李白',n:'赠汪伦',k:'水'},
+ {t:'抽刀断水水更流',p:'李白',n:'宣州谢朓楼饯别校书叔云',k:'水'},
+ {t:'水光潋滟晴方好',p:'苏轼',n:'饮湖上初晴后雨',k:'水'},
+ {t:'水村山郭酒旗风',p:'杜牧',n:'江南春',k:'水'},
+ {t:'烟笼寒水月笼沙',p:'杜牧',n:'泊秦淮',k:'水'},
+ {t:'流水落花春去也',p:'李煜',n:'浪淘沙',k:'水'},
+ {t:'为有源头活水来',p:'朱熹',n:'观书有感',k:'水'},
+ {t:'黄河之水天上来',p:'李白',n:'将进酒',k:'水'},
+ {t:'仍怜故乡水',p:'李白',n:'渡荆门送别',k:'水'},
+ /* 酒 */
+ {t:'劝君更尽一杯酒',p:'王维',n:'送元二使安西',k:'酒'},
+ {t:'借问酒家何处有',p:'杜牧',n:'清明',k:'酒'},
+ {t:'葡萄美酒夜光杯',p:'王翰',n:'凉州词',k:'酒'},
+ {t:'白日放歌须纵酒',p:'杜甫',n:'闻官军收河南河北',k:'酒'},
+ {t:'金樽清酒斗十千',p:'李白',n:'行路难',k:'酒'},
+ {t:'莫笑农家腊酒浑',p:'陆游',n:'游山西村',k:'酒'},
+ {t:'一壶浊酒喜相逢',p:'杨慎',n:'临江仙',k:'酒'},
+ {t:'把酒问青天',p:'苏轼',n:'水调歌头',k:'酒'},
+ {t:'浊酒一杯家万里',p:'范仲淹',n:'渔家傲·秋思',k:'酒'},
+ {t:'东篱把酒黄昏后',p:'李清照',n:'醉花阴',k:'酒'}
+];
+/* 索引 + 一致性 throw（构建即校验：主字必含/无重复句） */
+const IDX={};
+for(let i=0;i<POEMS.length;i++){
+  const pm=POEMS[i];
+  if(typeof pm.t!=='string'||!pm.t.includes(pm.k))
+    throw new Error('poem idx broken @'+i+':'+pm.t);
+  (IDX[pm.k]=IDX[pm.k]||[]).push(i);
+}
+for(let a=0;a<POEMS.length;a++) for(let b=a+1;b<POEMS.length;b++)
+  if(POEMS[a].t===POEMS[b].t) throw new Error('poem dup:'+POEMS[a].t);
+
+/* ============ 状态 ============ */
+const BEST_KEY='g73_best';
+const TURN_TIME=10, AI_TIME=1.2, START_LIVES=3;
+let S=null, G=null;
+/* G={keyIdx, used:Set, options:[i×4], correct, isAI, aiIdx, aiShown, aiT} */
+let HIT={opts:[]};
+let flashT=0, shakeT=0;
+const BEST_STASH={v:0};
+function loadBest(){ try{ return +(localStorage.getItem(BEST_KEY)||0); }catch(e){ return 0; } }
+function saveBestNow(){ if(S && S.score>S.best){ S.best=S.score; try{ localStorage.setItem(BEST_KEY,String(S.best)); }catch(e){} } }
+let tipTO=null;
+function flash(msg){ const f=$('flashtx'); f.textContent=msg; f.classList.add('show');
+  clearTimeout(tipTO); tipTO=setTimeout(()=>f.classList.remove('show'),1600); }
+
+function curKey(){ return KEY_ORDER[S.keyOrd]; }
+/* 令字序：开局按 seed 打乱一次（KEY_ORDER 局内固定，换令循环推进） */
+let KEY_ORDER=KEYS.slice();
+function shuffleKeys(){ KEY_ORDER=KEYS.slice();
+  for(let i=KEY_ORDER.length-1;i>0;i--){ const j=Math.floor(rnd()*(i+1));
+    const t=KEY_ORDER[i]; KEY_ORDER[i]=KEY_ORDER[j]; KEY_ORDER[j]=t; } }
+
+function unusedOf(k){ return (IDX[k]||[]).filter(i=>!G.used.has(i)); }
+function allUnused(){ let n=0; for(const k of KEY_ORDER) n+=unusedOf(k).length; return n; }
+
+function newGame(){
+  S={phase:'menu',time:TURN_TIME,score:0,best:loadBest(),streak:0,maxStreak:0,
+     lives:START_LIVES,roundN:1,swaps:0,keyOrd:0,picked:0,paused:false,_lt:-1};
+  G=null; KEY_ORDER=KEYS.slice();
+}
+function startRound(){ clearTimeout(tipTO);
+  RS=RS>>>0; shuffleKeys();
+  S.time=TURN_TIME; S.score=0; S.streak=0; S.maxStreak=0; S.lives=START_LIVES;
+  S.roundN=1; S.swaps=0; S.keyOrd=0; S.picked=0;
+  G={keyOrd:0, used:new Set(), options:[], correct:-1, isAI:false, aiIdx:-1, aiShown:0, aiT:0};
+  /* 开局若首令字耗尽（不可能，但守卫）→ 换令 */
+  if(unusedOf(curKey()).length===0) swapKey(false);
+  buildOptions(); S.phase='play'; updHUD(); }
+
+/* ---- 换令（notify=是否提示/奖励；false=静默初始化） ---- */
+function swapKey(notify){
+  S.keyOrd=(S.keyOrd+1)%KEY_ORDER.length; G.keyOrd=S.keyOrd;
+  G.options=[]; G.correct=-1;
+  if(notify){ S.swaps++; S.score+=200; snd('bell');
+    flash('换令 · 「'+KEY_ORDER[(S.keyOrd+KEY_ORDER.length-1)%KEY_ORDER.length]+'」尽 → 「'+curKey()+'」 +200'); }
+}
+/* ---- 玩家轮：1 正确（未用含字）+3 干扰（不含字） ---- */
+function buildOptions(){
+  if(allUnused()===0){ gameOver(); return; }   /* 百句全尽=完美收官终局 */
+  const k=curKey();
+  let pool=unusedOf(k);
+  if(pool.length===0){ swapKey(true); return buildOptions(); }
+  const ci=pool[Math.floor(rnd()*pool.length)];
+  /* 干扰池：不含 k 的句（可含已用——见过≠错，可辨性=策略） */
+  const dis=[]; const disPool=[];
+  for(let i=0;i<POEMS.length;i++) if(!POEMS[i].t.includes(k)) disPool.push(i);
+  for(let n=0;n<3 && disPool.length;n++){
+    const j=Math.floor(rnd()*disPool.length);
+    dis.push(disPool.splice(j,1)[0]);
+  }
+  while(dis.length<3) dis.push((ci+dis.length+1)%POEMS.length);   /* 理论不可达兜底 */
+  const opts=[ci].concat(dis);
+  /* 洗位置（确定性） */
+  for(let i=opts.length-1;i>0;i--){ const j=Math.floor(rnd()*(i+1));
+    const t=opts[i]; opts[i]=opts[j]; opts[j]=t; }
+  G.options=opts; G.correct=opts.indexOf(ci);
+  G.isAI=false; S.time=TURN_TIME; S._lt=-1;
+}
+/* ---- 判卷 ---- */
+function pick(i){
+  if(S.phase!=='play'||!G||G.isAI) return false;
+  if(i<0||i>=4||G.correct<0) return false;
+  const isRight=(i===G.correct);
+  const idx=G.options[i], pm=POEMS[idx];
+  /* 双保险：正确性以「句含令字且未用」为准（非仅位置） */
+  const right2=pm.t.includes(curKey()) && !G.used.has(idx);
+  if(isRight!==right2) return false;                       /* 内态不一致：拒绝（防错位） */
+  if(isRight){
+    G.used.add(idx); S.picked++;
+    S.streak++; S.maxStreak=Math.max(S.maxStreak,S.streak);
+    const mult=1+.5*Math.min(S.streak-1,6);
+    S.score+=Math.floor(100*mult);
+    snd('ok'); flash(pm.p+'·'+pm.n);
+    startAITurn(); updHUD(); return true;
+  } else {
+    loseLife('此句无「'+curKey()+'」字'); return true;
+  }
+}
+function loseLife(why){
+  S.streak=0; S.lives--; snd('bad'); shakeT=.4;
+  if(S.lives<=0){ S.lives=0; flash(why); gameOver(); }
+  else { flash(why+' · 熄一灯'); buildOptions(); }
+  updHUD();
+}
+function gameOver(){
+  S.phase='over'; saveBestNow(); clearTimeout(tipTO);
+  $('overscore').textContent=S.score;
+  $('overstat').textContent='接句 '+S.picked+' · 换令 '+S.swaps+' · 最长连 ×'+S.maxStreak;
+  $('overlay').classList.remove('hide');
+}
+/* ---- AI 轮 ---- */
+function startAITurn(){
+  if(allUnused()===0){ gameOver(); return; }
+  const k=curKey();
+  const pool=unusedOf(k);
+  if(pool.length===0){ swapKey(true); }
+  const pool2=unusedOf(curKey());
+  if(pool2.length===0){ startAITurn(); return; }          /* 全字尽（理论不可达） */
+  const idx=pool2[Math.floor(rnd()*pool2.length)];
+  G.isAI=true; G.aiIdx=idx; G.aiShown=0; G.aiT=0;
+  snd('qin');
+}
+function aiStep(dt){
+  G.aiT+=dt;
+  const total=POEMS[G.aiIdx].t.length;
+  G.aiShown=Math.min(total,Math.floor(G.aiT/(AI_TIME/total)*0.999)+ (G.aiT>0?1:0));
+  if(G.aiT>=AI_TIME+.6){                                   /* 念毕：入池，回到玩家 */
+    G.used.add(G.aiIdx);
+    S.roundN++;
+    buildOptions(); updHUD();
+  }
+}
+
+/* ---- HUD ---- */
+function updHUD(){
+  $('scv').textContent=S.score; $('rnv').textContent=S.roundN;
+  $('tmv').textContent=(G&&G.isAI)?'—':Math.max(0,Math.ceil(S.time));
+  for(let i=0;i<3;i++) $('lf'+i).className='lamp'+(i<S.lives?'':' off');
+}
+
+/* ---- 绘制 ---- */
+function draw(){
+  ctx.clearRect(0,0,390,780);
+  const bg=ctx.createLinearGradient(0,0,0,780);
+  bg.addColorStop(0,'#131a1e'); bg.addColorStop(1,'#0d1316');
+  ctx.fillStyle=bg; ctx.fillRect(0,0,390,780);
+  /* 曲水纹 */
+  ctx.strokeStyle='rgba(127,184,164,.07)'; ctx.lineWidth=1;
+  for(let r=0;r<3;r++){ ctx.beginPath();
+    for(let x=0;x<=390;x+=6){ const y=40+r*14+Math.sin(x/46+r)*7;
+      x===0?ctx.moveTo(x,y):ctx.lineTo(x,y); } ctx.stroke(); }
+  if(S.phase==='menu'){ drawMenuIdle(); return; }
+
+  /* 令字大章 */
+  const k=curKey();
+  ctx.save(); ctx.translate(195,86);
+  ctx.rotate(-.06);
+  ctx.strokeStyle='rgba(216,84,74,.8)'; ctx.lineWidth=2.4;
+  ctx.beginPath(); ctx.arc(0,0,30,0,Math.PI*2); ctx.stroke();
+  ctx.fillStyle='#d8544a'; ctx.font='800 32px system-ui';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(k,0,2); ctx.restore();
+  ctx.fillStyle='rgba(244,236,216,.55)'; ctx.font='600 12px system-ui'; ctx.textAlign='center';
+  ctx.fillText('以「'+k+'」行令', 195, 132);
+
+  if(!G){ return; }
+  const shake=shakeT>0?Math.sin(shakeT*40)*3*shakeT:0;
+  if(G.isAI){
+    /* AI 念诗：曲水横幅逐字浮现 */
+    const pm=POEMS[G.aiIdx];
+    ctx.textAlign='center';
+    ctx.fillStyle='rgba(244,236,216,.9)'; ctx.font='700 15px system-ui';
+    ctx.fillText('诗翁接曰', 195, 176);
+    ctx.font='800 26px system-ui';
+    const full=pm.t; const shown=full.slice(0,G.aiShown);
+    ctx.fillStyle='#f4ecd8';
+    ctx.fillText(shown||'　', 195, 214);
+    /* 曲水底笺 */
+    ctx.strokeStyle='rgba(127,184,164,.35)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(70,236); ctx.quadraticCurveTo(195,246,320,236); ctx.stroke();
+    if(G.aiT>AI_TIME){ ctx.fillStyle='rgba(244,236,216,.5)'; ctx.font='600 12px system-ui';
+      ctx.fillText('—— '+pm.p+'《'+pm.n+'》', 195, 262); }
+    HIT.opts=[];
+  } else {
+    /* 四选一句牌 */
+    HIT.opts=[];
+    const w=310, h=76, x0=40, y0=316, gap=16;
+    for(let i=0;i<4;i++){
+      const y=y0+i*(h+gap), pm=POEMS[G.options[i]];
+      ctx.save(); ctx.translate(shake,0);
+      const cg=ctx.createLinearGradient(0,y,0,y+h);
+      cg.addColorStop(0,'#f4ecd8'); cg.addColorStop(1,'#e8dcc0');
+      ctx.fillStyle=cg; roundRect(x0,y,w,h,10); ctx.fill();
+      ctx.strokeStyle='rgba(60,70,60,.35)'; ctx.lineWidth=1; roundRect(x0,y,w,h,10); ctx.stroke();
+      /* 句（含令字描红） */
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.font='800 20px system-ui';
+      const t=pm.t, kx=t.indexOf(curKey());
+      if(kx>=0){                                     /* 含字（正确项）：三段分别原位绘制，令字朱砂 */
+        const pre=t.slice(0,kx), mid=t.slice(kx,kx+1), post=t.slice(kx+1);
+        const cw=ctx.measureText(t).width, mx=195-cw/2;
+        const wp=ctx.measureText(pre).width, wm=ctx.measureText(mid).width;
+        ctx.fillStyle='#d8544a';
+        ctx.fillText(mid, mx+wp+wm/2, y+30);
+        ctx.fillStyle='#2c2c28';
+        if(pre) ctx.fillText(pre, mx+wp/2, y+30);
+        if(post) ctx.fillText(post, mx+wp+wm+ctx.measureText(post).width/2, y+30);
+      } else {                                       /* 干扰项：乌字 */
+        ctx.fillStyle='#2c2c28'; ctx.fillText(t, 195, y+30);
+      }
+      ctx.fillStyle='rgba(90,90,80,.75)'; ctx.font='600 11px system-ui';
+      ctx.fillText('—— '+pm.p+'《'+pm.n+'》', 195, y+57);
+      ctx.restore();
+      HIT.opts.push({x:x0,y,w,h});
+    }
+    /* 限时水线 */
+    const tp=Math.max(0,S.time/TURN_TIME);
+    ctx.fillStyle='rgba(127,184,164,.15)'; ctx.fillRect(40,288,310,6);
+    ctx.fillStyle=tp>.3?'#7fb8a4':'#d8544a'; ctx.fillRect(40,288,310*tp,6);
+  }
+  /* 连对章 */
+  if(S.streak>1){ ctx.save(); ctx.translate(330,180); ctx.rotate(.1);
+    ctx.strokeStyle='rgba(216,84,74,.85)'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(0,0,24,0,Math.PI*2); ctx.stroke();
+    ctx.fillStyle='#d8544a'; ctx.font='800 15px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('连×'+S.streak,0,1); ctx.restore(); }
+}
+function drawMenuIdle(){
+  ctx.fillStyle='rgba(244,236,216,.45)'; ctx.font='600 15px system-ui'; ctx.textAlign='center';
+  ctx.fillText('曲水流觞 · 以字行令', 195, 620);
+}
+function roundRect(x,y,w,h,r){ ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+
+/* ---- 输入 ---- */
+cv.addEventListener('pointerdown',e=>{
+  e.preventDefault();
+  if(!S||S.phase!=='play') return;
+  const r=cv.getBoundingClientRect();
+  const x=(e.clientX-r.left)*(390/r.width), y=(e.clientY-r.top)*(780/r.height);
+  for(let i=0;i<HIT.opts.length;i++){ const o=HIT.opts[i];
+    if(x>=o.x&&x<=o.x+o.w&&y>=o.y&&y<=o.y+o.h){ pick(i); return; } }
+});
+
+/* ---- 主循环 ---- */
+let lastT=0;
+function loop(ts){
+  const dt=Math.min(.05,(ts-lastT)/1000||0); lastT=ts;
+  if(S){
+    if(S.phase==='play'&&G){
+      if(!G.isAI){
+        S.time-=dt;
+        if(S.time<=0){ S.time=0; loseLife('限时到'); }
+        else if(Math.ceil(S.time)!==S._lt){ S._lt=Math.ceil(S.time); if(S.time<=5) snd('tick'); updHUD(); }
+      } else { aiStep(dt); }
+    }
+    if(shakeT>0) shakeT-=dt;
+    draw();
+  }
+  requestAnimationFrame(loop);
+}
+
+/* ---- 按钮 ---- */
+$('btn-go').addEventListener('click',()=>{ ensureAC(); $('menu').classList.add('hide'); startRound(); });
+$('btn-again').addEventListener('click',()=>{ $('overlay').classList.add('hide'); ensureAC(); startRound(); });
+$('btn-snd').addEventListener('click',()=>{ SND=!SND; ensureAC(); $('btn-snd').textContent=SND?'🔊':'🔇'; });
+$('btn-pause').addEventListener('click',()=>{ if(S&&S.phase==='play'){S.phase='pause';$('pauselay').classList.remove('hide');} });
+$('btn-resume').addEventListener('click',()=>{ if(S&&S.phase==='pause'){S.phase='play';$('pauselay').classList.add('hide');} });
+$('btn-home').addEventListener('click',()=>{ $('pauselay').classList.add('hide'); $('menu').classList.remove('hide');
+  $('bestline').textContent='最高累计 '+loadBest(); S.phase='menu'; saveBestNow(); });
+
+function onHidden(){ if(document.hidden) saveBestNow(); }
+document.addEventListener('visibilitychange',onHidden);
+window.addEventListener('pagehide',()=>saveBestNow());
+
+newGame();
+$('bestline').textContent='最高累计 '+S.best;
+requestAnimationFrame(loop);
+
+/* ============ DEV 钩子（构建剥离） ============ */
+</script>
+</body>
+</html>
