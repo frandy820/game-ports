@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>星宿一笔</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+  html,body{height:100%;overflow:hidden;background:#120e26;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+  #app{position:relative;max-width:390px;margin:0 auto;height:100%;background:#120e26}
+  #hud{position:absolute;top:0;left:0;right:0;height:64px;display:flex;align-items:center;padding:0 12px;gap:8px;
+       background:linear-gradient(180deg,#1a1436,#130f28);border-bottom:1px solid rgba(185,165,236,.18);z-index:5}
+  .hpill{display:flex;flex-direction:column;justify-content:center;padding:4px 10px;border-radius:10px;
+         background:rgba(185,165,236,.08);border:1px solid rgba(185,165,236,.22)}
+  .hpill .k{font-size:9px;color:#8d84ad;letter-spacing:1px}
+  .hpill .v{font-size:14px;font-weight:700;color:#e2dcf2}
+  #lvbadge .v{color:#c9b8f0}
+  #linkv{color:#ffd9a0}
+  #stars{display:flex;gap:3px;margin-left:2px}
+  #stars .st{width:14px;height:14px;position:relative}
+  #stars .st::before,#stars .st::after{content:"";position:absolute;left:7px;top:1px;width:2.6px;height:11px;border-radius:2px;
+        background:rgba(185,165,236,.16);transform:translateX(-1.3px)}
+  #stars .st::after{transform:translateX(-1.3px) rotate(72deg)}
+  #stars .st.on::before,#stars .st.on::after{background:#ffd9a0;box-shadow:0 0 5px rgba(255,217,160,.7)}
+  #stars .st:nth-child(2)::before{transform:translateX(-1.3px) rotate(-72deg)}
+  .hbtn{width:38px;height:38px;border-radius:11px;border:1px solid rgba(185,165,236,.25);
+        background:rgba(185,165,236,.07);color:#c9b8f0;font-size:14px;display:flex;align-items:center;justify-content:center}
+  .hbtn:active{background:rgba(185,165,236,.18)}
+  .grow{flex:1}
+  #cv{position:absolute;top:64px;left:0;width:390px;height:780px;touch-action:none}
+  .lay{position:absolute;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;
+       background:rgba(14,10,30,.88);backdrop-filter:blur(4px)}
+  .lay.hide{display:none}
+  .ttl{font-size:30px;font-weight:800;letter-spacing:6px;color:#f0edfa;text-shadow:0 0 18px rgba(201,184,240,.45)}
+  .sub{margin-top:10px;font-size:13px;color:#8d84ad;letter-spacing:2px}
+  .glowline{margin:26px 0 6px;width:200px;height:2px;background:linear-gradient(90deg,transparent,#ffd9a0,transparent);
+        box-shadow:0 0 12px rgba(255,217,160,.8);animation:beamp 2.2s ease-in-out infinite}
+  @keyframes beamp{50%{opacity:.45;transform:scaleX(.82)}}
+  .gbtn{margin-top:26px;padding:13px 44px;border-radius:14px;border:1px solid rgba(201,184,240,.5);
+        background:linear-gradient(180deg,rgba(201,184,240,.22),rgba(201,184,240,.10));color:#f0edfa;
+        font-size:17px;font-weight:700;letter-spacing:4px}
+  .gbtn:active{transform:scale(.97)}
+  .gbtn.dim{border-color:rgba(141,132,173,.4);background:rgba(141,132,173,.10);color:#a89ec6;font-size:14px;letter-spacing:2px;margin-top:14px;padding:10px 30px}
+  .help{margin-top:18px;padding:0 34px;font-size:12.5px;line-height:1.9;color:#9a90ba;text-align:center}
+  .help b{color:#ffd9a0;font-weight:600}
+  #flashtx{position:absolute;top:72px;left:50%;transform:translateX(-50%);z-index:6;padding:7px 18px;border-radius:11px;
+       background:rgba(26,18,52,.92);border:1px solid rgba(255,217,160,.35);color:#ffe9c0;font-size:13px;
+       letter-spacing:1px;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
+  #flashtx.show{opacity:1}
+  #winlay .cname{font-size:27px;font-weight:800;letter-spacing:7px;color:#ffe9c0;text-shadow:0 0 16px rgba(255,217,160,.5);margin-top:4px}
+  #winlay .cquip{margin-top:10px;font-size:12.5px;color:#b0a5d4;letter-spacing:2px}
+  #winlay .stars-big{display:flex;gap:14px;margin:20px 0 4px}
+  #winlay .sb{width:44px;height:44px;position:relative;opacity:.95}
+  #winlay .sb::before,#winlay .sb::after{content:"";position:absolute;left:22px;top:4px;width:8px;height:34px;border-radius:6px;
+        background:rgba(185,165,236,.14);transform:translateX(-4px)}
+  #winlay .sb::after{transform:translateX(-4px) rotate(72deg)}
+  #winlay .sb:nth-child(2)::before{transform:translateX(-4px) rotate(-72deg)}
+  #winlay .sb.on::before,#winlay .sb.on::after{background:linear-gradient(180deg,#ffedc8,#ffd9a0);box-shadow:0 0 14px rgba(255,217,160,.8)}
+  #winscore{font-size:15px;color:#e2dcf2;margin-top:8px}
+  #winscore b{color:#ffd9a0;font-size:19px}
+  #gainf{font-size:12px;color:#8d84ad;margin-top:5px;letter-spacing:1px}
+  #parline{font-size:11.5px;color:#5f5680;margin-top:14px}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div class="hpill" id="lvbadge"><span class="k">星宿</span><span class="v" id="lvv">1/12</span></div>
+    <div class="hpill"><span class="k">连线</span><span class="v" id="linkv">0/5</span></div>
+    <div id="stars"><span class="st"></span><span class="st"></span><span class="st"></span></div>
+    <div class="grow"></div>
+    <div class="hbtn" id="btn-reset">⟲</div>
+    <div class="hbtn" id="btn-snd">🔇</div>
+    <div class="hbtn" id="btn-pause">⏸</div>
+  </div>
+  <canvas id="cv" width="390" height="780"></canvas>
+  <div id="flashtx"></div>
+
+  <div class="lay" id="menu">
+    <div class="ttl">星宿一笔</div>
+    <div class="sub">CONSTELLATION · ONE STROKE</div>
+    <div class="glowline"></div>
+    <div class="sub" id="bestline">最高累计 0</div>
+    <div class="gbtn" id="btn-go">开始描星</div>
+    <div class="gbtn dim" id="btn-help">玩法说明</div>
+    <div class="help" id="helptx" style="display:none">
+      从<b>启明星</b>出发，一路点向相邻的星，<br>
+      把<b>每条星线只走一次</b>、一笔描完整座星座。<br>
+      走进死胡同别慌：<b>⟲ 回退</b>重走，回退越少星越多。<br>
+      十二宫描完，还有更暗的<b>第二周目</b>等你认路。
+    </div>
+  </div>
+
+  <div class="lay hide" id="pauselay">
+    <div class="ttl" style="font-size:24px">暂停中</div>
+    <div class="gbtn" id="btn-resume">继续</div>
+    <div class="gbtn dim" id="btn-home">回到首页</div>
+  </div>
+
+  <div class="lay hide" id="winlay">
+    <div class="sub" style="letter-spacing:4px">星 座 完 形</div>
+    <div class="cname" id="cnamev">白羊座</div>
+    <div class="cquip" id="cquipv"></div>
+    <div class="stars-big"><span class="sb"></span><span class="sb"></span><span class="sb"></span></div>
+    <div id="winscore">本关 <b>+0</b></div>
+    <div id="gainf"></div>
+    <div class="gbtn" id="btn-next">下一关</div>
+    <div class="gbtn dim" id="btn-replay">重玩本关</div>
+    <div id="parline"></div>
+  </div>
+</div>
+<script>
+'use strict';
+/* ============ 星宿一笔 game70 ============ */
+/* 一笔画欧拉路径：path 序列天然欧拉（相邻对唯一=无重复边，度=出现邻边数） */
+
+/* 黄道十二宫：pts 单位坐标 (0..11, 0..13)；ph=设计一笔序列（星索引） */
+const LVLDATA = [
+  {nm:'白羊座',qu:'金羊毛远去，春夜第一声羊鸣',pts:[[8,1],[5,5],[2,1],[3,7],[6,11]],ph:[0,1,2,3,4,1]},
+  {nm:'金牛座',qu:'毕宿橙眼回望，猎户在东',pts:[[1,2],[3,6],[5,9],[8,12],[10,8],[8,4],[11,1]],ph:[0,1,2,3,4,5,6]},
+  {nm:'双子座',qu:'双子并肩，冬银河两岸',pts:[[2,1],[3,5],[2,9],[5,11],[8,9],[7,5],[9,1]],ph:[0,1,2,3,4,5,6]},
+  {nm:'巨蟹座',qu:'蟹入夏至，最长的白昼',pts:[[1,0],[4,3],[7,0],[5,7],[4,11],[7,13],[1,9]],ph:[0,1,2,3,4,5,3,6]},
+  {nm:'狮子座',qu:'轩辕十四当空，狮子最亮的心',pts:[[0,2],[3,4],[6,7],[9,10],[8,13],[4,9],[1,11]],ph:[0,1,2,3,4,2,5,6]},
+  {nm:'室女座',qu:'麦穗在手，秋分点所在',pts:[[5,0],[6,3],[2,5],[4,7],[8,6],[7,10],[4,13],[9,12]],ph:[0,1,2,3,1,4,5,7,6]},
+  {nm:'天秤座',qu:'昼夜等长，秤杆持平',pts:[[6,1],[3,4],[1,9],[9,9],[9,4]],ph:[0,1,2,3,4,0]},
+  {nm:'天蝎座',qu:'心宿二赤红，与猎户永不相见',pts:[[4,0],[3,2],[0,1],[4,4],[6,6],[7,9],[10,13],[8,13],[9,11]],ph:[0,1,2,3,1,4,5,8,6,7]},
+  {nm:'人马座',qu:'茶壶倾银河，箭指银心',pts:[[6,2],[5,4],[8,7],[6,11],[3,8],[0,5],[2,6],[10,4],[5,13]],ph:[0,1,2,3,8,4,5,6,1,7]},
+  {nm:'摩羯座',qu:'海中山羊，冬至的旧历元',pts:[[11,11],[8,8],[7,4],[4,9],[1,5],[3,0],[10,2],[9,10]],ph:[0,7,1,2,3,4,5,2,6]},
+  {nm:'宝瓶座',qu:'玉瓶倾水，流淌的秋夜',pts:[[1,1],[4,3],[2,6],[3,9],[1,12],[4,13],[6,8],[8,6]],ph:[0,1,2,3,4,5,3,6,7]},
+  {nm:'双鱼座',qu:'双鱼系索，春分点的旧居',pts:[[0,2],[2,0],[4,4],[5,6],[7,10],[10,12],[9,8],[7,4],[3,9],[6,8]],ph:[0,1,2,3,9,4,5,6,7,3,8]}
+];
+
+const LEVELS = LVLDATA.map(D=>{
+  const edges=[]; const seen={};
+  for(let i=0;i<D.ph.length-1;i++){
+    const a=D.ph[i], b=D.ph[i+1], k=Math.min(a,b)+'-'+Math.max(a,b);
+    if(!seen[k]){ seen[k]=1; edges.push({a,b}); }
+  }
+  const deg=D.pts.map(()=>0);
+  const adj=D.pts.map(()=>[]);
+  edges.forEach((e,i)=>{ adj[e.a].push([i,e.b]); adj[e.b].push([i,e.a]); deg[e.a]++; deg[e.b]++; });
+  return {nm:D.nm, qu:D.qu, pts:D.pts, edges, adj, deg, E:edges.length,
+          start:D.ph[0], end:D.ph[D.ph.length-1]};
+});
+
+const THEME='#c9b8f0';
+
+/* 星座 bbox 映射（画区 36..354 × 36..594，scale cap [22,48]） */
+function layoutOf(lv){
+  const L=LEVELS[lv];
+  let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;
+  for(const p of L.pts){ x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1]); }
+  const w=Math.max(x1-x0,.01), h=Math.max(y1-y0,.01);
+  let s=Math.min(318/w, 558/h); s=Math.max(22,Math.min(48,s));
+  const ox=36+(318-w*s)/2 - x0*s, oy=36+(558-h*s)/2 - y0*s;
+  return L.pts.map(p=>({x:ox+p[0]*s, y:oy+p[1]*s, s}));
+}
+
+/* ============ 状态 ============ */
+const BEST_KEY='g70_best';
+let S=null;
+const $=id=>document.getElementById(id);
+const cv=$('cv'), ctx=cv.getContext('2d');
+let AC=null, SND=false;
+function beep(f,d,t,v){ if(!SND||!AC) return; try{
+  const o=AC.createOscillator(), gn=AC.createGain();
+  o.type=t||'sine'; o.frequency.value=f;
+  gn.gain.setValueAtTime(v||.08, AC.currentTime);
+  gn.gain.exponentialRampToValueAtTime(.0001, AC.currentTime+d);
+  o.connect(gn); gn.connect(AC.destination); o.start(); o.stop(AC.currentTime+d);
+}catch(e){} }
+function snd(kind){
+  if(kind==='tap') beep(520,.06,'triangle',.06);
+  else if(kind==='line') beep(660,.09,'sine',.05);
+  else if(kind==='win'){ [523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.16,'sine',.07), i*90)); }
+  else if(kind==='star'){ [880,1174].forEach((f,i)=>setTimeout(()=>beep(f,.1,'triangle',.06), i*80)); }
+  else if(kind==='bad') beep(180,.08,'square',.03);
+}
+
+function loadLevel(lv, loop){
+  S.lv=lv; S.loop=loop;
+  S.cur=null; S.trail=[]; S.undo=0;
+  S.animE=-1; S.animT=0; S.redI=-1; S.redT=0;
+  S.phase='play';
+  updHUD();
+}
+function newGame(){
+  S={lv:0, loop:0, cur:null, trail:[], undo:0, score:0, best:loadBest(),
+     starsArr:[], streak:0, phase:'menu', animE:-1, animT:0, redI:-1, redT:0, flashMsg:''};
+  loadLevel(0,0); S.phase='menu'; updHUD();
+}
+function loadBest(){ try{ return +(localStorage.getItem(BEST_KEY)||0); }catch(e){ return 0; } }
+function saveBestNow(){ if(S.score>S.best){ S.best=S.score; try{ localStorage.setItem(BEST_KEY, String(S.best)); }catch(e){} } }
+
+function updHUD(){
+  $('lvv').textContent=(S.loop>0? (S.loop+1)+'×':'')+Math.min(S.lv+1,12)+'/12';
+  const L=LEVELS[S.lv];
+  $('linkv').textContent=S.trail.length+'/'+L.E;
+  const st=starOf().earned;
+  document.querySelectorAll('#stars .st').forEach((el,i)=>el.classList.toggle('on', i<st && S.phase!=='menu'));
+}
+function starOf(){
+  return {earned: S.undo===0?3 : S.undo<=2?2 : 1};
+}
+
+function edgeBetween(a,b){
+  const L=LEVELS[S.lv];
+  for(let i=0;i<L.edges.length;i++){
+    const e=L.edges[i];
+    if((e.a===a&&e.b===b)||(e.a===b&&e.b===a)) return i;
+  }
+  return -1;
+}
+function flash(msg){
+  S.flashMsg=msg;
+  const f=$('flashtx'); f.textContent=msg; f.classList.add('show');
+  clearTimeout(flash._t);
+  flash._t=setTimeout(()=>f.classList.remove('show'), 2000);
+}
+function tapStar(i){
+  if(S.phase!=='play') return false;
+  const L=LEVELS[S.lv];
+  if(S.cur===null){
+    if(S.loop===0 && i!==L.start){ flash('请从闪烁的启明星出发'); snd('bad'); return false; }
+    S.cur=i; updHUD(); snd('tap'); return true;
+  }
+  const ei=edgeBetween(S.cur, i);
+  if(ei<0 || S.trail.indexOf(ei)>=0){ S.redI=i; S.redT=.3; snd('bad'); return false; }
+  S.trail.push(ei); S.cur=i;
+  S.animE=ei; S.animT=1;
+  snd('line');
+  if(S.trail.length===L.E) doWin();
+  else deadEndCheck();
+  updHUD();
+  return true;
+}
+function deadEndCheck(){
+  const L=LEVELS[S.lv];
+  if(S.cur===null) return false;
+  const alive=L.adj[S.cur].some(pr=>S.trail.indexOf(pr[0])<0);
+  if(!alive && S.trail.length<L.E){ flash('此路不通 · 可 ⟲ 回退'); return true; }
+  return false;
+}
+function undoLast(){
+  if(S.phase!=='play' || !S.trail.length) return false;
+  const ei=S.trail.pop();
+  const e=LEVELS[S.lv].edges[ei];
+  S.cur=(S.cur===e.b)? e.a : e.b;
+  S.undo++;
+  updHUD();
+  return true;
+}
+function resetLvl(){
+  if(S.phase!=='play') return;                    /* pause 中重开=遮罩下状态错乱，只接受 play */
+  if(S.trail.length) S.undo++;          /* 弃线重走计一次回退（防刷星） */
+  const lv=S.lv, loop=S.loop, undo=S.undo;
+  loadLevel(lv, loop);
+  S.undo=undo;                            /* undo 计数跨重开保留 */
+  updHUD();
+}
+function doWin(){
+  S.phase='win';
+  const st=starOf().earned;
+  const L=LEVELS[S.lv];
+  S.starsArr[S.loop*12+S.lv]=Math.max(S.starsArr[S.loop*12+S.lv]||0, st);
+  if(st===3) S.streak++; else S.streak=0;
+  const mult=1+.5*Math.min(S.streak-1<0?0:S.streak-1, 6);
+  const loopMul=Math.min(1+.2*S.loop, 4);
+  const gain=Math.floor((40*(S.lv+1)+30*st+8*L.E)*mult*loopMul);
+  S.score+=gain; S.lastGain=gain;
+  saveBestNow();
+  burstAll();
+  snd('win'); if(st===3) setTimeout(()=>snd('star'), 360);
+  setTimeout(()=>{
+    document.querySelectorAll('#winlay .sb').forEach((el,i)=>el.classList.toggle('on', i<st));
+    $('cnamev').textContent=L.nm;
+    $('cquipv').textContent='· '+L.qu+' ·';
+    $('winscore').innerHTML='本关 <b>+'+gain+'</b>';
+    $('gainf').textContent='总分 '+S.score+(mult>1?' · 连星 ×'+mult.toFixed(1):'')+(loopMul>1?' · 周目 ×'+loopMul.toFixed(1):'');
+    $('parline').textContent='回退 '+S.undo+' 次　最高累计 '+S.best;
+    $('btn-next').textContent=(S.lv===11)?'进入下一周目':'下一关';
+    $('winlay').classList.remove('hide');
+  }, 820);
+  updHUD();
+}
+function nextLevel(){
+  $('winlay').classList.add('hide');
+  if(S.lv===11) loadLevel(0, S.loop+1);
+  else loadLevel(S.lv+1, S.loop);
+}
+
+/* ============ FX ============ */
+let FX={parts:[]};
+function layoutCur(){ return layoutOf(S.lv); }
+function burstAll(){
+  const ps=layoutCur();
+  for(let i=0;i<64;i++){
+    FX.parts.push({x:(i*61)%386+2, y:-8-((i*37)%40), vx:((i*29)%10-5)*6, vy:60+((i*17)%50),
+                   t:0, life:.9+((i*13)%40)/100, c:i%3===0?'#ffd9a0':'#e6dff6'});
+  }
+}
+function fxStep(dt){
+  for(const p of FX.parts){ p.t+=dt; p.x+=p.vx*dt; p.y+=p.vy*dt; }
+  FX.parts=FX.parts.filter(p=>p.t<p.life && p.y<800);
+  if(S){
+    if(S.animT>0) S.animT=Math.max(0, S.animT-dt*5.5);
+    if(S.redT>0){ S.redT-=dt; if(S.redT<=0) S.redI=-1; }
+  }
+}
+
+function draw(){
+  ctx.clearRect(0,0,390,780);
+  if(!S) return;
+  const L=LEVELS[S.lv];
+  const P=layoutCur();
+  const dim=S.phase==='pause';
+  /* 星尘底（确定式） */
+  for(let i=0;i<56;i++){
+    const sx=((i*89)%386)+2, sy=((i*167)%760)+8;
+    ctx.globalAlpha=dim?.2:.12+.12*Math.sin((Date.now()/900)+i%7);
+    ctx.fillStyle='#e6dff6';
+    ctx.fillRect(sx,sy,1.4,1.4);
+  }
+  ctx.globalAlpha=1;
+  /* 边 */
+  L.edges.forEach((e,i)=>{
+    const used=S.trail.indexOf(i)>=0;
+    const pA=P[e.a], pB=P[e.b];
+    let k=1;
+    if(i===S.animE && S.animT>0) k=1-S.animT;      /* 新边延伸动画 */
+    ctx.save();
+    if(used){
+      ctx.strokeStyle='rgba(255,217,160,'+(dim?.55:.92)+')';
+      ctx.lineWidth=3; ctx.lineCap='round';
+      ctx.shadowColor='rgba(255,217,160,.85)'; ctx.shadowBlur=9;
+    }else{
+      ctx.strokeStyle='rgba(184,163,232,.25)';
+      ctx.lineWidth=1.2; ctx.setLineDash([4,5]);
+    }
+    ctx.beginPath();
+    ctx.moveTo(pA.x,pA.y);
+    ctx.lineTo(pA.x+(pB.x-pA.x)*k, pA.y+(pB.y-pA.y)*k);
+    ctx.stroke();
+    ctx.restore();
+  });
+  /* 星 */
+  P.forEach((p,i)=>{
+    const d=L.deg[i];
+    const walked=S.trail.some(ei=>{
+      const e=L.edges[ei]; return e.a===i||e.b===i;
+    });
+    const isCur=S.cur===i && S.phase!=='menu';
+    const isHint=S.loop===0 && S.cur===null && i===L.start && S.phase==='play';
+    ctx.save();
+    ctx.translate(p.x,p.y);
+    const r=2.4+d*.55;
+    if(walked||isCur){
+      const br=dim?.5:.75+.25*Math.sin(Date.now()/380+i);
+      ctx.shadowColor='#ffd9a0'; ctx.shadowBlur=11*br+4;
+      ctx.fillStyle='#fff3dc';
+    }else{
+      ctx.shadowBlur=0;
+      ctx.fillStyle='rgba(230,223,246,.8)';
+    }
+    ctx.beginPath(); ctx.arc(0,0,r,0,7); ctx.fill();
+    /* 芒线 */
+    ctx.shadowBlur=0;
+    ctx.strokeStyle=walked||isCur?'rgba(255,233,192,.8)':'rgba(230,223,246,.4)';
+    ctx.lineWidth=1;
+    const m=r*2.1;
+    ctx.beginPath();
+    ctx.moveTo(-m,0);ctx.lineTo(m,0);ctx.moveTo(0,-m);ctx.lineTo(0,m);
+    ctx.stroke();
+    /* 提示星呼吸环 */
+    if(isHint){
+      const k=.5+.5*Math.sin(Date.now()/300);
+      ctx.strokeStyle='rgba(255,217,160,'+(.4+.4*k)+')';
+      ctx.lineWidth=1.6;
+      ctx.beginPath(); ctx.arc(0,0,r+5+4*k,0,7); ctx.stroke();
+    }
+    /* 当前端点脉冲光晕 */
+    if(isCur){
+      const k=.5+.5*Math.sin(Date.now()/240);
+      ctx.strokeStyle='rgba(255,233,192,'+(.3+.35*k)+')';
+      ctx.lineWidth=2;
+      ctx.beginPath(); ctx.arc(0,0,r+7+5*k,0,7); ctx.stroke();
+    }
+    /* 无效 tap 红闪 */
+    if(S.redI===i && S.redT>0){
+      ctx.fillStyle='rgba(200,80,90,'+(S.redT/.3*.7)+')';
+      ctx.beginPath(); ctx.arc(0,0,r+4,0,7); ctx.fill();
+    }
+    ctx.restore();
+  });
+  /* FX */
+  for(const p of FX.parts){
+    ctx.globalAlpha=Math.max(0,1-p.t/p.life);
+    ctx.fillStyle=p.c;
+    ctx.beginPath(); ctx.arc(p.x,p.y,2.2,0,7); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+}
+
+/* ============ 主循环 ============ */
+let lastT=0;
+function loop(ts){
+  const dt=Math.min(.05,(ts-lastT)/1000||.016); lastT=ts;
+  if(S && S.phase!=='pause') fxStep(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+/* ============ 输入 ============ */
+function tapAt(e){
+  const r=cv.getBoundingClientRect();
+  const x=(e.clientX-r.left)*(390/r.width), y=(e.clientY-r.top)*(780/r.height);
+  const P=layoutCur();
+  let best=-1, bd=26*26;
+  for(let i=0;i<P.length;i++){
+    const dx=P[i].x-x, dy=P[i].y-y, d2=dx*dx+dy*dy;
+    if(d2<bd){ bd=d2; best=i; }
+  }
+  return best;
+}
+cv.addEventListener('pointerdown', e=>{
+  e.preventDefault();
+  if(!S||S.phase!=='play') return;
+  const i=tapAt(e);
+  if(i>=0) tapStar(i);
+});
+
+/* ============ 按钮 ============ */
+function ensureAC(){ if(!AC){ try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } }
+$('btn-go').addEventListener('click', ()=>{ ensureAC(); $('menu').classList.add('hide'); S.phase='play'; updHUD(); });
+$('btn-help').addEventListener('click', ()=>{ const h=$('helptx'); h.style.display = h.style.display==='none'?'block':'none'; });
+$('btn-snd').addEventListener('click', ()=>{ SND=!SND; ensureAC(); $('btn-snd').textContent=SND?'🔊':'🔇'; });
+$('btn-pause').addEventListener('click', ()=>{ if(S.phase==='play'){S.phase='pause';$('pauselay').classList.remove('hide');} });
+$('btn-resume').addEventListener('click', ()=>{ if(S.phase==='pause'){S.phase='play';$('pauselay').classList.add('hide');} });
+$('btn-home').addEventListener('click', ()=>{ $('pauselay').classList.add('hide'); $('menu').classList.remove('hide');
+  $('bestline').textContent='最高累计 '+S.best; S.phase='menu'; updHUD(); });
+$('btn-reset').addEventListener('click', ()=>resetLvl());
+$('btn-next').addEventListener('click', ()=>nextLevel());
+$('btn-replay').addEventListener('click', ()=>{ $('winlay').classList.add('hide');
+  const u=S.undo; loadLevel(S.lv, S.loop); S.undo=u;   /* undo 跨重玩保留（防刷星，同 ⟲） */
+  updHUD();                                             /* 恢复 undo 后刷星标，防 HUD 虚高（R2-1） */
+});
+
+function onHidden(){ if(document.hidden) saveBestNow(); }
+document.addEventListener('visibilitychange', onHidden);
+window.addEventListener('pagehide', ()=>saveBestNow());
+
+newGame();
+$('bestline').textContent='最高累计 '+S.best;
+requestAnimationFrame(loop);
+
+/* ============ DEV 钩子（构建剥离） ============ */
+</script>
+</body>
+</html>
