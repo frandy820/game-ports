@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>九宫连环</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:#0e1420;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+#app{position:relative;height:100%;max-width:520px;margin:0 auto;overflow:hidden}
+#hud{position:absolute;top:0;left:0;right:0;height:64px;display:flex;align-items:center;gap:8px;padding:0 12px;
+ background:linear-gradient(180deg,#161d2c,#101622);border-bottom:1px solid #2b3a52;z-index:5}
+.pill{display:flex;align-items:center;gap:4px;color:#a8b2c4;font-size:13px}
+.pill b{font-size:10px;color:#5f6c82;font-weight:600}
+.pill span{min-width:28px;text-align:center;font-size:14px;font-weight:700;color:#e8ecf4;
+ background:rgba(0,0,0,.3);border-radius:8px;padding:1px 5px;font-variant-numeric:tabular-nums}
+#turnv{font-size:15px}
+.hbtn{width:32px;height:32px;border-radius:50%;border:1px solid #3a4a60;background:#232b3c;color:#a8b2c4;
+ font-size:14px;line-height:1;cursor:pointer;flex:none;margin-left:auto}
+.hbtn+.hbtn{margin-left:0}
+.hbtn:active{transform:scale(.92)}
+#cv{position:absolute;top:64px;left:50%;transform:translateX(-50%);touch-action:none;cursor:pointer}
+.lay{position:absolute;inset:0;z-index:8;display:flex;align-items:center;justify-content:center;flex-direction:column;
+ background:rgba(8,11,20,.84);backdrop-filter:blur(2px)}
+.lay.hide{display:none}
+#menu{z-index:9}
+.mcard{width:302px;padding:30px 24px 26px;text-align:center;border-radius:14px;
+ background:linear-gradient(180deg,#232c3e,#1a2232);border:1px solid #3e4c66;box-shadow:0 18px 40px rgba(0,0,0,.5)}
+.mcard h1{font-size:29px;letter-spacing:8px;color:#e8ecf4;margin-bottom:6px}
+.mcard p{color:#8b98ae;font-size:12px;letter-spacing:2px;margin-bottom:16px}
+.seg{display:flex;border:1px solid #3e4c66;border-radius:9px;overflow:hidden;margin-bottom:10px}
+.seg button{flex:1;padding:9px 0;border:none;background:transparent;color:#8b98ae;font-size:13px;cursor:pointer;letter-spacing:1px}
+.seg button.on{background:#41547a;color:#eef2f8;font-weight:700}
+.mlab{text-align:left;color:#5f6c82;font-size:11px;margin:2px 0 4px 4px;letter-spacing:2px}
+.best{display:inline-block;color:#9db1d2;font-size:12px;margin-bottom:16px;border:1px dashed #3e4c66;
+ border-radius:8px;padding:4px 14px}
+.go{display:block;width:100%;padding:13px 0;border:none;border-radius:10px;cursor:pointer;
+ background:linear-gradient(180deg,#4a6797,#38507c);color:#f0f4fb;font-size:19px;letter-spacing:10px;
+ text-indent:10px;font-weight:700;box-shadow:0 4px 0 #26395a}
+.go:active{transform:translateY(2px);box-shadow:0 2px 0 #26395a}
+#pauselay .pcard,#overlay .pcard{width:280px;padding:28px 24px;text-align:center;border-radius:14px;
+ background:linear-gradient(180deg,#232c3e,#1a2232);border:1px solid #3e4c66}
+#pauselay h2,#overlay h2{font-size:22px;letter-spacing:6px;color:#e8ecf4;margin-bottom:14px}
+#pauselay button,#overlay button{display:block;width:100%;margin-top:10px;padding:12px 0;border:none;
+ border-radius:10px;cursor:pointer;font-size:16px;letter-spacing:6px;text-indent:6px;font-weight:700}
+#pauselay .pri,#overlay .pri{background:linear-gradient(180deg,#4a6797,#38507c);color:#f0f4fb;box-shadow:0 3px 0 #26395a}
+#pauselay .pri:active,#overlay .pri:active{transform:translateY(1px)}
+#pauselay button:not(.pri),#overlay button:not(.pri){background:#2c3648;color:#8b98ae}
+#overttl{font-size:25px;letter-spacing:8px;color:#e8ecf4;margin-bottom:8px;font-weight:700}
+#overscore{font-size:40px;color:#d98a7e;font-weight:800;margin-bottom:4px;font-variant-numeric:tabular-nums}
+.st{color:#8b98ae;font-size:13px;margin-bottom:12px;letter-spacing:1px}
+#btnrow{position:absolute;left:0;right:0;bottom:14px;display:flex;gap:10px;padding:0 20px;z-index:4}
+#btnrow button{flex:1;padding:11px 0;border:1px solid #3e4c66;border-radius:10px;background:#1c2434;
+ color:#a8b2c4;font-size:15px;letter-spacing:4px;text-indent:4px;cursor:pointer}
+#btnrow button:disabled{opacity:.35}
+#btnrow button:active:not(:disabled){transform:translateY(1px)}
+</style>
+</head>
+<body>
+<div id="app">
+ <div id="hud">
+  <div class="pill"><b>手</b><span id="mnv">0</span></div>
+  <div class="pill"><b>回合</b><span id="turnv">朱</span></div>
+  <div class="pill"><b>战绩</b><span id="recv">0-0-0</span></div>
+  <button class="hbtn" id="btn-snd" style="margin-left:auto">🔇</button>
+  <button class="hbtn" id="btn-pause">⏸</button>
+ </div>
+ <canvas id="cv" width="390" height="780"></canvas>
+ <div id="btnrow">
+  <button id="btn-undo">悔一手 ×3</button>
+  <button id="btn-home">⌂ 棋 斋</button>
+ </div>
+ <div id="menu" class="lay">
+  <div class="mcard">
+   <h1>九宫连环</h1>
+   <p>小局定大 · 连环为胜</p>
+   <div class="mlab">弈客棋力</div>
+   <div class="seg" id="seg-level"><button data-v="1">初学</button><button data-v="2" class="on">进阶</button><button data-v="3">高手</button></div>
+   <div class="mlab">执子</div>
+   <div class="seg" id="seg-side"><button data-v="1" class="on">执朱先手</button><button data-v="2">执黛后手</button></div>
+   <div class="best" id="mbest">最长连胜 0</div>
+   <button class="go" id="btn-go">对 弈</button>
+  </div>
+ </div>
+ <div id="pauselay" class="lay hide">
+  <div class="pcard">
+   <h2>投 子</h2>
+   <button class="pri" id="btn-resume">继续</button>
+   <button id="btn-home2">回棋斋</button>
+  </div>
+ </div>
+ <div id="overlay" class="lay hide">
+  <div id="overttl">收 局</div>
+  <div id="overscore">—</div>
+  <div class="st" id="overstat"></div>
+  <button class="go" id="btn-again">再 对 一 局</button>
+ </div>
+</div>
+<script>
+'use strict';
+/* ================= 状态 ================= */
+var $=function(id){return document.getElementById(id)};
+var cv=$('cv'),ctx=cv.getContext('2d');
+var W=390,H=780,G=114,GG=118,SG=36,SP=3,X0=20,Y0=150;   /* 宫 114 间 4(总118) 小格 36 内边 3 */
+var BEST_KEY='g82_streak',REC_KEY='g82_rec';
+var S={phase:'menu',level:2,side:1,turn:1,must:-1,moveN:0,undoN:3,
+       rec:{w:0,l:0,d:0},streak:0,best:0,think:false,winner:0,winLine:null};
+var B=new Uint8Array(81);                          /* 0 空 1 朱 2 黛；i=b*9+j */
+var SEC=new Int8Array(9);                          /* -1 活 0 封 1 朱 2 黛 */
+var STACK=[];                                      /* [{i,c}] */
+var FLTS=[];                                       /* 飘字 */
+var RS=1;
+function srand(s){RS=(s>>>0)||1}
+function rnd(){RS=(Math.imul(RS,1103515245)+12345)>>>0;return (RS>>>9)/8388608}
+function saveBest(){if(S.streak>S.best){S.best=S.streak;try{localStorage.setItem(BEST_KEY,String(S.best))}catch(e){}}}
+function saveRec(){try{localStorage.setItem(REC_KEY,S.rec.w+','+S.rec.l+','+S.rec.d)}catch(e){}}
+function loadAll(){try{S.best=parseInt(localStorage.getItem(BEST_KEY)||'0',10)||0;
+ var r=(localStorage.getItem(REC_KEY)||'').split(',');if(r.length===3){S.rec.w=+r[0]||0;S.rec.l=+r[1]||0;S.rec.d=+r[2]||0}
+ S.side=parseInt(localStorage.getItem('g82_side')||'1',10)||1;
+ S.level=parseInt(localStorage.getItem('g82_level')||'2',10)||2;}catch(e){}}
+
+/* ================= 双层判定单源（SPEC 核心） =================
+   LINES8 一表两用：小宫三连判定 + 大宫三连判定（SEC 映射后）
+   win3(cells)：1/2=该色三连；0.5=满无三连（封）；0=未定（活）
+   SEC 单源：updSector 落子后重判，胜负/高亮/AI/合法点四消费方只读 SEC */
+var LINES8=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+function win3(cells){
+ var k,L,a;
+ for(k=0;k<8;k++){L=LINES8[k];a=cells[L[0]];
+  if(a===1&&cells[L[1]]===1&&cells[L[2]]===1)return 1;
+  if(a===2&&cells[L[1]]===2&&cells[L[2]]===2)return 2}
+ for(k=0;k<9;k++)if(!cells[k]||cells[k]<0)return 0;   /* 空=0 活格=-1 均未满 */
+ return 0.5}
+function secCells(b){var out=[],k;for(k=0;k<9;k++)out.push(B[b*9+k]);return out}
+function updSector(b){var t=win3(secCells(b));
+ SEC[b]=(t===0.5)?0:((t===0)?-1:t)}                    /* 0.5 封→0；0 活→-1；1/2 原值 */
+function macroCells(){var out=[],k;for(k=0;k<9;k++)out.push(SEC[k]>0?SEC[k]:0);return out}
+function macroWin(){var w=win3(macroCells());return (w===1||w===2)?w:0}  /* 只返 0/1/2——封宫满盘时 win3 返 0.5 不可当胜（truthy 陷阱） */
+function allDead(){var k;for(k=0;k<9;k++)if(SEC[k]===-1)return false;return true}
+function countSec(c){var n=0,k;for(k=0;k<9;k++)if(SEC[k]===c)n++;return n}
+function mustAfter(i){var j=i%9;return (SEC[j]===-1)?j:-1}   /* 落 i 送宫 j；死则自由 */
+
+/* ================= 合法点单出口（玩家热区/AI 候选/canPlay 同源） ================= */
+function legalCells(){
+ var out=[],b,j;
+ if(S.must>=0&&SEC[S.must]===-1){
+  for(j=0;j<9;j++)if(B[S.must*9+j]===0)out.push(S.must*9+j);
+  return out}
+ for(b=0;b<9;b++){if(SEC[b]!==-1)continue;
+  for(j=0;j<9;j++)if(B[b*9+j]===0)out.push(b*9+j)}
+ return out}
+function legalAt(i){
+ if(B[i]!==0)return false;
+ var b=(i/9)|0;
+ if(SEC[b]!==-1)return false;
+ if(S.must>=0&&SEC[S.must]===-1)return b===S.must;
+ return true}
+
+/* ================= AI（三档：初学=保底两规则+LCG top6；进阶=硬规则+启发最高；高手=进阶+2 层极小化+送位深罚） ================= */
+function secTwoLines(b,c){                            /* 宫 b 内 c 色二连（两子一空）线数 */
+ var n=0,k,L,z,e2;
+ for(k=0;k<8;k++){L=LINES8[k];var cc=0,ee=-1,ok=1;
+  for(z=0;z<3;z++){var v=B[b*9+L[z]];
+   if(v===c)cc++;else if(v===0)ee=L[z];else{ok=0;break}}
+  if(ok&&cc===2&&ee>=0)n++}
+ return n}
+function canSecAt(b,c){                               /* c 在宫 b 是否存在「落即占宫」点（返点或 -1） */
+ if(SEC[b]!==-1)return -1;
+ var j,cells=secCells(b);
+ for(j=0;j<9;j++){if(cells[j]!==0)continue;
+  cells[j]=c;var t=win3(cells);cells[j]=0;
+  if(t===c)return b*9+j}
+ return -1}
+function macroThreat(c){                               /* c 若占宫 tb 即大三连的宫号集（己占两宫+第三活宫） */
+ var out=[],k,L,z;
+ for(k=0;k<8;k++){L=LINES8[k];var own=0,empty=-1,ok=1;
+  for(z=0;z<3;z++){var v=SEC[L[z]];
+   if(v===c)own++;else if(v===-1)empty=L[z];else{ok=0;break}}
+  if(ok&&own===2&&empty>=0)out.push(empty)}
+ return out}
+function heur(i,c){                                    /* 候选点启发分（SPEC 公式；只读不写盘） */
+ var b=(i/9)|0,j=i%9,sc=0;
+ /* 小层：占宫 / 堵对方占宫点 / 二连 */
+ B[i]=c;
+ var t=win3(secCells(b));
+ B[i]=0;
+ if(t===c){
+  sc+=3000;
+  var mc=macroCells();mc[b]=c;                        /* 试占后宏观 */
+  if(win3(mc)===c)sc+=1e7;                            /* 占宫即整局胜（排序等价硬规则一） */
+  var th2=macroThreat(c);if(th2.indexOf(b)>=0)sc+=6000 /* 促宏观二连 */
+ }
+ if(canSecAt(b,3-c)===i)sc+=2700;                     /* 对方落此即占宫=堵点 */
+ sc+=secTwoLines(b,c)*300;
+ sc+=secTwoLines(b,3-c)*150;                          /* 削对方二连 */
+ /* 宏层：堵对方宏观将杀（对方占 b 即大三连）+ 威胁宫远期争夺 */
+ var oppTh=macroThreat(3-c);
+ if(SEC[b]===-1&&t===c&&oppTh.indexOf(b)>=0)sc+=8000; /* 我先占其杀宫 */
+ else if(oppTh.indexOf(b)>=0&&canSecAt(b,3-c)>=0)sc+=4000; /* 破坏其杀宫占格点 */
+ else if(oppTh.indexOf(b)>=0)sc+=1200;               /* 对方差宫内远期争夺（防慢串中线——非紧迫≠安全） */
+ if(macroThreat(c).indexOf(b)>=0)sc+=600;            /* 己方差宫推进 */
+ /* 送位层 */
+ var jb=j;                                             /* 落 i 送宫 j（同构映射） */
+ if(SEC[jb]===-1){
+  var opp=canSecAt(jb,3-c),me=canSecAt(jb,c);
+  if(opp>=0)sc-=2400;                                 /* 送对方占宫位 */
+  else if(me>=0)sc+=400                               /* 送己方好宫 */
+ }
+ else sc-=600;                                         /* 送自由（通常利于对方） */
+ /* 位置 */
+ if(j===4)sc+=80;if(b===4)sc+=60;
+ if(j===0||j===2||j===6||j===8)sc+=30;
+ return sc}
+function candList(c){                                  /* 合法点按启发降序（稳定：同分 i 升序） */
+ var ls=legalCells(),out=[],k;
+ for(k=0;k<ls.length;k++)out.push({i:ls[k],s:heur(ls[k],c)});
+ out.sort(function(a,b2){return (b2.s-a.s)||(a.i-b2.i)});
+ return out}
+function giftLose(i,c){                                 /* 送死闸（G3-M1）：我落 i 后对方是否一手即成大三连；堵杀/占杀返回点必过此检 */
+ var b=(i/9)|0;
+ B[i]=c;var os=SEC[b];updSector(b);
+ var om=mustAfter(i),out=false,j2,b2;
+ if(om>=0&&SEC[om]===-1){
+  for(j2=0;j2<9;j2++){var p2=om*9+j2;if(B[p2]===0&&heur(p2,3-c)>=1e7){out=true;break}}}
+ else{                                                  /* 送死宫→对方自由：全域扫其落即大三连点 */
+  for(b2=0;b2<9&&!out;b2++){if(SEC[b2]!==-1)continue;
+   for(j2=0;j2<9;j2++){var p3=b2*9+j2;if(B[p3]===0&&heur(p3,3-c)>=1e7){out=true;break}}}}
+ B[i]=0;SEC[b]=os;
+ return out}
+function hardBasic(c){                                 /* 三档共通硬规则：直接赢 → 堵紧迫杀 → 占远期杀宫（堵点必过 legalAt+送死闸） */
+ var ls=legalCells(),k;
+ for(k=0;k<ls.length;k++){var i=ls[k];
+  if(heur(i,c)>=1e7)return i}                         /* 己落即大三连（落子即终局，无送位后果——唯一可短路点） */
+ var oppTh=macroThreat(3-c),q;
+ /* 第一遍：紧迫威胁（对方在杀宫有落即占宫点=一手杀）→ 必堵——非紧迫宫先跳过
+    （诊断教训：双威胁线按 LINES8 顺序先占非紧迫宫，放走一手杀=威胁等价化缺陷；
+     G3-M1 教训：堵 A 杀若送 B 杀（对方应手落即大三连）=送死，跳过取次优） */
+ for(q=0;q<oppTh.length;q++){var tb=oppTh[q];
+  if(SEC[tb]!==-1)continue;
+  if(canSecAt(tb,3-c)<0)continue;
+  var meTake=canSecAt(tb,c);
+  if(meTake>=0&&legalAt(meTake)&&!giftLose(meTake,c))return meTake;  /* 我先占其杀宫（同时消除） */
+  var oppPt=canSecAt(tb,3-c);
+  if(oppPt>=0&&legalAt(oppPt)&&!giftLose(oppPt,c))return oppPt}      /* 落其占宫点破坏 */
+ /* 第二遍：非紧迫杀宫（对方暂无占宫点）→ 我先占（远期消除，同过送死闸） */
+ for(q=0;q<oppTh.length;q++){var tb2=oppTh[q];
+  if(SEC[tb2]!==-1)continue;
+  var mt2=canSecAt(tb2,c);
+  if(mt2>=0&&legalAt(mt2)&&!giftLose(mt2,c))return mt2}
+ return -1}
+function safePool(c){                                  /* 送位保底：滤「送对方直接占宫位/送死」点；全滤则不过滤（初学第二条；G3-M1 补送死滤） */
+ var ls=legalCells(),out=[],k;
+ for(k=0;k<ls.length;k++){var i=ls[k],j=i%9;
+  if(SEC[j]===-1&&canSecAt(j,3-c)>=0)continue;
+  if(giftLose(i,c))continue;                           /* 送死（我落后对方一手大三连）同滤——初学弱在钝感，不在送死 */
+  out.push(i)}
+ return out.length?out:ls}
+function aiDecide(){
+ var c=S.turn;
+ if(S.moveN===0)return 4*9+4;                         /* AI 执朱首手=中宫宫心 */
+ var ls=legalCells();
+ if(!ls.length)return -1;
+ if(S.moveN===1){                                     /* 次手=送位宫内 LCG 挑一 */
+  var m6=candList(c).slice(0,6),r6=(rnd()*m6.length)|0;
+  return m6[r6].i}
+ if(S.level===1){
+  var h1=hardBasic(c);if(h1>=0)return h1;
+  var sp1=safePool(c);                                 /* 只在「不送对方占宫位」的点里 LCG 挑 top6 */
+  var pool=[];
+  for(var pk=0;pk<sp1.length;pk++)pool.push({i:sp1[pk],s:heur(sp1[pk],c)});
+  pool.sort(function(a,b4){return (b4.s-a.s)||(a.i-b4.i)});
+  var r1=rnd(),m1;                                    /* 偏置抽取：80% 最优 / 15% 次优 / 5% 三选——初学弱在偶尔次优，不在送死（V6a 120局 97.5%） */
+  m1=(r1<0.8)?0:((r1<0.95)?1:2);
+  if(m1>=pool.length)m1=pool.length-1;
+  return pool[m1].i}
+ if(S.level===2){
+  var h2=hardBasic(c);if(h2>=0)return h2;
+  var cl2=candList(c),z2;                            /* G3-M1 补：启发最高同过送死闸（heur 只罚送占宫位，不罚送死） */
+  for(z2=0;z2<cl2.length;z2++)if(!giftLose(cl2[z2].i,c))return cl2[z2].i;
+  return cl2[0].i}                                   /* 全送死=必死局面，认命取最高 */
+ /* 高手：硬规则 → 2 层极小化（己 top6 × 对方 top5 取最坏）+送位深罚 */
+ var h3=hardBasic(c);if(h3>=0)return h3;
+ var cs=candList(c).slice(0,6),bestI=cs[0].i,bestV=-1e18,k;
+ var sm=S.must;                                       /* G3-M2：极小化内 S.must 随模拟推进（叶评估 candList 读真实送位而非陈旧值） */
+ for(k=0;k<cs.length;k++){
+  var p=cs[k].i,pb=(p/9)|0;
+  B[p]=c;var oldSec=SEC[pb];updSector(pb);            /* 模拟落 */
+  if(macroWin()===c){B[p]=0;SEC[pb]=oldSec;return p}  /* 此分支 S.must 未动（在其后） */
+  var om=mustAfter(p);
+  S.must=om;                                          /* 对方应手集送位 */
+  var resp=[],ls2,j2;
+  if(om>=0&&SEC[om]===-1){for(j2=0;j2<9;j2++)if(B[om*9+j2]===0)resp.push(om*9+j2)}
+  else{for(var b2=0;b2<9;b2++){if(SEC[b2]!==-1)continue;for(j2=0;j2<9;j2++)if(B[b2*9+j2]===0)resp.push(b2*9+j2)}}
+  var rc=[];
+  for(j2=0;j2<resp.length;j2++)rc.push({i:resp[j2],s:heur(resp[j2],3-c)});
+  rc.sort(function(a,b3){return (b3.s-a.s)||(a.i-b3.i)});
+  rc=rc.slice(0,5);
+  var worst=1e18;
+  for(j2=0;j2<rc.length;j2++){
+   var q2=rc[j2].i,qb=(q2/9)|0;
+   B[q2]=3-c;var os2=SEC[qb];updSector(qb);
+   S.must=mustAfter(q2);                              /* 我方后续合法集=对方应手真实送位 */
+   var nxt=candList(c);
+   var v2=nxt.length?nxt[0].s:0;
+   v2+=(countSec(c)-countSec(3-c))*3000;              /* 占宫数差（tempo 视角——min 叶不只要单点分） */
+   if(win3(macroCells())===3-c)v2-=1e7;               /* 对方应手直接赢=极坏 */
+   if(v2<worst)worst=v2;
+   B[q2]=0;SEC[qb]=os2}
+  if(worst>bestV){bestV=worst;bestI=p}
+  B[p]=0;SEC[pb]=oldSec;S.must=sm}
+ return bestI}
+
+/* ================= 流程 ================= */
+function updHUD(){$('mnv').textContent=S.moveN;
+ $('turnv').textContent=S.think?(S.turn===1?'朱…':'黛…'):(S.turn===1?'朱':'黛');
+ $('recv').textContent=S.rec.w+'-'+S.rec.l+'-'+S.rec.d;
+ $('btn-undo').textContent='悔一手 ×'+S.undoN;
+ $('btn-undo').disabled=!(S.phase==='play'&&!S.think&&S.undoN>0&&STACK.length>=2)}
+function nameAt(i){return ((i/9)|0)+'·'+(i%9)}
+function place(i,c,byAI){
+ if(!legalAt(i))return false;
+ var b=(i/9)|0,oldSec=SEC[b];
+ B[i]=c;STACK.push({i:i,c:c});S.moveN++;
+ updSector(b);
+ if(SEC[b]===c&&oldSec===-1)snd('sec');else snd('mv');
+ FLTS.push({txt:(c===1?'朱落 ':'黛落 ')+nameAt(i),i:i,t0:Date.now(),c:c});
+ S.must=mustAfter(i);
+ updHUD();
+ var mw=macroWin();
+ if(mw){S.winLine=macroLine(mw);return endGame(mw)}
+ if(allDead()){
+  var n1=countSec(1),n2=countSec(2);
+  if(n1!==n2)return endGame(n1>n2?1:2);
+  return endGame(0)}
+ S.turn=3-c;updHUD();
+ if(c===playerC()&&S.phase==='play')aiTurn();
+ return true}
+function playerC(){return S.side}
+function macroLine(c){                                /* 获胜大三连首末宫心（画线用） */
+ var k,L,z;
+ for(k=0;k<8;k++){L=LINES8[k];var own=0;
+  for(z=0;z<3;z++)if(SEC[L[z]]===c)own++;
+  if(own===3)return [L[0],L[2]]}
+ return null}
+var TO=null;
+function aiTurn(){
+ if(S.phase!=='play')return;
+ S.think=true;updHUD();
+ var delay=S.level===3?380:(S.level===2?460:560);
+ TO=setTimeout(function(){TO=null;
+  if(S.phase!=='play'){S.think=false;return}
+  S.think=false;
+  var i=aiDecide();
+  if(i<0||!place(i,S.turn,true)){                     /* 应手异常兜底：合法首点重落 */
+   var ls=legalCells();if(ls.length)place(ls[0],S.turn,true)}},delay)}
+function endGame(winner){
+ S.phase='over';S.winner=winner;S.think=false;
+ if(winner===playerC()){S.rec.w++;S.streak++;saveBest()}
+ else if(winner===0){S.rec.d++}
+ else{S.rec.l++;S.streak=0}
+ saveRec();snd(winner===playerC()?'win':(winner===0?'flat':'lose'));
+ showOver(winner);updHUD();return true}
+function showOver(winner){
+ var t=$('overttl'),sc=$('overscore'),st=$('overstat');
+ var n1=countSec(1),n2=countSec(2);
+ if(winner===0){t.textContent='和 局';sc.textContent='—';
+  st.textContent='九宫皆定 '+n1+':'+n2+' · 第 '+S.moveN+' 手'}
+ else if(winner===playerC()){t.textContent='胜';sc.textContent=(winner===1?'朱':'黛')+'胜';
+  st.textContent=(S.winLine?'大三连':'多宫定局')+' '+n1+':'+n2+' · 第 '+S.moveN+' 手 · 连胜 '+S.streak}
+ else{t.textContent='负';sc.textContent=(winner===1?'朱':'黛')+'胜';
+  st.textContent=(S.winLine?'大三连':'多宫定局')+' '+n1+':'+n2+' · 第 '+S.moveN+' 手失势'}
+ $('overlay').classList.remove('hide');$('pauselay').classList.add('hide')}
+function undoMove(){
+ if(S.phase!=='play'||S.think||S.undoN<=0||STACK.length<2)return false;
+ S.undoN--;
+ var k;
+ for(k=0;k<2;k++){var m=STACK.pop();B[m.i]=0;S.moveN--;updSector((m.i/9)|0)}
+ S.turn=playerC();
+ S.must=STACK.length?mustAfter(STACK[STACK.length-1].i):-1;   /* 送位按剩余手序重算 */
+ snd('ui');updHUD();return true}
+function start(){
+ S.phase='play';S.turn=1;S.moveN=0;S.undoN=3;S.must=-1;S.think=false;S.winner=0;S.winLine=null;
+ if(TO){clearTimeout(TO);TO=null}
+ B=new Uint8Array(81);SEC=new Int8Array(9);var q;for(q=0;q<9;q++)SEC[q]=-1;
+ STACK=[];FLTS=[];srand(RS);
+ $('menu').classList.add('hide');$('overlay').classList.add('hide');$('pauselay').classList.add('hide');
+ updHUD();
+ if(playerC()===2)aiTurn()}
+function pauseIn(){if(S.phase!=='play')return;S.phase='pause';
+ if(TO){clearTimeout(TO);TO=null;S.think=false}
+ $('pauselay').classList.remove('hide')}
+function pauseOut(){if(S.phase!=='pause')return;S.phase='play';$('pauselay').classList.add('hide');
+ if(S.turn!==playerC())aiTurn()}
+function goHome(){if(S.phase==='play'||S.phase==='pause'){S.streak=0}
+ saveBest();S.phase='menu';S.think=false;if(TO){clearTimeout(TO);TO=null}
+ $('pauselay').classList.add('hide');$('overlay').classList.add('hide');$('menu').classList.remove('hide');
+ $('mbest').textContent='最长连胜 '+S.best;updHUD()}
+
+/* ================= 绘制 ================= */
+var SERIF="Georgia,'Times New Roman','Songti SC','SimSun',serif";
+function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);
+ ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
+function secXY(b){return [X0+(b%3)*GG,Y0+((b/3)|0)*GG]}
+function cellXY(i){var b=(i/9)|0,j=i%9,s=secXY(b);
+ return [s[0]+SP+((j%3)|0)*SG+SG/2,s[1]+SP+(((j/3)|0)|0)*SG+SG/2]}
+function draw(){
+ ctx.clearRect(0,0,W,H);
+ var bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#0e1420');bg.addColorStop(1,'#0a0e18');
+ ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+ if(S.phase==='menu'){requestAnimationFrame(draw);return}
+ /* 题匾 */
+ ctx.fillStyle='rgba(217,138,126,.85)';ctx.font='700 16px '+SERIF;ctx.textAlign='left';
+ ctx.fillText('九宫连环',24,112);
+ ctx.font='600 11px system-ui';ctx.fillStyle='rgba(139,152,174,.8)';ctx.textAlign='right';
+ ctx.fillText(S.level===1?'初学':(S.level===2?'进阶':'高手'),366,112);
+ ctx.textAlign='left';ctx.fillStyle='rgba(95,108,130,.9)';
+ ctx.fillText('第 '+S.moveN+' 手 · '+(S.must>=0&&SEC[S.must]===-1?'落 '+S.must+' 宫':'自由 · 任选活宫')+' · '+(S.turn===1?'朱行':'黛行'),24,132);
+ /* 九宫 */
+ var b,k;
+ for(b=0;b<9;b++){
+  var sx=secXY(b),dead=SEC[b]!==-1;
+  var pg=ctx.createLinearGradient(sx[0],sx[1],sx[0],sx[1]+G);
+  pg.addColorStop(0,'#ece0c6');pg.addColorStop(1,'#dccfa9');
+  ctx.fillStyle=pg;rr(sx[0],sx[1],G,G,7);ctx.fill();
+  ctx.strokeStyle='#5a4430';ctx.lineWidth=2.4;rr(sx[0],sx[1],G,G,7);ctx.stroke();
+  if(dead){ctx.fillStyle='rgba(14,20,32,.52)';rr(sx[0],sx[1],G,G,7);ctx.fill()}
+  ctx.strokeStyle='rgba(138,106,72,.55)';ctx.lineWidth=1;
+  for(k=1;k<3;k++){
+   ctx.beginPath();ctx.moveTo(sx[0]+SP+k*SG,sx[1]+SP);ctx.lineTo(sx[0]+SP+k*SG,sx[1]+G-SP);ctx.stroke();
+   ctx.beginPath();ctx.moveTo(sx[0]+SP,sx[1]+SP+k*SG);ctx.lineTo(sx[0]+G-SP,sx[1]+SP+k*SG);ctx.stroke()}
+  /* 归属印记 */
+  if(SEC[b]>0){
+   var cx=sx[0]+G/2,cy=sx[1]+G/2,cc=SEC[b];
+   ctx.fillStyle=cc===1?'rgba(192,57,43,.26)':'rgba(61,90,128,.30)';
+   rr(sx[0],sx[1],G,G,7);ctx.fill();
+   ctx.strokeStyle=cc===1?'rgba(192,57,43,.8)':'rgba(93,127,174,.85)';
+   ctx.lineWidth=4;ctx.beginPath();ctx.arc(cx,cy,40,0,7);ctx.stroke();
+   ctx.fillStyle=cc===1?'rgba(155,35,25,.92)':'rgba(48,72,105,.95)';
+   ctx.font='700 34px '+SERIF;ctx.textAlign='center';
+   ctx.fillText(cc===1?'朱':'黛',cx,cy+12);ctx.textAlign='left'}
+  else if(SEC[b]===0){
+   var cx2=sx[0]+G/2,cy2=sx[1]+G/2;
+   ctx.strokeStyle='rgba(150,150,160,.55)';ctx.lineWidth=3;
+   ctx.beginPath();ctx.arc(cx2,cy2,34,0,7);ctx.stroke();
+   ctx.fillStyle='rgba(170,170,180,.6)';ctx.font='700 28px '+SERIF;ctx.textAlign='center';
+   ctx.fillText('封',cx2,cy2+10);ctx.textAlign='left'}
+  /* 送位高亮 */
+  var hl=(S.phase==='play')&&(S.must>=0&&SEC[S.must]===-1?b===S.must:(S.must<0||SEC[S.must]!==-1));
+  if(hl&&SEC[b]===-1){
+   var breath=.45+.3*Math.sin(Date.now()/320);
+   if(S.must>=0&&SEC[S.must]===-1&&b===S.must){
+    ctx.strokeStyle='rgba(231,76,60,'+(breath+.25)+')';ctx.lineWidth=3.6;
+    rr(sx[0]-2,sx[1]-2,G+4,G+4,8);ctx.stroke()}
+   else{
+    ctx.strokeStyle='rgba(230,200,140,.35)';ctx.lineWidth=1.6;
+    rr(sx[0]-2,sx[1]-2,G+4,G+4,8);ctx.stroke()}}
+ }
+ /* 棋子 */
+ var i2;
+ for(i2=0;i2<81;i2++){if(!B[i2])continue;
+  var xy=cellXY(i2),x=xy[0],y=xy[1];
+  ctx.beginPath();ctx.arc(x,y,13,0,7);
+  if(B[i2]===1){var g1=ctx.createRadialGradient(x-3,y-4,1,x,y,13);g1.addColorStop(0,'#e74c3c');g1.addColorStop(1,'#96281b');
+   ctx.fillStyle=g1;ctx.fill();ctx.strokeStyle='rgba(60,10,5,.5)';ctx.lineWidth=1;ctx.stroke()}
+  else{var g2=ctx.createRadialGradient(x-3,y-4,1,x,y,13);g2.addColorStop(0,'#5d7fae');g2.addColorStop(1,'#27395c');
+   ctx.fillStyle=g2;ctx.fill();ctx.strokeStyle='rgba(15,25,45,.5)';ctx.lineWidth=1;ctx.stroke()}}
+ /* 最后一手标记 */
+ if(STACK.length){var lm=STACK[STACK.length-1],lx=cellXY(lm.i);
+  ctx.fillStyle=lm.c===1?'#f9d6c8':'#cfe0f5';
+  ctx.beginPath();ctx.arc(lx[0],lx[1],3.4,0,7);ctx.fill()}
+ /* 大三连贯穿线 */
+ if(S.winLine){var wa=secXY(S.winLine[0]),wb=secXY(S.winLine[1]);
+  ctx.save();ctx.strokeStyle='rgba(192,57,43,.85)';ctx.lineWidth=5;ctx.shadowColor='rgba(192,57,43,.6)';ctx.shadowBlur=8;
+  ctx.beginPath();ctx.moveTo(wa[0]+G/2,wa[1]+G/2);ctx.lineTo(wb[0]+G/2,wb[1]+G/2);ctx.stroke();ctx.restore()}
+ /* 回合状态条 */
+ ctx.textAlign='center';
+ if(S.phase==='play'||S.phase==='pause'){
+  var meR=playerC()===1;
+  var lab=S.think?'弈客'+(S.turn===1?'朱':'黛')+' · 思考中…':'你执'+(meR?'朱 ●':'黛 ○')+' · '+(S.must>=0&&SEC[S.must]===-1?'落 '+S.must+' 宫':'任选活宫');
+  var breath2=S.think?(.45+.3*Math.sin(Date.now()/320)):.85;
+  ctx.fillStyle='rgba(232,236,244,'+breath2+')';ctx.font='700 15px system-ui';
+  ctx.fillText(lab,195,548)}
+ /* 飘字 */
+ var now=Date.now(),keep=[],k2;
+ for(k2=0;k2<FLTS.length;k2++){var f=FLTS[k2],dt=(now-f.t0)/800;
+  if(dt<1){keep.push(f);
+   var fxy=cellXY(f.i);
+   ctx.globalAlpha=1-dt;ctx.fillStyle=f.c===1?'rgba(232,190,180,.95)':'rgba(168,194,228,.95)';
+   ctx.font='600 12px system-ui';ctx.fillText(f.txt,fxy[0],fxy[1]-16-dt*22);ctx.globalAlpha=1}}
+ FLTS=keep;
+ /* 战绩章（y696——81 同位，避让按钮区） */
+ ctx.fillStyle='#1c2434';rr(120,696,150,26,13);ctx.fill();
+ ctx.strokeStyle='#3e4c66';ctx.lineWidth=1.2;rr(120,696,150,26,13);ctx.stroke();
+ ctx.fillStyle='#c8cdd4';ctx.font='700 12px system-ui';
+ ctx.fillText('胜 '+S.rec.w+' · 负 '+S.rec.l+' · 和 '+S.rec.d,195,713);
+ requestAnimationFrame(draw)}
+
+/* ================= 事件 ================= */
+cv.addEventListener('pointerdown',function(e){
+ e.preventDefault();
+ if(S.phase!=='play'||S.think||S.turn!==playerC())return;
+ var r=cv.getBoundingClientRect();
+ var x=(e.clientX-r.left)*W/r.width,y=(e.clientY-r.top)*H/r.height;
+ var bb=-1,jj=-1,bx,b2;
+ for(b2=0;b2<9;b2++){var s2=secXY(b2);
+  if(x>=s2[0]-3&&x<s2[0]+G+3&&y>=s2[1]-3&&y<s2[1]+G+3){bb=b2;break}}
+ if(bb<0)return;
+ var s3=secXY(bb);
+ var ccx=Math.floor((x-s3[0]-SP)/SG),ccy=Math.floor((y-s3[1]-SP)/SG);
+ if(ccx<0||ccx>2||ccy<0||ccy>2)return;
+ jj=ccy*3+ccx;
+ var i=bb*9+jj;
+ if(!legalAt(i)){snd('bad');return}
+ place(i,S.turn,false)
+},false);
+$('btn-go').addEventListener('click',start,false);
+$('btn-again').addEventListener('click',start,false);
+$('btn-pause').addEventListener('click',pauseIn,false);
+$('btn-resume').addEventListener('click',pauseOut,false);
+$('btn-home').addEventListener('click',goHome,false);
+$('btn-home2').addEventListener('click',goHome,false);
+$('btn-undo').addEventListener('click',undoMove,false);
+function segBind(id,key){var el=$(id);
+ el.querySelectorAll('button').forEach(function(b){
+  b.addEventListener('click',function(){
+   el.querySelectorAll('button').forEach(function(b2){b2.classList.remove('on')});
+   b.classList.add('on');S[key]=+b.dataset.v;
+   try{localStorage.setItem('g82_'+key,S[key])}catch(e){}})})}
+segBind('seg-level','level');segBind('seg-side','side');
+function segShow(id,key){$(id).querySelectorAll('button').forEach(function(b){
+ b.classList.toggle('on',+b.dataset.v===S[key])})}
+var sndOn=false,AC=null;
+function ensureAC(){if(!sndOn)return;try{if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume()}catch(e){}}
+function snd(k){if(!sndOn||!AC)return;try{var o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime;
+ var fq=k==='win'?880:(k==='lose'?196:(k==='sec'?660:(k==='mv'?300:(k==='bad'?100:(k==='ui'?520:440)))));
+ o.frequency.value=fq;o.type='sine';
+ g.gain.setValueAtTime(k==='mv'?.06:.12,t);g.gain.exponentialRampToValueAtTime(.001,t+(k==='lose'?.4:.18));
+ o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+.4)}catch(e){}}
+$('btn-snd').addEventListener('click',function(){sndOn=!sndOn;ensureAC();this.textContent=sndOn?'🔊':'🔇'},false);
+document.addEventListener('visibilitychange',function(){if(document.hidden&&S.phase!=='menu'){saveBest();saveRec()}});
+window.addEventListener('pagehide',function(){if(S.phase!=='menu'){saveBest();saveRec()}});
+
+/* ================= 初始化 ================= */
+loadAll();
+$('mbest').textContent='最长连胜 '+S.best;
+segShow('seg-level','level');segShow('seg-side','side');
+updHUD();requestAnimationFrame(draw);
+
+
+</script>
+</body>
+</html>
