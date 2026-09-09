@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>火眼金睛</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:#21150e;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+#app{position:relative;height:100%;max-width:520px;margin:0 auto;overflow:hidden}
+#hud{position:absolute;top:0;left:0;right:0;height:64px;display:flex;align-items:center;gap:8px;padding:0 12px;
+ background:linear-gradient(180deg,#2b1c10,#231610);border-bottom:1px solid #48301c;z-index:5}
+.pill{display:flex;align-items:center;gap:4px;color:#c9b48f;font-size:13px}
+.pill b{font-size:10px;color:#8a7455;font-weight:600}
+.pill span{min-width:30px;text-align:center;font-size:14px;font-weight:700;color:#f0e2c0;
+ background:rgba(0,0,0,.25);border-radius:8px;padding:1px 5px;font-variant-numeric:tabular-nums}
+#cubes{display:flex;gap:3px;margin:0 auto}
+#cubes i{width:8px;height:8px;border-radius:2px;background:rgba(255,255,255,.12)}
+#cubes i.on{background:#e08a4a}
+.hbtn{width:32px;height:32px;border-radius:50%;border:1px solid #5a442a;background:#2c2013;color:#c9b48f;
+ font-size:14px;line-height:1;cursor:pointer;flex:none}
+.hbtn:active{transform:scale(.92)}
+#cv{position:absolute;top:64px;left:50%;transform:translateX(-50%);touch-action:none;cursor:pointer}
+.lay{position:absolute;inset:0;z-index:8;display:flex;align-items:center;justify-content:center;flex-direction:column;
+ background:rgba(16,10,5,.82);backdrop-filter:blur(2px)}
+.lay.hide{display:none}
+#menu{z-index:9}
+.mcard{width:300px;padding:34px 26px 28px;text-align:center;border-radius:14px;
+ background:linear-gradient(180deg,#f5ebd2,#e8dbc0);border:1px solid #b89d6d;box-shadow:0 18px 40px rgba(0,0,0,.45)}
+.mcard h1{font-size:30px;letter-spacing:8px;color:#3a2c1c;margin-bottom:8px}
+.mcard p{color:#7a6547;font-size:13px;letter-spacing:2px;margin-bottom:20px}
+.best{display:inline-block;color:#a5813f;font-size:12px;margin-bottom:22px;border:1px dashed #b89d6d;
+ border-radius:8px;padding:4px 14px}
+.go{display:block;width:100%;padding:13px 0;border:none;border-radius:10px;cursor:pointer;
+ background:linear-gradient(180deg,#c96f3d,#b45a2c);color:#fff7ea;font-size:19px;letter-spacing:10px;
+ text-indent:10px;font-weight:700;box-shadow:0 4px 0 #8a4320}
+.go:active{transform:translateY(2px);box-shadow:0 2px 0 #8a4320}
+#pauselay .pcard,#overlay .pcard{width:280px;padding:30px 24px;text-align:center;border-radius:14px;
+ background:linear-gradient(180deg,#f5ebd2,#e8dbc0);border:1px solid #b89d6d}
+#pauselay h2,#overlay h2{font-size:22px;letter-spacing:6px;color:#3a2c1c;margin-bottom:16px}
+#pauselay button,#overlay button{display:block;width:100%;margin-top:10px;padding:12px 0;border:none;
+ border-radius:10px;cursor:pointer;font-size:16px;letter-spacing:6px;text-indent:6px;font-weight:700}
+#pauselay .pri,#overlay .pri{background:linear-gradient(180deg,#c96f3d,#b45a2c);color:#fff7ea;box-shadow:0 3px 0 #8a4320}
+#pauselay .pri:active,#overlay .pri:active{transform:translateY(1px)}
+#pauselay button:not(.pri),#overlay button:not(.pri){background:#e2d5b8;color:#7a6547}
+#overttl{font-size:26px;letter-spacing:8px;color:#3a2c1c;margin-bottom:10px;font-weight:700}
+#overscore{font-size:44px;color:#b45a2c;font-weight:800;margin-bottom:6px;font-variant-numeric:tabular-nums}
+.st{color:#7a6547;font-size:13px;margin-bottom:14px;letter-spacing:1px}
+</style>
+</head>
+<body>
+<div id="app">
+ <div id="hud">
+  <div class="pill"><b>分</b><span id="scv">0</span></div>
+  <div class="pill"><b>连</b><span id="stv">0</span></div>
+  <div id="cubes"></div>
+  <div class="pill"><b>时</b><span id="tmv">60</span></div>
+  <button class="hbtn" id="btn-snd">🔇</button>
+  <button class="hbtn" id="btn-pause">⏸</button>
+ </div>
+ <canvas id="cv" width="390" height="780"></canvas>
+ <div id="menu" class="lay">
+  <div class="mcard">
+   <h1>火眼金睛</h1>
+   <p>一粒妖字 · 点破画皮</p>
+   <div class="best" id="mbest">最佳 0</div>
+   <button class="go" id="btn-go">开 炉</button>
+  </div>
+ </div>
+ <div id="pauselay" class="lay hide">
+  <div class="pcard">
+   <h2>封 炉</h2>
+   <button class="pri" id="btn-resume">继续</button>
+   <button id="btn-home">收火</button>
+  </div>
+ </div>
+ <div id="overlay" class="lay hide">
+  <div id="overttl">熄 火</div>
+  <div id="overscore">0</div>
+  <div class="st" id="overstat"></div>
+  <button class="go" id="btn-again">再 开 一 炉</button>
+ </div>
+</div>
+<script>
+'use strict';
+/* ================= 近形字组表（内容红线：真近形/每字跨组至多一组/全员常用/宋体可辨） ================= */
+/* __LIB_START__ 含注释头整体剥离由 build 压缩，校验保留 */
+const GRP=[
+/* ---- lv1：双字组 · 一笔之差（25） ---- */
+{c:'干千',lv:1},{c:'王玉',lv:1},{c:'白自',lv:1},{c:'刀力',lv:1},{c:'未末',lv:1},
+{c:'天夫',lv:1},{c:'儿几',lv:1},{c:'人入',lv:1},{c:'木本',lv:1},{c:'开井',lv:1},
+{c:'午牛',lv:1},{c:'户尸',lv:1},{c:'令今',lv:1},{c:'心必',lv:1},{c:'目且',lv:1},
+{c:'元无',lv:1},{c:'习刁',lv:1},{c:'乌鸟',lv:1},{c:'免兔',lv:1},{c:'见贝',lv:1},
+{c:'久夕',lv:1},{c:'义叉',lv:1},{c:'问间',lv:1},{c:'水永',lv:1},{c:'才寸',lv:1},
+/* ---- lv2：三胞胎 / 细微差异（18） ---- */
+{c:'己已巳',lv:2},{c:'大太犬',lv:2},{c:'士土工',lv:2},{c:'日曰',lv:2},{c:'风凤',lv:2},
+{c:'句旬',lv:2},{c:'勺匀',lv:2},{c:'勿匆',lv:2},{c:'予矛',lv:2},{c:'气乞',lv:2},
+{c:'历厉',lv:2},{c:'处外',lv:2},{c:'冈网',lv:2},{c:'内肉',lv:2},{c:'尤龙',lv:2},
+{c:'月用',lv:2},{c:'他她它',lv:2},{c:'凸凹',lv:2},
+/* ---- lv3：四胞胎 / 双笔差异 / 部件换位（12） ---- */
+{c:'田由甲申',lv:3},{c:'戊戌戍',lv:3},{c:'崇祟',lv:3},{c:'辨辩辫',lv:3},{c:'治冶',lv:3},
+{c:'竟竞',lv:3},{c:'拔拨',lv:3},{c:'徒徙',lv:3},{c:'待持',lv:3},{c:'抢枪',lv:3},
+{c:'蓝篮',lv:3},{c:'即既',lv:3},
+];
+/* 构建期校验（throw 家族） */
+(function(){
+ var seen={},per={1:0,2:0,3:0};
+ for(var i=0;i<GRP.length;i++){var c=GRP[i].c;
+  if(!c)throw'GRP['+i+'] 空';
+  var inG={};
+  for(var j=0;j<c.length;j++){var ch=c[j];
+   if(inG[ch])throw'GRP['+i+'] 组内重复:'+ch; inG[ch]=1;
+   if(seen[ch])throw'字跨组重复(一字一组):'+ch; seen[ch]=1;}
+  if(c.length<2||c.length>4)throw'GRP['+i+'] 组大小越界:'+c;
+  if(GRP[i].lv<1||GRP[i].lv>3)throw'GRP['+i+'] lv 越界';
+  per[GRP[i].lv]++;}
+ for(var k=1;k<=3;k++)if(per[k]<8)throw'lv'+k+' 组数不足:'+per[k];
+})();
+
+/* ================= 状态 ================= */
+var $=function(id){return document.getElementById(id)};
+var cv=$('cv'),ctx=cv.getContext('2d');
+var W=390,H=780;
+var BEST_KEY='g78_best',NEED=15,TOTAL=60;
+var S={phase:'menu',time:TOTAL,score:0,best:0,streak:0,maxStreak:0,got:0,tier:1};
+var G=null;   // 当前炉 {idx,base,odd,cells[n],oddPos,n, reveal, hitCell, reused}
+var RS=1;
+function srand(s){RS=(s>>>0)||1}
+function rnd(){RS=(Math.imul(RS,1103515245)+12345)>>>0;return (RS>>>9)/8388608}
+function tierOf(st){return st<3?1:(st<=5?2:3)}
+function saveBest(){if(S.score>S.best){S.best=S.score;try{localStorage.setItem(BEST_KEY,String(S.best))}catch(e){}}}
+function loadBest(){try{S.best=parseInt(localStorage.getItem(BEST_KEY)||'0',10)||0}catch(e){S.best=0}}
+
+/* ================= 出题（组内取 base/odd；屏上字集合恒 {base,odd} 恰两种） ================= */
+var used=new Set();
+function pickIdx(t){
+ for(var i=0;i<GRP.length;i++){var j=(RS>>>0)%GRP.length;RS=(Math.imul(RS,1103515245)+12345)>>>0;
+  if(GRP[j].lv===t&&!used.has(j))return j;}
+ for(var k2=0;k2<GRP.length;k2++){if(GRP[k2].lv===t&&!used.has(k2))return k2;}
+ return -1;
+}
+function deal(){
+ var t=tierOf(S.streak);
+ var nx=pickIdx(t);var ru=false;
+ if(nx<0){used.clear();nx=pickIdx(t);ru=true;}
+ else{ru=used.has(nx);}
+ if(nx<0)return;                       // 理论不可达（校验保证每 lv≥8）
+ used.add(nx);
+ var grp=GRP[nx].c,lv=GRP[nx].lv;
+ var bi=(RS>>>0)%grp.length;RS=(Math.imul(RS,1103515245)+12345)>>>0;
+ var oi=(RS>>>0)%(grp.length-1);RS=(Math.imul(RS,1103515245)+12345)>>>0;
+ if(oi>=bi)oi++;                        // oi≠bi
+ var base=grp[bi],odd=grp[oi];
+ var n=lv===1?4:(lv===2?6:8);
+ var pos=(RS>>>0)%n;RS=(Math.imul(RS,1103515245)+12345)>>>0;
+ var cells=[];for(var m=0;m<n;m++)cells.push(m===pos?odd:base);
+ G={idx:nx,base:base,odd:odd,cells:cells,oddPos:pos,n:n,reveal:false,hitCell:-1,reused:ru};
+}
+/* 布局单源（draw 与 pointerdown 必须同调 layoutFor——g77 布局同源 fatal 教训内建防线） */
+function layoutFor(n){var cols=n===6?6:4,cw=n===6?52:82,chh=64,gap=n===6?6:8,rows=Math.ceil(n/cols);
+ return {cols:cols,rows:rows,cw:cw,chh:chh,gap:gap,x0:(W-(cols*cw+(cols-1)*gap))/2,y0:rows===1?368:340}}
+
+/* ================= 计分/流程 ================= */
+function updHUD(){$('scv').textContent=S.score;$('stv').textContent=S.streak;
+ $('tmv').textContent=Math.ceil(S.time);
+ var c=$('cubes');
+ if(c.childElementCount!==NEED){c.innerHTML='';for(var i=0;i<NEED;i++)c.appendChild(document.createElement('i'))}
+ var kids=c.children;for(var j=0;j<NEED;j++)kids[j].className=j<S.got?'on':''}
+function start(){S.phase='play';S.time=TOTAL;S.score=0;S.streak=0;S.maxStreak=0;S.got=0;S.penN=0;S.bonus=0;
+ used.clear();RS=(RS>>>0)||1;srand(RS);deal();updHUD();
+ $('menu').classList.add('hide');$('overlay').classList.add('hide');$('pauselay').classList.add('hide')}
+function pick(i){
+ if(S.phase!=='play'||!G)return false;
+ if(G.reveal||G.hitCell>=0)return false;
+ if(i<0||i>=G.n)return false;
+ if(i===G.oddPos){
+  var base=100+50*(GRP[G.idx].lv-1);
+  var gain=Math.floor(base*(1+.5*Math.min(S.streak,6)));   // 首对 streak 仍为旧值：倍率=1+0.5*min(streak,6)
+  if(!G.reused)S.score+=gain;snd('ok');
+  S.streak++;if(S.streak>S.maxStreak)S.maxStreak=S.streak;
+  G._gain=gain;S.got++;G.hitCell=i;updHUD();
+  if(S.got>=NEED){win();return true}
+  setTimeout(function(){if(S&&G&&G.reveal===false&&G.hitCell===i&&S.phase!=='over'&&S.phase!=='menu'&&S.got<=NEED){
+   if(S.phase==='play'||S.phase==='pause')deal()}},600);
+  return true;
+ }else{
+  S.streak=0;S.time=Math.max(0,S.time-5);S.penN=(S.penN||0)+1;G.reveal=true;G.wrongPick=i;snd('bad');updHUD();
+  setTimeout(function(){if(S&&G&&G.reveal&&(S.phase==='play'||S.phase==='pause'))deal()},1600);
+  return true;
+ }
+}
+function win(){S.bonus=500;S.score+=500;saveBest();S.phase='win';updHUD();snd('win');
+ setTimeout(function(){if(S.phase==='win')showOver('火眼金睛','+'+S.bonus+' 丹火')},900)}
+function gameOver(){saveBest();S.phase='over';showOver('熄 火','')}
+function showOver(ttl,extra){$('overttl').textContent=ttl;$('overscore').textContent=S.score;
+ $('overstat').textContent='连对 '+S.maxStreak+' 炉 · 辨出 '+S.got+' 字'+(extra?' · '+extra:'');
+ $('overlay').classList.remove('hide');$('pauselay').classList.add('hide')}
+function pauseIn(){if(S.phase!=='play')return;S.phase='pause';$('pauselay').classList.remove('hide')}
+function pauseOut(){if(S.phase!=='pause')return;S.phase='play';$('pauselay').classList.add('hide')}
+
+/* ================= 绘制 ================= */
+var SERIF="Georgia,'Times New Roman','Songti SC','SimSun',serif";   // 宋体下近形差异可辨（SPEC 红线 5）
+function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);
+ ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
+function draw(){
+ ctx.clearRect(0,0,W,H);
+ var bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#2a1a0e');bg.addColorStop(1,'#160e07');
+ ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+ ctx.strokeStyle='rgba(224,138,74,.06)';ctx.lineWidth=1;
+ for(var y=40;y<H;y+=52){ctx.beginPath();ctx.moveTo(0,y);ctx.quadraticCurveTo(W/2,y+9,W,y);ctx.stroke()}
+ if(S.phase==='menu'){requestAnimationFrame(draw);return}
+ if(!G){requestAnimationFrame(draw);return}
+ /* 丹房题头卡 */
+ ctx.fillStyle='#6b4a2c';rr(24,110,342,214,8);ctx.fill();
+ ctx.fillStyle='#6b4a2c';ctx.fillRect(20,108,350,4);ctx.fillRect(20,322,350,4);
+ var pg=ctx.createLinearGradient(0,118,0,316);pg.addColorStop(0,'rgba(52,33,18,.95)');pg.addColorStop(1,'rgba(38,23,12,.95)');
+ ctx.fillStyle=pg;rr(28,118,334,198,6);ctx.fill();
+ ctx.strokeStyle='rgba(224,179,106,.35)';ctx.lineWidth=1;rr(34,124,322,186,4);ctx.stroke();
+ ctx.fillStyle='rgba(224,179,106,.75)';ctx.font='600 11px system-ui';ctx.textAlign='center';
+ ctx.fillText('老君丹房 · 辨字炉',195,138);
+ /* 丹炉（梯形炉身+三足+火苗） */
+ ctx.strokeStyle='rgba(224,179,106,.8)';ctx.lineWidth=2;
+ ctx.beginPath();ctx.moveTo(165,178);ctx.lineTo(225,178);ctx.lineTo(214,232);ctx.lineTo(176,232);ctx.closePath();ctx.stroke();
+ ctx.beginPath();ctx.moveTo(176,232);ctx.lineTo(170,246);ctx.moveTo(195,232);ctx.lineTo(195,248);ctx.moveTo(214,232);ctx.lineTo(220,246);ctx.stroke();
+ ctx.strokeStyle='rgba(224,138,74,.9)';ctx.lineWidth=2;
+ ctx.beginPath();ctx.moveTo(195,172);ctx.quadraticCurveTo(186,160,195,148);ctx.stroke();
+ ctx.beginPath();ctx.moveTo(195,172);ctx.quadraticCurveTo(205,158,196,146);ctx.stroke();
+ ctx.fillStyle='rgba(224,138,74,.55)';ctx.font='800 15px system-ui';
+ ctx.fillText('一排丹字 · 混进一粒妖字',195,276);
+ ctx.fillStyle='rgba(201,180,143,.7)';ctx.font='600 12px system-ui';
+ ctx.fillText('看仔细 · 一点之差 · 点出它',195,300);
+ /* 第 N 炉 公文戳 */
+ ctx.save();ctx.translate(64,116);ctx.rotate(-.07);
+ ctx.strokeStyle='rgba(192,57,43,.9)';ctx.lineWidth=1.6;rr(-30,-13,60,26,3);ctx.stroke();
+ ctx.fillStyle='rgba(192,57,43,.95)';ctx.font='800 13px system-ui';ctx.fillText('第 '+(S.got+1)+' 炉',0,5);ctx.restore();
+ /* 连击章 */
+ if(S.streak>=2){ctx.save();ctx.translate(324,296);ctx.rotate(.1);
+  ctx.strokeStyle='rgba(192,57,43,.85)';ctx.lineWidth=1.4;rr(-32,-13,64,26,3);ctx.stroke();
+  ctx.fillStyle='rgba(192,57,43,.95)';ctx.font='800 13px system-ui';ctx.fillText('连×'+S.streak,0,5);ctx.restore()}
+ /* 丹字牌（draw 与 pointerdown 布局必须同调 layoutFor 单源） */
+ var ly=layoutFor(G.n),cols=ly.cols,cw=ly.cw,chh=ly.chh,gap=ly.gap,x0=ly.x0,yy=ly.y0;
+ var tfs=G.n===6?34:36;
+ for(var oi=0;oi<G.n;oi++){
+  var cx=x0+(oi%cols)*(cw+gap),cy=yy+Math.floor(oi/cols)*(chh+gap);
+  var isHit=G.hitCell===oi,isOdd=oi===G.oddPos;
+  if(isHit){var gg=ctx.createLinearGradient(0,cy,0,cy+chh);gg.addColorStop(0,'#f7e8bd');gg.addColorStop(1,'#eccf8f');
+   ctx.fillStyle=gg;rr(cx,cy,cw,chh,7);ctx.fill();
+   ctx.strokeStyle='#b48a2e';ctx.lineWidth=2.4;rr(cx,cy,cw,chh,7);ctx.stroke();}
+  else if(G.reveal&&isOdd){ctx.fillStyle='#f2e2c4';rr(cx,cy,cw,chh,7);ctx.fill();
+   ctx.strokeStyle='rgba(192,57,43,.95)';ctx.lineWidth=2.4;rr(cx,cy,cw,chh,7);ctx.stroke();}
+  else if(G.reveal&&G.wrongPick===oi){ctx.fillStyle='#4a3a28';rr(cx,cy,cw,chh,7);ctx.fill();
+   ctx.strokeStyle='rgba(90,70,55,.6)';ctx.lineWidth=1;rr(cx,cy,cw,chh,7);ctx.stroke();}
+  else{var pg2=ctx.createLinearGradient(0,cy,0,cy+chh);pg2.addColorStop(0,'#33220f');pg2.addColorStop(1,'#271a0b');
+   ctx.fillStyle=pg2;rr(cx,cy,cw,chh,7);ctx.fill();
+   ctx.strokeStyle='rgba(224,179,106,.5)';ctx.lineWidth=1.2;rr(cx,cy,cw,chh,7);ctx.stroke();}
+  ctx.fillStyle=(G.reveal&&G.wrongPick===oi)?'rgba(201,180,143,.35)':(isHit?'#6b4f1e':(G.reveal&&isOdd?'#6b4a2c':'#f0e2c0'));
+  ctx.font='800 '+tfs+'px '+SERIF;
+  ctx.fillText(G.cells[oi],cx+cw/2,cy+chh/2+12);
+  if(isHit){ctx.save();ctx.translate(cx+cw-13,cy+13);ctx.rotate(.35);
+   ctx.fillStyle='rgba(180,60,40,.95)';ctx.font='800 12px system-ui';ctx.fillText('现',0,0);ctx.restore()}
+ }
+ /* 反馈区 */
+ if(G.hitCell>=0){ctx.fillStyle='rgba(224,179,106,.95)';ctx.font='800 17px system-ui';
+  ctx.fillText(G.reused?'重炉 · 不计分':'妖字现形！ +'+(G._gain||0),195,540)}
+ if(G.reveal){ctx.fillStyle='rgba(226,147,133,.95)';ctx.font='800 16px system-ui';
+  ctx.fillText('走火 −5s！妖字是「'+G.odd+'」',195,540)}
+ /* 底部进度与徽章 */
+ ctx.fillStyle='rgba(255,255,255,.1)';rr(28,626,160,7,3.5);ctx.fill();
+ ctx.fillStyle='#e08a4a';rr(28,626,Math.max(7,160*S.got/NEED),7,3.5);ctx.fill();
+ ctx.fillStyle='rgba(201,180,143,.8)';ctx.font='600 12px system-ui';
+ ctx.fillText(S.got+' / '+NEED+' 炉',108,652);
+ ctx.save();ctx.translate(322,632);rr(-32,-15,64,30,15);ctx.fillStyle='#1d130a';ctx.fill();
+ ctx.strokeStyle='#e0b36a';ctx.lineWidth=1.4;rr(-32,-15,64,30,15);ctx.stroke();
+ ctx.fillStyle='#f0e2c0';ctx.font='800 13px system-ui';ctx.fillText('丹房',0,5);ctx.restore();
+ requestAnimationFrame(draw);
+}
+
+/* ================= 主循环 ================= */
+var last=0;
+function loop(ts){
+ if(S.phase==='play'){
+  if(!last)last=ts;
+  var dt=Math.min((ts-last)/1000,.25);last=ts;
+  S.time-=dt;
+  if(S.time<=0){S.time=0;updHUD();gameOver()}
+  else updHUD();
+ }else last=0;
+ requestAnimationFrame(loop);
+}
+
+/* ================= 事件 ================= */
+cv.addEventListener('pointerdown',function(e){
+ e.preventDefault();
+ if(S.phase!=='play'||!G)return;
+ var r=cv.getBoundingClientRect();
+ var x=(e.clientX-r.left)*W/r.width,y=(e.clientY-r.top)*H/r.height;
+ var ly=layoutFor(G.n),cols=ly.cols,cw=ly.cw,chh=ly.chh,gap=ly.gap,x0=ly.x0,yy=ly.y0;
+ for(var i=0;i<G.n;i++){
+  var cx=x0+(i%cols)*(cw+gap),cy=yy+Math.floor(i/cols)*(chh+gap);
+  if(x>=cx-4&&x<=cx+cw+4&&y>=cy-4&&y<=cy+chh+4){pick(i);return}
+ }
+},false);
+$('btn-go').addEventListener('click',start,false);
+$('btn-again').addEventListener('click',start,false);
+$('btn-pause').addEventListener('click',pauseIn,false);
+$('btn-resume').addEventListener('click',pauseOut,false);
+$('btn-home').addEventListener('click',function(){saveBest();S.phase='menu';G=null;
+ $('pauselay').classList.add('hide');$('overlay').classList.add('hide');
+ $('menu').classList.remove('hide');
+ $('mbest').textContent='最佳 '+S.best},false);
+var sndOn=false,AC=null;
+function ensureAC(){if(!sndOn)return;try{if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume()}catch(e){}}
+function snd(k){if(!sndOn||!AC)return;try{var o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime;
+ o.frequency.value=k==='ok'?660:(k==='bad'?220:880);o.type='sine';
+ g.gain.setValueAtTime(.12,t);g.gain.exponentialRampToValueAtTime(.001,t+(k==='bad'?.3:.15));
+ o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+.32)}catch(e){}}
+$('btn-snd').addEventListener('click',function(){sndOn=!sndOn;ensureAC();this.textContent=sndOn?'🔊':'🔇'},false);
+document.addEventListener('visibilitychange',function(){if(document.hidden&&S.phase!=='menu')saveBest()});
+window.addEventListener('pagehide',function(){if(S.phase!=='menu')saveBest()});
+
+/* ================= 初始化 ================= */
+loadBest();$('mbest').textContent='最佳 '+S.best;
+(function(){var c=$('cubes');for(var i=0;i<NEED;i++)c.appendChild(document.createElement('i'))})();
+updHUD();requestAnimationFrame(loop);requestAnimationFrame(draw);
+
+
+</script>
+</body>
+</html>
