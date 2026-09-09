@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>成语填字</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:#21150e;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+#app{position:relative;height:100%;max-width:520px;margin:0 auto;overflow:hidden}
+#hud{position:absolute;top:0;left:0;right:0;height:64px;display:flex;align-items:center;gap:8px;padding:0 12px;
+ background:linear-gradient(180deg,#2b1c10,#231610);border-bottom:1px solid #48301c;z-index:5}
+.pill{display:flex;align-items:center;gap:4px;color:#c9b48f;font-size:13px}
+.pill b{font-size:10px;color:#8a7455;font-weight:600}
+.pill span{min-width:30px;text-align:center;font-size:14px;font-weight:700;color:#f0e2c0;
+ background:rgba(0,0,0,.25);border-radius:8px;padding:1px 5px;font-variant-numeric:tabular-nums}
+#cubes{display:flex;gap:3px;margin:0 auto}
+#cubes i{width:8px;height:8px;border-radius:2px;background:rgba(255,255,255,.12)}
+#cubes i.on{background:#e08a4a}
+.hbtn{width:32px;height:32px;border-radius:50%;border:1px solid #5a442a;background:#2c2013;color:#c9b48f;
+ font-size:14px;line-height:1;cursor:pointer;flex:none}
+.hbtn:active{transform:scale(.92)}
+#cv{position:absolute;top:64px;left:50%;transform:translateX(-50%);touch-action:none;cursor:pointer}
+.lay{position:absolute;inset:0;z-index:8;display:flex;align-items:center;justify-content:center;flex-direction:column;
+ background:rgba(16,10,5,.82);backdrop-filter:blur(2px)}
+.lay.hide{display:none}
+#menu{z-index:9}
+.mcard{width:300px;padding:34px 26px 28px;text-align:center;border-radius:14px;
+ background:linear-gradient(180deg,#f5ebd2,#e8dbc0);border:1px solid #b89d6d;box-shadow:0 18px 40px rgba(0,0,0,.45)}
+.mcard h1{font-size:30px;letter-spacing:8px;color:#3a2c1c;margin-bottom:8px}
+.mcard p{color:#7a6547;font-size:13px;letter-spacing:2px;margin-bottom:20px}
+.best{display:inline-block;color:#a5813f;font-size:12px;margin-bottom:22px;border:1px dashed #b89d6d;
+ border-radius:8px;padding:4px 14px}
+.go{display:block;width:100%;padding:13px 0;border:none;border-radius:10px;cursor:pointer;
+ background:linear-gradient(180deg,#c96f3d,#b45a2c);color:#fff7ea;font-size:19px;letter-spacing:10px;
+ text-indent:10px;font-weight:700;box-shadow:0 4px 0 #8a4320}
+.go:active{transform:translateY(2px);box-shadow:0 2px 0 #8a4320}
+#pauselay .pcard,#overlay .pcard{width:280px;padding:30px 24px;text-align:center;border-radius:14px;
+ background:linear-gradient(180deg,#f5ebd2,#e8dbc0);border:1px solid #b89d6d}
+#pauselay h2,#overlay h2{font-size:22px;letter-spacing:6px;color:#3a2c1c;margin-bottom:16px}
+#pauselay button,#overlay button{display:block;width:100%;margin-top:10px;padding:12px 0;border:none;
+ border-radius:10px;cursor:pointer;font-size:16px;letter-spacing:6px;text-indent:6px;font-weight:700}
+#pauselay .pri,#overlay .pri{background:linear-gradient(180deg,#c96f3d,#b45a2c);color:#fff7ea;box-shadow:0 3px 0 #8a4320}
+#pauselay .pri:active,#overlay .pri:active{transform:translateY(1px)}
+#pauselay button:not(.pri),#overlay button:not(.pri){background:#e2d5b8;color:#7a6547}
+#overttl{font-size:26px;letter-spacing:8px;color:#3a2c1c;margin-bottom:10px;font-weight:700}
+#overscore{font-size:44px;color:#b45a2c;font-weight:800;margin-bottom:6px;font-variant-numeric:tabular-nums}
+.st{color:#7a6547;font-size:13px;margin-bottom:14px;letter-spacing:1px}
+</style>
+</head>
+<body>
+<div id="app">
+ <div id="hud">
+  <div class="pill"><b>分</b><span id="scv">0</span></div>
+  <div class="pill"><b>连</b><span id="stv">0</span></div>
+  <div id="cubes"></div>
+  <div class="pill"><b>时</b><span id="tmv">60</span></div>
+  <button class="hbtn" id="btn-snd">🔇</button>
+  <button class="hbtn" id="btn-pause">⏸</button>
+ </div>
+ <canvas id="cv" width="390" height="780"></canvas>
+ <div id="menu" class="lay">
+  <div class="mcard">
+   <h1>成语填字</h1>
+   <p>观义填字 · 补全典故</p>
+   <div class="best" id="mbest">最佳 0</div>
+   <button class="go" id="btn-go">展 卷</button>
+  </div>
+ </div>
+ <div id="pauselay" class="lay hide">
+  <div class="pcard">
+   <h2>压 卷</h2>
+   <button class="pri" id="btn-resume">继续</button>
+   <button id="btn-home">收卷</button>
+  </div>
+ </div>
+ <div id="overlay" class="lay hide">
+  <div id="overttl">收 卷</div>
+  <div id="overscore">0</div>
+  <div class="st" id="overstat"></div>
+  <button class="go" id="btn-again">再 展 一 卷</button>
+ </div>
+</div>
+<script>
+'use strict';
+/* ================= 成语库（内容红线：通行成语零杜撰/四字纯汉字/零重复/挖位 G1 核定/安全干扰字每位≥3/释义教材级） ================= */
+/* LIB 与下方校验 IIFE 均为运行时必需，build 不剥离（仅剥 __DEV 区） */
+const LIB=[
+/* ---- lv1：常用缺 1 字（25） ---- */
+{w:'一心一意',m:'心思专一，没有杂念',k:[1],lv:1},{w:'守株待兔',m:'侥幸等待，不劳而获',k:[1],lv:1},
+{w:'画蛇添足',m:'多此一举，反而坏事',k:[2],lv:1},{w:'亡羊补牢',m:'出错之后及时补救',k:[2],lv:1},
+{w:'拔苗助长',m:'急于求成，反而坏事',k:[1],lv:1},{w:'掩耳盗铃',m:'自欺欺人，硬要掩盖',k:[1],lv:1},
+{w:'刻舟求剑',m:'拘泥成法，不知变通',k:[1],lv:1},{w:'叶公好龙',m:'表面爱好，并非真心',k:[1],lv:1},
+{w:'南辕北辙',m:'行动与目的正好相反',k:[1],lv:1},{w:'井底之蛙',m:'见识狭隘短浅',k:[2],lv:1},
+{w:'狐假虎威',m:'倚仗他人势力吓人',k:[1],lv:1},{w:'画龙点睛',m:'关键一笔，点明要旨',k:[3],lv:1},
+{w:'对牛弹琴',m:'对不懂道理的人讲道理',k:[1],lv:1},{w:'杯弓蛇影',m:'疑神疑鬼，妄自惊扰',k:[1],lv:1},
+{w:'愚公移山',m:'坚持不懈，终能成事',k:[1],lv:1},{w:'卧薪尝胆',m:'刻苦自励，发愤图强',k:[1],lv:1},
+{w:'破釜沉舟',m:'下定决心，义无反顾',k:[1],lv:1},{w:'四面楚歌',m:'四面受敌，孤立无援',k:[2],lv:1},
+{w:'纸上谈兵',m:'空谈理论，不切实用',k:[2],lv:1},{w:'完璧归赵',m:'原物完好归还本人',k:[1],lv:1},
+{w:'负荆请罪',m:'主动认错，诚恳赔罪',k:[1],lv:1},{w:'三顾茅庐',m:'诚心诚意邀请人才',k:[1],lv:1},
+{w:'草木皆兵',m:'惊恐疑惧，自相惊扰',k:[2],lv:1},{w:'惊弓之鸟',m:'受过惊吓，格外胆怯',k:[1],lv:1},
+{w:'滥竽充数',m:'没有本领，混充在内',k:[1],lv:1},
+/* ---- lv2：进阶缺 1 字（20） ---- */
+{w:'未雨绸缪',m:'事先做好准备',k:[2],lv:2},{w:'防微杜渐',m:'及早制止坏事发展',k:[3],lv:2},
+{w:'韬光养晦',m:'隐藏才能，不露锋芒',k:[2],lv:2},{w:'囊萤映雪',m:'家贫而刻苦读书',k:[1],lv:2},
+{w:'凿壁偷光',m:'借光读书，家贫好学',k:[1],lv:2},{w:'悬梁刺股',m:'读书刻苦，自强不息',k:[2],lv:2},
+{w:'管中窥豹',m:'只见局部，未见全貌',k:[2],lv:2},{w:'沧海一粟',m:'非常渺小，微不足道',k:[1],lv:2},
+{w:'川流不息',m:'行人车马连续不断',k:[1],lv:2},{w:'世外桃源',m:'与世隔绝的美好境地',k:[3],lv:2},
+{w:'相形见绌',m:'相比之下远远不如',k:[3],lv:2},{w:'方兴未艾',m:'正在发展，尚未停止',k:[3],lv:2},
+{w:'风靡一时',m:'一个时期非常流行',k:[1],lv:2},{w:'矢志不渝',m:'立下志愿，绝不改变',k:[1],lv:2},
+{w:'白璧微瑕',m:'美中不足的小缺点',k:[3],lv:2},{w:'良莠不齐',m:'好坏混杂，参差不一',k:[1],lv:2},
+{w:'鬼斧神工',m:'技艺精巧，不似人工',k:[1],lv:2},{w:'饮鸩止渴',m:'用有害办法救眼前之急',k:[1],lv:2},
+{w:'暴殄天物',m:'任意糟蹋，不知爱惜',k:[1],lv:2},{w:'觥筹交错',m:'酒杯酒筹交错，宴饮尽欢',k:[1],lv:2},
+/* ---- lv3：典故缺 2 字（15） ---- */
+{w:'沧海桑田',m:'世事变化巨大',k:[0,1],lv:3},{w:'越俎代庖',m:'越权代替别人办事',k:[1,2],lv:3},
+{w:'醍醐灌顶',m:'灌输智慧，彻底醒悟',k:[0,1],lv:3},{w:'筚路蓝缕',m:'创业艰辛',k:[0,2],lv:3},
+{w:'罄竹难书',m:'罪行极多，写也写不尽',k:[0,1],lv:3},{w:'暴虎冯河',m:'有勇无谋，冒险蛮干',k:[2,3],lv:3},
+{w:'沐猴而冠',m:'虚有其表，装模作样',k:[0,1],lv:3},{w:'管窥蠡测',m:'见识短浅片面',k:[1,2],lv:3},
+{w:'魑魅魍魉',m:'形形色色的坏人',k:[0,2],lv:3},{w:'光风霁月',m:'胸襟开阔，心地坦白',k:[2,3],lv:3},
+{w:'岿然不动',m:'高大坚固，不可动摇',k:[0,1],lv:3},{w:'户枢不蠹',m:'常动之物不易侵蚀',k:[1,3],lv:3},
+{w:'火中取栗',m:'被人利用，白担风险',k:[0,3],lv:3},{w:'老骥伏枥',m:'年老仍有雄心壮志',k:[1,2],lv:3},
+{w:'胼手胝足',m:'长期辛劳，手足生茧',k:[0,2],lv:3},
+];
+/* 构建期校验（throw 家族）+ 安全干扰字表（运行时复用） */
+var SAFE={};   /* SAFE[i+','+p]=[安全干扰字…]（库内同位字替换后不成成语） */
+(function(){
+ var seen={},per={1:0,2:0,3:0},i,j,k,p;
+ var pools={0:{},1:{},2:{},3:{}};
+ for(i=0;i<LIB.length;i++){var w=LIB[i].w;
+  if(!w||w.length!==4)throw'LIB['+i+'] 非四字';
+  if(!LIB[i].m)throw'LIB['+i+'] 释义空';
+  if(seen[w])throw'LIB 重复成语:'+w; seen[w]=1;
+  if(LIB[i].lv<1||LIB[i].lv>3)throw'LIB['+i+'] lv 越界';
+  for(j=0;j<4;j++){var ch=w.charAt(j);
+   if(ch<'一'||ch>'鿿')throw'LIB['+i+'] 非汉字:'+w;
+   pools[j][ch]=1;}
+  per[LIB[i].lv]++;}
+ for(k=1;k<=3;k++)if(per[k]<8)throw'lv'+k+' 条数不足:'+per[k];
+ var wset={};for(i=0;i<LIB.length;i++)wset[LIB[i].w]=1;
+ for(i=0;i<LIB.length;i++){var it=LIB[i],kk=it.k;
+  if(!kk||!kk.length||kk.length!==(it.lv===3?2:1))throw'LIB['+i+'] k 数量违 lv 映射:'+it.w;
+  for(j=0;j<kk.length;j++){if(kk[j]<0||kk[j]>3)throw'LIB['+i+'] k 位越界:'+it.w;
+   for(k=j+1;k<kk.length;k++)if(kk[j]===kk[k])throw'LIB['+i+'] k 位重复:'+it.w;}
+  for(j=0;j<kk.length;j++){p=kk[j];var arr=[],c2;
+   for(c2 in pools[p]){if(c2===it.w.charAt(p))continue;
+    var t=it.w.substring(0,p)+c2+it.w.substring(p+1);
+    if(!wset[t])arr.push(c2);}
+   if(arr.length<3)throw'安全干扰字不足:'+it.w+'@'+p+'='+arr.length;
+   SAFE[i+','+p]=arr;}}
+})();
+
+/* ================= 状态 ================= */
+var $=function(id){return document.getElementById(id)};
+var cv=$('cv'),ctx=cv.getContext('2d');
+var W=390,H=780;
+var BEST_KEY='g80_best',NEED=15,TOTAL=60;
+var S={phase:'menu',time:TOTAL,score:0,best:0,streak:0,maxStreak:0,got:0};
+var G=null;   /* 当前题 {idx,w,m,ks,slots[4](已锁字|''),cur,optz(当前空四牌字序),optU[4],reveal,revealed,reused,_gain} */
+var RS=1;
+function srand(s){RS=(s>>>0)||1}
+function rnd(){RS=(Math.imul(RS,1103515245)+12345)>>>0;return (RS>>>9)/8388608}
+function tierOf(st){return st<3?1:(st<=5?2:3)}
+function saveBest(){if(S.score>S.best){S.best=S.score;try{localStorage.setItem(BEST_KEY,String(S.best))}catch(e){}}}
+function loadBest(){try{S.best=parseInt(localStorage.getItem(BEST_KEY)||'0',10)||0}catch(e){S.best=0}}
+
+/* ================= 出题（playCnt 出场计数：同条第 ≥2 次出场=reused 不计分——g79 M2 范式） ================= */
+var used=new Set();var playCnt=new Map();
+function pickIdx(t){
+ for(var i=0;i<LIB.length;i++){var j=(RS>>>0)%LIB.length;RS=(Math.imul(RS,1103515245)+12345)>>>0;
+  if(LIB[j].lv===t&&!used.has(j))return j;}
+ for(var k2=0;k2<LIB.length;k2++){if(LIB[k2].lv===t&&!used.has(k2))return k2;}
+ return -1;
+}
+function mkOpts(i,p,ans){                    /* 当前空四牌：正确字+3 安全干扰字，seed 洗牌 */
+ var pool=SAFE[i+','+p].slice(),picks=[ans],n2,j2,c2;
+ for(n2=0;n2<3&&pool.length;n2++){
+  var take=(rnd()*pool.length)|0; if(take<0||take>=pool.length)take=0;
+  picks.push(pool.splice(take,1)[0]);}
+ while(picks.length<4)picks.push('伪');     /* 理论不可达（构造期已保 ≥3） */
+ for(n2=picks.length-1;n2>0;n2--){j2=(rnd()*(n2+1))|0;c2=picks[n2];picks[n2]=picks[j2];picks[j2]=c2;}
+ return picks;
+}
+function deal(){
+ var t=tierOf(S.streak);
+ var nx=pickIdx(t);
+ if(nx<0){used.clear();nx=pickIdx(t);}     /* 库尽循环重用（reused 由 playCnt 判，不受 clear 影响） */
+ if(nx<0)return;                           /* 理论不可达（每 lv≥8） */
+ var pc4=(playCnt.get(nx)||0)+1;playCnt.set(nx,pc4);
+ var ru=pc4>1;
+ used.add(nx);
+ var it=LIB[nx],ks=it.k.slice();
+ G={idx:nx,w:it.w,m:it.m,ks:ks,slots:['','','',''],cur:0,
+   optz:mkOpts(nx,ks[0],it.w.charAt(ks[0])),optU:[0,0,0,0],
+   reveal:false,revealed:false,reused:ru,_gain:0};
+}
+
+/* 布局单源（draw 与 pointerdown 必须同调——g77 布局同源 fatal 内建防线）
+   wordGeom：成语四格 y356 格72 gap8；optGeom：四选一牌 2×2 y516 牌160×56 gap10 */
+function wordGeom(){return {x0:39,y0:356,cw:72,chh:72,gap:8}}
+function optGeom(){return {x0:35,y0:516,cw:160,chh:56,gap:10}}
+
+/* ================= 计分/流程 ================= */
+function updHUD(){$('scv').textContent=S.score;$('stv').textContent=S.streak;
+ $('tmv').textContent=Math.ceil(S.time);
+ var c=$('cubes');
+ if(c.childElementCount!==NEED){c.innerHTML='';for(var i=0;i<NEED;i++)c.appendChild(document.createElement('i'))}
+ var kids=c.children;for(var j=0;j<NEED;j++)kids[j].className=j<S.got?'on':''}
+function start(){S.phase='play';S.time=TOTAL;S.score=0;S.streak=0;S.maxStreak=0;S.got=0;S.penN=0;S.bonus=0;
+ used.clear();playCnt.clear();RS=(RS>>>0)||1;srand(RS);deal();updHUD();
+ $('menu').classList.add('hide');$('overlay').classList.add('hide');$('pauselay').classList.add('hide')}
+function tapOpt(i){                       /* 四选一牌：对→锁入前进；错→整题判错 */
+ if(S.phase!=='play'||!G)return false;
+ if(G.reveal||G.revealed)return false;
+ if(i<0||i>3)return false;
+ if(G.optU[i])return false;
+ if(G.optz[i]===G.w.charAt(G.ks[G.cur])){
+  G.slots[G.ks[G.cur]]=G.optz[i];G.optU[i]=1;G.cur++;snd('mv');
+  if(G.cur>=G.ks.length)return judge(true);
+  G.optz=mkOpts(G.idx,G.ks[G.cur],G.w.charAt(G.ks[G.cur]));G.optU=[0,0,0,0];
+  return true;
+ }
+ G.optU[i]=1;return judge(false);         /* 错字：已用标记（揭底态可见）+整题判错 */
+}
+function judge(all){                        /* all=全空锁定（对）/false=错字触发 */
+ if(all){                                  /* 对路径（tapOpt 已锁满） */
+  var base=100+50*(LIB[G.idx].lv-1);
+  var gain=Math.floor(base*(1+.5*Math.min(S.streak,6)));   /* streak=判定前连对数，封顶 ×4 */
+  if(!G.reused)S.score+=gain;snd('ok');
+  S.streak++;if(S.streak>S.maxStreak)S.maxStreak=S.streak;
+  G._gain=gain;S.got++;G.revealed=true;updHUD();
+  if(S.got>=NEED){win();return true}
+  setTimeout(function(){if(S&&G&&G.revealed===true&&S.phase!=='over'&&S.phase!=='menu'&&S.got<=NEED){
+   if(S.phase==='play'||S.phase==='pause')deal()}},600);
+  return true;
+ }
+ S.streak=0;S.time=Math.max(0,S.time-5);S.penN=(S.penN||0)+1;snd('bad');G.reveal=true;updHUD();
+ setTimeout(function(){if(S&&G&&G.reveal&&(S.phase==='play'||S.phase==='pause'))deal()},1600);
+ return true;
+}
+function win(){S.bonus=500;S.score+=500;saveBest();S.phase='win';updHUD();snd('win');
+ setTimeout(function(){if(S.phase==='win')showOver('补阙成卷','+'+S.bonus+' 卷尾')},900)}
+function gameOver(){saveBest();S.phase='over';showOver('收 卷','')}
+function showOver(ttl,extra){$('overttl').textContent=ttl;$('overscore').textContent=S.score;
+ $('overstat').textContent='连对 '+S.maxStreak+' 题 · 补全 '+S.got+' 题'+(extra?' · '+extra:'');
+ $('overlay').classList.remove('hide');$('pauselay').classList.add('hide')}
+function pauseIn(){if(S.phase!=='play')return;S.phase='pause';$('pauselay').classList.remove('hide')}
+function pauseOut(){if(S.phase!=='pause')return;S.phase='play';$('pauselay').classList.add('hide')}
+
+/* ================= 绘制 ================= */
+var SERIF="Georgia,'Times New Roman','Songti SC','SimSun',serif";   /* 成语字宋体（SPEC 红线） */
+function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);
+ ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
+function draw(){
+ ctx.clearRect(0,0,W,H);
+ var bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#2a1a0e');bg.addColorStop(1,'#160e07');
+ ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+ ctx.strokeStyle='rgba(224,138,74,.06)';ctx.lineWidth=1;
+ for(var yy=40;yy<H;yy+=52){ctx.beginPath();ctx.moveTo(0,yy);ctx.quadraticCurveTo(W/2,yy+9,W,yy);ctx.stroke()}
+ if(S.phase==='menu'){requestAnimationFrame(draw);return}
+ if(!G){requestAnimationFrame(draw);return}
+ /* 题头卡 */
+ ctx.fillStyle='#6b4a2c';rr(24,110,342,214,8);ctx.fill();
+ ctx.fillStyle='#6b4a2c';ctx.fillRect(20,108,350,4);ctx.fillRect(20,322,350,4);
+ var pg=ctx.createLinearGradient(0,118,0,316);pg.addColorStop(0,'rgba(52,33,18,.95)');pg.addColorStop(1,'rgba(38,23,12,.95)');
+ ctx.fillStyle=pg;rr(28,118,334,198,6);ctx.fill();
+ ctx.strokeStyle='rgba(224,179,106,.35)';ctx.lineWidth=1;rr(34,124,322,186,4);ctx.stroke();
+ ctx.fillStyle='rgba(224,179,106,.75)';ctx.font='600 11px system-ui';ctx.textAlign='center';
+ ctx.fillText('断简补阙 · 成语填字',195,138);
+ /* 残卷+朱笔简笔 */
+ ctx.strokeStyle='rgba(224,179,106,.7)';ctx.lineWidth=1.6;
+ ctx.save();ctx.translate(195,212);ctx.rotate(-.05);
+ ctx.fillStyle='rgba(240,226,196,.14)';rr(-64,-32,128,64,4);ctx.fill();
+ ctx.strokeStyle='rgba(224,179,106,.5)';ctx.stroke();
+ ctx.strokeStyle='rgba(201,180,143,.4)';ctx.lineWidth=1;
+ for(var ln=0;ln<3;ln++){ctx.beginPath();ctx.moveTo(-52,-11+ln*15);ctx.lineTo(52,-11+ln*15);ctx.stroke()}
+ ctx.restore();
+ ctx.strokeStyle='rgba(224,138,74,.9)';ctx.lineWidth=2;                  /* 朱笔 */
+ ctx.beginPath();ctx.moveTo(258,160);ctx.lineTo(254,188);ctx.stroke();
+ ctx.fillStyle='rgba(192,57,43,.9)';ctx.beginPath();ctx.arc(254,192,4,0,7);ctx.fill();
+ ctx.fillStyle='rgba(224,138,74,.55)';ctx.font='800 15px system-ui';
+ ctx.fillText('一典缺字 · 观义补全',195,276);
+ ctx.fillStyle='rgba(201,180,143,.7)';ctx.font='600 12px system-ui';
+ ctx.fillText('选对入位 · 选错即罚',195,300);
+ /* 第 N 卷 公文戳 */
+ ctx.save();ctx.translate(64,116);ctx.rotate(-.07);
+ ctx.strokeStyle='rgba(192,57,43,.9)';ctx.lineWidth=1.6;rr(-30,-13,60,26,3);ctx.stroke();
+ ctx.fillStyle='rgba(192,57,43,.95)';ctx.font='800 13px system-ui';ctx.fillText('第 '+(S.got+1)+' 卷',0,5);ctx.restore();
+ /* 连击章 */
+ if(S.streak>=2){ctx.save();ctx.translate(324,296);ctx.rotate(.1);
+  ctx.strokeStyle='rgba(192,57,43,.85)';ctx.lineWidth=1.4;rr(-32,-13,64,26,3);ctx.stroke();
+  ctx.fillStyle='rgba(192,57,43,.95)';ctx.font='800 13px system-ui';ctx.fillText('连×'+S.streak,0,5);ctx.restore()}
+ /* 成语四格（wordGeom 单源） */
+ var wg=wordGeom(),wx0=wg.x0,wy0=wg.y0,cw=wg.cw,chh=wg.chh,gp=wg.gap;
+ var i2,cx,cy;
+ for(i2=0;i2<4;i2++){
+  cx=wx0+i2*(cw+gp);cy=wy0;
+  var kseq=G.ks.indexOf(i2);                 /* 该格是否挖空位及序 */
+  var locked=kseq>=0&&kseq<G.cur;            /* 已锁（答对） */
+  if(G.reveal){                              /* 揭底：全格示正确字，错选位朱示 */
+   ctx.fillStyle='#f2e2c4';rr(cx,cy,cw,chh,7);ctx.fill();
+   ctx.strokeStyle=kseq>=0?'rgba(192,57,43,.95)':'rgba(184,157,109,.7)';ctx.lineWidth=kseq>=0?2.4:1.4;
+   rr(cx,cy,cw,chh,7);ctx.stroke();
+   ctx.fillStyle='#6b4a2c';
+  }else if(locked){                          /* 已锁：米白纸笺翠框 */
+   ctx.fillStyle='#f0e2c4';rr(cx,cy,cw,chh,7);ctx.fill();
+   ctx.strokeStyle='#8a9a52';ctx.lineWidth=2.2;rr(cx,cy,cw,chh,7);ctx.stroke();
+   ctx.fillStyle='#4c5a2a';
+  }else if(kseq>=0){                         /* 挖空未填：当前空呼吸虚线框，后空暗虚线 */
+   var cur2=(kseq===G.cur);
+   var pg2=ctx.createLinearGradient(0,cy,0,cy+chh);pg2.addColorStop(0,'#20140a');pg2.addColorStop(1,'#2a1a0c');
+   ctx.fillStyle=pg2;rr(cx,cy,cw,chh,7);ctx.fill();
+   ctx.setLineDash([6,4]);
+   if(cur2){ctx.strokeStyle='rgba(224,179,106,'+(.55+.35*Math.sin(Date.now()/300))+')';ctx.lineWidth=2.6}
+   else{ctx.strokeStyle='rgba(224,179,106,.28)';ctx.lineWidth=1.4}
+   rr(cx,cy,cw,chh,7);ctx.stroke();ctx.setLineDash([]);
+   /* 空序号点：当前空●后空○ */
+   ctx.fillStyle=cur2?'rgba(224,138,74,.9)':'rgba(201,180,143,.4)';
+   ctx.beginPath();ctx.arc(cx+cw/2,cy+chh-12,cur2?3.5:2.5,0,7);ctx.fill();
+  }else{                                     /* 已知字：深底米金字 */
+   var pg3=ctx.createLinearGradient(0,cy,0,cy+chh);pg3.addColorStop(0,'#33220f');pg3.addColorStop(1,'#271a0b');
+   ctx.fillStyle=pg3;rr(cx,cy,cw,chh,7);ctx.fill();
+   ctx.strokeStyle='rgba(224,179,106,.5)';ctx.lineWidth=1.2;rr(cx,cy,cw,chh,7);ctx.stroke();
+   ctx.fillStyle='#f0e2c0';
+  }
+  if(!(kseq>=0&&!locked&&!G.reveal)){        /* 挖空未填不画字，其余画 */
+   ctx.font='800 44px '+SERIF;
+   ctx.fillText(G.reveal?G.w.charAt(i2):(locked?G.slots[i2]:G.w.charAt(i2)),cx+cw/2,cy+chh/2+15);
+  }
+ }
+ /* 释义提示行（揭底态强调色） */
+ ctx.font='600 13px system-ui';
+ ctx.fillStyle=G.reveal?'rgba(226,147,133,.95)':'rgba(201,180,143,.85)';
+ var mtxt=G.m;
+ if(mtxt.length>24){var cut=mtxt.lastIndexOf('，',22);mtxt=cut>8?mtxt.substring(0,cut+1)+'\n'+mtxt.substring(cut+1):mtxt.substring(0,24)+'\n'+mtxt.substring(24)}
+ var mls=mtxt.split('\n');
+ for(i2=0;i2<mls.length;i2++)ctx.fillText((i2===0?'义 · ':'　 ')+mls[i2],195,462+i2*20);
+ /* 四选一牌（optGeom 单源，2×2） */
+ var og=optGeom(),ox0=og.x0,oy0=og.y0,ocw=og.cw,ochh=og.chh,ogp=og.gap;
+ for(i2=0;i2<4;i2++){
+  cx=ox0+(i2%2)*(ocw+ogp);cy=oy0+((i2/2)|0)*(ochh+ogp);
+  var tk=G.optU[i2];
+  if(!tk){var pg4=ctx.createLinearGradient(0,cy,0,cy+ochh);pg4.addColorStop(0,'#33220f');pg4.addColorStop(1,'#271a0b');
+   ctx.fillStyle=pg4;rr(cx,cy,ocw,ochh,9);ctx.fill();
+   ctx.strokeStyle='rgba(224,179,106,.5)';ctx.lineWidth=1.2;rr(cx,cy,ocw,ochh,9);ctx.stroke();
+   ctx.fillStyle='#f0e2c0';
+  }else{ctx.fillStyle='rgba(51,34,15,.35)';rr(cx,cy,ocw,ochh,9);ctx.fill();
+   ctx.strokeStyle='rgba(224,179,106,.18)';ctx.lineWidth=1;rr(cx,cy,ocw,ochh,9);ctx.stroke();
+   ctx.fillStyle='rgba(240,226,192,.35)';}
+  ctx.font='800 26px '+SERIF;
+  ctx.fillText(G.optz[i2],cx+ocw/2,cy+ochh/2+9);
+ }
+ /* 反馈区 */
+ if(G.revealed&&!G.reveal){ctx.fillStyle='rgba(224,179,106,.95)';ctx.font='800 17px system-ui';
+  ctx.fillText(G.reused?'重卷 · 不计分':'补全！ +'+(G._gain||0),195,676)}
+ if(G.reveal){ctx.fillStyle='rgba(226,147,133,.95)';ctx.font='800 16px system-ui';
+  ctx.fillText('误填 −5s · 原词已示',195,676)}
+ /* 底部进度与徽章 */
+ ctx.fillStyle='rgba(255,255,255,.1)';rr(28,692,160,7,3.5);ctx.fill();
+ ctx.fillStyle='#e08a4a';rr(28,692,Math.max(7,160*S.got/NEED),7,3.5);ctx.fill();
+ ctx.fillStyle='rgba(201,180,143,.8)';ctx.font='600 12px system-ui';
+ ctx.fillText(S.got+' / '+NEED+' 题',108,718);
+ ctx.save();ctx.translate(322,698);rr(-32,-15,64,30,15);ctx.fillStyle='#1d130a';ctx.fill();
+ ctx.strokeStyle='#e0b36a';ctx.lineWidth=1.4;rr(-32,-15,64,30,15);ctx.stroke();
+ ctx.fillStyle='#f0e2c0';ctx.font='800 13px system-ui';ctx.fillText('补阙',0,5);ctx.restore();
+ requestAnimationFrame(draw);
+}
+
+/* ================= 主循环 ================= */
+var last=0;
+function loop(ts){
+ if(S.phase==='play'){
+  if(!last)last=ts;
+  var dt=Math.min((ts-last)/1000,.25);last=ts;      /* dt 钳制（后台返回防一次性扣入） */
+  S.time-=dt;
+  if(S.time<=0){S.time=0;updHUD();gameOver()}
+  else updHUD();
+ }else last=0;
+ requestAnimationFrame(loop);
+}
+
+/* ================= 事件 ================= */
+cv.addEventListener('pointerdown',function(e){
+ e.preventDefault();
+ if(S.phase!=='play'||!G)return;
+ var r=cv.getBoundingClientRect();
+ var x=(e.clientX-r.left)*W/r.width,y=(e.clientY-r.top)*H/r.height;
+ var og=optGeom(),ox0=og.x0,oy0=og.y0,ocw=og.cw,ochh=og.chh,ogp=og.gap;
+ var i;
+ for(i=0;i<4;i++){                          /* 四选一牌热区（唯一交互区） */
+  var px=ox0+(i%2)*(ocw+ogp),py=oy0+((i/2)|0)*(ochh+ogp);
+  if(x>=px-4&&x<=px+ocw+4&&y>=py-4&&y<=py+ochh+4){tapOpt(i);return}
+ }
+},false);
+$('btn-go').addEventListener('click',start,false);
+$('btn-again').addEventListener('click',start,false);
+$('btn-pause').addEventListener('click',pauseIn,false);
+$('btn-resume').addEventListener('click',pauseOut,false);
+$('btn-home').addEventListener('click',function(){saveBest();S.phase='menu';G=null;
+ $('pauselay').classList.add('hide');$('overlay').classList.add('hide');
+ $('menu').classList.remove('hide');
+ $('mbest').textContent='最佳 '+S.best},false);
+var sndOn=false,AC=null;
+function ensureAC(){if(!sndOn)return;try{if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume()}catch(e){}}
+function snd(k){if(!sndOn||!AC)return;try{var o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime;
+ o.frequency.value=k==='ok'?660:(k==='bad'?220:(k==='mv'?440:880));o.type='sine';
+ g.gain.setValueAtTime(k==='mv'?.05:.12,t);g.gain.exponentialRampToValueAtTime(.001,t+(k==='bad'?.3:.15));
+ o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+.32)}catch(e){}}
+$('btn-snd').addEventListener('click',function(){sndOn=!sndOn;ensureAC();this.textContent=sndOn?'🔊':'🔇'},false);
+document.addEventListener('visibilitychange',function(){if(document.hidden&&S.phase!=='menu')saveBest()});
+window.addEventListener('pagehide',function(){if(S.phase!=='menu')saveBest()});
+
+/* ================= 初始化 ================= */
+loadBest();$('mbest').textContent='最佳 '+S.best;
+(function(){var c=$('cubes');for(var i=0;i<NEED;i++)c.appendChild(document.createElement('i'))})();
+updHUD();requestAnimationFrame(loop);requestAnimationFrame(draw);
+
+
+</script>
+</body>
+</html>
