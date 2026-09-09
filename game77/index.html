@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>歇后语茶馆</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:#221810;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+#app{position:relative;height:100%;max-width:520px;margin:0 auto;overflow:hidden}
+#hud{position:absolute;top:0;left:0;right:0;height:64px;display:flex;align-items:center;gap:8px;padding:0 12px;
+ background:linear-gradient(180deg,#2c1f14,#241a10);border-bottom:1px solid #4a3620;z-index:5}
+.pill{display:flex;align-items:center;gap:4px;color:#c9b48f;font-size:13px}
+.pill b{font-size:10px;color:#8a7455;font-weight:600}
+.pill span{min-width:30px;text-align:center;font-size:14px;font-weight:700;color:#f0e2c0;
+ background:rgba(0,0,0,.25);border-radius:8px;padding:1px 5px;font-variant-numeric:tabular-nums}
+#cubes{display:flex;gap:3px;margin:0 auto}
+#cubes i{width:8px;height:8px;border-radius:2px;background:rgba(255,255,255,.12)}
+#cubes i.on{background:#e0b36a}
+.hbtn{width:32px;height:32px;border-radius:50%;border:1px solid #5a442a;background:#2c2013;color:#c9b48f;
+ font-size:14px;line-height:1;cursor:pointer;flex:none}
+.hbtn:active{transform:scale(.92)}
+#cv{position:absolute;top:64px;left:50%;transform:translateX(-50%);touch-action:none;cursor:pointer}
+.lay{position:absolute;inset:0;z-index:8;display:flex;align-items:center;justify-content:center;flex-direction:column;
+ background:rgba(18,12,6,.82);backdrop-filter:blur(2px)}
+.lay.hide{display:none}
+#menu{z-index:9}
+.mcard{width:300px;padding:34px 26px 28px;text-align:center;border-radius:14px;
+ background:linear-gradient(180deg,#f5ebd2,#e8dbc0);border:1px solid #b89d6d;box-shadow:0 18px 40px rgba(0,0,0,.45)}
+.mcard h1{font-size:30px;letter-spacing:8px;color:#3a2c1c;margin-bottom:8px}
+.mcard p{color:#7a6547;font-size:13px;letter-spacing:2px;margin-bottom:20px}
+.best{display:inline-block;color:#a5813f;font-size:12px;margin-bottom:22px;border:1px dashed #b89d6d;
+ border-radius:8px;padding:4px 14px}
+.go{display:block;width:100%;padding:13px 0;border:none;border-radius:10px;cursor:pointer;
+ background:linear-gradient(180deg,#c96f3d,#b45a2c);color:#fff7ea;font-size:19px;letter-spacing:10px;
+ text-indent:10px;font-weight:700;box-shadow:0 4px 0 #8a4320}
+.go:active{transform:translateY(2px);box-shadow:0 2px 0 #8a4320}
+#pauselay .pcard,#overlay .pcard{width:280px;padding:30px 24px;text-align:center;border-radius:14px;
+ background:linear-gradient(180deg,#f5ebd2,#e8dbc0);border:1px solid #b89d6d}
+#pauselay h2,#overlay h2{font-size:22px;letter-spacing:6px;color:#3a2c1c;margin-bottom:16px}
+#pauselay button,#overlay button{display:block;width:100%;margin-top:10px;padding:12px 0;border:none;
+ border-radius:10px;cursor:pointer;font-size:16px;letter-spacing:6px;text-indent:6px;font-weight:700}
+#pauselay .pri,#overlay .pri{background:linear-gradient(180deg,#c96f3d,#b45a2c);color:#fff7ea;box-shadow:0 3px 0 #8a4320}
+#pauselay .pri:active,#overlay .pri:active{transform:translateY(1px)}
+#pauselay button:not(.pri),#overlay button:not(.pri){background:#e2d5b8;color:#7a6547}
+#overttl{font-size:26px;letter-spacing:8px;color:#3a2c1c;margin-bottom:10px;font-weight:700}
+#overscore{font-size:44px;color:#b45a2c;font-weight:800;margin-bottom:6px;font-variant-numeric:tabular-nums}
+.st{color:#7a6547;font-size:13px;margin-bottom:14px;letter-spacing:1px}
+</style>
+</head>
+<body>
+<div id="app">
+ <div id="hud">
+  <div class="pill"><b>分</b><span id="scv">0</span></div>
+  <div class="pill"><b>连</b><span id="stv">0</span></div>
+  <div id="cubes"></div>
+  <div class="pill"><b>时</b><span id="tmv">60</span></div>
+  <button class="hbtn" id="btn-snd">🔇</button>
+  <button class="hbtn" id="btn-pause">⏸</button>
+ </div>
+ <canvas id="cv" width="390" height="780"></canvas>
+ <div id="menu" class="lay">
+  <div class="mcard">
+   <h1>歇后语茶馆</h1>
+   <p>亮上句 · 抢接下句</p>
+   <div class="best" id="mbest">最佳 0</div>
+   <button class="go" id="btn-go">开 讲</button>
+  </div>
+ </div>
+ <div id="pauselay" class="lay hide">
+  <div class="pcard">
+   <h2>歇 场</h2>
+   <button class="pri" id="btn-resume">继续</button>
+   <button id="btn-home">收摊</button>
+  </div>
+ </div>
+ <div id="overlay" class="lay hide">
+  <div id="overttl">散 场</div>
+  <div id="overscore">0</div>
+  <div class="st" id="overstat"></div>
+  <button class="go" id="btn-again">再 开 一 场</button>
+ </div>
+</div>
+<script>
+'use strict';
+/* ================= 歇后语库（内容红线：公认唯一搭配；a 全库唯一；异写只收一种） ================= */
+/* __LIB_START__ 含注释头整体剥离由 build 压缩，校验保留 */
+const LIB=[
+/* ---- lv1：人人皆知热句（54） ---- */
+{s:'外甥打灯笼',a:'照旧',lv:1},{s:'芝麻开花',a:'节节高',lv:1},{s:'泥菩萨过江',a:'自身难保',lv:1},
+{s:'竹篮打水',a:'一场空',lv:1},{s:'十五个吊桶打水',a:'七上八下',lv:1},{s:'哑巴吃黄连',a:'有苦说不出',lv:1},
+{s:'千里送鹅毛',a:'礼轻情意重',lv:1},{s:'王婆卖瓜',a:'自卖自夸',lv:1},{s:'姜太公钓鱼',a:'愿者上钩',lv:1},
+{s:'打破砂锅',a:'问到底',lv:1},{s:'猫哭耗子',a:'假慈悲',lv:1},{s:'铁公鸡',a:'一毛不拔',lv:1},
+{s:'小葱拌豆腐',a:'一清二白',lv:1},{s:'热锅上的蚂蚁',a:'团团转',lv:1},{s:'瞎子点灯',a:'白费蜡',lv:1},
+{s:'兔子尾巴',a:'长不了',lv:1},{s:'飞蛾扑火',a:'自取灭亡',lv:1},{s:'老鼠过街',a:'人人喊打',lv:1},
+{s:'骑驴看唱本',a:'走着瞧',lv:1},{s:'肉包子打狗',a:'有去无回',lv:1},{s:'画蛇添足',a:'多此一举',lv:1},
+{s:'猪八戒照镜子',a:'里外不是人',lv:1},{s:'黄鼠狼给鸡拜年',a:'没安好心',lv:1},{s:'八仙过海',a:'各显神通',lv:1},
+{s:'孔夫子搬家',a:'净是书',lv:1},{s:'门缝里看人',a:'把人看扁了',lv:1},{s:'榆木脑袋',a:'不开窍',lv:1},
+{s:'丈二和尚',a:'摸不着头脑',lv:1},{s:'哑巴吃饺子',a:'心里有数',lv:1},{s:'狗拿耗子',a:'多管闲事',lv:1},
+{s:'挂羊头卖狗肉',a:'有名无实',lv:1},{s:'茶壶里煮饺子',a:'有货倒不出',lv:1},{s:'司马昭之心',a:'路人皆知',lv:1},
+{s:'亡羊补牢',a:'为时不晚',lv:1},{s:'井底之蛙',a:'目光短浅',lv:1},{s:'打开天窗',a:'说亮话',lv:1},
+{s:'老虎屁股',a:'摸不得',lv:1},{s:'大姑娘上轿',a:'头一回',lv:1},{s:'火烧眉毛',a:'顾眼前',lv:1},
+{s:'刘姥姥进大观园',a:'眼花缭乱',lv:1},{s:'小和尚念经',a:'有口无心',lv:1},{s:'皇帝的女儿',a:'不愁嫁',lv:1},
+{s:'王羲之写字',a:'入木三分',lv:1},{s:'韩信点兵',a:'多多益善',lv:1},{s:'猪鼻子插葱',a:'装象',lv:1},{s:'狗咬吕洞宾',a:'不识好人心',lv:1},{s:'徐庶进曹营',a:'一言不发',lv:1},
+{s:'关公面前耍大刀',a:'自不量力',lv:1},{s:'秀才遇到兵',a:'有理说不清',lv:1},{s:'八月十五的月亮',a:'正大光明',lv:1},
+{s:'卢沟桥的狮子',a:'数不清',lv:1},{s:'天桥的把式',a:'光说不练',lv:1},{s:'擀面杖吹火',a:'一窍不通',lv:1},
+{s:'老鼠钻进风箱',a:'两头受气',lv:1},
+/* ---- lv2：次常见（44） ---- */
+{s:'和尚打伞',a:'无法无天',lv:2},{s:'张飞吃豆芽',a:'小菜一碟',lv:2},{s:'刘备借荆州',a:'有借无还',lv:2},
+{s:'刘备摔孩子',a:'收买人心',lv:2},{s:'冰糖煮黄连',a:'同甘共苦',lv:2},{s:'木偶戏跳舞',a:'幕后有人牵线',lv:2},
+{s:'猪八戒吃人参果',a:'全不知滋味',lv:2},{s:'电线杆上绑鸡毛',a:'好大的胆子',lv:2},{s:'擦胭粉进棺材',a:'死要面子',lv:2},
+{s:'麻布袋绣花',a:'底子太差',lv:2},{s:'盲人骑瞎马',a:'乱闯',lv:2},{s:'卖肉的切豆腐',a:'不在话下',lv:2},
+{s:'孔夫子的砚台',a:'心太黑',lv:2},{s:'百米赛跑',a:'分秒必争',lv:2},{s:'阎王爷贴告示',a:'鬼话连篇',lv:2},
+{s:'阎王爷开饭店',a:'鬼都不上门',lv:2},{s:'抱着元宝跳井',a:'舍命不舍财',lv:2},{s:'做梦娶媳妇',a:'尽想好事',lv:2},
+{s:'疤痢眼照镜子',a:'自找难看',lv:2},{s:'半天云里跑马',a:'露马脚',lv:2},{s:'麻子的脸',a:'尽是缺点',lv:2},
+{s:'麻子照镜子',a:'个人观点',lv:2},{s:'口袋里装钉子',a:'个个想出头',lv:2},{s:'老鼠掉进书箱里',a:'咬文嚼字',lv:2},
+{s:'牛角上抹油',a:'又尖又滑',lv:2},{s:'旗杆上晒衣服',a:'好大的架子',lv:2},{s:'算盘珠子',a:'不拨不动',lv:2},
+{s:'坐飞机吹喇叭',a:'唱高调',lv:2},{s:'老寿星吃砒霜',a:'活得不耐烦',lv:2},{s:'灶王爷贴腿肚子上',a:'人走家搬',lv:2},
+{s:'灶王爷扔石头',a:'砸锅',lv:2},{s:'猫不吃鱼',a:'假斯文',lv:2},{s:'猫嘴里的老鼠',a:'跑不了',lv:2},
+{s:'狗掀门帘',a:'全凭一张嘴',lv:2},{s:'狗咬刺猬',a:'无从下口',lv:2},{s:'母鸡下蛋',a:'呱呱叫',lv:2},
+{s:'公鸡下蛋',a:'没指望',lv:2},{s:'赶鸭子上架',a:'强人所难',lv:2},{s:'螺蛳壳里做道场',a:'施展不开',lv:2},
+{s:'唱戏的腿抽筋',a:'下不了台',lv:2},{s:'理发师的挑子',a:'一头热',lv:2},{s:'理发师带徒弟',a:'从头学起',lv:2},
+{s:'蜡烛脾气',a:'不点不亮',lv:2},{s:'老鼠掉进米缸里',a:'喜出望外',lv:2},
+/* ---- lv3：冷门长句（34） ---- */
+{s:'姜太公的坐骑',a:'四不像',lv:3},{s:'孙悟空钻进铁扇公主肚里',a:'心腹之患',lv:3},
+{s:'白骨精遇上孙悟空',a:'原形毕露',lv:3},{s:'唐僧念紧箍咒',a:'头痛在后头',lv:3},
+{s:'唐僧的书',a:'一本正经',lv:3},{s:'如来佛捉孙大圣',a:'易如反掌',lv:3},
+{s:'孙悟空的金箍棒',a:'能大能小',lv:3},{s:'孙悟空赴蟠桃会',a:'不请自来',lv:3},
+{s:'二郎神的兵器',a:'两面三刀',lv:3},{s:'张果老倒骑毛驴',a:'背道而驰',lv:3},
+{s:'张果老卖寿星',a:'倚老卖老',lv:3},{s:'铁拐李的葫芦',a:'不知卖的什么药',lv:3},
+{s:'何仙姑走娘家',a:'云里来雾里去',lv:3},{s:'韩湘子吹箫',a:'不同凡响',lv:3},
+{s:'阿斗的江山',a:'白送',lv:3},{s:'蒋干盗书',a:'上了大当',lv:3},
+{s:'曹操吃鸡肋',a:'食之无味弃之可惜',lv:3},{s:'曹操败走华容道',a:'不出所料',lv:3},
+{s:'关公喝酒',a:'不怕脸红',lv:3},{s:'张飞卖秤锤',a:'人硬货也硬',lv:3},
+{s:'张飞绣花',a:'粗中有细',lv:3},{s:'马谡用兵',a:'言过其实',lv:3},
+{s:'诸葛亮吊孝',a:'装模作样',lv:3},{s:'诸葛亮用空城计',a:'不得已',lv:3},
+{s:'梁山泊的王伦',a:'容不得人',lv:3},{s:'林冲到了野猪林',a:'绝处逢生',lv:3},
+{s:'武大郎放风筝',a:'起手不高',lv:3},{s:'武大郎攀杠子',a:'上下够不着',lv:3},
+{s:'武松打虎',a:'艺高胆大',lv:3},{s:'武松看鸭子',a:'英雄无用武之地',lv:3},
+{s:'时迁照镜子',a:'贼头贼脑',lv:3},{s:'鲁智深出家',a:'无牵无挂',lv:3},
+{s:'李逵骂宋江',a:'过后赔不是',lv:3},{s:'大水冲了龙王庙',a:'一家人不认一家人',lv:3},
+];
+/* 构建期校验（throw 家族） */
+(function(){
+ var seenQ={},seenA={},per={1:0,2:0,3:0};
+ for(var i=0;i<LIB.length;i++){var r=LIB[i];
+  if(!r.s||!r.a)throw'LIB['+i+'] 空';
+  if(seenQ[r.s])throw'LIB 前半句重复:'+r.s; seenQ[r.s]=1;
+  if(seenA[r.a])throw'LIB 后半句重复(防双正确):'+r.a; seenA[r.a]=1;
+  if(r.s===r.a)throw'LIB['+i+'] 前后半相同';
+  if(r.s.length>14)throw'前半超长:'+r.s;
+  if(r.a.length>12)throw'后半超长:'+r.a;
+  if(r.lv<1||r.lv>3)throw'LIB['+i+'] lv 越界';
+  per[r.lv]++;}
+ for(var k=1;k<=3;k++)if(per[k]<8)throw'lv'+k+' 库存不足:'+per[k];
+})();
+/* __LIB_END__ */
+
+/* ================= 状态 ================= */
+var $=function(id){return document.getElementById(id)};
+var cv=$('cv'),ctx=cv.getContext('2d');
+var W=390,H=780;
+var BEST_KEY='g77_best',NEED=15,TOTAL=60;
+var S={phase:'menu',time:TOTAL,score:0,best:0,streak:0,maxStreak:0,got:0,tier:1};
+var G=null;   // 当前题 {idx,opts[4],ok, reveal, hitCell, reused}
+var RS=1;
+function srand(s){RS=(s>>>0)||1}
+function rnd(){RS=(Math.imul(RS,1103515245)+12345)>>>0;return (RS>>>9)/8388608}
+function tierOf(st){return st<3?1:(st<=5?2:3)}
+function saveBest(){if(S.score>S.best){S.best=S.score;try{localStorage.setItem(BEST_KEY,String(S.best))}catch(e){}}}
+function loadBest(){try{S.best=parseInt(localStorage.getItem(BEST_KEY)||'0',10)||0}catch(e){S.best=0}}
+
+/* ================= 出题（同 lv 干扰池，a 全库唯一天然防双正确） ================= */
+var used=new Set();
+function pickIdx(t){
+ for(var i=0;i<LIB.length;i++){var j=(RS>>>0)%LIB.length;RS=(Math.imul(RS,1103515245)+12345)>>>0;
+  if(LIB[j].lv===t&&!used.has(j))return j;}
+ for(var k2=0;k2<LIB.length;k2++){if(LIB[k2].lv===t&&!used.has(k2))return k2;}
+ return -1;
+}
+function deal(){
+ var t=tierOf(S.streak);
+ var nx=pickIdx(t);var ru=false;
+ if(nx<0){used.clear();nx=pickIdx(t);ru=true;}
+ else{ru=used.has(nx);}
+ if(nx<0)return;                       // 理论不可达（校验保证每 lv≥8）
+ used.add(nx);
+ var it=LIB[nx];
+ var pool=[];
+ for(var i=0;i<LIB.length&&pool.length<12;i++){var j=(RS>>>0)%LIB.length;RS=(Math.imul(RS,1103515245)+12345)>>>0;
+  if(LIB[j].lv===it.lv&&j!==nx&&!used.has(j)&&pool.indexOf(LIB[j].a)<0)pool.push(LIB[j].a);}
+ for(var i2=0;i2<LIB.length&&pool.length<3;i2++){          // 跨 lv 兜底
+  if(i2!==nx&&pool.indexOf(LIB[i2].a)<0)pool.push(LIB[i2].a);}
+ if(pool.length<3)throw'干扰不足';
+ var opts=[it.a];
+ for(var m=0;m<3;m++){var idx=(RS>>>0)%pool.length;RS=(Math.imul(RS,1103515245)+12345)>>>0;
+  opts.push(pool.splice(idx,1)[0]);}
+ for(var s2=opts.length-1;s2>0;s2--){var q=(RS>>>0)%(s2+1);RS=(Math.imul(RS,1103515245)+12345)>>>0;
+  var tt=opts[s2];opts[s2]=opts[q];opts[q]=tt;}
+ var mlen=0;for(var mi=0;mi<opts.length;mi++)if(opts[mi].length>mlen)mlen=opts[mi].length;
+ G={idx:nx,opts:opts,ok:opts.indexOf(it.a),mlen:mlen,reveal:false,hitCell:-1,reused:ru};
+}
+function mkOptsLayout(mlen){return mlen<=6?1:2}
+function optGeom(mode){var cw=mode===1?82:168,chh=56,gap=8,cols=mode===1?4:2;
+ return{cw:cw,chh:chh,gap:gap,cols:cols,x0:(W-(cols*cw+(cols-1)*gap))/2,yy:368}}   // 1=横排4牌 2=2×2
+
+/* ================= 计分/流程 ================= */
+function updHUD(){$('scv').textContent=S.score;$('stv').textContent=S.streak;
+ $('tmv').textContent=Math.ceil(S.time);
+ var c=$('cubes');
+ if(c.childElementCount!==NEED){c.innerHTML='';for(var i=0;i<NEED;i++)c.appendChild(document.createElement('i'))}
+ var kids=c.children;for(var j=0;j<NEED;j++)kids[j].className=j<S.got?'on':''}
+function start(){S.phase='play';S.time=TOTAL;S.score=0;S.streak=0;S.maxStreak=0;S.got=0;
+ used.clear();RS=(RS>>>0)||1;srand(RS);deal();updHUD();
+ $('menu').classList.add('hide');$('overlay').classList.add('hide');$('pauselay').classList.add('hide')}
+function pick(i){
+ if(S.phase!=='play'||!G)return false;
+ if(G.reveal||G.hitCell>=0)return false;
+ if(i<0||i>=4)return false;
+ if(G.opts[i]===LIB[G.idx].a){
+  var base=100+50*(LIB[G.idx].lv-1);
+  var gain=Math.floor(base*(1+.5*Math.min(S.streak,6)));   // 首对 streak 仍为旧值：倍率=1+0.5*min(streak,6)
+  if(!G.reused)S.score+=gain;snd('ok');
+  S.streak++;if(S.streak>S.maxStreak)S.maxStreak=S.streak;
+  G._gain=gain;S.got++;G.hitCell=i;updHUD();
+  if(S.got>=NEED){win();return true}
+  setTimeout(function(){if(S&&G&&G.reveal===false&&G.hitCell===i&&S.phase!=='over'&&S.phase!=='menu'&&S.got<=NEED){
+   if(S.phase==='play'||S.phase==='pause')deal()}},600);
+  return true;
+ }else{
+  S.streak=0;S.time=Math.max(0,S.time-5);S.penN=(S.penN||0)+1;G.reveal=true;G.wrongPick=i;snd('bad');updHUD();
+  setTimeout(function(){if(S&&G&&G.reveal&&(S.phase==='play'||S.phase==='pause'))deal()},1600);
+  return true;
+ }
+}
+function win(){S.bonus=500;S.score+=500;saveBest();S.phase='win';updHUD();snd('win');
+ setTimeout(function(){if(S.phase==='win')showOver('满堂彩','+'+S.bonus+' 彩头')},900)}
+function gameOver(){saveBest();S.phase='over';showOver('散 场','')}
+function showOver(ttl,extra){$('overttl').textContent=ttl;$('overscore').textContent=S.score;
+ $('overstat').textContent='连对 '+S.maxStreak+' 折 · 接对 '+S.got+' 句'+(extra?' · '+extra:'');
+ $('overlay').classList.remove('hide');$('pauselay').classList.add('hide')}
+function pauseIn(){if(S.phase!=='play')return;S.phase='pause';$('pauselay').classList.remove('hide')}
+function pauseOut(){if(S.phase!=='pause')return;S.phase='play';$('pauselay').classList.add('hide')}
+
+/* ================= 绘制 ================= */
+function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);
+ ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
+function draw(){
+ ctx.clearRect(0,0,W,H);
+ var bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#2a1d12');bg.addColorStop(1,'#1b1209');
+ ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+ ctx.strokeStyle='rgba(224,179,106,.07)';ctx.lineWidth=1;
+ for(var y=40;y<H;y+=52){ctx.beginPath();ctx.moveTo(0,y);ctx.quadraticCurveTo(W/2,y+8,W,y);ctx.stroke()}
+ if(S.phase==='menu'){requestAnimationFrame(draw);return}
+ if(!G){requestAnimationFrame(draw);return}
+ var it=LIB[G.idx];
+ /* 说书卡 */
+ ctx.fillStyle='#6b4f33';rr(24,118,342,208,8);ctx.fill();
+ ctx.fillStyle='#6b4f33';ctx.fillRect(20,116,350,4);ctx.fillRect(20,324,350,4);
+ var pg=ctx.createLinearGradient(0,126,0,318);pg.addColorStop(0,'#f5ebd2');pg.addColorStop(1,'#e8dbc0');
+ ctx.fillStyle=pg;rr(28,126,334,192,6);ctx.fill();
+ ctx.strokeStyle='rgba(120,80,60,.45)';ctx.lineWidth=1;rr(34,132,322,180,4);ctx.stroke();
+ ctx.fillStyle='rgba(80,60,45,.7)';ctx.font='600 11px system-ui';ctx.textAlign='center';
+ ctx.fillText('歇后语 · 上句',195,152);
+ /* 前半句（两行） */
+ ctx.fillStyle='#2c2418';
+ var q=it.s,fs=q.length<=8?26:20,lines=q.length<=8?[q]:[q.slice(0,Math.ceil(q.length/2)),q.slice(Math.ceil(q.length/2))];
+ ctx.font='800 '+fs+'px system-ui';
+ var y0=lines.length===1?212:196;
+ for(var li=0;li<lines.length;li++)ctx.fillText(lines[li],195,y0+li*(fs+14));
+ ctx.fillStyle='rgba(122,101,71,.85)';ctx.font='600 12px system-ui';
+ ctx.fillText('—— 抢接下句 ——',195,296);
+ /* 第 N 折 公文戳 */
+ ctx.save();ctx.translate(64,124);ctx.rotate(-.07);
+ ctx.strokeStyle='rgba(192,57,43,.9)';ctx.lineWidth=1.6;rr(-30,-13,60,26,3);ctx.stroke();
+ ctx.fillStyle='rgba(192,57,43,.95)';ctx.font='800 13px system-ui';ctx.fillText('第 '+(S.got+1)+' 折',0,5);ctx.restore();
+ /* 连击章 */
+ if(S.streak>=2){ctx.save();ctx.translate(324,286);ctx.rotate(.1);
+  ctx.strokeStyle='rgba(192,57,43,.85)';ctx.lineWidth=1.4;rr(-32,-13,64,26,3);ctx.stroke();
+  ctx.fillStyle='rgba(192,57,43,.95)';ctx.font='800 13px system-ui';ctx.fillText('连×'+S.streak,0,5);ctx.restore()}
+ /* 选项牌（draw 与 pointerdown 布局必须同源 G.mlen——draw 用 it.a 时 NaN<=6 恒 2×2，热区错位） */
+ var mode=mkOptsLayout(G.mlen);
+ var gm=optGeom(mode),cw=gm.cw,chh=gm.chh,gap=gm.gap,cols=gm.cols,x0=gm.x0,yy=gm.yy;
+ for(var oi=0;oi<4;oi++){
+  var cx=x0+(oi%cols)*(cw+gap),cy=yy+Math.floor(oi/cols)*(chh+gap);
+  var isHit=G.hitCell===oi,isOk=oi===G.ok;
+  if(isHit){var gg=ctx.createLinearGradient(0,cy,0,cy+chh);gg.addColorStop(0,'#f7e8bd');gg.addColorStop(1,'#eccf8f');
+   ctx.fillStyle=gg;rr(cx,cy,cw,chh,7);ctx.fill();
+   ctx.strokeStyle='#b48a2e';ctx.lineWidth=2.4;rr(cx,cy,cw,chh,7);ctx.stroke();}
+  else if(G.reveal&&isOk){ctx.fillStyle='#f2e2c4';rr(cx,cy,cw,chh,7);ctx.fill();
+   ctx.strokeStyle='rgba(192,57,43,.95)';ctx.lineWidth=2.4;rr(cx,cy,cw,chh,7);ctx.stroke();}
+  else if(G.reveal&&G.wrongPick===oi){ctx.fillStyle='#c9bda4';rr(cx,cy,cw,chh,7);ctx.fill();
+   ctx.strokeStyle='rgba(90,70,55,.5)';ctx.lineWidth=1;rr(cx,cy,cw,chh,7);ctx.stroke();}
+  else{var pg2=ctx.createLinearGradient(0,cy,0,cy+chh);pg2.addColorStop(0,'#f5ebd2');pg2.addColorStop(1,'#e8dbc0');
+   ctx.fillStyle=pg2;rr(cx,cy,cw,chh,7);ctx.fill();
+   ctx.strokeStyle='rgba(120,80,60,.4)';ctx.lineWidth=1.2;rr(cx,cy,cw,chh,7);ctx.stroke();}
+  var t=G.opts[oi],tfs=mode===1?(t.length<=3?18:15):(t.length<=7?15:13);
+  ctx.fillStyle=(G.reveal&&G.wrongPick===oi)?'rgba(60,48,38,.55)':'#2c2418';
+  ctx.font='800 '+tfs+'px system-ui';
+  var maxw=cw-14;
+  while(ctx.measureText(t).width>maxw&&tfs>9){tfs--;ctx.font='800 '+tfs+'px system-ui'}
+  ctx.fillText(t,cx+cw/2,cy+chh/2+5);
+  if(isHit){ctx.save();ctx.translate(cx+cw-14,cy+12);ctx.rotate(.35);
+   ctx.fillStyle='rgba(180,90,43,.95)';ctx.font='800 12px system-ui';ctx.fillText('彩',0,0);ctx.restore()}
+ }
+ /* 反馈区 */
+ if(G.hitCell>=0){ctx.fillStyle='rgba(224,179,106,.95)';ctx.font='800 17px system-ui';
+  ctx.fillText(G.reused?'重折 · 不计分':'接得妙！ +'+(G._gain||0),195,508)}
+ if(G.reveal){ctx.fillStyle='rgba(226,147,133,.95)';ctx.font='800 16px system-ui';
+  ctx.fillText('说书人摇头：应是「'+it.a+'」',195,508)}
+ /* 底部进度与徽章 */
+ ctx.fillStyle='rgba(255,255,255,.1)';rr(28,626,160,7,3.5);ctx.fill();
+ ctx.fillStyle='#e0b36a';rr(28,626,Math.max(7,160*S.got/NEED),7,3.5);ctx.fill();
+ ctx.fillStyle='rgba(201,180,143,.8)';ctx.font='600 12px system-ui';
+ ctx.fillText(S.got+' / '+NEED+' 折',108,652);
+ ctx.save();ctx.translate(322,632);rr(-32,-15,64,30,15);ctx.fillStyle='#1d130a';ctx.fill();
+ ctx.strokeStyle='#e0b36a';ctx.lineWidth=1.4;rr(-32,-15,64,30,15);ctx.stroke();
+ ctx.fillStyle='#f0e2c0';ctx.font='800 13px system-ui';ctx.fillText('茶馆',0,5);ctx.restore();
+ requestAnimationFrame(draw);
+}
+
+/* ================= 主循环 ================= */
+var last=0;
+function loop(ts){
+ if(S.phase==='play'){
+  if(!last)last=ts;
+  var dt=(ts-last)/1000;last=ts;
+  S.time-=dt;
+  if(S.time<=0){S.time=0;updHUD();gameOver()}
+  else updHUD();
+ }else last=0;
+ requestAnimationFrame(loop);
+}
+
+/* ================= 事件 ================= */
+cv.addEventListener('pointerdown',function(e){
+ e.preventDefault();
+ if(S.phase!=='play'||!G)return;
+ var r=cv.getBoundingClientRect();
+ var x=(e.clientX-r.left)*W/r.width,y=(e.clientY-r.top)*H/r.height;
+ var mode=mkOptsLayout(G.mlen);
+ var gm=optGeom(mode),cw=gm.cw,chh=gm.chh,gap=gm.gap,cols=gm.cols,x0=gm.x0,yy=gm.yy;
+ for(var i=0;i<4;i++){
+  var cx=x0+(i%cols)*(cw+gap),cy=yy+Math.floor(i/cols)*(chh+gap);
+  if(x>=cx-4&&x<=cx+cw+4&&y>=cy-4&&y<=cy+chh+4){pick(i);return}
+ }
+},false);
+$('btn-go').addEventListener('click',start,false);
+$('btn-again').addEventListener('click',start,false);
+$('btn-pause').addEventListener('click',pauseIn,false);
+$('btn-resume').addEventListener('click',pauseOut,false);
+$('btn-home').addEventListener('click',function(){saveBest();S.phase='menu';G=null;
+ $('pauselay').classList.add('hide');$('overlay').classList.add('hide');
+ $('menu').classList.remove('hide');
+ $('mbest').textContent='最佳 '+S.best},false);
+var sndOn=false,AC=null;
+function ensureAC(){if(!sndOn)return;try{if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume()}catch(e){}}
+function snd(k){if(!sndOn||!AC)return;try{var o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime;
+ o.frequency.value=k==='ok'?660:(k==='bad'?220:880);o.type='sine';
+ g.gain.setValueAtTime(.12,t);g.gain.exponentialRampToValueAtTime(.001,t+(k==='bad'?.3:.15));
+ o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+.32)}catch(e){}}
+$('btn-snd').addEventListener('click',function(){sndOn=!sndOn;ensureAC();this.textContent=sndOn?'🔊':'🔇'},false);
+document.addEventListener('visibilitychange',function(){if(document.hidden&&S.phase!=='menu')saveBest()});
+window.addEventListener('pagehide',function(){if(S.phase!=='menu')saveBest()});
+
+/* ================= 初始化 ================= */
+loadBest();$('mbest').textContent='最佳 '+S.best;
+(function(){var c=$('cubes');for(var i=0;i<NEED;i++)c.appendChild(document.createElement('i'))})();
+updHUD();requestAnimationFrame(loop);requestAnimationFrame(draw);
+
+
+</script>
+</body>
+</html>
