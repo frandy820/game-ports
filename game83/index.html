@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>独粒钻石</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:#141019;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+#app{position:relative;height:100%;max-width:520px;margin:0 auto;overflow:hidden}
+#hud{position:absolute;top:0;left:0;right:0;height:64px;display:flex;align-items:center;gap:8px;padding:0 12px;
+ background:linear-gradient(180deg,#1e1826,#161119);border-bottom:1px solid #3e3348;z-index:5}
+.pill{display:flex;align-items:center;gap:4px;color:#b0a6ba;font-size:13px}
+.pill b{font-size:10px;color:#6e6178;font-weight:600}
+.pill span{min-width:26px;text-align:center;font-size:14px;font-weight:700;color:#efe8f4;
+ background:rgba(0,0,0,.3);border-radius:8px;padding:1px 5px;font-variant-numeric:tabular-nums}
+.hbtn{width:32px;height:32px;border-radius:50%;border:1px solid #4a3d56;background:#2a2133;color:#b0a6ba;
+ font-size:14px;line-height:1;cursor:pointer;flex:none;margin-left:auto}
+.hbtn+.hbtn{margin-left:0}
+.hbtn:active{transform:scale(.92)}
+#cv{position:absolute;top:64px;left:50%;transform:translateX(-50%);touch-action:none;cursor:pointer}
+.lay{position:absolute;inset:0;z-index:8;display:flex;align-items:center;justify-content:center;flex-direction:column;
+ background:rgba(10,7,14,.84);backdrop-filter:blur(2px)}
+.lay.hide{display:none}
+#menu{z-index:9}
+.mcard{width:302px;padding:30px 24px 26px;text-align:center;border-radius:14px;
+ background:linear-gradient(180deg,#2a2233,#1d1726);border:1px solid #4a3d56;box-shadow:0 18px 40px rgba(0,0,0,.5)}
+.mcard h1{font-size:29px;letter-spacing:8px;color:#efe8f4;margin-bottom:6px}
+.mcard p{color:#9a8ca6;font-size:12px;letter-spacing:2px;margin-bottom:14px}
+.rules{text-align:left;color:#9a8ca6;font-size:12px;line-height:1.9;margin-bottom:16px;
+ border:1px dashed #4a3d56;border-radius:10px;padding:10px 14px}
+.rules b{color:#d9b98a;font-weight:700}
+.best{display:inline-block;color:#cbb8d8;font-size:12px;margin-bottom:16px;border:1px dashed #4a3d56;
+ border-radius:8px;padding:4px 14px}
+.go{display:block;width:100%;padding:13px 0;border:none;border-radius:10px;cursor:pointer;
+ background:linear-gradient(180deg,#8a6a3f,#6e5230);color:#f7ecd9;font-size:19px;letter-spacing:10px;
+ text-indent:10px;font-weight:700;box-shadow:0 4px 0 #4a3620}
+.go:active{transform:translateY(2px);box-shadow:0 2px 0 #4a3620}
+#pauselay .pcard,#overlay .pcard{width:280px;padding:28px 24px;text-align:center;border-radius:14px;
+ background:linear-gradient(180deg,#2a2233,#1d1726);border:1px solid #4a3d56}
+#pauselay h2,#overlay h2{font-size:22px;letter-spacing:6px;color:#efe8f4;margin-bottom:14px}
+#pauselay button,#overlay button{display:block;width:100%;margin-top:10px;padding:12px 0;border:none;
+ border-radius:10px;cursor:pointer;font-size:16px;letter-spacing:6px;text-indent:6px;font-weight:700}
+#pauselay .pri,#overlay .pri{background:linear-gradient(180deg,#8a6a3f,#6e5230);color:#f7ecd9;box-shadow:0 3px 0 #4a3620}
+#pauselay .pri:active,#overlay .pri:active{transform:translateY(1px)}
+#pauselay button:not(.pri),#overlay button:not(.pri){background:#2e2538;color:#9a8ca6}
+#overttl{font-size:25px;letter-spacing:8px;color:#efe8f4;margin-bottom:8px;font-weight:700}
+#overscore{font-size:40px;color:#d9b98a;font-weight:800;margin-bottom:4px;font-variant-numeric:tabular-nums}
+.st{color:#9a8ca6;font-size:13px;margin-bottom:12px;letter-spacing:1px}
+#btnrow{position:absolute;left:0;right:0;bottom:14px;display:flex;gap:10px;padding:0 20px;z-index:4}
+#btnrow button{flex:1;padding:11px 0;border:1px solid #4a3d56;border-radius:10px;background:#241c2e;
+ color:#b0a6ba;font-size:15px;letter-spacing:4px;text-indent:4px;cursor:pointer}
+#btnrow button:disabled{opacity:.35}
+#btnrow button:active:not(:disabled){transform:translateY(1px)}
+</style>
+</head>
+<body>
+<div id="app">
+ <div id="hud">
+  <div class="pill"><b>子</b><span id="pv">32</span></div>
+  <div class="pill"><b>步</b><span id="mv">0</span></div>
+  <div class="pill"><b>悔</b><span id="uv">0</span></div>
+  <div class="pill"><b>最佳</b><span id="bv">—</span></div>
+  <button class="hbtn" id="btn-snd" style="margin-left:auto">🔇</button>
+  <button class="hbtn" id="btn-pause">⏸</button>
+ </div>
+ <canvas id="cv" width="390" height="780"></canvas>
+ <div id="btnrow">
+  <button id="btn-undo">悔一步</button>
+  <button id="btn-hint">提 示</button>
+  <button id="btn-reset">重 开</button>
+ </div>
+ <div id="menu" class="lay">
+  <div class="mcard">
+   <h1>独粒钻石</h1>
+   <p>满盘三十二 · 独留一粒心</p>
+   <div class="rules">
+    <b>规则</b>：点一颗木珠，再点呼吸亮点——珠子跳过邻珠落入空窝，被跳过的珠子即被吃掉。<br>
+    <b>横竖可跳，斜跳不可</b>；无处可跳即死局。<br>
+    <b>目标</b>：盘上只剩一粒——落在正心即「大师·完美」；步数不限，悔步不限（完美章要求零悔步）。
+   </div>
+   <div class="best" id="mbest">最佳 —</div>
+   <button class="go" id="btn-go">开 局</button>
+  </div>
+ </div>
+ <div id="pauselay" class="lay hide">
+  <div class="pcard">
+   <h2>小 憩</h2>
+   <button class="pri" id="btn-resume">继续</button>
+   <button id="btn-home2">回棋斋</button>
+  </div>
+ </div>
+ <div id="overlay" class="lay hide">
+  <div id="overttl">收 局</div>
+  <div id="overscore">—</div>
+  <div class="st" id="overstat"></div>
+  <button class="go" id="btn-again">再 开 一 局</button>
+  <button id="btn-undoover">悔一步续玩</button>
+  <button id="btn-home">回 棋 斋</button>
+ </div>
+</div>
+<script>
+'use strict';
+/* ================= 状态 ================= */
+var $=function(id){return document.getElementById(id)};
+var cv=$('cv'),ctx=cv.getContext('2d');
+var W=390,H=780,CS=46,PIT=48,X0=28,Y0=150;                       /* 格 46 距 48：7×48-2=334，x0=28 居中 */
+var BEST_KEY='g83_best';
+var S={phase:'menu',sel:-1,moveN:0,undoCnt:0,pegs:32,
+       best:{left:99,perfect:false},mute:false,overKind:'',lastMi:-1,
+       hintEnd:0,hintMove:null,anim:null};
+var B=new Uint8Array(49);                          /* r*7+c；无效格恒 0；1=珠 0=空 */
+var STACK=[];                                      /* [{f,m,t}] 悔步栈 */
+var PARTS=[];                                      /* 完美撒花粒子（纯视觉随机，不进判定） */
+function loadBest(){try{var v=(localStorage.getItem(BEST_KEY)||'').split(',');
+ if(v.length===2){S.best.left=+v[0]||99;S.best.perfect=v[1]==='1'}}catch(e){}}
+function saveBest(){try{localStorage.setItem(BEST_KEY,S.best.left+','+(S.best.perfect?'1':'0'))}catch(e){}}
+function bestTxt(){return S.best.left<99?('剩 '+S.best.left+(S.best.perfect?' · 完美':'')):'—'}
+
+/* ================= 盘面与走法（规则层单源） ================= */
+function ON(r,c){return r>=0&&r<7&&c>=0&&c<7&&((r>=2&&r<=4)||(c>=2&&c<=4))}
+var MOVES=[],BYFROM=[],DIRS=[[0,1],[0,-1],[1,0],[-1,0]],_r,_c,_d;
+for(_r=0;_r<7;_r++)for(_c=0;_c<7;_c++){
+ if(!ON(_r,_c))continue;
+ for(_d=0;_d<4;_d++){
+  var r1=_r+DIRS[_d][0],c1=_c+DIRS[_d][1],r2=_r+2*DIRS[_d][0],c2=_c+2*DIRS[_d][1];
+  if(ON(r1,c1)&&ON(r2,c2))MOVES.push([_r*7+_c,r1*7+c1,r2*7+c2])}}
+for(var _b=0;_b<49;_b++)BYFROM.push([]);
+for(var _m2=0;_m2<MOVES.length;_m2++)BYFROM[MOVES[_m2][0]].push(_m2);
+function inMove(f,m,t){                             /* SPEC M(f,mid,to) 真值：共线等距+三格ON+珠珠空 */
+ var fr=(f/7)|0,fc=f%7,mr=(m/7)|0,mc=m%7,tr=(t/7)|0,tc=t%7;
+ if(!ON(fr,fc)||!ON(mr,mc)||!ON(tr,tc))return false;
+ if(fr!==tr&&fc!==tc)return false;                  /* 斜跳拒 */
+ var dr=tr-fr,dc=tc-fc;
+ if(!((Math.abs(dr)===2&&dc===0)||(Math.abs(dc)===2&&dr===0)))return false;
+ if(mr*7+mc!==((fr+tr)/2)*7+(fc+tc)/2)return false; /* 中点必为正中 */
+ return B[f]===1&&B[m]===1&&B[t]===0}
+function legalMoves(){var out=[],k;for(k=0;k<MOVES.length;k++){var M=MOVES[k];
+ if(B[M[0]]===1&&B[M[1]]===1&&B[M[2]]===0)out.push(k)}return out}
+function movesFrom(f){var out=[],k;for(k=0;k<BYFROM[f].length;k++){var mi=BYFROM[f][k],M=MOVES[mi];
+ if(B[M[0]]===1&&B[M[1]]===1&&B[M[2]]===0)out.push(mi)}return out}
+function countPegs(){var n=0,k;for(k=0;k<49;k++)n+=B[k];return n}
+
+/* ================= 流程 ================= */
+function updHUD(){$('pv').textContent=S.pegs;$('mv').textContent=S.moveN;$('uv').textContent=S.undoCnt;
+ $('bv').textContent=bestTxt();
+ $('btn-undo').disabled=!(S.phase==='play'&&STACK.length>0);
+ $('btn-hint').disabled=!(S.phase==='play');
+ $('btn-undoover').style.display=(S.phase==='over'&&STACK.length>0)?'block':'none'}
+function tryApply(f,m,t,mi){                        /* 走一步：先验后写；死局/剩一即结算 */
+ if(S.phase!=='play')return false;
+ if(!inMove(f,m,t))return false;
+ if(mi===undefined)for(var k=0;k<MOVES.length;k++)if(MOVES[k][0]===f&&MOVES[k][1]===m&&MOVES[k][2]===t){mi=k;break}
+ B[f]=0;B[m]=0;B[t]=1;
+ STACK.push({f:f,m:m,t:t});S.moveN++;S.pegs--;
+ S.sel=-1;S.lastMi=mi;S.hintMove=null;
+ S.anim={f:f,m:m,t:t,t0:Date.now()};
+ updHUD();
+ if(S.pegs<=1)return endGame('one');
+ if(!legalMoves().length)return endGame('dead');
+ return true}
+function undoMove(){                                /* 悔一步：不限次（计悔步数）；死局后悔=复活续玩 */
+ if(!(S.phase==='play'||S.phase==='over')||!STACK.length)return false;
+ if(S.phase==='over'){$('overlay').classList.add('hide');S.phase='play'}
+ var M=STACK.pop();
+ B[M.f]=1;B[M.m]=1;B[M.t]=0;
+ S.moveN--;S.undoCnt++;S.pegs++;S.sel=-1;S.anim=null;S.lastMi=-1;S.hintMove=null;
+ snd('ui');updHUD();return true}
+function endGame(kind){                             /* kind: one=剩一 / dead=死局 */
+ S.phase='over';S.overKind=kind;S.anim=null;
+ var perfect=(kind==='one'&&B[24]===1&&S.undoCnt===0);      /* 心=idx24 (3,3)；完美要求零悔步 */
+ if(S.pegs<S.best.left||(S.pegs===S.best.left&&perfect&&!S.best.perfect)){
+  S.best.left=S.pegs;if(perfect)S.best.perfect=true;saveBest()}   /* 死局同表更新（G3-M1） */
+ snd(kind==='one'?(perfect?'win':'flat'):'lose');
+ showOver(kind,perfect);updHUD();return true}
+function showOver(kind,perfect){
+ var t=$('overttl'),sc=$('overscore'),st=$('overstat'),rate;
+ var N=S.pegs;                                     /* 评级按剩子数（死局同表：N=2 优秀…N≥6 再战） */
+ if(N===1)rate=B[24]===1?'大师·完美':'宗师';
+ else if(N===2)rate='优秀';else if(N===3)rate='良好';
+ else if(N<=5)rate='普通';else rate='再战';
+ t.textContent=rate;sc.textContent='剩 '+N+' 粒';
+ if(kind==='dead')st.textContent='无路可走 · 第 '+S.moveN+' 步 · 悔 '+S.undoCnt+' 次';
+ else st.textContent='第 '+S.moveN+' 步 · 悔 '+S.undoCnt+' 次'+(perfect?' · 零悔完美':'');
+ if(perfect)spawnParts();
+ $('overlay').classList.remove('hide');$('pauselay').classList.add('hide')}
+function spawnParts(){var k;for(k=0;k<42;k++)PARTS.push({
+ x:195,y:317,vx:(Math.random()-.5)*170,vy:-Math.random()*180-40,
+ r:2+Math.random()*3,c:Math.random()<.5?'#e0b46a':'#d98a7e',t0:Date.now()})}
+function reset(){
+ S.phase='play';S.sel=-1;S.moveN=0;S.undoCnt=0;S.pegs=32;S.lastMi=-1;
+ S.hintMove=null;S.hintEnd=0;S.anim=null;S.overKind='';PARTS=[];
+ var k;for(k=0;k<49;k++)B[k]=ON((k/7)|0,k%7)?1:0;
+ B[24]=0;                                          /* 心空 */
+ STACK=[];
+ $('menu').classList.add('hide');$('overlay').classList.add('hide');$('pauselay').classList.add('hide');
+ updHUD()}
+function goHome(){S.phase='menu';S.anim=null;S.hintMove=null;
+ $('pauselay').classList.add('hide');$('overlay').classList.add('hide');$('menu').classList.remove('hide');
+ $('mbest').textContent='最佳 '+bestTxt();updHUD()}
+function pauseIn(){if(S.phase!=='play')return;S.phase='pause';S.anim=null;
+ $('pauselay').classList.remove('hide')}
+function pauseOut(){if(S.phase!=='pause')return;S.phase='play';$('pauselay').classList.add('hide')}
+function hintMove(){                                /* 保活启发：跳后局面可动走法数最大（并列取首）；非最优 */
+ if(S.phase!=='play')return null;
+ var ls=legalMoves();if(!ls.length)return null;
+ var best=ls[0],bestN=-1,k;
+ for(k=0;k<ls.length;k++){var mi=ls[k],M=MOVES[mi];
+  B[M[0]]=0;B[M[1]]=0;B[M[2]]=1;
+  var n=legalMoves().length;
+  B[M[0]]=1;B[M[1]]=1;B[M[2]]=0;
+  if(n>bestN){bestN=n;best=mi}}
+ return best}
+
+/* ================= 交互（点珠选→点窝跳） ================= */
+function tapCell(i){
+ if(S.phase!=='play')return 'phase';
+ var r=(i/7)|0,c=i%7;
+ if(!ON(r,c))return 'off';
+ if(B[i]===1){                                      /* 点珠：再点取消；无落点轻拒 */
+  if(S.sel===i){S.sel=-1;return 'desel'}
+  if(movesFrom(i).length){S.sel=i;snd('ui');return 'sel'}
+  snd('bad');return 'stuck'}
+ if(S.sel>=0){                                      /* 点窝：选中珠的落点则跳 */
+  var ms=movesFrom(S.sel),k;
+  for(k=0;k<ms.length;k++)if(MOVES[ms[k]][2]===i){
+   var M=MOVES[ms[k]];snd('mv');
+   return tryApply(M[0],M[1],M[2],ms[k])?'jump':'bad'}
+  snd('bad');return 'nope'}
+ snd('bad');return 'empty'}
+cv.addEventListener('pointerdown',function(e){
+ e.preventDefault();
+ if(S.phase!=='play')return;
+ var rect=cv.getBoundingClientRect();
+ var x=(e.clientX-rect.left)*W/rect.width,y=(e.clientY-rect.top)*H/rect.height;
+ var bc=Math.floor((x-X0)/PIT),br=Math.floor((y-Y0)/PIT);
+ if(bc<0||bc>6||br<0||br>6)return;
+ var lx=x-(X0+bc*PIT),ly=y-(Y0+br*PIT);
+ if(lx<0||lx>CS||ly<0||ly>CS)return;                /* 格内越界静默拒（g82 口径） */
+ tapCell(br*7+bc)
+},false);
+$('btn-go').addEventListener('click',function(){snd('ui');reset()},false);
+$('btn-again').addEventListener('click',function(){snd('ui');reset()},false);
+$('btn-reset').addEventListener('click',function(){snd('ui');reset()},false);
+$('btn-undo').addEventListener('click',undoMove,false);
+$('btn-undoover').addEventListener('click',undoMove,false);
+$('btn-pause').addEventListener('click',pauseIn,false);
+$('btn-resume').addEventListener('click',pauseOut,false);
+$('btn-home').addEventListener('click',goHome,false);
+$('btn-home2').addEventListener('click',goHome,false);
+$('btn-hint').addEventListener('click',function(){
+ if(S.phase!=='play')return;
+ var mi=hintMove();
+ if(mi===null){snd('bad');return}
+ S.hintMove=mi;S.hintEnd=Date.now()+3000;snd('ui')},false);
+var AC=null;
+/* 注：S.mute===true 实为「开声」（家族历史命名，g83_mute='1'=有声；G3-m4 挂账降险注释） */
+function ensureAC(){if(!S.mute)return;try{if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume()}catch(e){}}
+function snd(k){if(!S.mute||!AC)return;try{var o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime;
+ var fq=k==='win'?880:(k==='lose'?196:(k==='mv'?300:(k==='bad'?100:(k==='ui'?520:(k==='flat'?660:440)))));
+ o.frequency.value=fq;o.type='sine';
+ g.gain.setValueAtTime(k==='mv'?.06:.12,t);g.gain.exponentialRampToValueAtTime(.001,t+(k==='lose'?.4:.18));
+ o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+.4)}catch(e){}}
+$('btn-snd').addEventListener('click',function(){S.mute=!S.mute;ensureAC();this.textContent=S.mute?'🔊':'🔇';
+ try{localStorage.setItem('g83_mute',S.mute?'1':'0')}catch(e){}},false);
+document.addEventListener('visibilitychange',function(){if(document.hidden)saveBest()});
+window.addEventListener('pagehide',function(){saveBest()});
+
+/* ================= 绘制 ================= */
+var SERIF="Georgia,'Times New Roman','Songti SC','SimSun',serif";
+function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);
+ ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
+function cxy(i){return [X0+(i%7)*PIT+CS/2,Y0+((i/7)|0)*PIT+CS/2]}
+function drawBoard(){
+ /* 十字木牌：竖条 cols2-4 全行 + 横条 rows2-4 全列（圆角矩形两笔） */
+ var vx=X0+2*PIT,vy=Y0,vw=3*PIT-2,vh=7*PIT-2;
+ var hx=X0,hy=Y0+2*PIT,hw=7*PIT-2,hh=3*PIT-2;
+ var wg=ctx.createLinearGradient(0,Y0,0,Y0+334);
+ wg.addColorStop(0,'#f7edd9');wg.addColorStop(1,'#e2d0ac');
+ ctx.fillStyle=wg;rr(vx,vy,vw,vh,14);ctx.fill();rr(hx,hy,hw,hh,14);ctx.fill();
+ ctx.strokeStyle='#6b4e30';ctx.lineWidth=2.6;rr(vx,vy,vw,vh,14);ctx.stroke();rr(hx,hy,hw,hh,14);ctx.stroke();
+ /* 四角内衬线（木牌双勾） */
+ ctx.strokeStyle='rgba(107,78,48,.35)';ctx.lineWidth=1;
+ rr(vx+5,vy+5,vw-10,vh-10,9);ctx.stroke();rr(hx+5,hy+5,hw-10,hh-10,9);ctx.stroke();
+ /* 心窝标记（目标位淡印） */
+ ctx.strokeStyle='rgba(107,78,48,.5)';ctx.lineWidth=1.4;
+ ctx.beginPath();ctx.arc(cxy(24)[0],cxy(24)[1],25,0,7);ctx.stroke();
+ ctx.fillStyle='rgba(107,78,48,.55)';ctx.font='700 11px '+SERIF;ctx.textAlign='center';
+ ctx.fillText('心',cxy(24)[0],cxy(24)[1]+4);ctx.textAlign='left'}
+function drawHole(i){
+ var p=cxy(i),x=p[0],y=p[1];
+ var g=ctx.createRadialGradient(x-3,y-4,2,x,y,19);
+ g.addColorStop(0,'#241708');g.addColorStop(.75,'#3a2914');g.addColorStop(1,'#4a361d');
+ ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,19,0,7);ctx.fill();
+ ctx.strokeStyle='rgba(70,50,25,.55)';ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(x,y,19,0,7);ctx.stroke()}
+function drawPeg(i,px,py,scale,alpha){
+ var x=px!==undefined?px:cxy(i)[0],y=py!==undefined?py:cxy(i)[1];
+ var sc=scale===undefined?1:scale;
+ ctx.save();ctx.globalAlpha=alpha===undefined?1:alpha;
+ var g=ctx.createRadialGradient(x-4*sc,y-6*sc,2,x,y,16*sc);
+ g.addColorStop(0,'#f0c078');g.addColorStop(.55,'#d99a42');g.addColorStop(1,'#8f5c1c');
+ ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,15*sc,0,7);ctx.fill();
+ ctx.strokeStyle='rgba(80,48,10,.6)';ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(x,y,15*sc,0,7);ctx.stroke();
+ ctx.fillStyle='rgba(255,244,220,.85)';ctx.beginPath();ctx.arc(x-5*sc,y-6*sc,3*sc,0,7);ctx.fill();
+ ctx.restore()}
+function draw(){
+ ctx.clearRect(0,0,W,H);
+ var bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#141019');bg.addColorStop(1,'#0d0a11');
+ ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+ if(S.phase==='menu'){requestAnimationFrame(draw);return}
+ /* 题匾 */
+ ctx.fillStyle='rgba(217,185,138,.9)';ctx.font='700 16px '+SERIF;ctx.textAlign='left';
+ ctx.fillText('独粒钻石',24,112);
+ ctx.font='600 11px system-ui';ctx.fillStyle='rgba(154,140,166,.85)';ctx.textAlign='right';
+ ctx.fillText('最佳 '+bestTxt(),366,112);
+ ctx.textAlign='left';ctx.fillStyle='rgba(110,97,120,.9)';
+ ctx.fillText('剩 '+S.pegs+' 粒 · 第 '+S.moveN+' 步'+(S.sel>=0?' · 已选珠，点亮点落子':' · 点珠起跳'),24,132);
+ drawBoard();
+ /* 窝（全部 ON 格）+ 落点呼吸 */
+ var i,ms=[];
+ if(S.sel>=0)ms=movesFrom(S.sel);
+ var now=Date.now(),breath=.45+.3*Math.sin(now/320);
+ for(i=0;i<49;i++){
+  if(!ON((i/7)|0,i%7))continue;
+  drawHole(i);
+  var mi2=-1,k2;for(k2=0;k2<ms.length;k2++)if(MOVES[ms[k2]][2]===i){mi2=ms[k2];break}
+  if(mi2>=0){                                       /* 落点：朱环呼吸+中心点 */
+   var p2=cxy(i);
+   ctx.strokeStyle='rgba(231,76,60,'+(breath+.3)+')';ctx.lineWidth=3.2;
+   ctx.beginPath();ctx.arc(p2[0],p2[1],21,0,7);ctx.stroke();
+   ctx.fillStyle='rgba(231,76,60,'+(breath+.35)+')';
+   ctx.beginPath();ctx.arc(p2[0],p2[1],4,0,7);ctx.fill()}
+  }
+ /* 提示高亮（3s 窗口）：from/to 双环+连线 */
+ if(S.hintMove!==null&&S.hintMove!==undefined&&now<S.hintEnd){
+  var M=MOVES[S.hintMove],pa=cxy(M[0]),pb=cxy(M[2]);
+  ctx.save();ctx.strokeStyle='rgba(217,185,138,'+(breath+.3)+')';ctx.lineWidth=2.6;
+  ctx.setLineDash([7,5]);
+  ctx.beginPath();ctx.moveTo(pa[0],pa[1]);ctx.lineTo(pb[0],pb[1]);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.beginPath();ctx.arc(pa[0],pa[1],20,0,7);ctx.stroke();
+  ctx.beginPath();ctx.arc(pb[0],pb[1],20,0,7);ctx.stroke();ctx.restore()}
+ /* 珠（跳吃动画中的两粒特殊处理） */
+ var aF=-1,aM=-1,aT=-1,t01=1;
+ if(S.anim){aF=S.anim.f;aM=S.anim.m;aT=S.anim.t;t01=Math.min(1,(now-S.anim.t0)/220)}
+ for(i=0;i<49;i++){
+  if(B[i]!==1||!ON((i/7)|0,i%7))continue;
+  if(i===aF)continue;                               /* 起跳珠单独画 */
+  if(i===aM)continue;                               /* 被吃珠淡出 */
+  if(i===aT&&t01<1)continue;                        /* 落点珠动画期间由 anim 段绘制（G3-M2 防双珠） */
+  drawPeg(i);
+  if(i===S.sel){                                    /* 选中珠：朱环+微抬 */
+   var p3=cxy(i);
+   ctx.strokeStyle='rgba(231,76,60,.9)';ctx.lineWidth=3;
+   ctx.beginPath();ctx.arc(p3[0],p3[1]-2,18,0,7);ctx.stroke()}
+  if(STACK.length&&STACK[STACK.length-1].t===i&&t01>=1){   /* 末手珠朱描边（动画后） */
+   var p4=cxy(i);
+   ctx.strokeStyle='rgba(192,57,43,.85)';ctx.lineWidth=2.4;
+   ctx.beginPath();ctx.arc(p4[0],p4[1],16.5,0,7);ctx.stroke()}
+ }
+ if(S.anim){
+  var fa=cxy(aF),ta=cxy(aT),ma=cxy(aM);
+  var e=1-(1-t01)*(1-t01);                          /* easeOutQuad */
+  drawPeg(-1,fa[0]+(ta[0]-fa[0])*e,fa[1]+(ta[1]-fa[1])*e-14*Math.sin(Math.PI*t01),
+   t01<1?.9+.18*Math.sin(Math.PI*t01):1,1);         /* 抛起弧线+落地前微放大 */
+  drawPeg(aM,ma[0],ma[1],1-.75*t01,1-t01);          /* 被吃珠缩小淡出 */
+  if(t01>=1)S.anim=null}
+ /* 完美撒花粒子（一次性 1.6s） */
+ var keep=[],k3;
+ for(k3=0;k3<PARTS.length;k3++){var pt=PARTS[k3],dt=(now-pt.t0)/1600;
+  if(dt<1){keep.push(pt);
+   ctx.globalAlpha=1-dt;ctx.fillStyle=pt.c;
+   ctx.beginPath();ctx.arc(pt.x+pt.vx*dt*1.6,pt.y+pt.vy*dt*1.6+240*dt*dt,pt.r,0,7);ctx.fill();
+   ctx.globalAlpha=1}}
+ PARTS=keep;
+ /* 状态条 + 战绩章（y696，g82 同位） */
+ ctx.textAlign='center';
+ if(S.phase==='play'||S.phase==='pause'){
+  ctx.fillStyle='rgba(239,232,244,.85)';ctx.font='700 15px system-ui';
+  ctx.fillText(S.sel>=0?'点亮点落子——跳过邻珠吃掉它':'点一颗珠起跳（横竖两格）',195,548)}
+ ctx.fillStyle='#241c2e';rr(120,696,150,26,13);ctx.fill();
+ ctx.strokeStyle='#4a3d56';ctx.lineWidth=1.2;rr(120,696,150,26,13);ctx.stroke();
+ ctx.fillStyle='#cfc4d8';ctx.font='700 12px system-ui';
+ ctx.fillText('最佳 '+bestTxt(),195,713);
+ requestAnimationFrame(draw)}
+
+/* ================= 初始化 ================= */
+loadBest();
+try{S.mute=localStorage.getItem('g83_mute')==='1'}catch(e){}
+$('btn-snd').textContent=S.mute?'🔊':'🔇';
+$('mbest').textContent='最佳 '+bestTxt();
+updHUD();requestAnimationFrame(draw);
+
+
+</script>
+</body>
+</html>
