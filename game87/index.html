@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>擦镜除雾</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:#171310;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+#app{position:relative;height:100%;max-width:520px;margin:0 auto;overflow:hidden;
+ background:linear-gradient(180deg,#e9dcc3,#ddcda9)}
+#hud{position:absolute;top:0;left:0;right:0;height:64px;display:flex;align-items:center;gap:8px;padding:0 12px;
+ background:linear-gradient(180deg,#3a2f22,#2c2418);border-bottom:1px solid #6b573c;z-index:5}
+.pill{display:flex;align-items:center;gap:5px;color:#c9b895;font-size:13px}
+.pill b{font-size:10px;color:#8a795c;font-weight:600}
+.pill span{min-width:20px;text-align:center;font-size:14px;font-weight:700;color:#f2e8d5;
+ background:rgba(0,0,0,.28);border-radius:8px;padding:1px 6px;font-variant-numeric:tabular-nums}
+#pct{color:#e0a887}
+.hbtn{position:absolute;top:16px;right:12px;z-index:10;width:32px;height:32px;border-radius:50%;
+ border:1px solid #6b573c;background:#4a3b28;color:#c9b895;font-size:14px;line-height:1;cursor:pointer}
+.hbtn:active{transform:scale(.92)}
+#cv{position:absolute;top:64px;left:50%;transform:translateX(-50%);touch-action:none;cursor:crosshair}
+#btnrow{position:absolute;left:0;right:0;bottom:14px;display:flex;gap:10px;padding:0 20px;z-index:4}
+#btnrow button{flex:1;padding:13px 0;border:1px solid #6b573c;border-radius:10px;background:#3a2f22;
+ color:#c9b895;font-size:15px;letter-spacing:4px;text-indent:4px;cursor:pointer}
+#btnrow button:active{transform:translateY(1px)}
+.lay{position:absolute;inset:0;z-index:8;display:flex;align-items:center;justify-content:center;flex-direction:column;
+ background:rgba(23,19,16,.86);backdrop-filter:blur(2px)}
+.lay.hide{display:none}
+#menu{z-index:9;overflow-y:auto}
+.gcard{width:342px;padding:20px 16px 16px;text-align:center;border-radius:14px;
+ background:linear-gradient(180deg,#332a1e,#261f15);border:1px solid #6b573c;box-shadow:0 18px 40px rgba(0,0,0,.5);margin:12px 0}
+.gcard h1{font-size:24px;letter-spacing:8px;color:#f2e8d5;margin-bottom:4px}
+.gcard p{color:#8a795c;font-size:11px;letter-spacing:2px;margin-bottom:10px}
+#allband{display:none;margin:0 0 10px;padding:7px 0;border-radius:8px;font-size:14px;letter-spacing:4px;color:#f7ecd9;
+ background:linear-gradient(180deg,#8a6a3f,#6e5230);border:1px solid #a8834f;font-weight:700}
+#allband.show{display:block}
+#gal{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+#gal button{position:relative;padding:14px 0 8px;border:1px solid #4a3b28;border-radius:10px;background:#221b12;
+ color:#8a795c;font-size:13px;letter-spacing:2px;cursor:pointer;line-height:1.5}
+#gal button .no{display:block;font-size:10px;color:#6a5a40;margin-bottom:3px}
+#gal button.lit{background:linear-gradient(180deg,#4a3b28,#332a1e);color:#f2e8d5;border-color:#8a6a3f}
+#gal button.lit .no{color:#c9a06a}
+#gal button:active{transform:translateY(1px)}
+.mrow{display:flex;gap:8px}
+.mrow button{flex:1;padding:11px 0;border:1px solid #6b573c;border-radius:10px;background:#3a2f22;
+ color:#c9b895;font-size:14px;letter-spacing:3px;cursor:pointer}
+.mrow .pri{background:linear-gradient(180deg,#8a6a3f,#6e5230);color:#f7ecd9;border-color:#8a6a3f;font-weight:700}
+.mrow button:active{transform:translateY(1px)}
+</style>
+</head>
+<body>
+<div id="app">
+ <div id="hud">
+  <div class="pill"><b id="tn">镜斋</b></div>
+  <div class="pill"><b>净</b><span id="pct">—</span></div>
+ </div>
+ <button class="hbtn" id="btn-snd">🔇</button>
+ <canvas id="cv" width="390" height="700"></canvas>
+ <div id="btnrow" class="hide">
+  <button id="btn-home0">回图斋</button>
+  <button id="btn-swap">换一幅</button>
+ </div>
+ <div id="menu" class="lay">
+  <div class="gcard">
+   <h1>擦镜除雾</h1>
+   <p>十二景 · 拭雾见画</p>
+   <div id="allband">十二景皆明</div>
+   <div id="gal"></div>
+   <div class="mrow">
+    <button id="btn-home">回棋斋</button>
+    <button class="pri" id="btn-any">开擦上次一景</button>
+   </div>
+  </div>
+ </div>
+</div>
+<script>
+'use strict';
+/* ================= 状态 ================= */
+var $=function(id){return document.getElementById(id)};
+var cv=$('cv'),ctx=cv.getContext('2d');
+var Wc=390,Hc=700;
+var KEY_DONE='g87_done',KEY_SND='g87_snd';
+/* 镜面几何（canvas 内坐标） */
+var MX=36,MY=76,MW=318,MH=500;
+/* 覆盖网格真值：6px 步进格点 53x84=4452 */
+var STEP=6,GW=53,GH=84,GN=GW*GH;
+var WR=26;                       /* 擦除半径 */
+var TH=5.0;                      /* 擦净阈值（残留百分比） */
+var NAMES=['岁朝清供','山寺桃枝','雪夜灯窗','溪亭观鱼','松月','荷塘蜻蜓',
+           '雁阵','麦秋','篱菊','江帆','炉暖','岁暮红灯'];
+var S={page:'menu',idx:0,coverV:100,done:[0,0,0,0,0,0,0,0,0,0,0,0],snd:false,
+       fading:0,fadeT:0,seal:0,sealT:0,hint:0};
+var grid=new Uint8Array(GN);     /* 1=已擦 */
+var WRL=[];                      /* 笔划 [x,y,r]（镜内坐标）——snapshot 重放真值 */
+var strokes=0;
+var T1=null,T2=null;             /* 擦净后 定时器：章 / 回图鉴 */
+var P=null;                      /* 按住态 {x,y}（镜内坐标） */
+var AC=null;
+/* 离屏：画层（不可变）+雾层（destination-out） */
+var paintCv=document.createElement('canvas');paintCv.width=MW;paintCv.height=MH;
+var pctx=paintCv.getContext('2d');
+var fogCv=document.createElement('canvas');fogCv.width=MW;fogCv.height=MH;
+var fctx=fogCv.getContext('2d');
+
+/* ================= 十二景绘制（纯几何确定性，无随机） ================= */
+var INK='#4a3620';
+function basePaper(c,top,btm){c.fillStyle=top||'#efe3cc';c.fillRect(0,0,MW,MH);
+ if(btm){var g=c.createLinearGradient(0,0,0,MH);g.addColorStop(0,top);g.addColorStop(1,btm);c.fillStyle=g;c.fillRect(0,0,MW,MH);}}
+function sealOf(c,ch,n,accent){c.save();c.globalAlpha=.92;
+ c.fillStyle=accent||INK;c.font='700 44px Georgia,"Times New Roman",serif';c.fillText(ch,22,66);
+ c.font='10px system-ui,sans-serif';c.fillStyle='#8a795c';c.fillText('擦镜 · 第'+n+'景',MW-78,MH-16);
+ c.restore();}
+var PAINT=[
+ function(){basePaper(pctx);/* 岁朝清供：深瓶+梅枝+三点花+双柿 */
+  pctx.fillStyle=INK;pctx.beginPath();pctx.moveTo(138,150);pctx.lineTo(150,330);pctx.lineTo(168,330);pctx.lineTo(180,150);pctx.closePath();pctx.fill();
+  pctx.strokeStyle=INK;pctx.lineWidth=4;pctx.beginPath();pctx.moveTo(158,150);pctx.quadraticCurveTo(150,90,196,66);pctx.stroke();
+  pctx.lineWidth=2;pctx.beginPath();pctx.moveTo(172,104);pctx.quadraticCurveTo(196,112,212,96);pctx.stroke();
+  var fl=[[196,66],[212,96],[172,104]];pctx.fillStyle='#c0392b';
+  for(var i=0;i<3;i++){pctx.beginPath();pctx.arc(fl[i][0],fl[i][1],9,0,7);pctx.fill();}
+  pctx.fillStyle='#d98e3a';
+  pctx.beginPath();pctx.ellipse(120,360,16,13,0,0,7);pctx.fill();
+  pctx.beginPath();pctx.ellipse(156,376,16,13,0,0,7);pctx.fill();
+  pctx.strokeStyle=INK;pctx.lineWidth=2;
+  pctx.beginPath();pctx.moveTo(120,349);pctx.lineTo(124,340);pctx.stroke();
+  pctx.beginPath();pctx.moveTo(156,365);pctx.lineTo(152,356);pctx.stroke();
+  sealOf(pctx,'岁',1);},
+ function(){basePaper(pctx);/* 山寺桃枝：山影+檐角+桃枝红花 */
+  pctx.fillStyle='#7d8ba0';pctx.beginPath();pctx.moveTo(0,180);pctx.lineTo(110,52);pctx.lineTo(230,180);pctx.closePath();pctx.fill();
+  pctx.beginPath();pctx.moveTo(150,180);pctx.lineTo(262,70);pctx.lineTo(318,180);pctx.closePath();pctx.fill();
+  pctx.strokeStyle=INK;pctx.lineWidth=3;
+  pctx.beginPath();pctx.moveTo(80,196);pctx.lineTo(96,180);pctx.lineTo(112,196);pctx.lineTo(128,180);pctx.lineTo(144,196);pctx.lineTo(160,180);pctx.lineTo(176,196);pctx.stroke();
+  pctx.beginPath();pctx.moveTo(80,196);pctx.lineTo(176,196);pctx.stroke();
+  pctx.beginPath();pctx.moveTo(84,196);pctx.lineTo(84,206);pctx.moveTo(172,196);pctx.lineTo(172,206);pctx.stroke();
+  pctx.lineWidth=4;pctx.beginPath();pctx.moveTo(60,420);pctx.quadraticCurveTo(140,360,210,300);pctx.stroke();
+  pctx.fillStyle='#d96a6a';var pts=[[128,378],[158,352],[186,330],[210,300],[142,396]];
+  for(var i=0;i<5;i++){pctx.beginPath();pctx.arc(pts[i][0],pts[i][1],7,0,7);pctx.fill();}
+  sealOf(pctx,'桃',2);},
+ function(){basePaper(pctx,'#2c3140','#3d4152');/* 雪夜灯窗：夜底+方窗暖光+雪点 */
+  pctx.fillStyle='#e8c66a';pctx.fillRect(84,120,150,130);
+  pctx.strokeStyle='#4a3620';pctx.lineWidth=5;pctx.strokeRect(84,120,150,130);
+  pctx.lineWidth=3;pctx.beginPath();
+  pctx.moveTo(159,120);pctx.lineTo(159,250);pctx.moveTo(84,185);pctx.lineTo(234,185);pctx.stroke();
+  pctx.fillStyle='rgba(232,198,106,.28)';pctx.beginPath();pctx.arc(159,185,110,0,7);pctx.fill();
+  pctx.fillStyle='#f2ede2';var sn=[[40,60],[90,90],[210,70],[270,110],[50,300],[280,320],[110,380],[240,400],[70,440],[300,460],[160,470],[30,180]];
+  for(var i=0;i<12;i++){pctx.beginPath();pctx.arc(sn[i][0],sn[i][1],4,0,7);pctx.fill();}
+  sealOf(pctx,'雪',3,'#d9b98a');},
+ function(){basePaper(pctx);/* 溪亭观鱼：水纹+亭+双鱼影 */
+  pctx.strokeStyle='#7d8ba0';pctx.lineWidth=2;
+  for(var i=0;i<5;i++){var y=300+i*34;pctx.beginPath();pctx.moveTo(30,y);
+   pctx.quadraticCurveTo(70,y-8,110,y);pctx.quadraticCurveTo(150,y+8,190,y);pctx.quadraticCurveTo(230,y-8,288,y);pctx.stroke();}
+  pctx.fillStyle=INK;pctx.beginPath();pctx.moveTo(120,130);pctx.lineTo(198,130);pctx.lineTo(186,142);pctx.lineTo(132,142);pctx.closePath();pctx.fill();
+  pctx.beginPath();pctx.moveTo(112,142);pctx.lineTo(206,142);pctx.lineTo(200,152);pctx.lineTo(118,152);pctx.closePath();pctx.fill();
+  pctx.strokeStyle=INK;pctx.lineWidth=5;
+  pctx.beginPath();pctx.moveTo(132,152);pctx.lineTo(132,262);pctx.moveTo(186,152);pctx.lineTo(186,262);pctx.stroke();
+  pctx.fillStyle='#41586e';
+  pctx.beginPath();pctx.ellipse(120,368,26,11,.3,0,7);pctx.fill();
+  pctx.beginPath();pctx.ellipse(206,402,26,11,-.2,0,7);pctx.fill();
+  sealOf(pctx,'鱼',4);},
+ function(){basePaper(pctx,'#efe3cc','#e2d2ae');/* 松月：圆月+松枝 */
+  pctx.fillStyle='#d9b98a';pctx.beginPath();pctx.arc(108,120,52,0,7);pctx.fill();
+  pctx.strokeStyle='#b39a6e';pctx.lineWidth=2;pctx.beginPath();pctx.arc(112,124,48,0,7);pctx.stroke();
+  pctx.strokeStyle=INK;pctx.lineWidth=7;pctx.beginPath();pctx.moveTo(318,330);pctx.quadraticCurveTo(230,300,180,236);pctx.stroke();
+  pctx.lineWidth=3;
+  var br=[[272,310],[236,294],[204,268],[182,240]];
+  for(var i=0;i<4;i++){var b=br[i];
+   for(var k=-2;k<=2;k++){pctx.beginPath();pctx.moveTo(b[0],b[1]);pctx.lineTo(b[0]+k*13-8,b[1]-15+Math.abs(k)*3);pctx.stroke();}}
+  sealOf(pctx,'松',5);},
+ function(){basePaper(pctx,'#e3ead8','#d3ddc2');/* 荷塘蜻蜓：荷叶+秆+蜻蜓 */
+  pctx.fillStyle='#5e7d4a';pctx.beginPath();pctx.ellipse(160,360,88,58,0,.6,6.1);pctx.closePath();pctx.fill();
+  pctx.strokeStyle=INK;pctx.lineWidth=4;pctx.beginPath();pctx.moveTo(160,360);pctx.lineTo(188,472);pctx.stroke();
+  pctx.strokeStyle='#5e7d4a';pctx.lineWidth=2;
+  for(var i=0;i<5;i++){var a=.8+i*.5;pctx.beginPath();pctx.moveTo(160,360);pctx.lineTo(160+Math.cos(a)*70,360+Math.sin(a)*46);pctx.stroke();}
+  pctx.strokeStyle='#c0392b';pctx.lineWidth=3;
+  pctx.beginPath();pctx.moveTo(96,150);pctx.lineTo(150,150);pctx.stroke();
+  pctx.fillStyle='rgba(214,226,236,.85)';
+  pctx.beginPath();pctx.ellipse(112,140,17,6,-.5,0,7);pctx.fill();
+  pctx.beginPath();pctx.ellipse(132,140,17,6,.5,0,7);pctx.fill();
+  pctx.beginPath();pctx.ellipse(112,160,15,5,.4,0,7);pctx.fill();
+  pctx.beginPath();pctx.ellipse(131,160,15,5,-.4,0,7);pctx.fill();
+  sealOf(pctx,'荷',6);},
+ function(){basePaper(pctx,'#e8e0cf','#d8ccb2');/* 雁阵：远山一线+人字雁五 */
+  pctx.strokeStyle='#9aa4ae';pctx.lineWidth=2;pctx.beginPath();pctx.moveTo(0,330);pctx.lineTo(70,290);pctx.lineTo(140,330);pctx.lineTo(318,300);pctx.stroke();
+  pctx.strokeStyle=INK;pctx.lineWidth=3;
+  var gs=[[70,140,1],[130,170,1],[196,150,1],[258,182,1],[120,220,1]];
+  for(var i=0;i<5;i++){var g=gs[i];var w=g[2]*16;
+   pctx.beginPath();pctx.moveTo(g[0]-w,g[1]);pctx.quadraticCurveTo(g[0],g[1]-14,g[0],g[1]);
+   pctx.quadraticCurveTo(g[0],g[1]-14,g[0]+w,g[1]);pctx.stroke();}
+  sealOf(pctx,'雁',7);},
+ function(){basePaper(pctx,'#f0e4c2','#e4d3a6');/* 麦秋：麦秆斜线+穗点 */
+  pctx.strokeStyle='#8a6a3f';pctx.lineWidth=4;
+  var st=[[70,470,110,140],[160,470,190,110],[250,470,268,150]];
+  for(var i=0;i<3;i++){pctx.beginPath();pctx.moveTo(st[i][0],st[i][1]);pctx.lineTo(st[i][2],st[i][3]);pctx.stroke();}
+  pctx.fillStyle='#c9982f';
+  for(var i=0;i<3;i++){var x0=st[i][2],y0=st[i][3];
+   for(var k=0;k<6;k++){var bx=x0-2,bby=y0+k*11;
+    pctx.beginPath();pctx.ellipse(bx-9,bby+4,7,4,-.6,0,7);pctx.fill();
+    pctx.beginPath();pctx.ellipse(bx+9,bby+4,7,4,.6,0,7);pctx.fill();}
+   pctx.beginPath();pctx.moveTo(x0,y0-4);pctx.lineTo(x0+3,y0-20);pctx.stroke();}
+  sealOf(pctx,'麦',8);},
+ function(){basePaper(pctx);/* 篱菊：篱笆纵横+菊花瓣环 */
+  pctx.strokeStyle='#8a6a3f';pctx.lineWidth=4;
+  pctx.beginPath();pctx.moveTo(0,330);pctx.lineTo(318,330);pctx.moveTo(0,380);pctx.lineTo(318,380);pctx.stroke();
+  pctx.lineWidth=3;
+  for(var i=0;i<6;i++){var x=30+i*54;pctx.beginPath();pctx.moveTo(x,300);pctx.lineTo(x,410);pctx.stroke();}
+  pctx.fillStyle='#d9a83a';
+  for(var i=0;i<8;i++){var a=i/8*Math.PI*2;
+   pctx.beginPath();pctx.ellipse(160+Math.cos(a)*30,170+Math.sin(a)*30,20,9,a,0,7);pctx.fill();}
+  pctx.fillStyle='#c0392b';pctx.beginPath();pctx.arc(160,170,13,0,7);pctx.fill();
+  pctx.strokeStyle='#5e7d4a';pctx.lineWidth=4;pctx.beginPath();pctx.moveTo(160,200);pctx.lineTo(160,334);pctx.stroke();
+  sealOf(pctx,'菊',9);},
+ function(){basePaper(pctx,'#e5e8e2','#cfd8d2');/* 江帆：水波+帆影 */
+  pctx.strokeStyle='#7d8ba0';pctx.lineWidth=2;
+  for(var i=0;i<4;i++){var y=340+i*36;pctx.beginPath();pctx.moveTo(24,y);pctx.quadraticCurveTo(90,y-10,160,y);pctx.quadraticCurveTo(230,y+10,296,y);pctx.stroke();}
+  pctx.fillStyle='#f4efe4';pctx.beginPath();pctx.moveTo(150,150);pctx.lineTo(150,300);pctx.lineTo(232,300);pctx.closePath();pctx.fill();
+  pctx.beginPath();pctx.moveTo(142,150);pctx.lineTo(142,300);pctx.lineTo(96,300);pctx.closePath();pctx.fill();
+  pctx.strokeStyle=INK;pctx.lineWidth=3;pctx.beginPath();pctx.moveTo(138,140);pctx.lineTo(138,300);pctx.stroke();
+  pctx.fillStyle=INK;pctx.beginPath();pctx.moveTo(70,306);pctx.quadraticCurveTo(160,330,262,306);pctx.lineTo(240,318);pctx.lineTo(92,318);pctx.closePath();pctx.fill();
+  sealOf(pctx,'帆',10);},
+ function(){basePaper(pctx,'#3a2c22','#4a382a');/* 炉暖：炭炉+火焰+暖光 */
+  var rg=pctx.createRadialGradient(160,300,20,160,300,170);
+  rg.addColorStop(0,'rgba(230,150,60,.5)');rg.addColorStop(1,'rgba(230,150,60,0)');
+  pctx.fillStyle=rg;pctx.fillRect(0,130,MW,370);
+  pctx.fillStyle=INK;pctx.beginPath();pctx.moveTo(96,300);pctx.lineTo(120,420);pctx.lineTo(200,420);pctx.lineTo(224,300);pctx.closePath();pctx.fill();
+  pctx.fillStyle='#2c2118';pctx.beginPath();pctx.ellipse(160,306,50,14,0,0,7);pctx.fill();
+  pctx.strokeStyle='#c9a06a';pctx.lineWidth=2;pctx.beginPath();pctx.ellipse(160,306,50,14,0,0,7);pctx.stroke();
+  pctx.fillStyle='#e0812f';
+  pctx.beginPath();pctx.moveTo(160,220);pctx.quadraticCurveTo(184,268,160,296);pctx.quadraticCurveTo(136,268,160,220);pctx.fill();
+  pctx.fillStyle='#f0b04a';
+  pctx.beginPath();pctx.moveTo(160,248);pctx.quadraticCurveTo(174,276,160,294);pctx.quadraticCurveTo(146,276,160,248);pctx.fill();
+  pctx.strokeStyle=INK;pctx.lineWidth=5;
+  pctx.beginPath();pctx.moveTo(104,420);pctx.lineTo(88,452);pctx.moveTo(216,420);pctx.lineTo(232,452);pctx.stroke();
+  sealOf(pctx,'炉',11,'#e0c99a');},
+ function(){basePaper(pctx,'#241d26','#3a2c34');/* 岁暮红灯：夜底+灯笼+穗 */
+  var rg=pctx.createRadialGradient(160,190,10,160,190,140);
+  rg.addColorStop(0,'rgba(220,110,80,.42)');rg.addColorStop(1,'rgba(220,110,80,0)');
+  pctx.fillStyle=rg;pctx.fillRect(20,50,278,280);
+  pctx.fillStyle='#c0392b';pctx.beginPath();pctx.ellipse(160,190,58,74,0,0,7);pctx.fill();
+  pctx.strokeStyle='#e0a887';pctx.lineWidth=3;
+  pctx.beginPath();pctx.ellipse(160,190,58,74,0,0,7);pctx.stroke();
+  pctx.beginPath();pctx.ellipse(160,190,40,74,0,0,7);pctx.stroke();
+  pctx.fillStyle='#d9b98a';pctx.fillRect(142,108,36,10);pctx.fillRect(142,262,36,10);
+  pctx.strokeStyle='#d9b98a';pctx.lineWidth=3;pctx.beginPath();pctx.moveTo(160,118);pctx.lineTo(160,86);pctx.stroke();
+  pctx.beginPath();pctx.moveTo(160,272);pctx.lineTo(160,318);pctx.stroke();
+  pctx.fillStyle='#e0a887';
+  pctx.font='700 30px Georgia,"Times New Roman",serif';pctx.textAlign='center';pctx.fillText('福',160,200);pctx.textAlign='left';
+  sealOf(pctx,'灯',12,'#d9b98a');}
+];
+
+/* ================= 雾层 ================= */
+function fogInit(){
+ fctx.clearRect(0,0,MW,MH);
+ fctx.globalCompositeOperation='source-over';
+ fctx.fillStyle='rgba(238,236,228,.96)';fctx.fillRect(0,0,MW,MH);
+ /* 轻噪点（固定 pattern：8px 网格错位点，无随机） */
+ fctx.fillStyle='rgba(210,206,194,.5)';
+ for(var y=0;y<MH;y+=8){for(var x=0;x<MW;x+=8){
+  if(((x/8+y/8)%3)===0){fctx.fillRect(x+((y/8)%2)*4,y,2,2);}}}
+ /* 边缘 vignette */
+ var g=fctx.createLinearGradient(0,0,0,MH);
+ g.addColorStop(0,'rgba(190,186,172,.55)');g.addColorStop(.25,'rgba(190,186,172,0)');
+ g.addColorStop(.75,'rgba(190,186,172,0)');g.addColorStop(1,'rgba(190,186,172,.55)');
+ fctx.fillStyle=g;fctx.fillRect(0,0,MW,MH);
+ fctx.globalCompositeOperation='destination-out';
+}
+
+/* ================= 覆盖真值 ================= */
+function cover(){var n=0;for(var i=0;i<GN;i++)if(!grid[i])n++;
+ return Math.round(n/GN*10000)/100;}
+function markCircle(x,y,r){var r2=r*r;
+ var gx0=Math.max(0,Math.ceil((x-r)/STEP)),gx1=Math.min(GW-1,Math.floor((x+r)/STEP));
+ var gy0=Math.max(0,Math.ceil((y-r)/STEP)),gy1=Math.min(GH-1,Math.floor((y+r)/STEP));
+ for(var gy=gy0;gy<=gy1;gy++)for(var gx=gx0;gx<=gx1;gx++){
+  var dx=gx*STEP-x,dy=gy*STEP-y;
+  if(dx*dx+dy*dy<=r2)grid[gy*GW+gx]=1;}
+ fctx.fillStyle='rgba(0,0,0,1)';
+ fctx.beginPath();fctx.arc(x,y,r,0,7);fctx.fill();}
+function inMirror(x,y){return x>=0&&x<=MW&&y>=0&&y<=MH;}
+function wipe(x,y,r){r=r||WR;
+ if(S.page!=='play'||S.fading||S.done[S.idx])return false;
+ if(!inMirror(x,y))return false;
+ markCircle(x,y,r);WRL.push([Math.round(x*10)/10,Math.round(y*10)/10,r]);
+ strokes++;
+ if(strokes%8===0)updCover();else draw();
+ return true;}
+function wipeLine(x1,y1,x2,y2){if(S.page!=='play'||S.fading||S.done[S.idx])return false;
+ if(!inMirror(x1,y1)||!inMirror(x2,y2))return false;
+ var dx=x2-x1,dy=y2-y1,d=Math.sqrt(dx*dx+dy*dy),n=Math.max(1,Math.ceil(d/13));
+ for(var i=0;i<=n;i++){var t=i/n;
+  markCircle(x1+dx*t,y1+dy*t,WR);}
+ /* 记录为首末+步长（重放走同插值） */
+ WRL.push(['L',Math.round(x1*10)/10,Math.round(y1*10)/10,Math.round(x2*10)/10,Math.round(y2*10)/10,WR]);
+ strokes++;updCover();return true;}
+function replay(){grid=new Uint8Array(GN);
+ for(var i=0;i<WRL.length;i++){var w=WRL[i];
+  if(w[0]==='L'){var dx=w[3]-w[1],dy=w[4]-w[2],d=Math.sqrt(dx*dx+dy*dy),n=Math.max(1,Math.ceil(d/13));
+   for(var k=0;k<=n;k++){var t=k/n;markCircle(w[1]+dx*t,w[2]+dy*t,w[5]);}}
+  else markCircle(w[0],w[1],w[2]);}}
+
+/* ================= 擦净与画面切换 ================= */
+function updCover(){S.coverV=cover();
+ $('pct').textContent=Math.round(100-S.coverV)+'%';
+ S.hint=(100-S.coverV)>=85&&S.coverV>TH?1:0;
+ if(S.coverV<=TH&&S.page==='play'&&!S.fading)sealNow();
+ draw();}
+function sealNow(){S.fading=1;S.fadeT=Date.now();S.done[S.idx]=1;saveDone();
+ if(S.snd){ensureAC();ping(660,.5);}
+ T1=setTimeout(function(){S.seal=1;S.sealT=Date.now();draw();},600);
+ T2=setTimeout(function(){toMenu();},600+1800);}
+function toMenu(){S.page='menu';S.fading=0;S.seal=0;S.hint=0;P=null;
+ if(T1){clearTimeout(T1);T1=null;}if(T2){clearTimeout(T2);T2=null;}
+ $('menu').classList.remove('hide');$('btnrow').classList.add('hide');
+ $('tn').textContent='镜斋';$('pct').textContent='—';renderGal();draw();}
+function toPlay(i){S.page='play';S.idx=i;S.fading=0;S.seal=0;S.hint=0;P=null;strokes=0;
+ if(T1){clearTimeout(T1);T1=null;}if(T2){clearTimeout(T2);T2=null;}
+ PAINT[i]();fogInit();
+ if(S.done[i]){grid=new Uint8Array(GN);for(var k=0;k<GN;k++)grid[k]=1;WRL=[];S.coverV=0;
+  fctx.clearRect(0,0,MW,MH);
+  $('pct').textContent='100%';}
+ else{grid=new Uint8Array(GN);WRL=[];S.coverV=100;$('pct').textContent='0%';}
+ $('tn').textContent='第'+(i+1)+'景 · '+NAMES[i];
+ $('menu').classList.add('hide');$('btnrow').classList.remove('hide');
+ draw();}
+function saveDone(){var s='';for(var i=0;i<12;i++)s+=S.done[i];
+ try{localStorage.setItem(KEY_DONE,s);}catch(e){}}
+function loadDone(){try{var v=localStorage.getItem(KEY_DONE);
+ if(v&&/^[01]{12}$/.test(v)){for(var i=0;i<12;i++)S.done[i]=+v[i];}}catch(e){}}
+var THUMBS=[null,null,null,null,null,null,null,null,null,null,null,null];
+var thumbCv=document.createElement('canvas');thumbCv.width=MW;thumbCv.height=MH;
+var tctx=thumbCv.getContext('2d');
+function makeThumb(i){var real=pctx;pctx=tctx;               /* 借道 pctx 画缩略（PAINT 闭包引用） */
+ tctx.clearRect(0,0,MW,MH);PAINT[i]();pctx=real;
+ THUMBS[i]='linear-gradient(rgba(20,14,8,.25),rgba(20,14,8,.5)),url('+thumbCv.toDataURL()+')';}
+function renderGal(){var gal=$('gal');
+ for(var i=0;i<12;i++){var b=gal.children[i];
+  b.className=S.done[i]?'lit':'';
+  if(S.done[i]){if(!THUMBS[i])makeThumb(i);
+   b.innerHTML='<span class="no">'+(i+1)+'</span>'+NAMES[i];
+   b.style.backgroundImage=THUMBS[i];b.style.backgroundSize='cover';b.style.backgroundPosition='center';}
+  else{b.innerHTML='<span class="no">'+(i+1)+'</span>未 明';b.style.backgroundImage='';}}
+ var all=S.done[0]+S.done[1]+S.done[2]+S.done[3]+S.done[4]+S.done[5]+S.done[6]+S.done[7]+S.done[8]+S.done[9]+S.done[10]+S.done[11];
+ $('allband').className=all===12?'show':'';}
+
+/* ================= 绘制 ================= */
+function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);
+ c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+function draw(){ctx.clearRect(0,0,Wc,Hc);
+ if(S.page==='menu'){drawMenuBg();return;}
+ /* 镜框 */
+ ctx.fillStyle='#8a6a3f';rr(ctx,MX-8,MY-8,MW+16,MH+16,14);ctx.fill();
+ ctx.fillStyle='#c9a06a';rr(ctx,MX-5,MY-5,MW+10,MH+10,11);ctx.fill();
+ ctx.fillStyle='#26190f';rr(ctx,MX-2,MY-2,MW+4,MH+4,8);ctx.fill();
+ /* 画+雾 */
+ ctx.drawImage(paintCv,MX,MY);
+ var fa=1;
+ if(S.fading){var e=(Date.now()-S.fadeT)/600;fa=Math.max(0,1-e);}
+ if(fa>0){ctx.save();ctx.globalAlpha=fa;ctx.drawImage(fogCv,MX,MY);ctx.restore();}
+ /* 铆钉 */
+ ctx.fillStyle='#5e452a';
+ var nv=[[MX-8,MY-8],[MX+MW+8,MY-8],[MX-8,MY+MH+8],[MX+MW+8,MY+MH+8]];
+ for(var i=0;i<4;i++){ctx.beginPath();ctx.arc(nv[i][0],nv[i][1],4,0,7);ctx.fill();}
+ /* 进度条 */
+ var py=MY+MH+34;
+ ctx.fillStyle='rgba(42,32,20,.25)';rr(ctx,MX,py,MW,16,8);ctx.fill();
+ var pct=Math.max(0,Math.min(100,100-S.coverV));
+ if(pct>0){var g=ctx.createLinearGradient(MX,0,MX+MW,0);
+  g.addColorStop(0,'#b3603f');g.addColorStop(1,'#d98e3a');
+  ctx.fillStyle=g;rr(ctx,MX,py,Math.max(10,MW*pct/100),16,8);ctx.fill();}
+ ctx.fillStyle='#5e4a30';ctx.font='11px system-ui,sans-serif';ctx.textAlign='center';
+ ctx.fillText('擦净度 '+Math.round(pct)+'%',195,py+30);ctx.textAlign='left';
+ if(S.hint){ctx.fillStyle='#8a5a20';ctx.font='13px system-ui,sans-serif';ctx.textAlign='center';
+  ctx.fillText('雾快散了，留意边角',195,py+54);ctx.textAlign='left';}
+ if(S.done[S.idx]&&S.page==='play'&&!S.fading&&S.coverV===0){
+  ctx.fillStyle='rgba(90,70,40,.9)';ctx.font='12px system-ui,sans-serif';ctx.textAlign='center';
+  ctx.fillText('此景已擦净 · 拭镜可再观',195,py+52);ctx.textAlign='left';}
+ /* 章 */
+ if(S.seal){var t=Math.min(1,(Date.now()-S.sealT)/420);
+  var sc=.6+.4*t;
+  ctx.save();ctx.translate(MX+MW/2,MY+MH/2);ctx.scale(sc,sc);ctx.globalAlpha=t;
+  ctx.fillStyle='rgba(60,40,20,.35)';ctx.beginPath();ctx.arc(0,0,54,0,7);ctx.fill();
+  ctx.fillStyle='#c0392b';ctx.beginPath();ctx.arc(0,0,46,0,7);ctx.fill();
+  ctx.strokeStyle='#f0d9a8';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,40,0,7);ctx.stroke();
+  ctx.fillStyle='#f7ecd9';ctx.font='700 42px Georgia,serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('明',0,2);ctx.restore();ctx.textAlign='left';ctx.textBaseline='alphabetic';}}
+function drawMenuBg(){ctx.fillStyle='#e9dcc3';ctx.fillRect(0,0,Wc,Hc);
+ ctx.strokeStyle='rgba(120,96,60,.18)';ctx.lineWidth=1;
+ for(var y=40;y<Hc;y+=46){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(Wc,y);ctx.stroke();}}
+
+/* ================= 音效 ================= */
+function ensureAC(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}}
+function ping(hz,vol){if(!AC)return;try{var o=AC.createOscillator(),g=AC.createGain();
+ o.frequency.value=hz;o.type='sine';g.gain.value=vol||.4;
+ o.connect(g);g.connect(AC.destination);o.start();
+ g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+.5);o.stop(AC.currentTime+.5);}catch(e){}}
+
+/* ================= 事件 ================= */
+function pageXY(e){var r=cv.getBoundingClientRect();
+ return [e.clientX-r.left,e.clientY-r.top];}
+cv.addEventListener('pointerdown',function(e){
+ if(S.page!=='play')return;
+ if(S.seal){toMenu();return;}
+ var xy=pageXY(e),lx=xy[0]-MX,ly=xy[1]-MY;
+ if(lx<0||lx>MW||ly<0||ly>MH)return;
+ if(S.fading||S.done[S.idx])return;
+ P=[lx,ly];wipe(lx,ly);e.preventDefault();});
+window.addEventListener('pointermove',function(e){
+ if(!P||S.page!=='play'||S.fading)return;
+ var xy=pageXY(e),lx=xy[0]-MX,ly=xy[1]-MY;
+ if(!inMirror(lx,ly)){return;}
+ var dx=lx-P[0],dy=ly-P[1],d=Math.sqrt(dx*dx+dy*dy);
+ if(d>=WR*0.7){wipeLine(P[0],P[1],lx,ly);P=[lx,ly];}
+ e.preventDefault();});
+function endP(){if(P){P=null;updCover();}}
+window.addEventListener('pointerup',endP);
+window.addEventListener('pointercancel',endP);
+window.addEventListener('blur',endP);
+document.addEventListener('visibilitychange',function(){if(document.hidden)endP();});
+
+/* 按钮 */
+$('btn-home0').addEventListener('click',function(){toMenu();});
+$('btn-swap').addEventListener('click',function(){toMenu();});
+$('btn-home').addEventListener('click',function(){location.href='../index.html?v=1.0.89';});
+$('btn-any').addEventListener('click',function(){toPlay(S.idx);});
+$('btn-snd').addEventListener('click',function(){S.snd=!S.snd;
+ if(S.snd)ensureAC();
+ $('btn-snd').textContent=S.snd?'🔊':'🔇';
+ try{localStorage.setItem(KEY_SND,S.snd?'1':'0');}catch(e){}});
+
+/* 图鉴格 */
+(function(){var gal=$('gal');
+ for(var i=0;i<12;i++){var b=document.createElement('button');
+  b.innerHTML='<span class="no">'+(i+1)+'</span>'+NAMES[i];
+  (function(k){b.addEventListener('click',function(){toPlay(k);});})(i);
+  gal.appendChild(b);}})();
+
+/* ================= 启动 ================= */
+(function boot(){
+ try{var v=localStorage.getItem(KEY_SND);if(v==='1'){S.snd=true;$('btn-snd').textContent='🔊';}}catch(e){}
+ loadDone();renderGal();draw();
+ /* 动画帧循环：淡出/章渐入期持续重绘 */
+ (function loop(){if(S.page==='play'&&(S.fading||S.seal))draw();
+  requestAnimationFrame(loop);})();})();
+
+
+</script>
+</body>
+</html>
