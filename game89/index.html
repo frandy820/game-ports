@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>沙漏细流</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:#171310;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+#app{position:relative;height:100%;max-width:520px;margin:0 auto;overflow:hidden;
+ background:linear-gradient(180deg,#e9dcc3,#ddcda9)}
+#hud{position:absolute;top:0;left:0;right:0;height:64px;display:flex;align-items:center;gap:8px;padding:0 12px;
+ background:linear-gradient(180deg,#3a2f22,#2c2418);border-bottom:1px solid #6b573c;z-index:5}
+.pill{display:flex;align-items:center;gap:5px;color:#c9b895;font-size:13px}
+.pill b{font-size:10px;color:#8a795c;font-weight:600}
+.pill span{min-width:20px;text-align:center;font-size:14px;font-weight:700;color:#f2e8d5;
+ background:rgba(0,0,0,.28);border-radius:8px;padding:1px 6px;font-variant-numeric:tabular-nums}
+.pill .hot{color:#e0a887}
+.hbtn{position:absolute;top:16px;right:12px;z-index:10;width:32px;height:32px;border-radius:50%;
+ border:1px solid #6b573c;background:#4a3b28;color:#c9b895;font-size:14px;line-height:1;cursor:pointer}
+.hbtn:active{transform:scale(.92)}
+#cv{position:absolute;top:64px;left:50%;transform:translateX(-50%);touch-action:none;cursor:pointer}
+#pal{position:absolute;left:0;right:0;bottom:64px;display:flex;gap:10px;justify-content:center;z-index:4;display:none}
+#pal.show{display:flex}
+#pal button{width:34px;height:34px;border-radius:50%;border:2px solid rgba(60,44,26,.5);cursor:pointer}
+#pal button.on{border-color:#f2e8d5;box-shadow:0 0 0 2px rgba(242,232,213,.35)}
+#btnrow{position:absolute;left:0;right:0;bottom:14px;display:flex;gap:10px;padding:0 20px;z-index:4}
+#btnrow.hide{display:none}
+#btnrow button{flex:1;padding:13px 0;border:1px solid #6b573c;border-radius:10px;background:#3a2f22;
+ color:#c9b895;font-size:15px;letter-spacing:4px;text-indent:4px;cursor:pointer}
+#btnrow button:active{transform:translateY(1px)}
+#btnrow .pri{background:linear-gradient(180deg,#8a6a3f,#6e5230);color:#f7ecd9;border-color:#8a6a3f;font-weight:700}
+.lay{position:absolute;inset:0;z-index:8;display:flex;align-items:center;justify-content:center;flex-direction:column;
+ background:rgba(23,19,16,.86);backdrop-filter:blur(2px)}
+.lay.hide{display:none}
+#home{z-index:9;overflow-y:auto}
+.gcard{width:342px;padding:20px 16px 16px;text-align:center;border-radius:14px;
+ background:linear-gradient(180deg,#332a1e,#261f15);border:1px solid #6b573c;box-shadow:0 18px 40px rgba(0,0,0,.5);margin:12px 0}
+.gcard h1{font-size:24px;letter-spacing:8px;color:#f2e8d5;margin-bottom:4px}
+.gcard p{color:#8a795c;font-size:11px;letter-spacing:2px;margin-bottom:12px}
+.mrow{display:flex;gap:8px;margin-bottom:8px}
+.mrow button{flex:1;padding:12px 0;border:1px solid #6b573c;border-radius:10px;background:#3a2f22;
+ color:#c9b895;font-size:14px;letter-spacing:3px;cursor:pointer}
+.mrow .pri{background:linear-gradient(180deg,#8a6a3f,#6e5230);color:#f7ecd9;border-color:#8a6a3f;font-weight:700}
+.mrow button:active{transform:translateY(1px)}
+#bestrow{display:flex;gap:8px;margin-bottom:10px}
+#bestrow div{flex:1;padding:8px 0;border:1px dashed #6b573c;border-radius:8px;color:#8a795c;font-size:11px;line-height:1.6}
+#bestrow b{display:block;color:#e0a887;font-size:18px;font-family:Georgia,serif}
+#optlay{position:absolute;left:0;right:0;bottom:108px;padding:8px 16px;z-index:4;display:none;text-align:center}
+#optlay.show{display:block}
+#optq{color:#f2e8d5;font-size:14px;letter-spacing:2px;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+#mixbarw{width:200px;height:8px;margin:6px auto 0;border:1px solid rgba(107,87,60,.8);border-radius:4px;
+ background:rgba(0,0,0,.3);overflow:hidden;display:none}
+#mixbar{height:100%;width:0;background:linear-gradient(90deg,#d9a441,#c0392b)}
+#over .gcard h2{font-size:20px;letter-spacing:6px;color:#f2e8d5;margin:6px 0 10px}
+#over .fs{color:#e0a887;font-size:44px;font-family:Georgia,serif;font-weight:700;margin-bottom:4px}
+#over .sub{color:#8a795c;font-size:12px;letter-spacing:2px;margin-bottom:12px}
+</style>
+</head>
+<body>
+<div id="app">
+ <div id="hud">
+  <div class="pill"><b id="mn">细流</b></div>
+  <div class="pill"><b>粒</b><span id="pc">0</span></div>
+  <div class="pill"><b id="lb2">流</b><span id="ac" class="hot">0</span></div>
+  <div class="pill" id="tgtpill" style="display:none"><b>目标</b><span id="tg">—</span></div>
+ </div>
+ <button class="hbtn" id="btn-home0" style="right:52px">⌂</button>
+ <button class="hbtn" id="btn-snd">🔇</button>
+ <canvas id="cv" width="390" height="700"></canvas>
+ <div id="pal"></div>
+ <div id="optlay">
+  <div id="optq"></div>
+  <div id="mixbarw"><div id="mixbar"></div></div>
+ </div>
+ <div id="btnrow" class="hide">
+  <button id="btn-flip" class="pri">翻 转</button>
+  <button id="btn-sub">清 空</button>
+ </div>
+ <div id="home" class="lay">
+  <div class="gcard">
+   <h1>沙漏细流</h1>
+   <p>细沙穿颈 · 沙漏听流</p>
+   <div id="bestrow">
+    <div>调时最高<b id="bt">0</b></div>
+    <div>图鉴<b id="gl">0/6</b></div>
+   </div>
+   <div class="mrow"><button class="pri" id="m-free">自由流沙</button></div>
+   <div class="mrow"><button id="m-timer">调时挑战</button><button id="m-mix">混色图鉴</button></div>
+   <div class="mrow"><button id="btn-home">回棋斋</button></div>
+  </div>
+ </div>
+ <div id="over" class="lay hide">
+  <div class="gcard">
+   <h2>沙 尽</h2>
+   <div class="fs" id="fs">0</div>
+   <div class="sub" id="fsub">本盘成绩</div>
+   <div class="mrow"><button class="pri" id="btn-again">再来一盘</button></div>
+   <div class="mrow"><button id="btn-back">回细流</button></div>
+  </div>
+ </div>
+</div>
+<script>
+'use strict';
+/* ================= 常量与状态 ================= */
+var $=function(id){return document.getElementById(id)};
+var cv=$('cv'),ctx=cv.getContext('2d');
+var Wc=390,Hc=700;
+var GW=85,GH=150,CELL=4,OX=25,OY=70,MIDX=42;
+var KEY_T='g89_best_timer',KEY_G='g89_mix_gallery',KEY_SND='g89_snd';
+var COLORS=['#c0392b','#d9a441','#4a6b8a','#e8e2d0'];       /* 朱/金/黛/月白 */
+var CNAME=['朱','金','黛','月白'];
+var MIXES=[[0,1,3],[0,2,3],[1,2,3],[0,1,2],[2,3,1],[0,2,1]]; /* 图鉴配方 6 款（三色 id） */
+/* 容器几何：竖筒（y0<45 半宽 32）+ 每行 −1 陡锥（45..74：32→2，无台阶驻留）+ 竖颈（半宽 2） */
+function half(y){var y0=y<GH-1-y?y:GH-1-y;return y0<45?32:32-(y0-44);}
+var MASK=new Uint16Array(GW*GH);
+(function(){for(var y=0;y<GH;y++){var h=half(y);
+ for(var x=MIDX-h;x<=MIDX+h;x++)MASK[y*GW+x]=1;}})();
+function inM(x,y){return x>=0&&x<GW&&y>=0&&y<GH&&MASK[y*GW+x]===1;}
+
+var S={page:'home',mode:'free',parts:[],occ:new Uint16Array(GW*GH),cfg:0,
+       running:false,tStart:0,tMeas:0,target:0,score:0,streak:0,maxStreak:0,life:3,
+       flips:0,mixId:0,gallery:[],over:false,lock:false,calm:0,lastActF:0,
+       topLast:-1,topSame:0,lastProgF:0};
+var frame=0,RS=1,seed=1,INJ=0,TT=null,TQ=null;
+function rnd(){seed=(Math.imul(seed,1103515245)+12345)>>>0;return (seed>>>8)/16777216;}
+var AC=null,NOISEG=null;
+
+/* ================= 粒子单源（规则层） ================= */
+/* occ 语义：0=空格 / i+1=粒子在 parts 的下标（O(1) 反查，禁线性扫 parts） */
+function occSet(x,y,v){S.occ[y*GW+x]=v;}
+function occGet(x,y){return S.occ[y*GW+x];}
+function countAll(){return S.parts.length;}
+function countTop(){var n=0;for(var i=0;i<S.parts.length;i++)if(S.parts[i].y<=75)n++;return n;}
+function rebuildOcc(){S.occ=new Uint16Array(GW*GH);
+ for(var i=0;i<S.parts.length;i++)occSet(S.parts[i].x,S.parts[i].y,i+1);}
+/* tap 加沙：下半沙仓（y>=89 行带）圆域 r=3 填当前色空格——翻转后沙到上方开始流（沙漏物理） */
+function tapAdd(gx,gy){
+ if(S.page!=='quiz'||S.over||S.lock)return 0;
+ if(S.mode==='mix')return 0;
+ if(S.mode==='timer'&&S.running)return 0;
+ if(!inM(gx,gy)||gy<89)return 0;
+ var n=0;
+ for(var dy=-3;dy<=3;dy++)for(var dx=-3;dx<=3;dx++){
+  if(dx*dx+dy*dy>9)continue;
+  var x=gx+dx,y=gy+dy;
+  if(inM(x,y)&&y>=76&&occGet(x,y)===0){
+   S.parts.push({x:x,y:y,c:S.cfg});occSet(x,y,S.parts.length);n++;}}
+ if(n&&S.snd)beepSand();
+ updHud();return n;}
+function setColor(i){if(i>=0&&i<4)S.cfg=i;syncPal();return S.cfg;}
+function clearAll(){S.parts=[];S.occ=new Uint16Array(GW*GH);updHud();draw();return 0;}
+/* 翻转：free/timer=对称容器坐标映射（双射，物理翻转）；mix=摇匀散布（摇沙漏混色） */
+function flip(){
+ if(S.page!=='quiz'||S.over||S.lock)return false;
+ if(S.mode==='timer'){if(S.running)return false;startRun();return true;}   /* timer 全程禁物理翻转（防运行中翻回重置 top 刷分） */
+ if(S.mode==='mix'){S.flips++;scatter();}
+ else{
+  for(var i=0;i<S.parts.length;i++){var p=S.parts[i];
+   p.x=GW-1-p.x;p.y=GH-1-p.y;}
+  rebuildOcc();}
+ if(S.snd)beepFlip();
+ updHud();draw();return true;}
+/* 摇匀散布：粒子随机散到全容器空格（悬浮摇匀再落，多次趋均匀） */
+function scatter(){
+ var cells=[];
+ for(var y=0;y<GH;y++){var h=half(y);
+  for(var x=MIDX-h;x<=MIDX+h;x++)cells.push([x,y]);}
+ var m=cells.length;
+ for(var i=m-1;i>0;i--){var j=(rnd()*(i+1))|0;var t=cells[i];cells[i]=cells[j];cells[j]=t;}
+ S.occ=new Uint16Array(GW*GH);
+ for(var k=0;k<S.parts.length;k++){var c2=cells[k];
+  S.parts[k].x=c2[0];S.parts[k].y=c2[1];occSet(c2[0],c2[1],k+1);}
+ S.calm=0;S.lastActF=frame;S.topLast=-1;S.topSame=0;S.lastProgF=frame;}
+
+/* ================= 元胞自动机（每帧一扫） ================= */
+/* 流沙扰动：上半粒 0.3%/帧概率上跳 1 格（破坏壁沿稳定拱——流动沙湍动；仅上半防 top 回升） */
+function jitter(){
+ var n=S.parts.length;
+ for(var i=0;i<n;i++){var p=S.parts[i];
+  if(p.y<=74&&rnd()<0.003){
+   var jy=p.y-1;
+   if(inM(p.x,jy)&&occGet(p.x,jy)===0){
+    occSet(p.x,p.y,0);occSet(p.x,jy,i+1);p.y=jy;}}}}
+function step(){
+ var act=0;
+ jitter();
+ /* 自底向上；行内扫描方向帧奇偶交替防偏斜；occ 存粒子下标+1 */
+ for(var y=GH-1;y>=0;y--){
+  var l2r=(frame&1)===0;
+  var hd=l2r?-1:1;   /* 横移固定逆扫描方向（已扫侧，防同帧再扫双动；帧交替=宏观双侧） */
+  for(var k=0;k<GW;k++){
+   var x=l2r?k:GW-1-k;
+   var o0=occGet(x,y);
+   if(o0===0)continue;
+   var idx=o0-1;
+   var moved=0;
+   if(inM(x,y+1)&&occGet(x,y+1)===0){moved=1;moveOne(idx,x,y+1);}
+   else{
+    var first=rnd()<.5?1:-1;
+    if(inM(x+first,y+1)&&occGet(x+first,y+1)===0){moved=1;moveOne(idx,x+first,y+1);}
+    else if(inM(x-first,y+1)&&occGet(x-first,y+1)===0){moved=1;moveOne(idx,x-first,y+1);}
+    else if(inM(x+hd,y)&&occGet(x+hd,y)===0&&inM(x+2*hd,y)&&occGet(x+2*hd,y)===0&&inM(x+hd,y+1)&&occGet(x+hd,y+1)===0&&inM(x+hd,y+2)&&occGet(x+hd,y+2)===0){
+     /* 横向松弛（侧格+侧侧格+双下空）：孤立悬崖粒才滑——连续排的多米诺平移被侧侧格占
+        拦死，防平坦表面整排齿轮式振荡（帧交替方向永动） */
+     moved=1;moveOne(idx,x+hd,y);}}
+   if(moved)act++;}}
+ S._act=act;
+ if(act===0)S.calm++;else {S.calm=0;S.lastActF=frame;}   /* 静止计数+最后活动帧 */
+ /* top 无进展计数（元胞沙表面恒有蠕动波，流完判定以「上半沙量不再减少」为准） */
+ var tp=countTop();
+ if(tp!==S.topLast){S.topLast=tp;S.topSame=0;S.lastProgF=frame;}else S.topSame++;
+ return act;}
+function moveOne(i,nx,ny){var p=S.parts[i];
+ occSet(p.x,p.y,0);occSet(nx,ny,i+1);p.x=nx;p.y=ny;}
+
+/* ================= 均衡度（mix 单源） ================= */
+/* dev=Σ_{c∈配方三色}|ni−n/3|/(2n)：只遍历配方三色（四色桶会让空色恒贡献 n/3，下界 1/6 非零） */
+function devNow(){
+ var n=0,n1=[0,0,0,0];
+ for(var i=0;i<S.parts.length;i++){var p=S.parts[i];
+  if(p.y>=76){n++;n1[p.c]++;}}
+ if(n===0)return 1;
+ var mix=MIXES[S.mixId],d=0;
+ for(var j=0;j<3;j++)d+=Math.abs(n1[mix[j]]-n/3);
+ return d/(2*n);}
+
+/* ================= 模式与流程 ================= */
+function updHud(){
+ $('pc').textContent=countAll();
+ if(S.page==='quiz'&&S.mode==='free'){$('ac').textContent=S._act||0;
+  $('lb2').textContent='流';$('tgtpill').style.display='none';}
+ else if(S.page==='quiz'&&S.mode==='timer'){
+  $('ac').textContent=S.running?((frame-S.tStart)/60).toFixed(1):'0.0';
+  $('lb2').textContent='秒';
+  $('tgtpill').style.display='';$('tg').textContent=S.running?'…':S.target.toFixed(1);}
+ else if(S.page==='quiz'&&S.mode==='mix'){
+  $('ac').textContent=S.flips;$('lb2').textContent='翻';
+  $('tgtpill').style.display='';$('tg').textContent=(devNow()*100).toFixed(0);}
+ else{$('ac').textContent='0';$('lb2').textContent='流';$('tgtpill').style.display='none';}}
+function updBest(){try{$('bt').textContent=localStorage.getItem(KEY_T)||'0';
+ var g=(localStorage.getItem(KEY_G)||'').split(',').filter(function(s){return s!=='';});
+ $('gl').textContent=g.length+'/6';}catch(e){}}
+function syncPal(){var ps=$('pal').children;
+ for(var i=0;i<ps.length;i++)ps[i].className=(i===S.cfg)?'on':'';}
+function toHome(){S.page='home';S.over=false;S.lock=false;S.running=false;
+ if(TQ){clearTimeout(TQ);TQ=null;}
+ $('home').classList.remove('hide');$('over').classList.add('hide');
+ $('btnrow').classList.add('hide');$('pal').classList.remove('show');
+ $('optlay').classList.remove('show');
+ clearAll();
+ $('mn').textContent='细流';draw();}
+function toFree(){S.page='quiz';S.mode='free';S.over=false;S.lock=false;S.running=false;
+ clearAll();
+ $('home').classList.add('hide');$('over').classList.add('hide');
+ $('btnrow').classList.remove('hide');$('pal').classList.add('show');
+ $('optlay').classList.remove('show');
+ $('btn-flip').textContent='翻 转';$('btn-sub').textContent='清 空';
+ $('mn').textContent='自由流沙';updBest();updHud();draw();}
+function toQuiz(mode){S.page='quiz';S.mode=mode;S.over=false;S.lock=false;S.running=false;
+ S.score=0;S.streak=0;S.maxStreak=0;S.life=3;
+ $('home').classList.add('hide');$('over').classList.add('hide');
+ $('btnrow').classList.remove('hide');
+ RS=INJ||((Date.now()%2147483647)>>>0)||1;   /* 每盘随机盘种；INJ=注入种（钩子 seed 保确定性） */
+ seed=RS;
+ if(TQ){clearTimeout(TQ);TQ=null;}
+ if(mode==='timer'){
+  clearAll();S.target=0;
+  nextTarget();
+  $('pal').classList.remove('show');
+  $('optlay').classList.add('show');$('mixbarw').style.display='none';
+  $('optq').textContent='配沙 '+S.target.toFixed(1)+' 秒流完 · 翻转启动';
+  $('btn-flip').textContent='翻转启动';$('btn-sub').textContent='弃 局';
+  $('mn').textContent='调时挑战';}
+ else{
+  loadGallery();
+  S.mixId=seedMix();S.flips=0;
+  loadMix();
+  $('pal').classList.remove('show');
+  $('optlay').classList.add('show');$('mixbarw').style.display='block';
+  $('btn-flip').textContent='翻转摇匀';$('btn-sub').textContent='换一贴';
+  $('mn').textContent='混色图鉴';}
+ updHud();draw();}
+function nextTarget(){
+ var v=4+rnd()*5;
+ S.target=Math.round(v*10)/10;}
+function seedMix(){
+ var used=S.gallery;
+ for(var t=0;t<12;t++){var id=Math.floor(rnd()*6);
+  if(used.indexOf(id)<0)return id;}
+ for(var i2=0;i2<6;i2++)if(used.indexOf(i2)<0)return i2;
+ return 0;}
+function loadMix(){
+ /* 上半三色等量分层静态装入（自锥顶向下三段宽带——颈口装法会全挤窄带，分层不可见） */
+ S.parts=[];S.occ=new Uint16Array(GW*GH);
+ var mix=MIXES[S.mixId];
+ var need=[180,180,180],filled=[0,0,0],seg=0;
+ for(var y=1;y<=74&&seg<3;y++){
+  var h=half(y);
+  for(var x=MIDX-h+1;x<=MIDX+h-1&&filled[seg]<need[seg];x++){
+   if(inM(x,y)&&occGet(x,y)===0){
+    var c=mix[seg];
+    S.parts.push({x:x,y:y,c:c});occSet(x,y,S.parts.length);filled[seg]++;}}
+  if(filled[seg]>=need[seg])seg++;}
+ $('optq').textContent='配方「'+mixName(S.mixId)+'」· 翻转摇匀 · 六贴收集';
+ updHud();}
+function mixName(id){var m=MIXES[id];return CNAME[m[0]]+CNAME[m[1]]+'·'+CNAME[m[2]];}
+function startRun(){
+ if(S.mode!=='timer'||S.running||S.over||S.lock)return;
+ if(countAll()===0)return;
+ /* 沙仓翻到上方：翻转坐标映射后沙悬于上半开始流（countTop 递减） */
+ for(var i=0;i<S.parts.length;i++){var p=S.parts[i];
+  p.x=GW-1-p.x;p.y=GH-1-p.y;}
+ rebuildOcc();
+ if(S.snd)beepFlip();
+ S.running=true;S.tStart=frame;S.calm=0;S.lastActF=frame;
+ S.topLast=-1;S.topSame=0;S.lastProgF=frame;
+ $('btn-flip').textContent='流沙中…';
+ $('optq').textContent='目标 '+S.target.toFixed(1)+'s · 沙落成计时';
+ updHud();}
+function stopRun(tSec){   /* 流完判定（tSec=实测秒；测试可注入） */
+ S.running=false;S.tMeas=tSec;
+ var d=Math.abs(tSec-S.target);
+ if(d<=0.4){S.score+=Math.round(100*(1+S.streak*0.1));S.streak++;
+  if(S.streak>S.maxStreak)S.maxStreak=S.streak;
+  if(S.snd)beepPing();
+  $('optq').textContent='目标 '+S.target.toFixed(1)+'s · 实测 '+tSec.toFixed(1)+'s · 完美！';}
+ else if(d<=1.0){S.score+=50;S.streak=0;
+  if(S.snd)beepPing();
+  $('optq').textContent='目标 '+S.target.toFixed(1)+'s · 实测 '+tSec.toFixed(1)+'s · 尚可';}
+ else{S.streak=0;S.life--;
+  if(S.snd)beepBuzz();
+  $('optq').textContent='目标 '+S.target.toFixed(1)+'s · 实测 '+tSec.toFixed(1)+'s · 失手';
+  if(S.life<=0){gameOver();return;}}
+ S.lock=true;
+ TQ=setTimeout(function(){TQ=null;S.lock=false;
+  if(S.mode==='timer'&&!S.over){nextTarget();
+   $('optq').textContent='配沙 '+S.target.toFixed(1)+' 秒流完 · 翻转启动';
+   $('btn-flip').textContent='翻转启动';updHud();}},1400);
+ updHud();}
+function skipQ(){
+ if(S.page!=='quiz'||S.over||S.lock)return;
+ if(S.mode==='timer'){S.streak=0;S.running=false;
+  nextTarget();
+  $('optq').textContent='配沙 '+S.target.toFixed(1)+' 秒流完 · 翻转启动';
+  $('btn-flip').textContent='翻转启动';updHud();}
+ else if(S.mode==='mix'){toQuiz('mix');}}
+function gameOver(){if(S.over)return;S.over=true;S.lock=false;S.running=false;
+ if(TQ){clearTimeout(TQ);TQ=null;}
+ $('optlay').classList.remove('show');
+ var best=0;
+ try{best=+(localStorage.getItem(KEY_T)||0);}catch(e){}
+ var isNew=S.score>best;
+ if(isNew)best=S.score;
+ try{localStorage.setItem(KEY_T,String(best));}catch(e){}
+ $('fs').textContent=S.score;
+ $('fsub').textContent=(isNew?'新铺史最好 · ':'铺史最好 '+best+' · ')+'连中最长 '+S.maxStreak;
+ $('over').classList.remove('hide');updHud();}
+function loadGallery(){
+ try{var g=(localStorage.getItem(KEY_G)||'').split(',').filter(function(s){return s!=='';});
+  S.gallery=g.map(Number);}catch(e){S.gallery=[];}}
+function saveGallery(){
+ try{localStorage.setItem(KEY_G,S.gallery.join(','));}catch(e){}}
+function mixCheck(){   /* 每帧达标检测（mix） */
+ if(S.mode!=='mix'||S.over)return;
+ var n=0;
+ for(var i=0;i<S.parts.length;i++)if(S.parts[i].y>=76)n++;
+ var dv=devNow();
+ var pct=Math.max(0,Math.min(100,(1-dv/0.3)*100));
+ $('mixbar').style.width=pct+'%';
+ $('tg').textContent=(dv*100).toFixed(0);
+ if(dv<=0.15&&n>=400){
+  var first=S.gallery.indexOf(S.mixId)<0;
+  if(first){S.gallery.push(S.mixId);saveGallery();updBest();}
+  if(S.gallery.length>=6){                          /* 全收终态：免锁窗，自由摇沙 */
+   $('optq').textContent='六贴全收 · 图鉴大成 · 自由摇沙';
+   return;}
+  $('optq').textContent='「'+mixName(S.mixId)+'」混匀 · '+S.flips+' 次翻转'+(first?' · 收卡！':' · 已收');
+  if(S.snd)beepPing();
+  S.lock=true;
+  TQ=setTimeout(function(){TQ=null;S.lock=false;nextMixCard();},1600);}}
+function nextMixCard(){
+ S.mixId=seedMix();S.flips=0;loadMix();
+ $('optq').textContent='配方「'+mixName(S.mixId)+'」· 翻转摇匀 · 六贴收集';
+ draw();}
+
+/* ================= 绘制 ================= */
+function draw(){
+ ctx.fillStyle='#e9dcc3';ctx.fillRect(0,0,Wc,Hc);
+ ctx.strokeStyle='rgba(120,96,60,.14)';ctx.lineWidth=1;
+ for(var yy=40;yy<Hc;yy+=46){ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(Wc,yy);ctx.stroke();}
+ if(S.page==='home')return;
+ /* 玻璃内底微透 */
+ ctx.fillStyle='rgba(255,250,238,.35)';
+ for(var y0=0;y0<GH;y0++){var h0=half(y0);
+  ctx.fillRect(OX+(MIDX-h0)*CELL,OY+y0*CELL,h0*2*CELL,CELL);}
+ /* 粒子 */
+ for(var i=0;i<S.parts.length;i++){var p=S.parts[i];
+  ctx.fillStyle=COLORS[p.c];
+  ctx.fillRect(OX+p.x*CELL,OY+p.y*CELL,CELL,CELL);}
+ /* 玻璃轮廓（左右折线+顶底） */
+ ctx.strokeStyle='#7d8a8f';ctx.lineWidth=2;ctx.beginPath();
+ var LASTY=GH-1;
+ ctx.moveTo(OX+(MIDX-half(0))*CELL,OY);
+ for(var y1=0;y1<GH;y1++)ctx.lineTo(OX+(MIDX-half(y1))*CELL,OY+y1*CELL+CELL);
+ ctx.lineTo(OX+(MIDX+half(LASTY))*CELL,OY+GH*CELL);
+ for(var y2=GH-1;y2>=0;y2--)ctx.lineTo(OX+(MIDX+half(y2))*CELL,OY+y2*CELL+CELL);
+ ctx.closePath();ctx.stroke();
+ ctx.strokeStyle='rgba(255,255,255,.5)';ctx.lineWidth=1;ctx.beginPath();
+ ctx.moveTo(OX+(MIDX-half(2)+1)*CELL,OY+8);
+ for(var y3=2;y3<70;y3++)ctx.lineTo(OX+(MIDX-half(y3)+1)*CELL,OY+y3*CELL);
+ ctx.stroke();
+ /* 颈部窄光 */
+ ctx.fillStyle='rgba(217,185,138,.8)';
+ ctx.fillRect(OX+(MIDX-2)*CELL-2,OY+74*CELL,2,2*CELL);
+ ctx.fillRect(OX+(MIDX+2)*CELL,OY+74*CELL,2,2*CELL);
+ ctx.textAlign='center';
+ if(S.page==='quiz'&&S.mode==='free'){
+  ctx.fillStyle='#8a795c';ctx.font='12px system-ui,sans-serif';
+  ctx.fillText(S._act>0?'细沙流动中 · 听细流':'tap 下半沙仓加沙 · 翻转看流',195,40);}
+ else if(S.page==='quiz'&&S.mode==='timer'){
+  ctx.fillStyle='#8a795c';ctx.font='12px system-ui,sans-serif';
+  ctx.fillText(S.running?'沙落即计时':'配 '+countAll()+' 粒 · 目标 '+S.target.toFixed(1)+' 秒',195,40);}
+ else if(S.page==='quiz'&&S.mode==='mix'){
+  ctx.fillStyle='#8a795c';ctx.font='12px system-ui,sans-serif';
+  ctx.fillText('配方 '+mixName(S.mixId)+' · 已翻 '+S.flips+' 次',195,40);}
+ ctx.textAlign='left';}
+
+/* ================= 音效（白噪+短脉冲，默认静音） ================= */
+function ensureAC(){if(!AC){try{
+ AC=new (window.AudioContext||window.webkitAudioContext)();
+ var len=AC.sampleRate,buf=AC.createBuffer(1,len,AC.sampleRate),d=buf.getChannelData(0);
+ for(var i=0;i<len;i++)d[i]=Math.random()*2-1;
+ var src=AC.createBufferSource();src.buffer=buf;src.loop=true;
+ var f=AC.createBiquadFilter();f.type='lowpass';f.frequency.value=800;
+ NOISEG=AC.createGain();NOISEG.gain.value=0;
+ src.connect(f);f.connect(NOISEG);NOISEG.connect(AC.destination);src.start();
+ }catch(e){}}}
+function noiseTo(v){if(NOISEG){try{NOISEG.gain.value=v;}catch(e){}}}
+function tone(hz,dur,vol,type){if(!AC)return;try{var o=AC.createOscillator(),g=AC.createGain();
+ o.frequency.value=hz;o.type=type||'sine';g.gain.value=vol||.3;
+ o.connect(g);g.connect(AC.destination);o.start();
+ g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+dur);o.stop(AC.currentTime+dur);}catch(e){}}
+function beepPing(){tone(660,.4,.4);}
+function beepBuzz(){tone(180,.3,.3,'square');}
+function beepFlip(){tone(180,.12,.3,'triangle');}
+function beepSand(){tone(900,.05,.12,'triangle');}
+
+/* ================= 事件 ================= */
+function pageXY(e){var r=cv.getBoundingClientRect();
+ return [e.clientX-r.left,e.clientY-r.top];}
+cv.addEventListener('pointerdown',function(e){
+ if(S.page!=='quiz'||S.over)return;
+ var xy=pageXY(e);
+ var gx=Math.floor((xy[0]-OX)/CELL),gy=Math.floor((xy[1]-OY)/CELL);
+ tapAdd(gx,gy);
+ e.preventDefault();});
+$('btn-home0').addEventListener('click',toHome);
+$('m-free').addEventListener('click',toFree);
+$('m-timer').addEventListener('click',function(){toQuiz('timer');});
+$('m-mix').addEventListener('click',function(){toQuiz('mix');});
+$('btn-home').addEventListener('click',function(){location.href='../index.html?v=1.0.91';});
+$('btn-back').addEventListener('click',toHome);
+$('btn-again').addEventListener('click',function(){$('over').classList.add('hide');toQuiz(S.mode);});
+$('btn-flip').addEventListener('click',function(){flip();});
+$('btn-sub').addEventListener('click',function(){
+ if(S.mode==='free')clearAll();else skipQ();});
+$('btn-snd').addEventListener('click',function(){
+ sndToggle();});
+function sndToggle(){
+ S.snd=!S.snd;
+ if(S.snd)ensureAC();
+ $('btn-snd').textContent=S.snd?'🔊':'🔇';
+ try{localStorage.setItem(KEY_SND,S.snd?'1':'0');}catch(e){}}
+/* 色板（free） */
+(function(){var pal=$('pal');
+ for(var i=0;i<4;i++)(function(k){var b=document.createElement('button');
+  b.style.background=COLORS[k];
+  b.addEventListener('click',function(){setColor(k);});
+  pal.appendChild(b);})(i);})();
+
+/* ================= 主循环 ================= */
+/* 流完判定：上半空；或 top 连续 45 帧无进展（表面蠕动波不阻塞，流完=上半沙量不再减）
+   t=最后进展帧换算（等待窗不计入） */
+function finishCheck(){
+ if(!(S.mode==='timer'&&S.running))return -1;
+ if(frame-S.tStart<30)return -1;
+ if(countTop()===0||S.topSame>=45)return Math.round((S.lastProgF-S.tStart)/60*10)/10;
+ return -1;}
+function loop(){
+ step();
+ if(S.snd)noiseTo(Math.min(0.15,(S._act||0)*0.006));else noiseTo(0);
+ frame++;
+ if(S.page==='quiz'){
+  var ft=finishCheck();
+  if(ft>=0)stopRun(ft);
+  if(S.mode==='mix'&&!S.lock)mixCheck();
+  draw();updHud();}
+ requestAnimationFrame(loop);}
+
+/* ================= 启动 ================= */
+(function boot(){
+ try{var v=localStorage.getItem(KEY_SND);if(v==='1'){S.snd=true;$('btn-snd').textContent='🔊';
+  /* 跨会话恢复音频：手势内懒建+resume（AudioContext 须用户手势，boot 直建会 suspended 且后续无 resume 钩） */
+  var wake=function(){ensureAC();
+   if(AC&&AC.state==='suspended'){try{AC.resume();}catch(e2){}}
+   document.removeEventListener('pointerdown',wake);};
+  document.addEventListener('pointerdown',wake);}}catch(e){}
+ loadGallery();updBest();
+ draw();
+ requestAnimationFrame(loop);})();
+
+/* ================= 沙盒钩子（测试专用） ================= */
+
+</script>
+</body>
+</html>
