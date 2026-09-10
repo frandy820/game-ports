@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>鱼缸物语</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:#efe8d8;font-family:"PingFang SC","Microsoft YaHei",sans-serif;overflow:hidden}
+#app{position:relative;width:390px;height:844px;max-width:100vw;margin:0 auto;background:#efe8d8;overflow:hidden}
+#cv{position:absolute;left:0;top:0;width:390px;height:844px}
+#hud{position:absolute;left:0;right:0;top:10px;display:flex;align-items:center;gap:8px;padding:0 14px;z-index:4}
+.pill{background:rgba(255,252,244,.92);border:1px solid #d8ccb2;border-radius:14px;padding:3px 10px;font-size:12px;color:#6b5d45;box-shadow:0 1px 2px rgba(60,50,30,.08)}
+#btn-snd{margin-left:auto;width:32px;height:32px;border-radius:50%;border:1px solid #d8ccb2;background:rgba(255,252,244,.92);font-size:15px;line-height:30px;text-align:center;color:#6b5d45;cursor:pointer}
+#tip{position:absolute;left:0;right:0;top:44px;text-align:center;font-size:11px;color:#9a8c6e;z-index:3;letter-spacing:1px}
+#flash{position:absolute;left:50%;top:96px;transform:translateX(-50%);background:rgba(74,107,138,.92);color:#fff;font-size:13px;padding:6px 14px;border-radius:16px;z-index:6;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
+#flash.show{opacity:1}
+#btnrow{position:absolute;left:0;right:0;bottom:16px;display:flex;gap:12px;padding:0 20px;z-index:4}
+.abtn{flex:1;height:44px;border-radius:22px;border:1px solid #c9b791;background:rgba(255,252,244,.95);color:#5a4c33;font-size:15px;letter-spacing:2px;cursor:pointer;box-shadow:0 2px 6px rgba(60,50,30,.12)}
+.abtn:active{transform:translateY(1px)}
+.lay{position:absolute;inset:0;background:rgba(23,19,16,.55);z-index:8;display:flex;align-items:center;justify-content:center}
+.lay.hide{display:none}
+.card{width:330px;max-height:640px;background:#faf5e8;border-radius:16px;border:1px solid #d8ccb2;padding:18px 16px;box-shadow:0 8px 30px rgba(20,15,8,.35);overflow-y:auto}
+.card h3{text-align:center;font-size:17px;color:#4a3b26;letter-spacing:3px;margin-bottom:4px}
+.card .sub{text-align:center;font-size:11px;color:#9a8c6e;margin-bottom:12px;letter-spacing:1px}
+#galgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.gcell{background:#f2ead6;border:1px solid #e2d6ba;border-radius:10px;padding:6px 4px;text-align:center}
+.gcell canvas{width:56px;height:36px;display:block;margin:0 auto}
+.gcell .gn{font-size:10px;color:#6b5d45;margin-top:2px;letter-spacing:1px}
+.gcell.no .gn{color:#b7a98a}
+.cbtn{display:block;width:120px;height:38px;margin:14px auto 0;border-radius:19px;border:1px solid #c9b791;background:#e8dcc0;color:#5a4c33;font-size:14px;letter-spacing:4px;cursor:pointer}
+#addrow{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.chip{border:1px solid #c9b791;background:#fff9;border-radius:16px;padding:6px 12px;font-size:13px;color:#5a4c33;cursor:pointer;display:flex;align-items:center;gap:6px}
+.chip .dot{width:10px;height:10px;border-radius:50%}
+.chip:active{background:#e8dcc0}
+#addmsg{text-align:center;font-size:12px;color:#9a8c6e;margin-top:12px;min-height:16px}
+#offq{text-align:center;font-size:14px;color:#5a4c33;line-height:1.8;margin:8px 0 2px}
+#fnote{font-size:12px;color:#9a8c6e;text-align:center;margin:6px 0 0}
+#btn-free{background:#c96a4a;border-color:#a9502e;color:#fff}
+</style>
+</head>
+<body>
+<div id="app">
+<canvas id="cv" width="390" height="844"></canvas>
+<div id="hud">
+ <div class="pill" id="hx">资历 0</div>
+ <div class="pill" id="hg">图鉴 0/12</div>
+ <div class="pill" id="hf">缸 2/6</div>
+ <div id="btn-snd">🔇</div>
+</div>
+<div id="tip">点缸撒食 · 鱼儿长大收图鉴 · 离线也在长</div>
+<div id="flash"></div>
+<div id="btnrow">
+ <button class="abtn" id="btn-gal">图 鉴</button>
+ <button class="abtn" id="btn-add">添 鱼</button>
+</div>
+<div class="lay hide" id="lay-gal"><div class="card">
+ <h3>鱼 谱</h3><div class="sub" id="galsub">已收 0 / 12</div>
+ <div id="galgrid"></div>
+ <button class="cbtn" id="gal-close">合 上</button>
+</div></div>
+<div class="lay hide" id="lay-add"><div class="card">
+ <h3>添 鱼</h3><div class="sub">选一种放入缸中 · 上限六尾</div>
+ <div id="addrow"></div>
+ <div id="addmsg"></div>
+ <button class="cbtn" id="add-close">合 上</button>
+</div></div>
+<div class="lay hide" id="lay-off"><div class="card">
+ <h3>欢 迎 回 来</h3>
+ <div id="offq"></div>
+ <button class="cbtn" id="off-close">好</button>
+</div></div>
+<div class="lay hide" id="lay-fish"><div class="card">
+ <h3 id="fname">红草金</h3><div class="sub" id="finfo">已长成 · 已入鱼谱</div>
+ <div id="fnote">放生归塘腾出缸位，鱼谱贴纸保留</div>
+ <button class="cbtn" id="btn-free">放生归塘</button>
+ <button class="cbtn" id="fish-close">再看看</button>
+</div></div>
+<script>
+'use strict';
+/* ===== 数据表（SPEC 单源）===== */
+var SPECIES=[
+ {n:'红草金',c:'#c0392b',c2:'#8e2a20',L:46,H:16,tail:'fork',feat:null},
+ {n:'朱文锦',c:'#d35400',c2:'#a04000',L:44,H:15,tail:'fork',feat:'spot',sc:'#f5d76e'},
+ {n:'墨龙睛',c:'#2c3e50',c2:'#1a2530',L:40,H:17,tail:'quad',feat:'eye'},
+ {n:'珍珠鳞',c:'#e8c26a',c2:'#c9a04b',L:38,H:19,tail:'fan',feat:'pearl'},
+ {n:'水泡眼',c:'#d9a441',c2:'#b08330',L:38,H:16,tail:'fan',feat:'bubble'},
+ {n:'狮子头',c:'#b03a2e',c2:'#8e2e24',L:44,H:19,tail:'fan',feat:'wen'},
+ {n:'琉金',c:'#a93226',c2:'#7e241c',L:42,H:20,tail:'long',feat:null},
+ {n:'蝶尾',c:'#7d3c98',c2:'#5e2b73',L:40,H:16,tail:'bt',feat:null},
+ {n:'红白锦鲤',c:'#f0f0ea',c2:'#e74c3c',L:58,H:17,tail:'koi',feat:'patch',sc:'#e74c3c'},
+ {n:'昭和三色',c:'#1a1a1a',c2:'#e74c3c',L:60,H:18,tail:'koi',feat:'patch3',sc:'#e74c3c'},
+ {n:'黄金锦鲤',c:'#f1c40f',c2:'#d4ac0d',L:56,H:16,tail:'koi',feat:null},
+ {n:'白写锦鲤',c:'#ecf0f1',c2:'#1a1a1a',L:58,H:17,tail:'koi',feat:'patch',sc:'#1a1a1a'}
+];
+var UNLOCK=[0,100,250,450,700,1000,1400,1900,2500,3200,4000,5000];
+var RATE=0.05, FOOD_GAIN=3, FOOD_TTL=8, FEED_CD=1.5, CAP_OFF=7200, MAXF=6;
+var K_EXP='g90_exp', K_GAL='g90_gallery', K_FISH='g90_fish', K_SND='g90_snd', K_LAST='g90_last';
+var PRE_BAND=[523.25,587.33,659.25,783.99,880];
+
+/* ===== 状态 ===== */
+var S={exp:0,gallery:[],fish:[],foods:[],feedCd:0,tSec:0,acc10:0,snd:false,lay:null,uk:2,ripples:[],curFish:-1};
+var RS=1, frame=0, AC=null, FLSH=null;
+function rnd(){RS=(Math.imul(RS,1103515245)+12345)>>>0;return (RS>>>8)/16777216;}
+function $(id){return document.getElementById(id);}
+
+/* ===== 存档 ===== */
+function saveAll(){try{
+ localStorage.setItem(K_EXP,String(S.exp));
+ localStorage.setItem(K_GAL,S.gallery.join(','));
+ localStorage.setItem(K_FISH,JSON.stringify(S.fish.map(function(f){return {spec:f.spec,grow:Math.round(f.grow*1000)/1000,grown:f.grown};})));
+ localStorage.setItem(K_SND,S.snd?'1':'0');
+ localStorage.setItem(K_LAST,String(Date.now()));
+}catch(e){}}
+function loadAll(){
+ try{var e=localStorage.getItem(K_EXP); if(e!==null)S.exp=+e||0;}catch(e){}
+ try{var g=localStorage.getItem(K_GAL);
+  if(g){var gs=g.split(',').map(Number).filter(function(x){return x>=0&&x<12;});
+   var gs2=[];for(var i=0;i<gs.length;i++)if(gs2.indexOf(gs[i])<0)gs2.push(gs[i]);
+   S.gallery=gs2;}}catch(e){}
+ try{var fs=localStorage.getItem(K_FISH);
+  if(fs){var arr=JSON.parse(fs); if(Object.prototype.toString.call(arr)==='[object Array]')
+   S.fish=arr.filter(function(f){return f&&f.spec>=0&&f.spec<12;}).slice(0,MAXF).map(function(f){return mkFish(f.spec,f.grow||10,!!f.grown);});}}catch(e){}
+ try{var sn=localStorage.getItem(K_SND); if(sn==='1')S.snd=true;}catch(e){}}
+function mkFish(spec,grow,grown){return {spec:spec,x:60+rnd()*270,y:130+rnd()*380,vx:(rnd()<.5?-1:1)*10,vy:(rnd()-.5)*8,grow:grown?100:grow,grown:!!grown,dirT:1+rnd()*2,phase:rnd()*6.28};}
+function ukCount(){var n=0;for(var i=0;i<UNLOCK.length;i++)if(S.exp>=UNLOCK[i])n=i+1;return Math.max(2,n);}
+function updHud(){$('hx').textContent='资历 '+Math.floor(S.exp);$('hg').textContent='图鉴 '+S.gallery.length+'/12';$('hf').textContent='缸 '+S.fish.length+'/'+MAXF;}
+function flash(msg){var el=$('flash');el.textContent=msg;el.classList.add('show');if(FLSH)clearTimeout(FLSH);FLSH=setTimeout(function(){el.classList.remove('show');},1800);}
+
+/* ===== 音效（默认静音；AC 手势内懒建）===== */
+function ensureAC(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){AC=null;}}}
+function tone(fr,dur,vol,type){if(!S.snd||!AC)return;try{
+ var t=AC.currentTime,o=AC.createOscillator(),g=AC.createGain();
+ o.type=type||'sine';o.frequency.value=fr;
+ g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+ o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+dur);}catch(e){}}
+function blub(){tone(190,.14,.10,'sine');}
+function tickSnd(){tone(660,.05,.06,'triangle');}
+function pingSnd(){var i=S.gallery.length%PRE_BAND.length;tone(PRE_BAND[i],.5,.12,'sine');}
+function chimeSnd(){tone(659.25,.3,.10);setTimeout(function(){tone(987.77,.4,.10);},140);}
+
+/* ===== 游戏逻辑 ===== */
+function unlocked(){return ukCount();}
+function feed(x,y){
+ if(S.lay)return false;
+ if(y<90||y>600||x<10||x>380)return false;
+ if(S.feedCd>0.001)return false;   /* 1ms 容差：90×1/60 浮点残差 3e-16 不应拒（g89 V8g 实证） */
+ for(var i=0;i<3;i++)S.foods.push({x:x+(rnd()-.5)*36,y:y+(rnd()-.5)*12,vy:16+rnd()*8,ttl:FOOD_TTL});
+ S.feedCd=FEED_CD;
+ S.ripples.push({x:x,y:y,r:4,a:.5});
+ if(S.snd)blub();
+ return true;}
+function addFish(spec){
+ if(spec<0||spec>=12)return false;
+ if(spec>=unlocked())return false;
+ if(S.fish.length>=MAXF){return false;}
+ S.fish.push(mkFish(spec,10,false));
+ saveAll();updHud();
+ return true;}
+function checkGrow(f){
+ if(f.grown||f.grow<100)return;
+ f.grow=100;f.grown=true;S.exp+=100;
+ var first=S.gallery.indexOf(f.spec)<0;
+ if(first){S.gallery.push(f.spec);if(S.snd)pingSnd();}
+ checkUnlock();saveAll();updHud();
+ flash(first?'「'+SPECIES[f.spec].n+'」长成 · 收入鱼谱！':SPECIES[f.spec].n+' 长成了');}
+function checkUnlock(){
+ var n=ukCount();
+ if(n>S.uk){S.uk=n;if(S.snd)chimeSnd();flash('解锁新鱼种 · '+SPECIES[n-1].n);}
+ else S.uk=n;}
+function offlineSettle(sec){
+ if(!(sec>=60))return false;
+ sec=Math.min(sec,CAP_OFF);
+ for(var i=0;i<S.fish.length;i++){var f=S.fish[i];
+  if(!f.grown){f.grow+=sec*RATE;checkGrow(f);}}
+ openLay('off');
+ var m=Math.floor(sec/60),s2=Math.round(sec%60);
+ if(s2===60){s2=0;m++;}
+ $('offq').innerHTML='离开 '+m+' 分 '+s2+' 秒<br>鱼儿们长大 '+Math.round(sec*RATE)+'%';
+ saveAll();updHud();
+ return true;}
+function settleResume(){try{var last=localStorage.getItem(K_LAST);
+ if(last&&S.fish.length){var dts=(Date.now()-(+last))/1000;if(dts>=60)offlineSettle(dts);}}catch(e){}}
+
+/* ===== 步进 ===== */
+function step(dt){
+ S.tSec+=dt;
+ if(S.feedCd>0)S.feedCd=Math.max(0,S.feedCd-dt);
+ /* 食粒 */
+ for(var i=S.foods.length-1;i>=0;i--){var fd=S.foods[i];
+  fd.y+=fd.vy*dt;fd.ttl-=dt;
+  if(fd.y>=600||fd.ttl<=0)S.foods.splice(i,1);}
+ /* 鱼 */
+ for(var k=0;k<S.fish.length;k++){var f=S.fish[k];
+  f.dirT-=dt;
+  if(f.dirT<=0){f.vx=(rnd()-.5)*24;f.vy=(rnd()-.5)*14;f.dirT=2+rnd()*2;}
+  /* 觅食：趋向最近食粒 */
+  var best=-1,bd=170;
+  for(var j=0;j<S.foods.length;j++){var d=Math.hypot(S.foods[j].x-f.x,S.foods[j].y-f.y);if(d<bd){bd=d;best=j;}}
+  var sp=22;
+  if(best>=0){var fd2=S.foods[best],dl=Math.hypot(fd2.x-f.x,fd2.y-f.y)||1;
+   f.vx=(fd2.x-f.x)/dl*sp*1.6;f.vy=(fd2.y-f.y)/dl*sp*1.6;}
+  f.x+=f.vx*dt;f.y+=f.vy*dt;
+  if(f.x<30){f.x=30;f.vx=Math.abs(f.vx);} if(f.x>360){f.x=360;f.vx=-Math.abs(f.vx);}
+  if(f.y<100){f.y=100;f.vy=Math.abs(f.vy);} if(f.y>595){f.y=595;f.vy=-Math.abs(f.vy);}
+  f.phase+=Math.max(2,Math.hypot(f.vx,f.vy))*dt*.5;
+  /* 吃食 */
+  if(best>=0&&bd<12){S.foods.splice(best,1);
+   if(!f.grown){f.grow+=FOOD_GAIN;}
+   S.exp+=1;checkUnlock();
+   if(S.snd)tickSnd();updHud();
+   if(!f.grown)checkGrow(f);}
+  /* 自然成长（在线帧累计）*/
+  if(!f.grown){f.grow+=dt*RATE;if(f.grow>=100)checkGrow(f);}}
+ /* 波纹 */
+ for(var r2=S.ripples.length-1;r2>=0;r2--){var rp=S.ripples[r2];rp.r+=40*dt;rp.a-=dt*.8;if(rp.a<=0)S.ripples.splice(r2,1);}
+ /* 节流存档：每 10s */
+ S.acc10+=dt;if(S.acc10>=10){S.acc10=0;saveAll();}
+ frame++;}
+
+/* ===== 绘制 ===== */
+var cvx=null;
+function draw(){
+ if(!cvx)cvx=$('cv').getContext('2d');
+ var g=cvx;
+ /* 纸底 */
+ g.fillStyle='#efe8d8';g.fillRect(0,0,390,844);
+ /* 缸体（瓷缸）*/
+ g.fillStyle='#e9edeb';
+ roundRect(g,14,58,362,600,26);g.fill();
+ g.strokeStyle='#7d8a8f';g.lineWidth=2;roundRect(g,14,58,362,600,26);g.stroke();
+ g.strokeStyle='rgba(125,138,143,.45)';g.lineWidth=1;roundRect(g,19,63,352,590,22);g.stroke();
+ /* 水体 */
+ g.fillStyle='rgba(196,224,228,.55)';g.fillRect(20,70,350,582);
+ var wg=g.createLinearGradient(0,70,0,652);
+ wg.addColorStop(0,'rgba(214,234,238,.25)');wg.addColorStop(1,'rgba(150,192,200,.30)');
+ g.fillStyle=wg;g.fillRect(20,70,350,582);
+ /* 水草（摇曳）*/
+ drawWeed(g,52,648,44,'#5a7d5a');drawWeed(g,88,650,30,'#6b8f63');drawWeed(g,316,649,48,'#54755a');drawWeed(g,344,650,26,'#6b8f63');
+ /* 砂石 */
+ g.fillStyle='#c9b38c';
+ for(var i=0;i<9;i++){var sx=42+i*36+(i%2)*8;g.beginPath();g.ellipse(sx,640+(i%3)*4,10,4,0,0,6.283);g.fill();}
+ g.fillStyle='#b09a74';
+ for(var i2=0;i2<5;i2++){var sx2=70+i2*62;g.beginPath();g.ellipse(sx2,646,6,3,0,0,6.283);g.fill();}
+ /* 气泡 */
+ for(var b=0;b<4;b++){var bx=60+((frame*0.3+b*97)%280),by=620-((frame*0.9+b*151)%520);
+  g.strokeStyle='rgba(255,255,255,.5)';g.lineWidth=1;g.beginPath();g.arc(bx,by,2.5+b%3,0,6.283);g.stroke();}
+ /* 食粒 */
+ g.fillStyle='#8a6d3b';
+ for(var fdi=0;fdi<S.foods.length;fdi++){var fd3=S.foods[fdi];
+  g.beginPath();g.arc(fd3.x,fd3.y,3,0,6.283);g.fill();}
+ /* 波纹 */
+ for(var ri=0;ri<S.ripples.length;ri++){var rp2=S.ripples[ri];
+  g.strokeStyle='rgba(90,140,160,'+Math.max(0,rp2.a)+')';g.lineWidth=1.5;
+  g.beginPath();g.arc(rp2.x,rp2.y,rp2.r,0,6.283);g.stroke();}
+ /* 鱼（按 y 排序远景先画）*/
+ var ord=S.fish.slice().sort(function(a,b2){return a.y-b2.y;});
+ for(var fi=0;fi<ord.length;fi++)drawFish(g,ord[fi]);
+ /* 水面高光线 */
+ g.strokeStyle='rgba(255,255,255,.65)';g.lineWidth=2;g.beginPath();
+ for(var x2=24;x2<=366;x2+=6){var yy=72+Math.sin(x2*.09+frame*.05)*2;x2===24?g.moveTo(x2,yy):g.lineTo(x2,yy);}
+ g.stroke();
+ /* 缸口沿（前景）*/
+ g.fillStyle='#dfe5e3';roundRect(g,10,52,370,16,8);g.fill();
+ g.strokeStyle='#7d8a8f';g.lineWidth=2;roundRect(g,10,52,370,16,8);g.stroke();
+ g.strokeStyle='#5a8a9a';g.lineWidth=1.2;
+ g.beginPath();g.arc(52,60,4,0,6.283);g.stroke();g.beginPath();g.arc(338,60,4,0,6.283);g.stroke();
+ /* 缸底座 */
+ g.fillStyle='#d5cdb8';roundRect(g,26,656,338,14,6);g.fill();
+ g.strokeStyle='#b8ad93';g.lineWidth=1;roundRect(g,26,656,338,14,6);g.stroke();
+ /* 缸底字 */
+ g.fillStyle='#9a8c6e';g.font='11px sans-serif';g.textAlign='center';
+ g.fillText('细 水 长 流 · 鱼 谱 十 二',195,686);
+ g.textAlign='left';
+}
+function roundRect(g,x,y,w,h,r){g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath();}
+function drawWeed(g,x,base,h,col){g.strokeStyle=col;g.lineWidth=4;g.lineCap='round';
+ for(var s=0;s<3;s++){var sw=Math.sin(frame*.02+s)*6;
+  g.beginPath();g.moveTo(x+s*7-7,base);
+  g.quadraticCurveTo(x+s*7-7+sw,base-h*.5,x+s*7-7+sw*1.6,base-h*(0.8+s*.1));
+  g.stroke();}}
+function drawFish(g,f){
+ var spc=SPECIES[f.spec];
+ var sz=0.55+0.45*Math.min(f.grow,100)/100;
+ var L=spc.L*sz, H=spc.H*sz;
+ var dir=f.vx<0?-1:1;
+ g.save();g.translate(f.x,f.y);
+ g.scale(dir,1);
+ g.rotate(Math.max(-.35,Math.min(.35,f.vy*.02))*dir);
+ /* 尾（按型）*/
+ var sway=Math.sin(f.phase)*.5;
+ g.save();g.translate(-L*.42,0);g.rotate(sway*.6);
+ g.fillStyle=spc.c2;
+ var TL=L*.42,TH=H*.55;
+ if(spc.tail==='fork'){g.beginPath();g.moveTo(0,0);g.lineTo(-TL,-TH*.7);g.lineTo(-TL*.45,0);g.lineTo(-TL,TH*.7);g.closePath();g.fill();}
+ else if(spc.tail==='fan'){g.beginPath();g.moveTo(0,0);g.arc(0,0,TL,-2.4,2.4);g.closePath();g.fill();}
+ else if(spc.tail==='quad'){g.beginPath();g.moveTo(0,0);g.quadraticCurveTo(-TL*.7,-TH,-TL,-TH*.3);g.quadraticCurveTo(-TL*.5,0,-TL,TH*.3);g.quadraticCurveTo(-TL*.7,TH,0,0);g.fill();}
+ else if(spc.tail==='long'){g.beginPath();g.moveTo(0,0);g.quadraticCurveTo(-TL,-TH*.9,-TL*1.15,sway*TH);g.quadraticCurveTo(-TL*.7,TH*.5,0,0);g.fill();}
+ else if(spc.tail==='bt'){g.beginPath();g.moveTo(0,0);g.quadraticCurveTo(-TL*.9,-TH*1.5,-TL*1.1,-TH*.5);g.quadraticCurveTo(-TL*.6,0,-TL*1.1,TH*.5);g.quadraticCurveTo(-TL*.9,TH*1.5,0,0);g.fill();}
+ else{g.beginPath();g.moveTo(0,0);g.lineTo(-TL,-TH*.55);g.quadraticCurveTo(-TL*.6,0,-TL,TH*.55);g.closePath();g.fill();}
+ g.restore();
+ /* 背鳍 */
+ g.fillStyle=spc.c2;g.beginPath();g.moveTo(-L*.1,-H*.42);g.quadraticCurveTo(L*.05,-H*1.05,L*.22,-H*.4);g.closePath();g.fill();
+ /* 身体 */
+ g.fillStyle=spc.c;
+ g.beginPath();g.ellipse(0,0,L*.5,H*.5,0,0,6.283);g.fill();
+ g.strokeStyle='rgba(60,50,30,.18)';g.lineWidth=1;g.stroke();
+ /* 斑纹/特征 */
+ if(spc.feat==='spot'){g.fillStyle=spc.sc;g.beginPath();g.ellipse(-L*.08,-H*.1,L*.14,H*.3,.4,0,6.283);g.fill();g.beginPath();g.ellipse(L*.15,H*.08,L*.1,H*.22,-.3,0,6.283);g.fill();}
+ if(spc.feat==='patch'){g.fillStyle=spc.sc;g.beginPath();g.ellipse(-L*.12,0,L*.16,H*.42,.2,0,6.283);g.fill();g.beginPath();g.ellipse(L*.14,-H*.05,L*.11,H*.3,-.2,0,6.283);g.fill();}
+ if(spc.feat==='patch3'){g.fillStyle='#f0f0ea';g.beginPath();g.ellipse(-L*.1,-H*.06,L*.13,H*.3,.3,0,6.283);g.fill();g.fillStyle=spc.sc;g.beginPath();g.ellipse(L*.15,H*.04,L*.1,H*.26,-.2,0,6.283);g.fill();}
+ if(spc.feat==='pearl'){g.fillStyle=spc.c2;for(var px=-2;px<=2;px++)for(var py=-1;py<=1;py++){g.beginPath();g.arc(px*L*.08,py*H*.16,1.6*sz,0,6.283);g.fill();}}
+ if(spc.feat==='wen'){g.fillStyle=spc.c2;g.beginPath();g.ellipse(L*.3,0,H*.34,H*.34,0,0,6.283);g.fill();}
+ if(spc.feat==='bubble'){g.fillStyle='rgba(240,240,220,.75)';g.beginPath();g.arc(L*.32,-H*.2,H*.24,0,6.283);g.fill();g.beginPath();g.arc(L*.32,H*.2,H*.24,0,6.283);g.fill();}
+ if(spc.feat==='eye'){g.fillStyle='#101418';g.beginPath();g.arc(L*.3,-H*.18,H*.16,0,6.283);g.fill();g.beginPath();g.arc(L*.3,H*.18,H*.16,0,6.283);g.fill();
+  g.fillStyle='#fff';g.beginPath();g.arc(L*.32,-H*.18,H*.05,0,6.283);g.fill();g.beginPath();g.arc(L*.32,H*.18,H*.05,0,6.283);g.fill();}
+ /* 胸鳍（摆）*/
+ g.fillStyle=spc.c2;g.save();g.translate(L*.05,H*.2);g.rotate(Math.sin(f.phase*1.3)*.4+.3);
+ g.beginPath();g.ellipse(0,H*.12,L*.1,H*.2,.5,0,6.283);g.fill();g.restore();
+ /* 眼（默认型；凸眼型已画）*/
+ if(spc.feat!=='eye'){g.fillStyle='#1a1a1a';g.beginPath();g.arc(L*.32,-H*.1,Math.max(1.4,1.8*sz),0,6.283);g.fill();}
+ g.restore();
+ /* 幼鱼标记（未长成：小气泡点）*/
+ if(!f.grown){g.strokeStyle='rgba(120,140,150,.5)';g.lineWidth=1;g.beginPath();g.arc(f.x+dir*L*.5,f.y-H*.7,2.4,0,6.283);g.stroke();}}
+function drawThumb(c2,spec,colored){ /* 图鉴缩略 */
+ var g=c2.getContext('2d');g.clearRect(0,0,56,36);
+ var spc=SPECIES[spec];
+ g.save();g.translate(28,18);g.scale(.62,.62);
+ if(!colored){g.globalAlpha=.9;var tmp=spc.c,tmp2=spc.c2;spc.c='#b7ac93';spc.c2='#a39880';}
+ var fake={spec:spec,x:0,y:0,vx:8,vy:0,grow:100,grown:true,phase:1.2};
+ drawFish(g,fake);
+ if(!colored){spc.c=tmp;spc.c2=tmp2;}
+ g.restore();}
+
+/* ===== 浮层 ===== */
+function openLay(name){
+ if(S.lay===name)return;
+ if(S.lay)$( 'lay-'+S.lay).classList.add('hide');
+ S.lay=name;
+ if(name){$('lay-'+name).classList.remove('hide');
+  if(name==='gal')renderGal();
+  if(name==='add')renderAdd();}}
+function closeLay(){if(S.lay){$('lay-'+S.lay).classList.add('hide');S.lay=null;}}
+function renderGal(){
+ $('galsub').textContent='已收 '+S.gallery.length+' / 12'+(S.gallery.length>=12?' · 图鉴大成':'');
+ var gr=$('galgrid');gr.innerHTML='';
+ for(var i=0;i<12;i++){
+  var cell=document.createElement('div');
+  var got=S.gallery.indexOf(i)>=0;
+  cell.className='gcell'+(got?'':' no');
+  var c2=document.createElement('canvas');c2.width=56;c2.height=36;
+  cell.appendChild(c2);
+  var nm=document.createElement('div');nm.className='gn';nm.textContent=got?SPECIES[i].n:'？';
+  cell.appendChild(nm);
+  gr.appendChild(cell);
+  drawThumb(c2,i,got);}}
+function renderAdd(){
+ var row=$('addrow');row.innerHTML='';
+ var uk=unlocked();
+ for(var i=0;i<uk&&i<12;i++){
+  var ch=document.createElement('div');ch.className='chip';
+  var dot=document.createElement('span');dot.className='dot';dot.style.background=SPECIES[i].c;
+  ch.appendChild(dot);
+  ch.appendChild(document.createTextNode(SPECIES[i].n));
+  (function(idx){ch.addEventListener('click',function(){
+   if(addFish(idx)){$('addmsg').textContent='「'+SPECIES[idx].n+'」入缸 · 现有 '+S.fish.length+' 尾';
+    if(S.snd)blub();}
+   else $('addmsg').textContent=S.fish.length>=MAXF?'缸满了 · 上限六尾':'放不进去了';});})(i);
+  row.appendChild(ch);}
+ if(uk>=12)$('addmsg').textContent='十二种全解锁';
+ else $('addmsg').textContent='资历 '+Math.floor(S.exp)+' / 下一解锁 '+UNLOCK[uk];}
+
+/* ===== 事件 ===== */
+function showFishCard(i){
+ var f=S.fish[i];if(!f)return;
+ S.curFish=i;
+ $('fname').textContent=SPECIES[f.spec].n;
+ $('finfo').textContent='已长成 · '+(S.gallery.indexOf(f.spec)>=0?'已入鱼谱':'鱼谱未收');
+ openLay('fish');}
+function releaseFish(){
+ if(S.curFish<0||S.curFish>=S.fish.length){closeLay();return;}
+ var f=S.fish[S.curFish];
+ S.fish.splice(S.curFish,1);S.curFish=-1;
+ closeLay();saveAll();updHud();
+ flash('「'+SPECIES[f.spec].n+'」放生归塘 · 缸位腾出');
+ if(S.snd)blub();}
+function bindEv(){
+ var cvEl=$('cv');
+ cvEl.addEventListener('pointerdown',function(e){
+  if(S.lay)return;
+  var r=cvEl.getBoundingClientRect();
+  var x=e.clientX-r.left,y=e.clientY-r.top;
+  /* 成鱼命中（≤22px 取最近）：弹放生鱼卡；否则撒食 */
+  var hit=-1,hd=22;
+  for(var i=0;i<S.fish.length;i++){var f=S.fish[i];if(!f.grown)continue;
+   var d=Math.hypot(f.x-x,f.y-y);if(d<hd){hd=d;hit=i;}}
+  if(hit>=0){showFishCard(hit);return;}
+  feed(x,y);});
+ $('btn-snd').addEventListener('click',function(){
+  S.snd=!S.snd;try{localStorage.setItem(K_SND,S.snd?'1':'0');}catch(e2){}
+  $('btn-snd').textContent=S.snd?'🔊':'🔇';
+  if(S.snd){ensureAC();if(AC&&AC.state==='suspended'){try{AC.resume();}catch(e3){}}blub();}});
+ $('btn-gal').addEventListener('click',function(){S.lay==='gal'?closeLay():openLay('gal');});
+ $('btn-add').addEventListener('click',function(){S.lay==='add'?closeLay():openLay('add');});
+ $('gal-close').addEventListener('click',closeLay);
+ $('add-close').addEventListener('click',closeLay);
+ $('off-close').addEventListener('click',closeLay);
+ $('btn-free').addEventListener('click',releaseFish);
+ $('fish-close').addEventListener('click',closeLay);
+ window.addEventListener('pagehide',function(){try{localStorage.setItem(K_LAST,String(Date.now()));}catch(e){}});
+ document.addEventListener('visibilitychange',function(){
+  if(document.hidden){try{localStorage.setItem(K_LAST,String(Date.now()));}catch(e){}}
+  else settleResume();});
+ window.addEventListener('pageshow',function(){settleResume();});}
+
+/* ===== 主循环 ===== */
+var LT=0;
+function loop(ts){
+ var dt=Math.min(.05,(ts-LT)/1000||0);LT=ts;
+ step(dt);draw();
+ requestAnimationFrame(loop);}
+
+/* ===== boot ===== */
+(function boot(){
+ loadAll();
+ S.uk=ukCount();
+ var seeded=false;
+ try{seeded=localStorage.getItem(K_FISH)!==null;}catch(e){}
+ if(S.fish.length===0&&!seeded){S.fish=[mkFish(0,10,false),mkFish(1,10,false)];}
+ /* 离线结算（真实时钟；测试走 offline 钩子注入或 visibility 注入）*/
+ settleResume();
+ /* 声音恢复（J2 范式：手势内懒建+resume+自摘）*/
+ if(S.snd){$('btn-snd').textContent='🔊';
+  var wake=function(){ensureAC();
+   if(AC&&AC.state==='suspended'){try{AC.resume();}catch(e2){}}
+   document.removeEventListener('pointerdown',wake);};
+  document.addEventListener('pointerdown',wake);}
+ updHud();
+ bindEv();
+ draw();
+ requestAnimationFrame(loop);})();
+
+/* ===== DEV 钩子（构建剥除）===== */
+
+</script>
+</body>
+</html>
