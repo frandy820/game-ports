@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>山林兽棋</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:#141019;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+#app{position:relative;height:100%;max-width:520px;margin:0 auto;overflow:hidden}
+#hud{position:absolute;top:0;left:0;right:0;height:64px;display:flex;align-items:center;gap:8px;padding:0 12px;
+ background:linear-gradient(180deg,#1e1826,#161119);border-bottom:1px solid #3e3348;z-index:5}
+.pill{display:flex;align-items:center;gap:4px;color:#b0a6ba;font-size:13px}
+.pill b{font-size:10px;color:#6e6178;font-weight:600}
+.pill span{min-width:26px;text-align:center;font-size:14px;font-weight:700;color:#efe8f4;
+ background:rgba(0,0,0,.3);border-radius:8px;padding:1px 5px;font-variant-numeric:tabular-nums}
+.pill .c0{color:#e79a8e}.pill .c1{color:#8fa7d9}
+.hbtn{width:32px;height:32px;border-radius:50%;border:1px solid #4a3d56;background:#2a2133;color:#b0a6ba;
+ font-size:14px;line-height:1;cursor:pointer;flex:none;margin-left:auto}
+.hbtn+.hbtn{margin-left:0}
+.hbtn:active{transform:scale(.92)}
+#cv{position:absolute;top:64px;left:50%;transform:translateX(-50%);touch-action:none;cursor:pointer}
+.lay{position:absolute;inset:0;z-index:8;display:flex;align-items:center;justify-content:center;flex-direction:column;
+ background:rgba(10,7,14,.84);backdrop-filter:blur(2px)}
+.lay.hide{display:none}
+#menu{z-index:9}
+.mcard{width:302px;padding:28px 24px 24px;text-align:center;border-radius:14px;
+ background:linear-gradient(180deg,#2a2233,#1d1726);border:1px solid #4a3d56;box-shadow:0 18px 40px rgba(0,0,0,.5)}
+.mcard h1{font-size:29px;letter-spacing:8px;color:#efe8f4;margin-bottom:6px}
+.mcard p{color:#9a8ca6;font-size:12px;letter-spacing:2px;margin-bottom:14px}
+.rules{text-align:left;color:#9a8ca6;font-size:12px;line-height:1.9;margin-bottom:14px;
+ border:1px dashed #4a3d56;border-radius:10px;padding:10px 14px}
+.rules b{color:#d9b98a;font-weight:700}
+.lvs{display:flex;gap:8px;margin-bottom:14px}
+.lvs button{flex:1;padding:10px 0;border:1px solid #4a3d56;border-radius:10px;background:#241c2e;color:#9a8ca6;
+ font-size:14px;letter-spacing:2px;cursor:pointer}
+.lvs button.on{background:linear-gradient(180deg,#8a6a3f,#6e5230);color:#f7ecd9;border-color:#8a6a3f;font-weight:700}
+.rec{display:inline-block;color:#cbb8d8;font-size:12px;margin-bottom:16px;border:1px dashed #4a3d56;
+ border-radius:8px;padding:4px 14px}
+.go{display:block;width:100%;padding:13px 0;border:none;border-radius:10px;cursor:pointer;
+ background:linear-gradient(180deg,#8a6a3f,#6e5230);color:#f7ecd9;font-size:19px;letter-spacing:10px;
+ text-indent:10px;font-weight:700;box-shadow:0 4px 0 #4a3620}
+.go:active{transform:translateY(2px);box-shadow:0 2px 0 #4a3620}
+#pauselay .pcard,#overlay .pcard{width:280px;padding:28px 24px;text-align:center;border-radius:14px;
+ background:linear-gradient(180deg,#2a2233,#1d1726);border:1px solid #4a3d56}
+#pauselay h2,#overlay h2{font-size:22px;letter-spacing:6px;color:#efe8f4;margin-bottom:14px}
+#pauselay button,#overlay button{display:block;width:100%;margin-top:10px;padding:12px 0;border:none;
+ border-radius:10px;cursor:pointer;font-size:16px;letter-spacing:6px;text-indent:6px;font-weight:700}
+#pauselay .pri,#overlay .pri{background:linear-gradient(180deg,#8a6a3f,#6e5230);color:#f7ecd9;box-shadow:0 3px 0 #4a3620}
+#pauselay .pri:active,#overlay .pri:active{transform:translateY(1px)}
+#pauselay button:not(.pri),#overlay button:not(.pri){background:#2e2538;color:#9a8ca6}
+#overttl{font-size:25px;letter-spacing:8px;color:#efe8f4;margin-bottom:8px;font-weight:700}
+#overscore{font-size:40px;color:#d9b98a;font-weight:800;margin-bottom:4px;font-variant-numeric:tabular-nums}
+.st{color:#9a8ca6;font-size:13px;margin-bottom:12px;letter-spacing:1px}
+#btnrow{position:absolute;left:0;right:0;bottom:14px;display:flex;gap:10px;padding:0 20px;z-index:4}
+#btnrow button{flex:1;padding:11px 0;border:1px solid #4a3d56;border-radius:10px;background:#241c2e;
+ color:#b0a6ba;font-size:15px;letter-spacing:4px;text-indent:4px;cursor:pointer}
+#btnrow button:disabled{opacity:.35}
+#btnrow button:active:not(:disabled){transform:translateY(1px)}
+</style>
+</head>
+<body>
+<div id="app">
+ <div id="hud">
+  <div class="pill"><b class="c0">朱</b><span id="s0">8</span></div>
+  <div class="pill"><b class="c1">黛</b><span id="s1">8</span></div>
+  <div class="pill"><b>手</b><span id="tn">朱</span></div>
+  <div class="pill"><b>绩</b><span id="rv">0-0</span></div>
+  <button class="hbtn" id="btn-snd" style="margin-left:auto">🔇</button>
+  <button class="hbtn" id="btn-pause">⏸</button>
+ </div>
+ <canvas id="cv" width="390" height="780"></canvas>
+ <div id="btnrow">
+  <button id="btn-undo">悔一步</button>
+  <button id="btn-hint">提 示</button>
+  <button id="btn-reset">重 开</button>
+ </div>
+ <div id="menu" class="lay">
+  <div class="mcard">
+   <h1>山林兽棋</h1>
+   <p>兽王争锋 · 穴者为尊</p>
+   <div class="rules">
+    <b>规则</b>：八兽相斗，大吃小、同级互吃，<b>鼠可制象</b>。<br>
+    敌踩我陷阱则失势，任兽皆可噬；攻入敌方兽穴即胜。
+   </div>
+   <div class="lvs">
+    <button data-lv="0" id="lv0">初学</button>
+    <button data-lv="1" id="lv1" class="on">进阶</button>
+    <button data-lv="2" id="lv2">高手</button>
+   </div>
+   <div class="rec" id="mrec">本档战绩 0 胜 0 负</div>
+   <button class="go" id="btn-go">开 局</button>
+  </div>
+ </div>
+ <div id="pauselay" class="lay hide">
+  <div class="pcard">
+   <h2>小 憩</h2>
+   <button class="pri" id="btn-resume">继续</button>
+   <button id="btn-home2">回山林</button>
+  </div>
+ </div>
+ <div id="overlay" class="lay hide">
+  <div id="overttl">收 局</div>
+  <div id="overscore">—</div>
+  <div class="st" id="overstat"></div>
+  <button class="go" id="btn-again">再 开 一 局</button>
+  <button id="btn-home">回 山 林</button>
+ </div>
+</div>
+<script>
+'use strict';
+/* ================= 状态 ================= */
+var $=function(id){return document.getElementById(id)};
+var cv=$('cv'),ctx=cv.getContext('2d');
+var W=390,H=780,CS=44,X0=41,Y0=150;                            /* 7×9 盘；格心=(63+c*44,172+r*44) */
+var REC_KEY='g85_rec',LV_KEY='g85_lv';
+var LVNAMES=['初学','进阶','高手'];
+var NAMES=['鼠','猫','狗','狼','豹','虎','狮','象'];
+var VAL=[3,2,3,4,5,6,7,8];                                     /* AI 子值：鼠克象抬 3，猫最低 2 */
+var DEN=[[8,3],[0,3]];                                         /* 兽穴：[side0朱(8,3),side1黛(0,3)] */
+var TRAPS=[[[8,2],[8,4],[7,3]],[[0,2],[0,4],[1,3]]];           /* 陷阱：side0朱方护穴 / side1黛方护穴 */
+var INIT=[                                                     /* [side,rank,r,c] 黛8+朱8 */
+ [1,7,0,0],[1,6,0,6],[1,3,1,1],[1,2,1,5],[1,1,2,0],[1,5,2,2],[1,4,2,4],[1,8,2,6],
+ [0,7,8,6],[0,6,8,0],[0,3,7,5],[0,2,7,1],[0,1,6,6],[0,5,6,4],[0,4,6,2],[0,8,6,0]];
+var S={phase:'menu',turn:0,lv:1,sel:-1,overKind:'',lastMv:null,
+       overTtl:'',overScore:'',
+       rec:[[0,0],[0,0],[0,0]],mute:false,
+       hintMv:null,hintEnd:0,anims:[],moved:0};                /* moved=总半步数（诊断）
+                                                                 ⚠ S.mute 反语义（家族历史命名）：false=静音 true=开声，勿按字面改判断 */
+var P=[];                                                      /* 棋子 [{id,side,rank,r,c,alive}] */
+var BOARD=null;                                                /* 9×7 派生（存子或 null），rebuild 维护 */
+var STACK=[];                                                  /* [{fr,fc,tr,tc,who,capId,over}] */
+var AIT=null;
+function mkPieces(){                                           /* 初始 16 子（规则层单源） */
+ var out=[],i;
+ for(i=0;i<INIT.length;i++)out.push({id:i,side:INIT[i][0],rank:INIT[i][1],r:INIT[i][2],c:INIT[i][3],alive:1});
+ return out}
+function rebuild(){var r,c;BOARD=[];for(r=0;r<9;r++){BOARD[r]=[];for(c=0;c<7;c++)BOARD[r][c]=null}
+ var i;for(i=0;i<P.length;i++)if(P[i].alive)BOARD[P[i].r][P[i].c]=P[i]}
+function aliveN(side){var n=0,i;for(i=0;i<P.length;i++)if(P[i].side===side&&P[i].alive)n++;return n}
+function inB(r,c){return r>=0&&r<9&&c>=0&&c<7}
+function isDen(r,c,side){return r===DEN[side][0]&&c===DEN[side][1]}
+function isTrap(r,c,side){var t=TRAPS[side],k;for(k=0;k<3;k++)if(t[k][0]===r&&t[k][1]===c)return true;return false}
+function cellInfo(r,c){                                        /* 格类型（纯查表） */
+ if(isDen(r,c,0))return'den0';if(isDen(r,c,1))return'den1';
+ if(isTrap(r,c,0))return'trap0';if(isTrap(r,c,1))return'trap1';return'plain'}
+function posHash(){                                            /* 局面哈希（djb2）：同局面同值 */
+ var s=5381,i;
+ for(i=0;i<P.length;i++){var q=P[i];
+  s=(Math.imul(s,33)^(q.side+2))>>>0;s=(Math.imul(s,33)^(q.rank+2))>>>0;
+  s=(Math.imul(s,33)^(q.alive?q.r+2:12))>>>0;s=(Math.imul(s,33)^(q.alive?q.c+2:12))>>>0}
+ s=(Math.imul(s,33)^(S.turn+2))>>>0;
+ return s>>>0}
+function pickRnd(pool){var h=Math.imul(posHash()^0x9e3779b9,2654435761)>>>0;return pool[h%pool.length]}
+function loadRec(){try{var v=(localStorage.getItem(REC_KEY)||'').split(',');
+ if(v.length===6){for(var k=0;k<3;k++){S.rec[k][0]=+v[k*2]||0;S.rec[k][1]=+v[k*2+1]||0}}}catch(e){}}
+function saveRec(){try{var a=[];for(var k=0;k<3;k++)a.push(S.rec[k][0],S.rec[k][1]);
+ localStorage.setItem(REC_KEY,a.join(','))}catch(e){}}
+function recTxt(){return S.rec[S.lv][0]+'-'+S.rec[S.lv][1]}
+
+/* ================= 规则层（单源；AI 模拟共用 pCanCap/pMovesOn） ================= */
+function pCanCap(att,def){                                     /* 攻击子→守子 可吃判定（纯，位置取自子对象） */
+ if(isTrap(def.r,def.c,att.side))return true;                  /* 守方踩攻方陷阱=等级失效 */
+ if(att.rank===1&&def.rank===8)return true;                    /* 鼠克象 */
+ if(att.rank===8&&def.rank===1)return false;                   /* 象不噬鼠 */
+ return att.rank>=def.rank}
+function pMovesOn(pp,bd){                                      /* 子 pp 在盘 bd 上的合法步 [{r,c,cap}] */
+ var out=[],p=pp,dr,dc;
+ for(dr=-1;dr<=1;dr++)for(dc=-1;dc<=1;dc++){
+  if(dr===0&&dc===0)continue;if(dr!==0&&dc!==0)continue;
+  var r=p.r+dr,c=p.c+dc;
+  if(!inB(r,c))continue;
+  if(isDen(r,c,p.side))continue;                               /* 不可进己穴 */
+  var t=bd[r][c];
+  if(t&&t.side===p.side)continue;                              /* 己子占 */
+  if(t&&!pCanCap(p,t))continue;                                /* 敌子但吃不动 */
+  out.push({r:r,c:c,cap:!!t})}
+ return out}
+function movesOf(pid){var i;for(i=0;i<P.length;i++)if(P[i].id===pid&&P[i].alive)return pMovesOn(P[i],BOARD);return[]}
+function allMoves(side){var out=[],i;
+ for(i=0;i<P.length;i++)if(P[i].side===side&&P[i].alive)out.push({f:P[i],m:pMovesOn(P[i],BOARD)});
+ return out}
+
+/* ================= AI 决策（纯函数；三档） ================= */
+function distDen(p,side){return Math.abs(p.r-DEN[side][0])+Math.abs(p.c-DEN[side][1])}
+function aiDecide(){
+ var ms=allMoves(S.turn);
+ if(!ms.length)return null;
+ if(S.lv===0){                                                 /* 初学：局面哈希随机 */
+  var flat=[];var i0;for(i0=0;i0<ms.length;i0++){var g0;for(g0=0;g0<ms[i0].m.length;g0++)
+   flat.push({f:ms[i0].f,t:ms[i0].m[g0]})}
+  if(!flat.length)return null;
+  var pk=pickRnd(flat);return{fr:pk.f.r,fc:pk.f.c,tr:pk.t.r,tc:pk.t.c}}
+ if(S.lv===1){                                                 /* 进阶：有吃必吃→安全步推进（并列哈希） */
+  var best=null,bv=-1,i,j;
+  for(i=0;i<ms.length;i++)for(j=0;j<ms[i].m.length;j++){
+   var m=ms[i].m[j];
+   if(m.cap){var defP=BOARD[m.r][m.c];var v=VAL[defP.rank-1]*10;
+    if(v>bv){bv=v;best={fr:ms[i].f.r,fc:ms[i].f.c,tr:m.r,tc:m.c}}}}
+  if(best)return best;
+  var safe=[],all=[],i2,j2;
+  for(i2=0;i2<ms.length;i2++)for(j2=0;j2<ms[i2].m.length;j2++){
+   var m2=ms[i2].m[j2],f2=ms[i2].f;
+   var d0=distDen(f2,1-S.turn),d1=Math.abs(m2.r-DEN[1-S.turn][0])+Math.abs(m2.c-DEN[1-S.turn][1]);
+   var ok={f:f2,t:m2,adv:d0-d1};
+   if(!dangerAfter(f2,m2))safe.push(ok);
+   all.push(ok)}
+  var pool=safe.length?safe:all;
+  if(!pool.length)return null;
+  var mx=pool[0].adv,k2;for(k2=1;k2<pool.length;k2++)if(pool[k2].adv>mx)mx=pool[k2].adv;
+  var tops=pool.filter(function(o){return o.adv===mx});
+  var bb=tops.length>1?pickRnd(tops):tops[0];
+  return{fr:bb.f.r,fc:bb.f.c,tr:bb.t.r,tc:bb.t.c}}
+ /* 高手：一层搜索（clone 模拟，无陈旧状态） */
+ var i3,j3,bestS=null,bestV=-1e18;
+ for(i3=0;i3<ms.length;i3++)for(j3=0;j3<ms[i3].m.length;j3++){
+  var f3=ms[i3].f,m3=ms[i3].m[j3];
+  var sc=scoreOne(f3,m3);
+  if(sc>bestV){bestV=sc;bestS={fr:f3.r,fc:f3.c,tr:m3.r,tc:m3.c}}}
+ return bestS}
+function simStep(f,m){                                         /* clone 模拟我方(S.turn)走 f→m：返 {Q,bd}（不写全局） */
+ var foe=1-S.turn;
+ var Q=P.map(function(p){return{id:p.id,side:p.side,rank:p.rank,r:p.r,c:p.c,alive:p.alive}});
+ var fq=null,i;for(i=0;i<Q.length;i++)if(Q[i].id===f.id)fq=Q[i];
+ var defQ=null;if(m.cap)for(i=0;i<Q.length;i++)if(Q[i].alive&&Q[i].r===m.r&&Q[i].c===m.c&&Q[i].side===foe)defQ=Q[i];
+ fq.r=m.r;fq.c=m.c;if(defQ)defQ.alive=0;
+ var bd=[];var r2,c2;for(r2=0;r2<9;r2++){bd[r2]=[];for(c2=0;c2<7;c2++)bd[r2][c2]=null}
+ for(i=0;i<Q.length;i++)if(Q[i].alive)bd[Q[i].r][Q[i].c]=Q[i];
+ return{Q:Q,bd:bd}}
+function dangerAfter(f,m){                                     /* 走 f→m 后落点是否被敌吃（clone 精确判定） */
+ var foe=1-S.turn,sim=simStep(f,m),bd=sim.bd,i;
+ for(i=0;i<sim.Q.length;i++)if(sim.Q[i].side===foe&&sim.Q[i].alive){
+  var mv=pMovesOn(sim.Q[i],bd),k3;
+  for(k3=0;k3<mv.length;k3++)if(mv[k3].r===m.r&&mv[k3].c===m.c&&mv[k3].cap)return true}
+ return false}
+function scoreOne(f,m){                                        /* 我方步 (f→m) 的一层评估 */
+ var me=S.turn,foe=1-me,myDen=DEN[me],foeDen=DEN[foe];
+ var capV=0;
+ if(m.cap)capV=VAL[BOARD[m.r][m.c].rank-1]*10;
+ if(m.r===foeDen[0]&&m.c===foeDen[1])return 1e6;               /* 入敌穴=终局短路 */
+ var adv=(Math.abs(f.r-foeDen[0])+Math.abs(f.c-foeDen[1]))
+        -(Math.abs(m.r-foeDen[0])+Math.abs(m.c-foeDen[1]));
+ var sim=simStep(f,m),Q=sim.Q,bd=sim.bd,i;
+ var oppV=0;                                                   /* 对方最佳回应 */
+ for(i=0;i<Q.length;i++)if(Q[i].side===foe&&Q[i].alive){
+  var mv=pMovesOn(Q[i],bd),k3;
+  for(k3=0;k3<mv.length;k3++){
+   var t=mv[k3],v2=0;
+   if(t.cap&&bd[t.r][t.c])v2+=VAL[bd[t.r][t.c].rank-1]*10;
+   if(t.r===myDen[0]&&t.c===myDen[1])v2+=1e6;
+   v2+=(Math.abs(Q[i].r-myDen[0])+Math.abs(Q[i].c-myDen[1])-Math.abs(t.r-myDen[0])-Math.abs(t.c-myDen[1]))*0.5;
+   if(v2>oppV)oppV=v2}}
+ var diff=0;for(i=0;i<Q.length;i++)if(Q[i].alive)diff+=Q[i].side===me?VAL[Q[i].rank-1]:-VAL[Q[i].rank-1];
+ return capV+adv*0.5-0.9*oppV+diff*0.05}
+
+/* ================= 流程 ================= */
+function updHUD(){$('s0').textContent=aliveN(0);$('s1').textContent=aliveN(1);
+ $('tn').textContent=S.turn===0?'朱':'黛';$('rv').textContent=recTxt();
+ $('btn-undo').disabled=!(S.phase==='play'&&STACK.length&&S.turn===0);
+ $('btn-hint').disabled=!(S.phase==='play'&&S.turn===0)}
+function endGame(winner){                                      /* winner 0朱/1黛 */
+ S.phase='over';S.overKind='fin';clearAI();
+ var win=winner===0;
+ if(win)S.rec[S.lv][0]++;else S.rec[S.lv][1]++;
+ saveRec();snd(win?'win':'lose');
+ S.overTtl=win?'朱 方 胜':'黛 方 胜';
+ S.overScore=aliveN(0)+' : '+aliveN(1);
+ $('overttl').textContent=S.overTtl;
+ $('overscore').textContent=S.overScore;
+ $('overstat').textContent='vs '+LVNAMES[S.lv]+' · 战绩 '+recTxt();
+ $('overlay').classList.remove('hide');$('pauselay').classList.add('hide');
+ S.sel=-1;updHUD();return true}
+function place(mv,who){                                        /* 执行一步（写态+动画+终局判定+排程） */
+ if(S.phase!=='play')return false;
+ if(isDen(mv.tr,mv.tc,who))return false;                        /* 己穴防线（G3-A1：玩家/AI 路径已滤，防钩子直调） */
+ var f=BOARD[mv.fr][mv.fc];
+ if(!f||f.side!==who)return false;
+ var t=BOARD[mv.tr][mv.tc];
+ if(t&&!pCanCap(f,t))return false;
+ var capId=t?t.id:-1;
+ var intoDen=isDen(mv.tr,mv.tc,1-who);
+ if(t)t.alive=0;
+ f.r=mv.tr;f.c=mv.tc;rebuild();
+ STACK.push({fr:mv.fr,fc:mv.fc,tr:mv.tr,tc:mv.tc,who:who,capId:capId,mid:f.id,over:intoDen?1:0});
+ S.moved++;S.lastMv=mv;S.hintMv=null;S.sel=-1;
+ S.anims.push({mid:f.id,fr:mv.fr,fc:mv.fc,tr:mv.tr,tc:mv.tc,side:f.side,rank:f.rank,t0:Date.now()});
+ if(capId>=0){var dp=null,i;for(i=0;i<P.length;i++)if(P[i].id===capId)dp=P[i];
+  S.anims.push({eat:1,r:mv.tr,c:mv.tc,side:dp.side,rank:dp.rank,t0:Date.now()})}
+ snd(capId>=0?'cap':'mv');
+ if(intoDen){endGame(who);return true}
+ var foe=1-who;
+ if(aliveN(foe)===0){endGame(who);return true}
+ var fm=allMoves(foe),anyM=false,i9,j9;                        /* 困毙：以「有无可行步」计（allMoves 返子条目，m 可为空） */
+ for(i9=0;i9<fm.length;i9++){if(fm[i9].m.length){anyM=true;break}}
+ if(!anyM){endGame(who);return true}
+ S.turn=foe;updHUD();
+ if(S.turn===1)scheduleAI();
+ return true}
+function scheduleAI(){
+ if(S.phase!=='play'||S.turn!==1)return;
+ if(AIT)clearTimeout(AIT);
+ AIT=setTimeout(function(){AIT=null;if(S.phase!=='play'||S.turn!==1)return;
+  var e=aiDecide();
+  if(e===null){endGame(0);return}
+  place(e,1)},460)}
+function clearAI(){if(AIT){clearTimeout(AIT);AIT=null}}
+function undoMove(){                                          /* 悔一步=撤 AI 应手+玩家那手，回玩家回合 */
+ if(S.phase!=='play'&&S.phase!=='over')return false;
+ if(!STACK.length)return false;
+ clearAI();
+ if(S.phase==='over'){$('overlay').classList.add('hide');S.phase='play'}
+ for(;;){
+  var st=STACK.pop();if(!st)break;
+  var mover=null,i;for(i=0;i<P.length;i++)if(P[i].id===st.mid){mover=P[i];break}
+  if(mover){mover.r=st.fr;mover.c=st.fc;mover.alive=1}
+  if(st.capId>=0){var dp2=null,j;for(j=0;j<P.length;j++)if(P[j].id===st.capId)dp2=P[j];
+   if(dp2){dp2.alive=1;dp2.r=st.tr;dp2.c=st.tc}}
+  if(st.who===0)break}
+ rebuild();
+ S.turn=0;S.sel=-1;S.lastMv=null;S.anims=[];S.hintMv=null;S.hintEnd=0;
+ snd('ui');updHUD();return true}
+function reset(){
+ S.phase='play';S.turn=0;S.sel=-1;S.overKind='';S.lastMv=null;
+ S.overTtl='';S.overScore='';
+ S.hintMv=null;S.hintEnd=0;S.anims=[];S.moved=0;
+ P=mkPieces();rebuild();STACK=[];clearAI();
+ $('menu').classList.add('hide');$('overlay').classList.add('hide');$('pauselay').classList.add('hide');
+ updHUD()}
+function goHome(){S.phase='menu';clearAI();
+ $('pauselay').classList.add('hide');$('overlay').classList.add('hide');$('menu').classList.remove('hide');
+ $('mrec').textContent='本档战绩 '+S.rec[S.lv][0]+' 胜 '+S.rec[S.lv][1]+' 负';updHUD()}
+function pauseIn(){if(S.phase!=='play')return;S.phase='pause';clearAI();
+ $('pauselay').classList.remove('hide')}
+function pauseOut(){if(S.phase!=='pause')return;S.phase='play';
+ $('pauselay').classList.add('hide');
+ if(S.turn===1)scheduleAI()}
+
+/* ================= 交互（两段 tap） ================= */
+function hitCell(x,y){                                         /* 坐标→(r,c) 格窗命中（±22） */
+ var c=Math.floor((x-X0)/CS),r=Math.floor((y-Y0)/CS);
+ if(!inB(r,c))return null;
+ var cx=X0+c*CS+CS/2,cy=Y0+r*CS+CS/2;
+ if(Math.abs(x-cx)<=22&&Math.abs(y-cy)<=22)return[r,c];
+ return null}
+function tapCell(x,y){
+ if(S.phase!=='play')return'phase';
+ if(S.turn!==0)return'turn';
+ var cell=hitCell(x,y);
+ if(!cell)return'miss';
+ var r=cell[0],c=cell[1],t=BOARD[r][c];
+ if(t&&t.side===0){                                            /* 己子：选中/换选/取消 */
+  S.sel=(S.sel===t.id)?-1:t.id;snd('ui');updHUD();return'sel'}
+ if(S.sel>=0){                                                 /* 已选：目标在合法步内则走 */
+  var ms=movesOf(S.sel),k;
+  for(k=0;k<ms.length;k++)if(ms[k].r===r&&ms[k].c===c){
+   var sp=selP(S.sel);
+   var mv={fr:sp.r,fc:sp.c,tr:r,tc:c};
+   var wasCap=!!t;
+   var went=place(mv,0);
+   if(!went)return'miss';
+   if(S.phase==='over')return'win';
+   return wasCap?'cap':'move'}
+  return'miss'}                                                /* 非法目标：保持选中 */
+ return'miss'}
+function selP(id){var i;for(i=0;i<P.length;i++)if(P[i].id===id)return P[i];return null}
+cv.addEventListener('pointerdown',function(e){
+ e.preventDefault();
+ if(S.phase!=='play')return;
+ var rect=cv.getBoundingClientRect();
+ var x=(e.clientX-rect.left)*W/rect.width,y=(e.clientY-rect.top)*H/rect.height;
+ tapCell(x,y)
+},false);
+$('btn-go').addEventListener('click',function(){snd('ui');reset()},false);
+$('btn-again').addEventListener('click',function(){snd('ui');reset()},false);
+$('btn-reset').addEventListener('click',function(){snd('ui');reset()},false);
+$('btn-undo').addEventListener('click',undoMove,false);
+$('btn-pause').addEventListener('click',pauseIn,false);
+$('btn-resume').addEventListener('click',pauseOut,false);
+$('btn-home').addEventListener('click',goHome,false);
+$('btn-home2').addEventListener('click',goHome,false);
+$('btn-hint').addEventListener('click',function(){
+ if(S.phase!=='play'||S.turn!==0)return;
+ var keepLv=S.lv;S.lv=2;var e=aiDecide();S.lv=keepLv;          /* 借高手一层搜索 */
+ if(e){S.hintMv=e;S.hintEnd=Date.now()+3000;snd('ui')}else snd('bad')
+},false);
+for(var _l=0;_l<3;_l++)(function(k){
+ $('lv'+k).addEventListener('click',function(){S.lv=k;
+  for(var j=0;j<3;j++)$('lv'+j).classList.toggle('on',j===k);
+  $('mrec').textContent='本档战绩 '+S.rec[k][0]+' 胜 '+S.rec[k][1]+' 负';
+  try{localStorage.setItem(LV_KEY,''+k)}catch(e){}
+  snd('ui')},false)})(_l);
+var AC=null;
+function ensureAC(){if(!S.mute)return;try{if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume()}catch(e){}}
+function snd(k){if(!S.mute||!AC)return;try{var o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime;
+ var fq=k==='win'?880:(k==='lose'?196:(k==='cap'?240:(k==='mv'?320:(k==='bad'?100:(k==='ui'?520:440)))));
+ o.frequency.value=fq;o.type='sine';
+ g.gain.setValueAtTime(k==='mv'?.05:.12,t);g.gain.exponentialRampToValueAtTime(.001,t+(k==='lose'?.4:.18));
+ o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+.4)}catch(e){}}
+$('btn-snd').addEventListener('click',function(){S.mute=!S.mute;ensureAC();this.textContent=S.mute?'🔊':'🔇';
+ try{localStorage.setItem('g85_mute',S.mute?'1':'0')}catch(e){}},false);
+document.addEventListener('visibilitychange',function(){if(document.hidden)saveRec()});
+window.addEventListener('pagehide',function(){saveRec()});
+
+/* ================= 绘制 ================= */
+var SERIF="Georgia,'Times New Roman','Songti SC','SimSun',serif";
+function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);
+ ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
+function cx4(c){return X0+c*CS+CS/2}
+function cy4(r){return Y0+r*CS+CS/2}
+function draw(){
+ ctx.clearRect(0,0,W,H);
+ var bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#141019');bg.addColorStop(1,'#0d0a11');
+ ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+ if(S.phase==='menu'){requestAnimationFrame(draw);return}
+ /* 题匾 */
+ ctx.fillStyle='rgba(217,185,138,.9)';ctx.font='700 16px '+SERIF;ctx.textAlign='left';
+ ctx.fillText('山林兽棋',24,112);
+ ctx.font='600 11px system-ui';ctx.fillStyle='rgba(154,140,166,.85)';ctx.textAlign='right';
+ ctx.fillText('vs '+LVNAMES[S.lv],366,112);
+ ctx.textAlign='left';ctx.fillStyle='rgba(110,97,120,.9)';
+ ctx.fillText(S.turn===0?(S.sel>=0?'已选兽 · 点目标格行棋':'轮到你 · 点己方兽行动'):'黛灵思索中…',24,132);
+ /* 暖米木牌板（g84 同款） */
+ var pg=ctx.createLinearGradient(0,Y0-24,0,Y0+9*CS+24);
+ pg.addColorStop(0,'#f7edd9');pg.addColorStop(1,'#e2d0ac');
+ ctx.fillStyle=pg;
+ rr(X0-24,Y0-24,7*CS+48,9*CS+48,12);ctx.fill();
+ ctx.strokeStyle='#6b4e30';ctx.lineWidth=2.2;
+ rr(X0-24,Y0-24,7*CS+48,9*CS+48,12);ctx.stroke();
+ /* 淡草色棋盘格（交替）+ 格线 */
+ var r3,c3;
+ for(r3=0;r3<9;r3++)for(c3=0;c3<7;c3++){
+  if((r3+c3)%2===0){ctx.fillStyle='rgba(122,142,86,.10)';
+   ctx.fillRect(X0+c3*CS,Y0+r3*CS,CS,CS)}}
+ ctx.strokeStyle='rgba(80,63,44,.35)';ctx.lineWidth=1;
+ for(r3=0;r3<=9;r3++){ctx.beginPath();ctx.moveTo(X0,Y0+r3*CS);ctx.lineTo(X0+7*CS,Y0+r3*CS);ctx.stroke()}
+ for(c3=0;c3<=7;c3++){ctx.beginPath();ctx.moveTo(X0+c3*CS,Y0);ctx.lineTo(X0+c3*CS,Y0+9*CS);ctx.stroke()}
+ /* 陷阱与兽穴 */
+ for(r3=0;r3<9;r3++)for(c3=0;c3<7;c3++){
+  var ci=cellInfo(r3,c3);
+  if(ci==='trap0'||ci==='trap1'){
+   var x0=X0+c3*CS,y0=Y0+r3*CS;
+   ctx.strokeStyle=ci==='trap0'?'rgba(184,84,70,.5)':'rgba(74,99,168,.5)';
+   ctx.lineWidth=1.6;
+   ctx.beginPath();ctx.moveTo(x0+5,y0+5);ctx.lineTo(x0+13,y0+13);
+   ctx.moveTo(x0+13,y0+5);ctx.lineTo(x0+5,y0+13);ctx.stroke();
+   ctx.fillStyle=ci==='trap0'?'rgba(184,84,70,.45)':'rgba(74,99,168,.45)';
+   ctx.font='700 11px '+SERIF;ctx.textAlign='center';
+   ctx.fillText('陷',x0+CS-11,y0+CS-8);ctx.textAlign='left'}
+  if(ci==='den0'||ci==='den1'){
+   var x1=X0+c3*CS,y1=Y0+r3*CS;
+   ctx.fillStyle='rgba(28,20,14,.85)';
+   ctx.beginPath();ctx.arc(x1+CS/2,y1+CS/2,15,0,7);ctx.fill();
+   ctx.strokeStyle=ci==='den0'?'#c05a4a':'#5a74b4';ctx.lineWidth=2;
+   ctx.beginPath();ctx.arc(x1+CS/2,y1+CS/2,15,0,7);ctx.stroke();
+   ctx.fillStyle='rgba(247,236,217,.9)';ctx.font='700 13px '+SERIF;ctx.textAlign='center';
+   ctx.fillText('穴',x1+CS/2,y1+CS/2+5);ctx.textAlign='left'}}
+ /* 末步落点浅金角标 */
+ if(S.lastMv){var lx=X0+S.lastMv.tc*CS,ly=Y0+S.lastMv.tr*CS;
+  ctx.fillStyle='rgba(217,185,138,.35)';
+  ctx.fillRect(lx+2,ly+2,7,3);ctx.fillRect(lx+2,ly+2,3,7)}
+ /* 选中态：金环+可走绿点（红环在棋子层之后画，防被棋子盖住） */
+ var now=Date.now();
+ if(S.sel>=0&&S.phase==='play'){
+  var sp2=selP(S.sel);
+  if(sp2&&sp2.alive){
+   ctx.strokeStyle='#d9b98a';ctx.lineWidth=3;
+   ctx.beginPath();ctx.arc(cx4(sp2.c),cy4(sp2.r),20,0,7);ctx.stroke();
+   var ms2=movesOf(S.sel),k4;
+   for(k4=0;k4<ms2.length;k4++){
+    if(!ms2[k4].cap){ctx.fillStyle='rgba(52,84,44,.75)';
+     ctx.beginPath();ctx.arc(cx4(ms2[k4].c),cy4(ms2[k4].r),6,0,7);ctx.fill()}}}}
+ /* 提示步（3s 金线脉冲） */
+ if(S.hintMv&&now<S.hintEnd){
+  var hm=S.hintMv;
+  ctx.strokeStyle='rgba(217,185,138,'+(.4+.4*Math.sin(now/160))+')';
+  ctx.lineWidth=5;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(cx4(hm.fc),cy4(hm.fr));ctx.lineTo(cx4(hm.tc),cy4(hm.tr));ctx.stroke()}
+ /* 动画统一过滤：移动 160ms 插值 / 被吃 240ms 淡出 */
+ var keepA=[],i5;
+ for(i5=0;i5<S.anims.length;i5++){var AN=S.anims[i5];
+  if(AN.eat){if((now-AN.t0)/240<1)keepA.push(AN)}
+  else if((now-AN.t0)/160<1)keepA.push(AN)}
+ S.anims=keepA;
+ /* 被吃子淡出（吃子动画期间该子已不在 P 活集，单独绘制） */
+ var i5b;
+ for(i5b=0;i5b<S.anims.length;i5b++){var AE=S.anims[i5b];
+  if(AE.eat)drawPiece(AE.r,AE.c,AE.side,AE.rank,Math.max(0,1-(now-AE.t0)/240)*.6)}
+ /* 棋子（动画插值 160ms；静止子原位） */
+ var moving={},i6;
+ for(i6=0;i6<S.anims.length;i6++)if(!S.anims[i6].eat)moving[S.anims[i6].mid]=S.anims[i6];
+ for(i6=0;i6<P.length;i6++){
+  var pp=P[i6];if(!pp.alive)continue;
+  var mvo=moving[pp.id];
+  if(mvo)drawPieceLerp(mvo.fr,mvo.fc,mvo.tr,mvo.tc,pp.side,pp.rank,Math.min(1,(now-mvo.t0)/160));
+  else drawPiece(pp.r,pp.c,pp.side,pp.rank,1)}
+ /* 可吃红环（棋子上层 r20，G2 修复：原 r14 画于棋子前被牌面盖住不可见） */
+ if(S.sel>=0&&S.phase==='play'){
+  var sp3=selP(S.sel);
+  if(sp3&&sp3.alive){
+   var ms3=movesOf(S.sel),k5;
+   for(k5=0;k5<ms3.length;k5++)if(ms3[k5].cap){
+    ctx.strokeStyle='#e05a3a';ctx.lineWidth=2.6;
+    ctx.beginPath();ctx.arc(cx4(ms3[k5].c),cy4(ms3[k5].r),20,0,7);ctx.stroke()}}}
+ /* 状态条 + 战绩章（g84 同位） */
+ ctx.textAlign='center';
+ if(S.phase==='play'||S.phase==='pause'){
+  ctx.fillStyle='rgba(239,232,244,.85)';ctx.font='700 15px system-ui';
+  ctx.fillText(S.turn===0?(S.sel>=0?'点目标格行棋 / 换选己兽':'点己方兽行动'):'黛灵行动中…',195,568)}
+ ctx.fillStyle='#241c2e';rr(120,696,150,26,13);ctx.fill();
+ ctx.strokeStyle='#4a3d56';ctx.lineWidth=1.2;rr(120,696,150,26,13);ctx.stroke();
+ ctx.fillStyle='#cfc4d8';ctx.font='700 12px system-ui';
+ ctx.fillText('vs '+LVNAMES[S.lv]+' · '+recTxt(),195,713);
+ requestAnimationFrame(draw)}
+function drawPiece(r,c,side,rank,alpha){
+ var x=X0+c*CS+CS/2,y=Y0+r*CS+CS/2;
+ drawPieceXY(x,y,side,rank,alpha)}
+function drawPieceLerp(fr,fc,tr,tc,side,rank,t){
+ var x1=X0+fc*CS+CS/2,y1=Y0+fr*CS+CS/2,x2=X0+tc*CS+CS/2,y2=Y0+tr*CS+CS/2;
+ drawPieceXY(x1+(x2-x1)*t,y1+(y2-y1)*t,side,rank,1)}
+function drawPieceXY(x,y,side,rank,alpha){
+ ctx.globalAlpha=alpha===undefined?1:alpha;
+ var g=ctx.createLinearGradient(x-17,y-17,x+17,y+17);
+ if(side===0){g.addColorStop(0,'#c96a5a');g.addColorStop(1,'#a34438')}
+ else{g.addColorStop(0,'#5a74b4');g.addColorStop(1,'#3a4f88')}
+ ctx.fillStyle=g;
+ ctx.beginPath();ctx.arc(x,y,17,0,7);ctx.fill();
+ ctx.strokeStyle=side===0?'#7e352b':'#2d3d6e';ctx.lineWidth=2;
+ ctx.beginPath();ctx.arc(x,y,17,0,7);ctx.stroke();
+ ctx.fillStyle='#f7ecd9';ctx.font='700 15px '+SERIF;ctx.textAlign='center';
+ ctx.fillText(NAMES[rank-1],x,y+5);
+ ctx.textAlign='left';ctx.globalAlpha=1}
+
+/* ================= 初始化 ================= */
+loadRec();
+try{var _lv0=localStorage.getItem(LV_KEY);if(_lv0!==null&&_lv0!==''&&+_lv0>=0&&+_lv0<3)S.lv=+_lv0;
+ for(var _j=0;_j<3;_j++)$('lv'+_j).classList.toggle('on',_j===S.lv)}catch(e){}
+try{S.mute=localStorage.getItem('g85_mute')==='1'}catch(e){}
+$('btn-snd').textContent=S.mute?'🔊':'🔇';
+$('mrec').textContent='本档战绩 '+S.rec[S.lv][0]+' 胜 '+S.rec[S.lv][1]+' 负';
+P=mkPieces();rebuild();updHUD();requestAnimationFrame(draw);
+
+
+</script>
+</body>
+</html>
