@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>围炉泡茶</title>
+<style>
+  html,body{margin:0;padding:0;background:#efe8da;overflow:hidden;height:100%;
+    font-family:"PingFang SC","Microsoft YaHei",sans-serif;-webkit-user-select:none;user-select:none;}
+  #cv{position:absolute;left:0;top:0;touch-action:none}
+  .btn{position:absolute;border:none;border-radius:10px;background:#8a5a34;color:#faf6ec;
+    font-size:17px;font-weight:600;letter-spacing:1px;box-shadow:0 3px 0 #5d3a1e;cursor:pointer;}
+  .btn:active{transform:translateY(2px);box-shadow:0 1px 0 #5d3a1e;}
+  .btn:disabled{opacity:.45;box-shadow:none;cursor:default;}
+  .btn.ember{background:#c96f2f;box-shadow:0 3px 0 #8a4a1a;}
+  .btn.ember:active{box-shadow:0 1px 0 #8a4a1a;}
+  .btn.sage{background:#6a8a76;box-shadow:0 3px 0 #47604f;}
+  .btn.sage:active{box-shadow:0 1px 0 #47604f;}
+  .btn.small{font-size:14px;letter-spacing:0;}
+  #btn-snd{position:absolute;right:10px;top:10px;width:38px;height:30px;border:none;border-radius:8px;
+    background:rgba(138,90,52,.16);font-size:15px;cursor:pointer;}
+</style>
+</head>
+<body>
+<canvas id="cv" width="390" height="844"></canvas>
+<button id="btn-snd">🔇</button>
+<button id="btn-fire-m" class="btn small" style="left:20px;top:756px;width:78px;height:54px;">− 火</button>
+<button id="btn-fire-p" class="btn small ember" style="left:104px;top:756px;width:78px;height:54px;">＋ 火</button>
+<button id="btn-pour" class="btn ember" style="left:198px;top:756px;width:86px;height:54px;">注水</button>
+<button id="btn-serve" class="btn sage" style="left:290px;top:756px;width:86px;height:54px;display:none;">出茶</button>
+<button id="btn-again" class="btn sage" style="left:60px;top:640px;width:130px;height:52px;display:none;">再泡一壶</button>
+<button id="btn-change" class="btn small" style="left:210px;top:640px;width:120px;height:52px;display:none;">换茶</button>
+<button id="btn-dex" class="btn small" style="left:20px;top:10px;width:64px;height:30px;display:none;">茶谱</button>
+<script>
+'use strict';
+/* ===== 常量（规则层单源——与 SPEC 逐条对应） ===== */
+var T_AMB = 20, COOL_F = 1200, BOIL = 100;
+var HEAT = [0, 0.05, 0.11, 0.13];       /* 熄/文/中/旺 ℃/帧；稳态 20/80/152⌔/176⌔（沸点钳 100） */
+var FIRE_NAME = ['熄', '文火', '中火', '旺火'];
+var TEAS = [                              /* [名,类,汤色,T_lo,T_hi,T*,S_lo,S_hi,S*,注解] */
+  ['西湖龙井', '绿', '#b8c86a', 78, 84, 81, 22, 32, 27, '明前一盏三潭月'],
+  ['碧螺春', '绿', '#a8c05a', 74, 80, 77, 20, 30, 25, '吓煞人香原是花果'],
+  ['茉莉花茶', '花', '#c8c05a', 84, 90, 87, 25, 35, 30, '窨得茉莉无上味'],
+  ['白毫银针', '白', '#d8cca0', 85, 91, 88, 30, 40, 35, '十年毫针胜牡丹'],
+  ['君山银针', '黄', '#c8b860', 83, 89, 86, 28, 38, 33, '三起三落雀舌浮'],
+  ['祁门红茶', '红', '#b05a30', 90, 96, 93, 30, 40, 35, '似花似果似蜜香'],
+  ['正山小种', '红', '#a04828', 92, 98, 95, 35, 45, 40, '松烟蜜韵桂圆汤'],
+  ['铁观音', '乌龙', '#c89a48', 95, 100, 98, 40, 55, 47, '七泡有余香'],
+  ['大红袍', '岩', '#b07830', 96, 100, 98, 45, 60, 52, '岩骨花香岩上生'],
+  ['普洱熟茶', '黑', '#7a3a20', 98, 100, 100, 45, 60, 52, '越陈越香红浓醇']
+];
+function bandScore(v, lo, hi, best) {    /* 甜区评分：带内 100×(1−|v−best|/H)，带外 0 */
+  if (v < lo || v > hi) return 0;
+  var H = (hi - lo) / 2;
+  return Math.round(100 * (1 - Math.abs(v - best) / H));
+}
+function rateOf(total) { return total >= 90 ? 'S' : (total >= 70 ? 'A' : (total >= 50 ? 'B' : 'C')); }
+
+/* ===== 状态 ===== */
+var S = {
+  phase: 'pick',                          /* pick|heat|steep|serve */
+  tea: 1, T: T_AMB, fire: 0, t: 0,
+  steepT0: 0, T_pour: 0, t_steep: 0, W: 0, Q: 0, rate: '', overTimeout: 0,
+  unlocked: 3, golden: [], best: {}, boiled: 0,
+  snd: 0, flashT: 0, flashTxt: '', dex: 0
+};
+var steam = [];                           /* 汽粒子 {x,y,v,a} */
+var RS = (1 + Math.floor(Math.random() * 1e9)) % 2147483647;
+function rnd() { RS = (RS * 48271) % 2147483647; return (RS - 1) / 2147483646; }
+var AC = null;
+
+/* ===== 存档 ===== */
+function loadAll() {
+  var v;
+  try { v = localStorage.getItem('g99_snd'); if (v !== null) S.snd = (v === '1') ? 1 : 0; } catch (e) { }
+  try {
+    v = localStorage.getItem('g99_prog');
+    if (v) {
+      var m = JSON.parse(v);
+      if (typeof m.unlocked === 'number') S.unlocked = Math.max(1, Math.min(10, Math.floor(m.unlocked)));
+      if (m.golden && m.golden.forEach) {
+        S.golden = m.golden.filter(function (n) { return n >= 1 && n <= 10; });
+      }
+      if (m.best && typeof m.best === 'object') {
+        for (var k in m.best) {
+          var no = +k;
+          if (no >= 1 && no <= 10 && m.best[k] && typeof m.best[k].w === 'number' && typeof m.best[k].q === 'number') {
+            S.best[no] = { r: String(m.best[k].r || '').replace(/[^SABC+]/g, '').slice(0, 2), w: m.best[k].w, q: m.best[k].q };
+          }
+        }
+      }
+    }
+  } catch (e) { }
+  S.golden = Array.from(new Set(S.golden));
+}
+function saveProg() {
+  try { localStorage.setItem('g99_prog', JSON.stringify({ unlocked: S.unlocked, golden: S.golden, best: S.best })); } catch (e) { }
+}
+
+/* ===== 音效 ===== */
+function ensureAC() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { } }
+  if (AC && AC.state === 'suspended') AC.resume();
+}
+function tone(f, d, type, vol, when, f2) {
+  if (!S.snd || !AC) return;
+  var t0 = AC.currentTime + (when || 0);
+  var o = AC.createOscillator(), g = AC.createGain();
+  o.type = type || 'sine'; o.frequency.setValueAtTime(f, t0);
+  if (f2) o.frequency.linearRampToValueAtTime(f2, t0 + d);
+  g.gain.setValueAtTime(vol || 0.12, t0);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + d);
+  o.connect(g); g.connect(AC.destination);
+  o.start(t0); o.stop(t0 + d + 0.02);
+}
+function sndPour() { tone(480, 0.5, 'triangle', 0.09, 0, 320); }
+function sndServe() { tone(380, 0.4, 'triangle', 0.08, 0, 260); }
+function sndChime() { tone(523, 0.7, 'sine', 0.12, 0); tone(784, 0.9, 'sine', 0.08, 0.08); }
+function sndBoil() { tone(200, 0.12, 'square', 0.06, 0); tone(240, 0.12, 'square', 0.06, 0.15); }
+function sndUnlock() { tone(660, 0.2, 'sine', 0.1, 0); tone(990, 0.3, 'sine', 0.08, 0.12); }
+function wake() { ensureAC(); document.removeEventListener('pointerdown', wake); }
+function sndOnRestore() { if (S.snd) document.addEventListener('pointerdown', wake); }
+
+/* ===== 流程 ===== */
+function tea() { return TEAS[S.tea - 1]; }
+function pickTea(n) {
+  if (n < 1 || n > 10 || n > S.unlocked) return false;
+  S.tea = n; S.T = T_AMB; S.fire = 0; S.t = 0; S.boiled = 0; steam = [];
+  S.steepT0 = 0; S.T_pour = 0; S.t_steep = 0; S.W = 0; S.Q = 0; S.rate = ''; S.overTimeout = 0;
+  S.phase = 'heat';
+  return true;
+}
+function pour() {
+  if (S.phase !== 'heat') return false;
+  S.T_pour = S.T; S.steepT0 = S.t; S.phase = 'steep';
+  sndPour();
+  return true;
+}
+function serveNow(auto) {                 /* auto=超时自动出汤 */
+  if (S.phase !== 'steep') return null;
+  var x = tea();
+  S.t_steep = (S.t - S.steepT0) / 60;
+  S.W = bandScore(S.T_pour, x[3], x[4], x[5]);
+  S.Q = bandScore(S.t_steep, x[6], x[7], x[8]);
+  S.overTimeout = auto ? 1 : 0;
+  var total = (S.W + S.Q) / 2;
+  S.rate = (S.W === 100 && S.Q === 100) ? 'S+' : rateOf(total);
+  /* 图鉴只进不退 */
+  var prev = S.best[S.tea];
+  if (!prev || (S.W + S.Q) > (prev.w + prev.q)) S.best[S.tea] = { r: S.rate, w: S.W, q: S.Q };
+  if (S.rate === 'S+' && S.golden.indexOf(S.tea) < 0) S.golden.push(S.tea);
+  var wasLocked = S.unlocked;
+  if ((S.rate === 'S' || S.rate === 'S+' || S.rate === 'A') && S.unlocked < 10) S.unlocked++;
+  saveProg();
+  S.phase = 'serve';
+  S.fire = 0;
+  sndServe();
+  if (S.rate === 'S+' || S.rate === 'S') sndChime();
+  if (S.unlocked > wasLocked) { sndUnlock(); flash('新茶谱解锁：' + TEAS[S.unlocked - 1][0]); }
+  return { w: S.W, q: S.Q, rate: S.rate };
+}
+function again() {                        /* 再泡一壶（同茶重开） */
+  if (S.phase !== 'serve') return false;
+  pickTea(S.tea);
+  return true;
+}
+function flash(t) { S.flashTxt = t; S.flashT = 100; }
+
+/* ===== 主循环 ===== */
+function step() {
+  if (S.flashT > 0) S.flashT--;
+  if (S.dex) return;
+  if (S.phase === 'heat' || S.phase === 'steep') {
+    S.t++;
+    /* 温度模型：dT=HEAT−(T−AMB)/COOL，沸点钳 100 */
+    S.T += HEAT[S.fire] - (S.T - T_AMB) / COOL_F;
+    if (S.T >= BOIL) { S.T = BOIL; if (!S.boiled) { S.boiled = 1; sndBoil(); } }
+    /* 汽粒子：T>60 渐密 */
+    if (S.T > 60 && rnd() < (S.T - 60) / 60) steam.push({ x: 196 + rnd() * 18, y: 208, v: 0.7 + rnd() * 0.8, a: 0.5 + rnd() * 0.3 });
+    for (var i = 0; i < steam.length; i++) { steam[i].y -= steam[i].v; steam[i].a -= 0.006; }
+    steam = steam.filter(function (p) { return p.a > 0; });
+    /* 浸泡超时：S_hi+15s 自动出汤 */
+    if (S.phase === 'steep' && (S.t - S.steepT0) > (tea()[7] + 15) * 60) serveNow(1);
+  }
+}
+function loop() {
+  step();
+  draw();
+  updHud();
+  requestAnimationFrame(loop);
+}
+
+/* ===== 绘制 ===== */
+var cv = document.getElementById('cv'), fg = cv.getContext('2d');
+function rr(x, y, w, h, r) {
+  fg.beginPath();
+  fg.moveTo(x + r, y);
+  fg.arcTo(x + w, y, x + w, y + h, r); fg.arcTo(x + w, y + h, x, y + h, r);
+  fg.arcTo(x, y + h, x, y, r); fg.arcTo(x, y, x + w, y, r);
+  fg.closePath();
+}
+function draw() {
+  fg.fillStyle = '#efe8da'; fg.fillRect(0, 0, 390, 844);
+  var x = tea();
+  if (S.phase === 'pick') { drawPick(); drawFlashAll(); return; }
+  /* HUD：茶名+类+火档 */
+  fg.fillStyle = '#5a4632'; fg.font = 'bold 16px sans-serif'; fg.textAlign = 'left'; fg.textBaseline = 'middle';
+  fg.fillText(x[0] + ' · ' + x[1], 14, 26);
+  fg.textAlign = 'right';
+  fg.fillText(FIRE_NAME[S.fire] + (S.boiled ? ' · 沸' : ''), 344, 48);   /* y48——与温度读数 y22 分行（VLM 抓出的重叠修复） */
+  /* 温度计横条（20-100，当前茶甜区带高亮——带画在充填上层米白半透，橙充填/米灰底上均可见） */
+  var tx = 90, tw = 200, t0 = 14;
+  fg.fillStyle = '#e0d6c2'; rr(tx, t0, tw, 16, 8); fg.fill();
+  var pBand = function (v) { return (v - T_AMB) / (BOIL - T_AMB); };
+  fg.fillStyle = '#c96f2f';
+  var pw = Math.max(0, Math.min(1, pBand(S.T))) * tw;
+  if (pw > 0) { rr(tx, t0, Math.max(8, pw), 16, 8); fg.fill(); }
+  fg.fillStyle = 'rgba(250,246,236,.55)';
+  fg.fillRect(tx + pBand(x[3]) * tw, t0, (pBand(x[4]) - pBand(x[3])) * tw, 16);
+  fg.strokeStyle = 'rgba(138,74,26,.75)'; fg.lineWidth = 1.5;
+  fg.beginPath(); fg.moveTo(tx + pBand(x[3]) * tw, t0); fg.lineTo(tx + pBand(x[3]) * tw, t0 + 16); fg.stroke();
+  fg.beginPath(); fg.moveTo(tx + pBand(x[4]) * tw, t0); fg.lineTo(tx + pBand(x[4]) * tw, t0 + 16); fg.stroke();
+  fg.fillStyle = '#5a4632'; fg.font = 'bold 13px sans-serif'; fg.textAlign = 'right';
+  fg.fillText(S.T.toFixed(1) + '℃', 344, t0 + 8);
+  /* 炉+壶 */
+  drawStove();
+  /* 茶壶+浸泡计时 */
+  drawSteep();
+  /* 面板 */
+  if (S.phase === 'serve') drawServe();
+  drawFlashAll();
+}
+function drawStove() {
+  /* 炉身 */
+  fg.fillStyle = '#8a4a2a'; rr(120, 330, 150, 110, 10); fg.fill();
+  fg.fillStyle = '#6a3620'; fg.fillRect(126, 424, 138, 10);
+  /* 炉膛+火 */
+  fg.fillStyle = '#3a2214'; rr(148, 352, 94, 64, 8); fg.fill();
+  var f = S.fire, flick = Math.sin(S.t * 0.35) * 3;
+  if (f > 0) {
+    var fw = 18 + f * 14, fh = (10 + f * 13) + (flick > 0 ? flick : 0);
+    fg.fillStyle = 'rgba(201,111,47,.9)';
+    fg.beginPath(); fg.moveTo(195 - fw / 2, 408); fg.quadraticCurveTo(195, 408 - fh * 2, 195 + fw / 2, 408); fg.fill();
+    fg.fillStyle = 'rgba(240,180,80,.85)';
+    fg.beginPath(); fg.moveTo(195 - fw / 3, 408); fg.quadraticCurveTo(195, 408 - fh, 195 + fw / 3, 408); fg.fill();
+  }
+  /* 水壶 */
+  fg.fillStyle = '#7a6a58'; rr(152, 218, 86, 74, 12); fg.fill();
+  fg.strokeStyle = '#5d5044'; fg.lineWidth = 3;
+  fg.beginPath(); fg.arc(195, 218, 24, Math.PI, 0); fg.stroke();   /* 提梁 */
+  fg.fillStyle = '#5d5044'; fg.fillRect(234, 240, 16, 8);           /* 壶嘴 */
+  /* 汽粒子 */
+  for (var i = 0; i < steam.length; i++) {
+    fg.fillStyle = 'rgba(250,246,236,' + steam[i].a.toFixed(3) + ')';
+    fg.beginPath(); fg.arc(steam[i].x, steam[i].y, 3, 0, Math.PI * 2); fg.fill();
+  }
+}
+function drawSteep() {
+  var x = tea();
+  /* 茶壶（中上） */
+  fg.fillStyle = '#9a7a5a'; rr(140, 500, 110, 62, 14); fg.fill();
+  fg.strokeStyle = '#7a5a3a'; fg.lineWidth = 3;
+  fg.beginPath(); fg.arc(195, 500, 26, Math.PI, 0); fg.stroke();
+  fg.fillStyle = '#7a5a3a'; fg.fillRect(246, 520, 18, 9);
+  /* 汤色（浸泡期按 W 预览不了——按浸泡进度渐显汤色） */
+  if (S.phase === 'steep' || S.phase === 'serve') {
+    var prog = Math.min(1, (S.t - S.steepT0) / (x[7] * 60));
+    fg.fillStyle = x[2];
+    fg.globalAlpha = 0.25 + 0.6 * prog;
+    rr(150, 514, 90, 38, 8); fg.fill();
+    fg.globalAlpha = 1;
+  }
+  if (S.phase === 'steep') {
+    /* 浸泡计时条（甜区带高亮——带画在绿充填上层米白半透） */
+    var sx = 90, sw = 200, sy = 588;
+    fg.fillStyle = '#e0d6c2'; rr(sx, sy, sw, 14, 7); fg.fill();
+    var sp = Math.min(1, (S.t - S.steepT0) / ((x[7] + 15) * 60));
+    fg.fillStyle = '#6a8a76';
+    if (sp > 0) { rr(sx, sy, Math.max(7, sp * sw), 14, 7); fg.fill(); }
+    fg.fillStyle = 'rgba(250,246,236,.55)';
+    fg.fillRect(sx + (x[6] / (x[7] + 15)) * sw, sy, ((x[7] - x[6]) / (x[7] + 15)) * sw, 14);
+    fg.strokeStyle = 'rgba(71,96,79,.75)'; fg.lineWidth = 1.5;
+    fg.beginPath(); fg.moveTo(sx + (x[6] / (x[7] + 15)) * sw, sy); fg.lineTo(sx + (x[6] / (x[7] + 15)) * sw, sy + 14); fg.stroke();
+    fg.beginPath(); fg.moveTo(sx + (x[7] / (x[7] + 15)) * sw, sy); fg.lineTo(sx + (x[7] / (x[7] + 15)) * sw, sy + 14); fg.stroke();
+    fg.fillStyle = '#5a4632'; fg.font = 'bold 13px sans-serif'; fg.textAlign = 'right';
+    fg.fillText(((S.t - S.steepT0) / 60).toFixed(1) + 's', 344, sy + 7);
+  }
+}
+function drawServe() {
+  var x = tea();
+  fg.fillStyle = 'rgba(40,32,24,.5)'; fg.fillRect(0, 0, 390, 844);
+  var gold = S.rate === 'S+';
+  fg.fillStyle = '#f7f2e6'; rr(40, 180, 310, 360, 14); fg.fill();
+  fg.strokeStyle = gold ? '#c9a227' : '#b0783a'; fg.lineWidth = gold ? 5 : 3; fg.stroke();
+  fg.textAlign = 'center';
+  fg.fillStyle = gold ? '#c9a227' : (S.rate === 'S' ? '#c9a227' : (S.rate === 'A' ? '#5a8a5f' : (S.rate === 'B' ? '#5a7fa8' : '#a86a5a')));
+  fg.font = 'bold 56px Georgia,serif';
+  fg.fillText(S.rate, 195, 268);
+  fg.fillStyle = '#5a4632'; fg.font = 'bold 17px sans-serif';
+  fg.fillText(gold ? '茶仙手评 · 双绝' : (S.rate === 'S' ? '茶仙手评' : '一盏好茶'), 195, 316);
+  /* 茶仙称号角标：十款金边全收（M-1 修复——SPEC L41 兑现） */
+  if (S.golden.length === 10) {
+    fg.fillStyle = '#c9a227'; fg.font = 'bold 18px sans-serif';
+    fg.fillText('— 茶 仙 —', 195, 214);
+  }
+  /* 双分条（条区 x120-250；文本 right 344——满分条尾 250 与文本起点 ~259 留隙，VLM 抓出的重叠修复） */
+  var bars = [['水温', S.W, S.T_pour.toFixed(1) + '℃'], ['火候', S.Q, S.t_steep.toFixed(1) + 's']];
+  for (var i = 0; i < 2; i++) {
+    var by = 360 + i * 58;
+    fg.fillStyle = '#5a4632'; fg.font = 'bold 14px sans-serif'; fg.textAlign = 'left';
+    fg.fillText(bars[i][0], 70, by);
+    fg.fillStyle = '#e0d6c2'; rr(120, by - 7, 130, 14, 7); fg.fill();
+    fg.fillStyle = bars[i][1] >= 70 ? '#5a8a5f' : (bars[i][1] >= 40 ? '#c9a227' : '#b03a2a');
+    if (bars[i][1] > 0) { rr(120, by - 7, 1.3 * bars[i][1], 14, 7); fg.fill(); }
+    fg.fillStyle = '#5a4632'; fg.font = 'bold 13px sans-serif'; fg.textAlign = 'right';
+    fg.fillText(bars[i][1] + ' · ' + bars[i][2], 344, by);
+  }
+  if (S.overTimeout) {
+    fg.fillStyle = '#b03a2a'; fg.font = 'bold 14px sans-serif'; fg.textAlign = 'center';
+    fg.fillText('闷坏了——超时自动出汤', 195, 486);
+  }
+  fg.fillStyle = '#8a7a64'; fg.font = '13px sans-serif'; fg.textAlign = 'center';
+  fg.fillText('「' + x[9] + '」', 195, 516);
+}
+function drawPick() {
+  fg.fillStyle = 'rgba(40,32,24,.5)'; fg.fillRect(0, 0, 390, 844);
+  fg.fillStyle = '#f7f2e6'; rr(30, 100, 330, 640, 14); fg.fill();
+  fg.strokeStyle = '#b0783a'; fg.lineWidth = 3; fg.stroke();
+  fg.fillStyle = '#5a4632'; fg.font = 'bold 20px sans-serif'; fg.textAlign = 'center';
+  fg.fillText('今日泡哪盏？', 195, 140);
+  fg.font = '13px sans-serif';
+  fg.fillText('解锁 ' + S.unlocked + ' / 10 · 金边 ' + S.golden.length, 195, 168);
+  for (var i = 0; i < 10; i++) {
+    var col = i % 2, row = Math.floor(i / 2);
+    var cx = 50 + col * 158, cy = 196 + row * 104;
+    var locked = (i + 1) > S.unlocked;
+    fg.fillStyle = locked ? '#e4dcc9' : '#efe6d2';
+    rr(cx, cy, 146, 92, 10); fg.fill();
+    if (!locked) { fg.strokeStyle = '#c9a227'; fg.lineWidth = S.golden.indexOf(i + 1) >= 0 ? 3 : 1; fg.stroke(); }
+    fg.textAlign = 'left';
+    fg.fillStyle = locked ? '#b0a48c' : '#5a4632'; fg.font = 'bold 16px sans-serif';
+    fg.fillText(locked ? '🔒 尚未解锁' : TEAS[i][0], cx + 12, cy + 26);
+    if (!locked) {
+      fg.fillStyle = '#8a7a64'; fg.font = '12px sans-serif';
+      fg.fillText(xBand(TEAS[i]) + ' · ' + TEAS[i][1] + '茶', cx + 12, cy + 48);
+      fg.fillText('泡 ' + TEAS[i][6] + '-' + TEAS[i][7] + ' 秒', cx + 12, cy + 68);
+      if (S.best[i + 1]) {
+        fg.fillStyle = '#c9a227'; fg.font = 'bold 12px sans-serif';
+        fg.fillText('最佳 ' + S.best[i + 1].r, cx + 12, cy + 84);
+      }
+    }
+  }
+}
+function xBand(t) { return t[3] + '-' + t[4] + '℃'; }
+function drawDex() {                       /* 图鉴页（btn-dex 开） */
+  fg.fillStyle = 'rgba(40,32,24,.6)'; fg.fillRect(0, 0, 390, 844);
+  fg.fillStyle = '#f7f2e6'; rr(30, 80, 330, 700, 14); fg.fill();
+  fg.strokeStyle = '#6a8a76'; fg.lineWidth = 3; fg.stroke();
+  fg.fillStyle = '#5a4632'; fg.font = 'bold 19px sans-serif'; fg.textAlign = 'center';
+  fg.fillText('茶谱图鉴', 195, 116);
+  fg.font = '13px sans-serif';
+  fg.fillText(S.unlocked + ' / 10 解锁 · ' + S.golden.length + ' 款金边', 195, 142);
+  for (var i = 0; i < 10; i++) {
+    var col = i % 2, row = Math.floor(i / 2);
+    var cx = 46 + col * 158, cy = 170 + row * 118;
+    var un = (i + 1) <= S.unlocked;
+    fg.fillStyle = un ? '#efe6d2' : '#e4dcc9';
+    rr(cx, cy, 146, 106, 10); fg.fill();
+    if (S.golden.indexOf(i + 1) >= 0) { fg.strokeStyle = '#c9a227'; fg.lineWidth = 3; fg.stroke(); }
+    fg.textAlign = 'left';
+    fg.fillStyle = un ? '#5a4632' : '#b0a48c'; fg.font = 'bold 15px sans-serif';
+    fg.fillText(un ? TEAS[i][0] : '🔒', cx + 10, cy + 22);
+    if (un) {
+      fg.fillStyle = '#8a7a64'; fg.font = '11px sans-serif';
+      fg.fillText(xBand(TEAS[i]) + ' · ' + TEAS[i][6] + '-' + TEAS[i][7] + 's', cx + 10, cy + 42);
+      fg.fillStyle = '#7a6a50';
+      var note = TEAS[i][9];
+      fg.fillText(note.slice(0, 9), cx + 10, cy + 66);
+      if (note.length > 9) fg.fillText(note.slice(9), cx + 10, cy + 82);
+      fg.fillStyle = '#6a8a76'; fg.font = 'bold 11px sans-serif';
+      fg.fillText(S.best[i + 1] ? '最佳 ' + S.best[i + 1].r + ' · ' + S.best[i + 1].w + '/' + S.best[i + 1].q : '未泡过', cx + 10, cy + 98);
+    }
+  }
+  fg.fillStyle = '#8a7a64'; fg.font = '13px sans-serif'; fg.textAlign = 'center';
+  fg.fillText('（再点茶谱钮返回）', 195, 762);
+}
+function drawFlashAll() {
+  if (S.dex) { drawDex(); return; }
+  if (S.flashT > 0) {
+    var fa = Math.min(1, S.flashT / 30);
+    fg.fillStyle = 'rgba(90,70,50,' + (0.9 * fa).toFixed(3) + ')';
+    rr(95, 700, 200, 32, 8); fg.fill();
+    fg.fillStyle = '#faf6ec'; fg.font = '14px sans-serif'; fg.textAlign = 'center'; fg.textBaseline = 'middle';
+    fg.fillText(S.flashTxt, 195, 716);
+  }
+}
+function updHud() {
+  var heat = S.phase === 'heat', steep = S.phase === 'steep', pick = S.phase === 'pick';
+  document.getElementById('btn-fire-m').disabled = !heat && !steep;
+  document.getElementById('btn-fire-p').disabled = !heat && !steep;
+  document.getElementById('btn-pour').disabled = !heat;
+  document.getElementById('btn-fire-m').style.display = (pick || S.phase === 'serve') ? 'none' : '';
+  document.getElementById('btn-fire-p').style.display = (pick || S.phase === 'serve') ? 'none' : '';
+  document.getElementById('btn-pour').style.display = heat ? '' : 'none';
+  document.getElementById('btn-serve').style.display = steep ? '' : 'none';
+  var showPanel = S.phase === 'serve';
+  document.getElementById('btn-again').style.display = showPanel ? '' : 'none';
+  document.getElementById('btn-change').style.display = showPanel ? '' : 'none';
+  document.getElementById('btn-dex').style.display = pick ? '' : 'none';
+  document.getElementById('btn-snd').textContent = S.snd ? '🔊' : '🔇';
+}
+
+/* ===== 事件 ===== */
+function onBtn(id, fn) {
+  document.getElementById(id).addEventListener('click', function (e) {
+    if (e.preventDefault) e.preventDefault();
+    fn();
+  });
+}
+onBtn('btn-snd', function () {
+  S.snd = S.snd ? 0 : 1;
+  try { localStorage.setItem('g99_snd', S.snd ? '1' : '0'); } catch (e) { }
+  if (S.snd) { ensureAC(); } else if (AC) { try { AC.suspend(); } catch (e) { } }
+});
+onBtn('btn-fire-m', function () { if (S.phase === 'heat' || S.phase === 'steep') { if (S.fire > 0) S.fire--; } });
+onBtn('btn-fire-p', function () { if (S.phase === 'heat' || S.phase === 'steep') { if (S.fire < 3) S.fire++; } });
+onBtn('btn-pour', function () { if (S.phase === 'heat') pour(); });
+onBtn('btn-serve', function () { if (S.phase === 'steep') serveNow(0); });
+onBtn('btn-again', function () { if (S.phase === 'serve') again(); });
+onBtn('btn-change', function () { if (S.phase === 'serve') { S.phase = 'pick'; S.fire = 0; } });
+onBtn('btn-dex', function () { S.dex = S.dex ? 0 : 1; });
+cv.addEventListener('pointerdown', function (e) {   /* 选茶面板点卡换茶 */
+  if (S.phase !== 'pick' || S.dex) return;
+  var r = cv.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
+  for (var i = 0; i < 10; i++) {
+    var col = i % 2, row = Math.floor(i / 2);
+    var cx = 50 + col * 158, cy = 196 + row * 104;
+    if (px >= cx && px <= cx + 146 && py >= cy && py <= cy + 92) {
+      if (pickTea(i + 1)) { flash(TEAS[i][0] + ' · ' + xBand(TEAS[i])); }
+      return;
+    }
+  }
+});
+
+/* ===== boot ===== */
+loadAll();
+sndOnRestore();
+updHud();
+requestAnimationFrame(loop);
+
+
+</script>
+</body>
+</html>
