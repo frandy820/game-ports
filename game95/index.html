@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>高低牌楼</title>
+<style>
+  html,body{margin:0;padding:0;background:#e8e0cd;overflow:hidden;height:100%;
+    font-family:"PingFang SC","Microsoft YaHei",sans-serif;-webkit-user-select:none;user-select:none;}
+  #cv{position:absolute;left:0;top:0;touch-action:none}
+  .btn{position:absolute;border:none;border-radius:10px;background:#b03a2a;color:#faf6ec;
+    font-size:17px;font-weight:600;letter-spacing:2px;box-shadow:0 3px 0 #7d2519;cursor:pointer;}
+  .btn:active{transform:translateY(2px);box-shadow:0 1px 0 #7d2519;}
+  .btn:disabled{opacity:.45;box-shadow:none;cursor:default;}
+  .btn.gold{background:#c9a227;box-shadow:0 3px 0 #8a6f14;}
+  .btn.gold:active{box-shadow:0 1px 0 #8a6f14;}
+  .btn.dim{background:#b9ad93;box-shadow:0 3px 0 #8a7f66;color:#f4eedd;}
+  .btn.small{font-size:13px;letter-spacing:1px;}
+  #btn-snd{position:absolute;right:10px;top:14px;width:38px;height:34px;border:none;border-radius:8px;
+    background:rgba(176,58,42,.14);font-size:17px;cursor:pointer;}
+  .lay{position:absolute;left:0;top:0;width:390px;height:844px;background:rgba(60,50,35,.55);
+    display:flex;align-items:center;justify-content:center;z-index:30;}
+  .lay.hide{display:none;}
+  .panel{background:#f7f0e3;border-radius:14px;padding:18px 20px;width:320px;max-height:640px;overflow:auto;
+    box-shadow:0 8px 28px rgba(40,30,15,.35);}
+  .panel h3{margin:0 0 10px;font-size:17px;color:#7d2519;letter-spacing:3px;}
+  .panel table{width:100%;border-collapse:collapse;font-size:13px;color:#5a4a33;}
+  .panel td{padding:4px 2px;border-bottom:1px dashed #d8cbae;}
+  .panel td.r{text-align:right;font-weight:600;}
+  .panel .cap-row td{color:#b03a2a;font-weight:700;border-bottom:none;}
+  .panel .sub{margin-top:10px;font-size:12px;color:#8a7f66;text-align:center;}
+  .pclose{display:block;margin:12px auto 0;border:none;border-radius:8px;background:#b03a2a;color:#faf6ec;
+    padding:7px 26px;font-size:14px;letter-spacing:2px;cursor:pointer;}
+</style>
+</head>
+<body>
+<canvas id="cv" width="390" height="844"></canvas>
+<button id="btn-snd">🔇</button>
+<button id="btn-start" class="btn gold" style="left:135px;top:498px;width:120px;height:56px;">开 局</button>
+<button id="btn-lo" class="btn" style="left:40px;top:498px;width:120px;height:64px;font-size:22px;">小</button>
+<button id="btn-hi" class="btn" style="left:230px;top:498px;width:120px;height:64px;font-size:22px;">大</button>
+<button id="btn-bank" class="btn gold" style="left:115px;top:580px;width:160px;height:46px;">收手落袋</button>
+<button id="btn-table" class="btn small dim" style="left:28px;top:776px;width:100px;height:44px;">结算表</button>
+<button id="btn-stake" class="btn small dim" style="left:150px;top:776px;width:90px;height:44px;">注 ◇10</button>
+<button id="btn-alms" class="btn small dim" style="left:258px;top:776px;width:104px;height:44px;display:none;">盘缠+100</button>
+<div id="lay-table" class="lay hide"><div class="panel">
+  <h3>连对结算表</h3><div id="tbl-body"></div>
+  <button class="pclose" id="table-close">合 上</button>
+</div></div>
+<script>
+'use strict';
+/* ===== 常量（规则层单源——与 SPEC 逐条对应） ===== */
+var RANKS = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];   /* rank 值 2..14 */
+var SUITS = ['♠','♥','♦','♣'];                                        /* 红黑：1,2 红 */
+var STAKES = [10, 25, 50];
+var CAPX = 200;                     /* 封顶倍数：pot=min(pot*2, stake*CAPX) */
+var GOLD0 = 200;
+var FLIP_F = 18, REVEAL_F = 40, END_F = 60;
+
+/* ===== 状态 ===== */
+var S = {
+  gold: GOLD0, phase: 'idle',        /* idle|guessing|flip|reveal|end */
+  stake: 10,                          /* idle=所选档；轮中=本轮注额 */
+  deck: [], cur: null, last: null, belt: [],
+  pot: 0, streak: 0, opened: 0,
+  flipT: 0, revealT: 0, endT: 0, endKind: '', endGain: 0,
+  pendingWin: false,
+  best: 0, bestPot: 0, rounds: 0, wins: 0, loses: 0, alms: 0,
+  snd: 0, lay: null, flashT: 0, flashTxt: ''
+};
+var RS = (1 + Math.floor(Math.random() * 1e9)) % 2147483647;
+function rnd() { RS = (RS * 48271) % 2147483647; return (RS - 1) / 2147483646; }
+var AC = null;
+
+/* ===== 工具 ===== */
+function mkFull() {                       /* 52 张全副 */
+  var d = [];
+  for (var r = 2; r <= 14; r++) for (var s = 0; s < 4; s++) d.push({ r: r, s: s });
+  return d;
+}
+function shuffle(d) {                     /* Fisher-Yates（LCG 驱动） */
+  for (var i = d.length - 1; i > 0; i--) {
+    var j = Math.floor(rnd() * (i + 1));
+    var t = d[i]; d[i] = d[j]; d[j] = t;
+  }
+  return d;
+}
+function pHL() {                          /* 剩牌概率（主锚纯函数；无当前牌时零语义——审查minor7） */
+  if (!S.cur) return { nHigh: 0, nLow: 0, nTie: 0, N: S.deck.length, pHigh: 0, pLow: 0, pTie: 0 };
+  var nH = 0, nL = 0, nT = 0;
+  for (var i = 0; i < S.deck.length; i++) {
+    var r = S.deck[i].r;
+    if (r > S.cur.r) nH++; else if (r < S.cur.r) nL++; else nT++;
+  }
+  var N = S.deck.length;
+  return { nHigh: nH, nLow: nL, nTie: nT, N: N,
+    pHigh: N ? nH / N : 0, pLow: N ? nL / N : 0, pTie: N ? nT / N : 0 };
+}
+function capOf() { return S.stake * CAPX; }
+
+/* ===== 存档（保存时机=SPEC 逐条承诺） ===== */
+function loadAll() {
+  var v;
+  try { v = localStorage.getItem('g95_snd'); if (v !== null) S.snd = (v === '1') ? 1 : 0; } catch (e) { }
+  try {
+    v = localStorage.getItem('g95_main');
+    if (v) {
+      var m = JSON.parse(v);
+      if (typeof m.gold === 'number' && m.gold >= 0 && m.gold < 1e12) S.gold = m.gold;
+      if (typeof m.best === 'number' && m.best >= 0) S.best = m.best;
+      if (typeof m.bestPot === 'number' && m.bestPot >= 0) S.bestPot = m.bestPot;
+      if (typeof m.rounds === 'number' && m.rounds >= 0) S.rounds = m.rounds;
+      if (typeof m.wins === 'number' && m.wins >= 0) S.wins = m.wins;
+      if (typeof m.loses === 'number' && m.loses >= 0) S.loses = m.loses;
+      if (typeof m.alms === 'number' && m.alms >= 0) S.alms = m.alms;
+    }
+  } catch (e) { }
+  try {
+    v = localStorage.getItem('g95_prog');
+    if (v) {
+      var p = JSON.parse(v);
+      if (p && typeof p.stake === 'number' && STAKES.indexOf(p.stake) >= 0 &&
+          p.cur && typeof p.cur.r === 'number' && Array.isArray(p.deckRest) &&
+          typeof p.pot === 'number' && p.pot >= p.stake && p.pot <= p.stake * CAPX + 1e-9 &&
+          typeof p.streak === 'number' && p.streak >= 0) {
+        S.stake = p.stake; S.cur = { r: p.cur.r, s: p.cur.s };
+        S.deck = p.deckRest.filter(function (c) { return c && typeof c.r === 'number' && c.r >= 2 && c.r <= 14 && typeof c.s === 'number' && c.s >= 0 && c.s <= 3; });
+        S.pot = p.pot; S.streak = p.streak;
+        S.opened = typeof p.opened === 'number' ? p.opened : (52 - S.deck.length);
+        S.belt = Array.isArray(p.belt) ? p.belt.slice(-5).map(function (c) { return { r: c.r, s: c.s }; }) : [];
+        S.phase = 'guessing';                 /* 恢复恒 guessing（翻牌已落定语义） */
+        /* 恢复点终局再判定（审查M1+minor5：刷新落在封顶揭示/末张牌窗口 → 强制按 SPEC 结算，不可绕过） */
+        if (S.pot >= S.stake * CAPX) endRound('cap');
+        else if (S.deck.length === 0) endRound('deckout');
+      }
+    }
+  } catch (e) { }
+}
+function saveMain() {
+  try {
+    localStorage.setItem('g95_main', JSON.stringify({
+      gold: S.gold, best: S.best, bestPot: S.bestPot,
+      rounds: S.rounds, wins: S.wins, loses: S.loses, alms: S.alms
+    }));
+  } catch (e) { }
+}
+function saveProg() {
+  if (S.phase !== 'guessing' && S.phase !== 'flip' && S.phase !== 'reveal') return;
+  try {
+    localStorage.setItem('g95_prog', JSON.stringify({
+      stake: S.stake, cur: S.cur,
+      deckRest: S.deck.map(function (c) { return { r: c.r, s: c.s }; }),
+      pot: S.pot, streak: S.streak, opened: S.opened,
+      belt: S.belt.map(function (c) { return { r: c.r, s: c.s }; })
+    }));
+  } catch (e) { }
+}
+function clearProg() { try { localStorage.removeItem('g95_prog'); } catch (e) { } }
+
+/* ===== 音效（AC 手势内懒建+恢复态一次性 wake 自摘） ===== */
+function ensureAC() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { } }
+  if (AC && AC.state === 'suspended') AC.resume();
+}
+function tone(f, d, type, vol, when) {
+  if (!S.snd || !AC) return;
+  var t0 = AC.currentTime + (when || 0);
+  var o = AC.createOscillator(), g = AC.createGain();
+  o.type = type || 'sine'; o.frequency.value = f;
+  g.gain.setValueAtTime(vol || 0.12, t0);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + d);
+  o.connect(g); g.connect(AC.destination);
+  o.start(t0); o.stop(t0 + d + 0.02);
+}
+function sndFlip() {                        /* 翻牌 whoosh：短噪声（方波扫频近似） */
+  if (!S.snd || !AC) return;
+  var t0 = AC.currentTime;
+  var o = AC.createOscillator(), g = AC.createGain();
+  o.type = 'square'; o.frequency.setValueAtTime(1400, t0);
+  o.frequency.exponentialRampToValueAtTime(300, t0 + 0.06);
+  g.gain.setValueAtTime(0.05, t0);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.06);
+  o.connect(g); g.connect(AC.destination); o.start(t0); o.stop(t0 + 0.08);
+}
+function sndWin() { tone(660, 0.09, 'sine', 0.12, 0); tone(880, 0.14, 'sine', 0.12, 0.09); }
+function sndLose() { tone(180, 0.25, 'square', 0.09, 0); }
+function sndBank() { tone(1320, 0.07, 'sine', 0.1, 0); tone(1320, 0.07, 'sine', 0.1, 0.09); tone(1320, 0.12, 'sine', 0.1, 0.18); }
+function sndGong() { tone(220, 0.8, 'sine', 0.16, 0); tone(221.5, 0.8, 'sine', 0.08, 0); }
+function wake() {
+  ensureAC();
+  document.removeEventListener('pointerdown', wake);
+}
+function sndOnRestore() {
+  if (S.snd) document.addEventListener('pointerdown', wake);
+}
+
+/* ===== 牌楼流程 ===== */
+function flash(t) { S.flashTxt = t; S.flashT = 110; }
+function beginRound(stake) {               /* 开局共核（扣注+洗牌+首牌+存档） */
+  S.stake = stake; S.gold -= stake; S.rounds++;
+  S.deck = shuffle(mkFull());
+  S.cur = S.deck.shift(); S.opened = 1; S.last = null;
+  S.belt = [S.cur]; S.pot = stake; S.streak = 0;
+  S.phase = 'guessing'; S.lay = null;
+  saveMain(); saveProg();
+}
+function startRound(stake) {
+  if (S.phase !== 'idle') return false;
+  if (STAKES.indexOf(stake) < 0) return false;
+  if (S.gold < stake) { flash('金库不足'); return false; }
+  beginRound(stake);
+  return true;
+}
+function guess(dir) {                      /* 翻一张走完整判定（账务即时落定） */
+  if (S.phase !== 'guessing' || S.deck.length === 0 || S.pot >= capOf()) return null;   /* 审查M1：达封顶禁猜 */
+  var c = S.deck.shift(); S.opened++;
+  var win = dir === 'hi' ? c.r > S.cur.r : c.r < S.cur.r;   /* 同点（=）判错 */
+  var prevCur = S.cur;
+  S.last = c; S.cur = c; S.belt.push(c); if (S.belt.length > 5) S.belt.shift();
+  S.pendingWin = win; S.phase = 'flip'; S.flipT = 0; S.revealDir = dir;
+  if (win) { S.streak++; S.pot = Math.min(S.pot * 2, capOf()); S.wins++; saveMain(); saveProg(); }
+  else { S.loses++; saveMain(); clearProg(); }   /* 输局 prog 立即失效（防刷新复活） */
+  sndFlip();
+  return { card: { r: c.r, s: c.s }, rank: c.r, prevRank: prevCur.r, win: win, pot: S.pot, streak: S.streak, phase: S.phase };
+}
+function endRound(kind, gain) {            /* 四终态唯一出口（收手/猜错/封顶/牌尽） */
+  var g = gain || 0;
+  if (kind === 'bank') g = S.streak >= 1 ? S.pot : S.stake;    /* streak=0 退注 */
+  if (kind === 'cap' || kind === 'deckout') g = S.pot;
+  if (g > 0) S.gold += g;
+  S.endGain = g;
+  if (S.streak > S.best) S.best = S.streak;
+  if (g > S.bestPot) S.bestPot = g;
+  S.phase = 'end'; S.endKind = kind; S.endT = 0;
+  clearProg(); saveMain();
+  if (kind === 'bank') sndBank(); else if (kind === 'cap') sndGong();
+}
+function bank() {
+  if (S.phase !== 'guessing') return null;
+  endRound('bank');
+  return S.endGain;
+}
+function alms() {
+  if (S.phase !== 'idle' || S.gold >= STAKES[0]) return false;
+  S.gold += 100; S.alms++; saveMain();
+  flash('盘缠 +100');
+  return true;
+}
+function endTick() {                       /* end 结束回 idle（清轮内字段） */
+  S.phase = 'idle'; S.pot = 0; S.streak = 0;
+  S.deck = []; S.cur = null; S.last = null; S.belt = []; S.opened = 0;
+}
+
+/* ===== 结算表 ===== */
+function tableData() {
+  var rows = [], k;
+  for (k = 0; k <= 8; k++) rows.push({ k: k, mult: Math.pow(2, k), amt: Math.min(S.stake * Math.pow(2, k), S.stake * CAPX) });   /* k=8 显示钳后值（审查minor4） */
+  rows.push({ k: '封顶', mult: CAPX, amt: S.stake * CAPX });
+  return { rows: rows, best: S.best, stake: S.stake };
+}
+function fillTable() {
+  var t = tableData(), h = '';
+  for (var i = 0; i < t.rows.length; i++) {
+    var r = t.rows[i];
+    h += '<tr' + (r.k === '封顶' ? ' class="cap-row"' : '') + '><td>' +
+      (r.k === '封顶' ? '封顶' : ('连对 ' + r.k)) + '</td><td>×' + r.mult +
+      '</td><td class="r">◇' + r.amt + '</td></tr>';
+  }
+  h += '</table><div class="sub">历史最长连对 ' + t.best + ' ／ 当前档 ◇' + t.stake + '</div>';
+  document.getElementById('tbl-body').innerHTML = '<table>' + h;
+}
+
+/* ===== 绘制 ===== */
+var cv = document.getElementById('cv'), fg = cv.getContext('2d');
+function rr(x, y, w, h, r) {
+  fg.beginPath();
+  fg.moveTo(x + r, y);
+  fg.arcTo(x + w, y, x + w, y + h, r); fg.arcTo(x + w, y + h, x, y + h, r);
+  fg.arcTo(x, y + h, x, y, r); fg.arcTo(x, y, x + w, y, r);
+  fg.closePath();
+}
+function suitCol(s) { return (s === 1 || s === 2) ? '#b03a2a' : '#3a3a3a'; }
+function drawCardFace(x, y, w, h, c, sx) {   /* sx=水平缩放（翻牌动画） */
+  var cx = x + w / 2;
+  fg.save();
+  fg.translate(cx, y); if (sx !== undefined) fg.scale(sx, 1); fg.translate(-cx, -y);
+  fg.fillStyle = '#faf6ec'; rr(x, y, w, h, 9); fg.fill();
+  fg.strokeStyle = '#c9b98f'; fg.lineWidth = 1.5; fg.stroke();
+  var col = suitCol(c.s);
+  fg.fillStyle = col; fg.textAlign = 'left'; fg.textBaseline = 'top';
+  fg.font = 'bold 17px sans-serif';
+  fg.fillText(RANKS[c.r - 2], x + 7, y + 7);
+  fg.font = '15px sans-serif';
+  fg.fillText(SUITS[c.s], x + 7, y + 27);
+  fg.font = '44px sans-serif'; fg.textAlign = 'center'; fg.textBaseline = 'middle';
+  fg.fillText(SUITS[c.s], x + w / 2, y + h / 2 + 6);
+  fg.font = 'bold 15px sans-serif'; fg.textAlign = 'right'; fg.textBaseline = 'bottom';
+  fg.save(); fg.translate(x + w - 7, y + h - 7); fg.rotate(Math.PI);
+  fg.textAlign = 'left'; fg.textBaseline = 'top';
+  fg.fillText(RANKS[c.r - 2], 0, 0); fg.font = '13px sans-serif'; fg.fillText(SUITS[c.s], 0, 18);
+  fg.restore();
+  fg.restore();
+}
+function drawCardBack(x, y, w, h, sx) {
+  var cx = x + w / 2;
+  fg.save();
+  fg.translate(cx, y); if (sx !== undefined) fg.scale(sx, 1); fg.translate(-cx, -y);
+  fg.fillStyle = '#b03a2a'; rr(x, y, w, h, 9); fg.fill();
+  fg.strokeStyle = '#8a2a1e'; fg.lineWidth = 2; fg.stroke();
+  fg.strokeStyle = 'rgba(250,246,236,.55)'; fg.lineWidth = 1;
+  rr(x + 6, y + 6, w - 12, h - 12, 6); fg.stroke();
+  fg.font = 'bold 20px serif'; fg.fillStyle = 'rgba(250,246,236,.85)';
+  fg.textAlign = 'center'; fg.textBaseline = 'middle';
+  fg.fillText('牌', x + w / 2, y + h / 2);
+  fg.restore();
+}
+function drawArch() {                          /* 牌楼匾额 */
+  fg.strokeStyle = '#b03a2a'; fg.lineWidth = 5; fg.lineCap = 'round';
+  fg.beginPath(); fg.moveTo(52, 126); fg.lineTo(52, 96); fg.lineTo(338, 96); fg.lineTo(338, 126); fg.stroke();
+  fg.lineWidth = 3;
+  fg.beginPath(); fg.moveTo(62, 96); fg.lineTo(328, 96); fg.stroke();
+  fg.lineWidth = 4;
+  fg.beginPath(); fg.moveTo(60, 96); fg.lineTo(46, 78); fg.moveTo(330, 96); fg.lineTo(344, 78);
+  fg.moveTo(40, 78); fg.lineTo(350, 78); fg.stroke();
+  fg.fillStyle = '#b03a2a'; rr(140, 100, 110, 24, 4); fg.fill();
+  fg.fillStyle = '#faf6ec'; fg.font = 'bold 15px serif';
+  fg.textAlign = 'center'; fg.textBaseline = 'middle';
+  fg.fillText('高低牌楼', 195, 112.5);
+}
+function draw() {
+  fg.fillStyle = '#efe8d8'; fg.fillRect(0, 0, 390, 844);
+  /* 桌毡 */
+  fg.fillStyle = '#5d7a5a'; rr(20, 136, 350, 300, 16); fg.fill();
+  fg.strokeStyle = '#4a6350'; fg.lineWidth = 2; fg.stroke();
+  /* HUD */
+  fg.fillStyle = '#8a6f14'; fg.font = 'bold 16px sans-serif'; fg.textAlign = 'left'; fg.textBaseline = 'middle';
+  fg.fillText('金库 ◇ ' + S.gold, 16, 32);
+  drawArch();
+  /* 已翻牌带 */
+  for (var i = 0; i < S.belt.length; i++) {
+    var bx = 62 + i * 44;
+    drawCardFace(bx, 148, 36, 52, S.belt[i]);
+  }
+  if (S.belt.length === 0 && S.phase === 'idle') {
+    fg.fillStyle = 'rgba(250,246,236,.4)'; fg.font = '12px sans-serif'; fg.textAlign = 'center';
+    fg.fillText('—— 翻开的牌 ——', 195, 174);
+  }
+  /* 当前牌（翻牌动画 scaleX 1→0→1，第 9 帧换面） */
+  if (S.cur && S.phase !== 'idle') {
+    var CW = 140, CH = 200, cxx = 195 - CW / 2, cyy = 200;
+    if (S.phase === 'flip') {
+      var t = S.flipT / FLIP_F;                       /* 0→1 */
+      var sx = Math.abs(Math.cos(Math.PI * t));
+      if (sx < 0.04) sx = 0.04;
+      if (t < 0.5) drawCardFace(cxx, cyy, CW, CH, S.last ? S.belt[S.belt.length - 2] || S.cur : S.cur, sx);
+      else drawCardFace(cxx, cyy, CW, CH, S.cur, sx);
+    } else {
+      drawCardFace(cxx, cyy, CW, CH, S.cur);
+    }
+    /* 牌下注点 */
+    fg.fillStyle = '#5a4a33'; fg.font = '13px sans-serif'; fg.textAlign = 'center'; fg.textBaseline = 'top';
+    if (S.phase === 'guessing') fg.fillText('这张算「大」还是「小」？', 195, 412);
+  }
+  /* 概率条 */
+  if (S.phase === 'guessing' || S.phase === 'flip' || S.phase === 'reveal') {
+    var P = pHL(), bx0 = 40, bw = 310;
+    if (P.N === 0) {
+      fg.fillStyle = '#b9ad93'; rr(bx0, 442, bw, 14, 7); fg.fill();
+      fg.fillStyle = '#8a7f66'; fg.font = '12px sans-serif'; fg.textAlign = 'center'; fg.textBaseline = 'top';
+      fg.fillText('牌堆已尽', 195, 462);
+    } else {
+      var wL = bw * P.pLow, wT = bw * P.pTie, wH = bw * P.pHigh;
+      fg.fillStyle = '#6a7a8a'; rr(bx0, 442, Math.max(0, wL), 14, 7); fg.fill();
+      if (wT > 0.5) { fg.fillStyle = '#d9b078'; fg.fillRect(bx0 + wL, 442, wT, 14); }
+      if (wH > 0.5) { fg.fillStyle = '#b03a2a'; fg.fillRect(bx0 + wL + wT, 442, wH, 14); }
+      fg.strokeStyle = '#c9b98f'; fg.lineWidth = 1; rr(bx0, 442, bw, 14, 7); fg.stroke();
+      fg.font = '12px sans-serif'; fg.textBaseline = 'top';
+      fg.fillStyle = '#6a7a8a'; fg.textAlign = 'left';
+      fg.fillText('小 ' + (P.pLow * 100).toFixed(0) + '%', bx0, 462);
+      fg.fillStyle = '#a08428'; fg.textAlign = 'center';
+      fg.fillText('同 ' + (P.pTie * 100).toFixed(0) + '% ／ 剩 ' + P.N + ' 张', 195, 462);
+      fg.fillStyle = '#b03a2a'; fg.textAlign = 'right';
+      fg.fillText('大 ' + (P.pHigh * 100).toFixed(0) + '%', bx0 + bw, 462);
+    }
+  }
+  /* reveal 闪显 */
+  if (S.phase === 'reveal') {
+    var a = 1 - Math.abs(S.revealT / REVEAL_F - 0.5) * 2;
+    fg.save(); fg.globalAlpha = 0.25 + 0.75 * a;
+    fg.fillStyle = S.pendingWin ? '#2e5b34' : '#7d2519';
+    fg.font = 'bold 40px sans-serif'; fg.textAlign = 'center'; fg.textBaseline = 'middle';
+    fg.fillText(S.pendingWin ? '对！' : '错…', 195, 300);
+    if (S.pendingWin) {
+      fg.font = 'bold 18px sans-serif';
+      fg.fillText('注金翻番 ◇' + S.pot, 195, 345);
+    }
+    fg.restore();
+  }
+  /* end 结局卡（遮罩自 y=208 起——完整露出已翻牌带，VLM 目检修正） */
+  if (S.phase === 'end') {
+    fg.fillStyle = 'rgba(60,50,35,.35)'; fg.fillRect(0, 208, 390, 252);
+    fg.fillStyle = '#f7f0e3'; rr(45, 228, 300, 204, 14); fg.fill();
+    fg.strokeStyle = '#c9a227'; fg.lineWidth = 3; fg.stroke();
+    fg.textAlign = 'center'; fg.textBaseline = 'middle';
+    var title = { bank: '落袋为安', lose: '折了', cap: '牌楼封顶', deckout: '牌堆已尽' }[S.endKind] || '';
+    fg.fillStyle = '#7d2519'; fg.font = 'bold 26px serif';
+    fg.fillText(title, 195, 274);
+    fg.font = 'bold 22px sans-serif';
+    if (S.endKind === 'lose') {
+      fg.fillStyle = '#6a5b45'; fg.fillText('◇' + S.stake + ' 注金散了', 195, 326);
+      fg.font = '14px sans-serif'; fg.fillStyle = '#8a7f66';
+      fg.fillText('连对 ' + S.streak + ' 止步', 195, 364);
+    } else {
+      fg.fillStyle = '#8a6f14'; fg.fillText('落袋 ◇' + S.endGain, 195, 326);
+      fg.font = '14px sans-serif'; fg.fillStyle = '#8a7f66';
+      fg.fillText('连对 ' + S.streak + ' ／ 点任意处再开', 195, 364);
+    }
+    fg.font = '12px sans-serif'; fg.fillStyle = '#b9ad93';
+    fg.fillText('(' + Math.round((1 - S.endT / END_F) * 100) + ')', 195, 412);
+  }
+  /* 本轮信息 */
+  if (S.phase !== 'idle') {
+    fg.fillStyle = '#5a4a33'; fg.font = '14px sans-serif'; fg.textAlign = 'center'; fg.textBaseline = 'middle';
+    fg.fillText('连对 ' + S.streak + ' ／ ◇' + S.stake + '×2^' + S.streak + ' ＝ ◇' + Math.min(S.stake * Math.pow(2, S.streak), capOf()), 195, 660);
+    if (S.pot >= capOf() && S.stake > 0) {
+      fg.fillStyle = '#b03a2a'; fg.font = 'bold 13px sans-serif';
+      fg.fillText('已达封顶 ×' + CAPX, 195, 684);
+    }
+  } else {
+    fg.fillStyle = '#8a7f66'; fg.font = '13px sans-serif'; fg.textAlign = 'center'; fg.textBaseline = 'middle';
+    fg.fillText('选注开局，猜对翻番，随时收手落袋', 195, 660);
+    fg.fillText('同点数判输——牌楼的规矩', 195, 684);
+  }
+  /* flash */
+  if (S.flashT > 0) {
+    var fa2 = Math.min(1, S.flashT / 30);
+    fg.fillStyle = 'rgba(122,94,45,' + (0.9 * fa2) + ')';
+    rr(95, 712, 200, 34, 8); fg.fill();
+    fg.fillStyle = '#faf6ec'; fg.font = '14px sans-serif'; fg.textAlign = 'center'; fg.textBaseline = 'middle';
+    fg.fillText(S.flashTxt, 195, 729);
+  }
+}
+function updHud() {
+  var idle = S.phase === 'idle';
+  document.getElementById('btn-start').style.display = idle ? '' : 'none';
+  document.getElementById('btn-lo').style.display = idle ? 'none' : '';
+  document.getElementById('btn-hi').style.display = idle ? 'none' : '';
+  document.getElementById('btn-bank').style.display = idle ? 'none' : '';
+  var d = S.phase !== 'guessing';
+  document.getElementById('btn-lo').disabled = d;
+  document.getElementById('btn-hi').disabled = d;
+  document.getElementById('btn-bank').disabled = d;
+  document.getElementById('btn-stake').textContent = '注 ◇' + S.stake;
+  document.getElementById('btn-alms').style.display = (idle && S.gold < STAKES[0]) ? '' : 'none';
+  document.getElementById('btn-snd').textContent = S.snd ? '🔊' : '🔇';
+}
+
+/* ===== 主循环 ===== */
+function step() {
+  if (S.flashT > 0) S.flashT--;
+  if (S.phase === 'flip') {
+    S.flipT++;
+    if (S.flipT >= FLIP_F) {
+      if (S.pendingWin) { S.phase = 'reveal'; S.revealT = 0; if (S.snd) sndWin(); }
+      else { endRound('lose'); if (S.snd) sndLose(); }
+    }
+  } else if (S.phase === 'reveal') {
+    S.revealT++;
+    if (S.revealT >= REVEAL_F) {
+      if (S.pot >= capOf() && S.stake > 0) endRound('cap');
+      else if (S.deck.length === 0) endRound('deckout');
+      else { S.phase = 'guessing'; saveProg(); }
+    }
+  } else if (S.phase === 'end') {
+    S.endT++;
+    if (S.endT >= END_F) { endTick(); }
+  }
+  updHud();
+}
+function loop() {
+  step();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+/* ===== 事件 ===== */
+function onBtn(id, fn) {
+  document.getElementById(id).addEventListener('click', function (e) {
+    if (e.preventDefault) e.preventDefault();
+    fn();
+  });
+}
+onBtn('btn-snd', function () {
+  S.snd = S.snd ? 0 : 1;
+  try { localStorage.setItem('g95_snd', S.snd ? '1' : '0'); } catch (e) { }
+  if (S.snd) { ensureAC(); } else if (AC) { try { AC.suspend(); } catch (e) { } }
+});
+onBtn('btn-start', function () { if (!startRound(S.stake)) { } });
+onBtn('btn-stake', function () {
+  if (S.phase !== 'idle') { flash('轮中锁注'); return; }
+  var i = STAKES.indexOf(S.stake);
+  S.stake = STAKES[(i + 1) % STAKES.length];
+});
+onBtn('btn-lo', function () { guess('lo'); });
+onBtn('btn-hi', function () { guess('hi'); });
+onBtn('btn-bank', function () { bank(); });
+onBtn('btn-table', function () { fillTable(); document.getElementById('lay-table').classList.remove('hide'); S.lay = 'table'; });
+onBtn('table-close', function () {
+  document.getElementById('lay-table').classList.add('hide'); S.lay = null;
+});
+onBtn('btn-alms', function () { alms(); });
+document.getElementById('lay-table').addEventListener('click', function (e) {
+  if (e.target === this) { this.classList.add('hide'); S.lay = null; }
+});
+cv.addEventListener('pointerdown', function (e) {
+  if (S.phase === 'end') { endTick(); return; }         /* 结局卡点任意处跳过 */
+});
+document.addEventListener('visibilitychange', function () {
+  if (document.hidden) { saveMain(); if (S.phase === 'guessing' || S.phase === 'flip' || S.phase === 'reveal') saveProg(); }
+});
+
+/* ===== boot ===== */
+loadAll();
+sndOnRestore();
+updHud();
+requestAnimationFrame(loop);
+
+
+</script>
+</body>
+</html>
