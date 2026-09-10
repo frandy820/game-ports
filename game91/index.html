@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>檐下风铃</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:#efe8d8;font-family:"PingFang SC","Microsoft YaHei",sans-serif;overflow:hidden}
+#app{position:relative;width:390px;height:844px;max-width:100vw;margin:0 auto;background:#efe8d8;overflow:hidden}
+#cv{position:absolute;left:0;top:0;width:390px;height:844px}
+#hud{position:absolute;left:0;right:0;top:96px;display:flex;align-items:center;gap:8px;padding:0 14px;z-index:4}
+.pill{background:rgba(255,252,244,.92);border:1px solid #d8ccb2;border-radius:14px;padding:3px 10px;font-size:12px;color:#6b5d45;box-shadow:0 1px 2px rgba(60,50,30,.08)}
+#btn-snd{margin-left:auto;width:32px;height:32px;border-radius:50%;border:1px solid #d8ccb2;background:rgba(255,252,244,.92);font-size:15px;line-height:30px;text-align:center;color:#6b5d45;cursor:pointer}
+#tip{position:absolute;left:0;right:0;top:596px;text-align:center;font-size:11px;color:#9a8c6e;z-index:3;letter-spacing:1px}
+#flash{position:absolute;left:50%;top:132px;transform:translateX(-50%);background:rgba(90,70,50,.92);color:#fff;font-size:13px;padding:6px 14px;border-radius:16px;z-index:6;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
+#flash.show{opacity:1}
+#btnrow{position:absolute;left:0;right:0;bottom:16px;display:flex;gap:12px;padding:0 20px;z-index:4}
+.abtn{flex:1;height:44px;border-radius:22px;border:1px solid #c9b791;background:rgba(255,252,244,.95);color:#5a4c33;font-size:15px;letter-spacing:2px;cursor:pointer;box-shadow:0 2px 6px rgba(60,50,30,.12)}
+.abtn:active{transform:translateY(1px)}
+.lay{position:absolute;inset:0;background:rgba(23,19,16,.55);z-index:8;display:flex;align-items:center;justify-content:center}
+.lay.hide{display:none}
+.card{width:330px;max-height:640px;background:#faf5e8;border-radius:16px;border:1px solid #d8ccb2;padding:18px 16px;box-shadow:0 8px 30px rgba(20,15,8,.35);overflow-y:auto}
+.card h3{text-align:center;font-size:17px;color:#4a3b26;letter-spacing:3px;margin-bottom:4px}
+.card .sub{text-align:center;font-size:11px;color:#9a8c6e;margin-bottom:12px;letter-spacing:1px}
+.cbtn{display:block;width:140px;height:38px;margin:12px auto 0;border-radius:19px;border:1px solid #c9b791;background:#e8dcc0;color:#5a4c33;font-size:14px;letter-spacing:3px;cursor:pointer}
+.cbtn:active{background:#dccfa9}
+#galgrid{display:grid;grid-template-columns:repeat(1,1fr);gap:8px}
+.gcell{background:#f2ead6;border:1px solid #e2d6ba;border-radius:10px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between}
+.gcell .gn{font-size:14px;color:#5a4c33;letter-spacing:1px}
+.gcell .gs{font-size:13px;color:#c98a2e;letter-spacing:2px}
+.gcell.no .gn{color:#b7a98a}
+.gcell.no .gs{color:#c9bda0}
+#pickrow{display:flex;flex-direction:column;gap:8px}
+.pitem{background:#f2ead6;border:1px solid #e2d6ba;border-radius:12px;padding:10px 14px;cursor:pointer;display:flex;align-items:center;justify-content:space-between}
+.pitem:active{background:#e8dcc0}
+.pitem .pn{font-size:15px;color:#5a4c33;letter-spacing:1px}
+.pitem .pm{font-size:11px;color:#9a8c6e;margin-left:8px}
+.pitem .ps{font-size:12px;color:#c98a2e;letter-spacing:2px;margin-left:auto}
+#endq{text-align:center;font-size:14px;color:#5a4c33;line-height:1.9;margin:8px 0 2px}
+#endstars{text-align:center;font-size:30px;color:#c98a2e;letter-spacing:6px;margin:6px 0 2px}
+#btnrow2{display:flex;gap:10px;justify-content:center}
+#btnrow2 .cbtn{width:120px;margin:10px auto 0}
+</style>
+</head>
+<body>
+<div id="app">
+<canvas id="cv" width="390" height="844"></canvas>
+<div id="hud">
+ <div class="pill" id="hc">曲卡 0/5</div>
+ <div class="pill" id="hp">今日 0</div>
+ <div id="btn-snd">🔇</div>
+</div>
+<div id="tip">点敲铜管 · 听风铃 · 跟曲收卡</div>
+<div id="flash"></div>
+<div id="btnrow">
+ <button class="abtn" id="btn-gal">曲 卡</button>
+ <button class="abtn" id="btn-pick">选 曲</button>
+</div>
+<div class="lay hide" id="lay-gal"><div class="card">
+ <h3>檐 下 曲 谱</h3><div class="sub" id="galsub">已收 0 / 5</div>
+ <div id="galgrid"></div>
+ <button class="cbtn" id="gal-close">合 上</button>
+</div></div>
+<div class="lay hide" id="lay-pick"><div class="card">
+ <h3>选 曲 跟 弹</h3><div class="sub">按谱面顺序点敲铜管 · 完整收卡</div>
+ <div id="pickrow"></div>
+ <button class="cbtn" id="pick-close">合 上</button>
+</div></div>
+<div class="lay hide" id="lay-end"><div class="card">
+ <h3 id="ename">曲 终</h3>
+ <div id="endq"></div>
+ <div id="endstars"></div>
+ <div id="endnote" style="text-align:center;font-size:11px;color:#9a8c6e"></div>
+ <div id="btnrow2">
+  <button class="cbtn" id="end-replay">再来一遍</button>
+  <button class="cbtn" id="end-pick">换一曲</button>
+ </div>
+</div></div>
+<script>
+'use strict';
+/* ===== 数据表（SPEC 单源）===== */
+var FREQ=[261.63,293.66,329.63,349.23,392.00,440.00,493.88,523.25];
+var TAGS=['1','2','3','4','5','6','7','1.'];
+var SONGS=[
+ {n:'小星星',bpm:90,ns:[0,0,4,4,5,5,4,3,3,2,2,1,1,0],ds:[1,1,1,1,1,1,2,1,1,1,1,1,1,2]},
+ {n:'两只老虎',bpm:100,ns:[0,1,2,0,0,1,2,0,2,3,4,2,3,4],ds:[1,1,1,1,1,1,1,1,1,1,2,1,1,2]},
+ {n:'沧海一声笑',bpm:80,ns:[5,4,2,1,0,5,4,2,1,0],ds:[1,1,1,1,2,1,1,1,1,2]},
+ {n:'茉莉花',bpm:72,ns:[2,2,4,5,7,4,5,4],ds:[1,1,1,1,2,1,1,2]},
+ {n:'世上只有妈妈好',bpm:66,ns:[5,4,2,4,5,7,5,4,5,4,2,1,0],ds:[1,1,1,1,1,1,2,1,1,1,1,1,2]}
+];
+var PART_CH=['♪','♫','♬'];
+var K_SND='g91_snd',K_CARDS='g91_cards',K_STARS='g91_stars',K_TODAY='g91_today',K_DAY='g91_day';
+
+/* ===== 状态 ===== */
+var S={snd:false,mode:'free',lay:null,songIdx:-1,cur:0,err:0,combo:0,maxCombo:0,sumScore:0,tCur:0,
+ cards:[],stars5:[0,0,0,0,0],today:0,day:'',parts:[],pipes:[],flashEnd:false};
+var RS=1, frame=0, AC=null, FLSH=null;
+for(var pi=0;pi<8;pi++)S.pipes.push({ang:0,va:0});
+function rnd(){RS=(Math.imul(RS,1103515245)+12345)>>>0;return (RS>>>8)/16777216;}
+function $(id){return document.getElementById(id);}
+function pipeL(i){return 168-i*11;}
+function pipeX(i){return 44+i*43;}
+
+/* ===== 存档 ===== */
+function todayStr(){var d=new Date();return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();}
+function saveAll(){try{
+ localStorage.setItem(K_SND,S.snd?'1':'0');
+ localStorage.setItem(K_CARDS,S.cards.join(','));
+ localStorage.setItem(K_STARS,S.stars5.join(','));
+ localStorage.setItem(K_TODAY,String(S.today));
+ localStorage.setItem(K_DAY,S.day);
+}catch(e){}}
+function loadAll(){
+ try{var sn=localStorage.getItem(K_SND); if(sn==='1')S.snd=true;}catch(e){}
+ try{var cd=localStorage.getItem(K_CARDS);
+  if(cd){var cs=cd.split(',').map(Number).filter(function(x){return x>=0&&x<5;});
+   var cs2=[];for(var i=0;i<cs.length;i++)if(cs2.indexOf(cs[i])<0)cs2.push(cs[i]);
+   S.cards=cs2;}}catch(e){}
+ try{var st=localStorage.getItem(K_STARS);
+  if(st){var ss=st.split(',').map(Number);
+   for(var j=0;j<5;j++){var v=ss[j];if(!(v>=0&&v<=3))v=0;S.stars5[j]=Math.floor(v);}}}catch(e){}
+ try{var td=localStorage.getItem(K_TODAY); if(td!==null)S.today=Math.max(0,Math.floor(+td||0));}catch(e){}
+ try{var dy=localStorage.getItem(K_DAY);
+  if(dy&&dy===todayStr()){}else{S.today=0;S.day=todayStr();}}catch(e){S.day=todayStr();}}
+function updHud(){
+ $('hc').textContent='曲卡 '+S.cards.length+'/5';
+ if(S.mode==='song'){var sg=SONGS[S.songIdx];
+  $('hp').textContent=S.cur+'/'+sg.ns.length+' · 连 '+S.combo;}
+ else $('hp').textContent='今日 '+S.today;}
+function flash(msg){var el=$('flash');el.textContent=msg;el.classList.add('show');
+ if(FLSH)clearTimeout(FLSH);FLSH=setTimeout(function(){el.classList.remove('show');},1800);}
+
+/* ===== 音效（默认静音；AC 手势内懒建）===== */
+function ensureAC(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){AC=null;}}}
+function chime(i){if(!S.snd||!AC)return;try{
+ var f=FREQ[i],dec=1.8-0.07*i,t=AC.currentTime;
+ var gains=[1,0.35,0.12],mults=[1,2.71,5.4];
+ for(var k=0;k<3;k++){
+  var o=AC.createOscillator(),g=AC.createGain();
+  o.type='sine';o.frequency.value=f*mults[k];
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.linearRampToValueAtTime(0.16*gains[k],t+0.005);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dec);
+  o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+dec);}}catch(e){}}
+function buzz(){if(!S.snd||!AC)return;try{
+ var t=AC.currentTime,o=AC.createOscillator(),g=AC.createGain();
+ o.type='triangle';o.frequency.value=120;
+ g.gain.setValueAtTime(0.10,t);g.gain.exponentialRampToValueAtTime(0.0001,t+0.12);
+ o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+0.12);}catch(e){}}
+function endPing(star){if(!S.snd||!AC)return;try{
+ var band=[523.25,587.33,659.25,783.99,880],n=Math.min(5,2+star);
+ for(var i=0;i<n;i++){(function(k){setTimeout(function(){
+  var t=AC.currentTime,o=AC.createOscillator(),g=AC.createGain();
+  o.type='sine';o.frequency.value=band[k];
+  g.gain.setValueAtTime(0.12,t);g.gain.exponentialRampToValueAtTime(0.0001,t+0.4);
+  o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+0.4);},k*130);})(i);}}catch(e){}}
+
+/* ===== 目标时刻（SPEC：target_i = PREP + Σ_{j<i} dur_j*B）===== */
+function beatOf(i){return 60/SONGS[i].bpm;}
+function targetOf(si,idx){var B=beatOf(si),t=2*B,sg=SONGS[si];
+ for(var j=0;j<idx;j++)t+=sg.ds[j]*B;return t;}
+
+/* ===== 敲管（单入口）===== */
+function hit(i){
+ if(i<0||i>=8)return false;
+ var p=S.pipes[i];
+ p.va+=(rnd()<.5?-1:1)*4;
+ S.parts.push({x:pipeX(i)+(rnd()-.5)*20,y:130+pipeL(i)*0.4,vy:-34-rnd()*26,a:1,ch:PART_CH[Math.floor(rnd()*3)]});
+ if(S.parts.length>24)S.parts.shift();
+ if(S.mode==='song'){
+  var sg=SONGS[S.songIdx];
+  if(i!==sg.ns[S.cur]){
+   S.err++;S.combo=0;buzz();updHud();chime(i);return true;}
+  var B=beatOf(S.songIdx),tgt=targetOf(S.songIdx,S.cur);
+  var e=Math.abs(S.tCur-tgt)/(sg.ds[S.cur]*B);
+  var sc;
+  if(e<=0.15)sc=1;else if(e<=0.40)sc=0.7;else if(e<=0.60)sc=0.4;else sc=0.1;
+  S.sumScore+=sc;S.combo++;
+  if(S.combo>S.maxCombo)S.maxCombo=S.combo;
+  S.cur++;chime(i);updHud();
+  if(S.cur>=sg.ns.length)finishSong();
+  return true;}
+ /* free：今日计数 */
+ S.today++;chime(i);updHud();
+ return true;}
+
+/* ===== 跟曲 ===== */
+function startSong(i){
+ if(i<0||i>=5)return false;
+ S.mode='song';S.songIdx=i;S.cur=0;S.err=0;S.combo=0;S.maxCombo=0;S.sumScore=0;S.tCur=0;
+ updHud();flash('《'+SONGS[i].n+'》· 跟着谱面点敲');
+ return true;}
+function toFree(){S.mode='free';S.songIdx=-1;S.cur=0;S.err=0;S.combo=0;S.maxCombo=0;S.sumScore=0;S.tCur=0;updHud();}
+function finishSong(){
+ var sg=SONGS[S.songIdx],len=sg.ns.length;
+ var acc=S.sumScore/len;
+ var star=acc>=0.95?3:(acc>=0.80?2:1);
+ var acc2=S.sumScore/(len+S.err);
+ var got=S.cards.indexOf(S.songIdx)<0;
+ if(got)S.cards.push(S.songIdx);
+ if(star>S.stars5[S.songIdx])S.stars5[S.songIdx]=star;
+ saveAll();updHud();
+ $('ename').textContent=sg.n;
+ $('endq').innerHTML='准确 '+Math.round(acc*100)+'%（含错 '+Math.round(acc2*100)+'%）<br>连击峰值 '+S.maxCombo+' · 敲错 '+S.err+' 次'+(got?'<br>收入曲谱！':'');
+ $('endstars').textContent='★★★'.slice(0,star)+'☆☆☆'.slice(0,3-star);
+ $('endnote').textContent=S.cards.length>=5?'五曲全收 · 檐下曲成':'已收 '+S.cards.length+' / 5 曲';
+ openLay('end');
+ endPing(star);
+ flash(got?'《'+sg.n+'》收卡 · '+'★★★'.slice(0,star):'《'+sg.n+'》'+'★★★'.slice(0,star));}
+
+/* ===== 步进 ===== */
+function step(dt){
+ /* 管摆动（弹簧衰减）*/
+ for(var i=0;i<8;i++){var p=S.pipes[i];
+  p.va+=(-14*p.ang-2.2*p.va)*dt;p.ang+=p.va*dt;
+  if(p.ang>0.6)p.ang=0.6;if(p.ang<-0.6)p.ang=-0.6;}
+ /* 粒子 */
+ for(var k=S.parts.length-1;k>=0;k--){var q=S.parts[k];
+  q.y+=q.vy*dt;q.a-=dt*0.7;if(q.a<=0)S.parts.splice(k,1);}
+ /* 跟曲时间轴 */
+ if(S.mode==='song')S.tCur+=dt;
+ S._acc=(S._acc||0)+dt;if(S._acc>=10){S._acc=0;saveAll();}
+ frame++;}
+
+/* ===== 绘制 ===== */
+var cvx=null;
+function draw(){
+ if(!cvx)cvx=$('cv').getContext('2d');
+ var g=cvx;
+ g.fillStyle='#efe8d8';g.fillRect(0,0,390,844);
+ /* 檐：横梁+瓦当+匾 */
+ g.fillStyle='#5a4632';g.fillRect(0,0,390,58);
+ g.fillStyle='#3f3122';g.fillRect(0,54,390,4);
+ for(var w=0;w<11;w++){g.fillStyle='#6a5640';g.beginPath();g.arc(24+w*36,58,7,0,6.283);g.fill();
+  g.fillStyle='#4a3a28';g.beginPath();g.arc(24+w*36,58,2.5,0,6.283);g.fill();}
+ g.fillStyle='#a03a2a';rr(g,142,66,106,26,5);g.fill();
+ g.strokeStyle='#7d2c1f';g.lineWidth=1.5;rr(g,142,66,106,26,5);g.stroke();
+ g.fillStyle='#f5df9a';g.font='13px sans-serif';g.textAlign='center';
+ g.fillText('檐 下 风 铃',195,83);g.textAlign='left';
+ /* 挂杆 */
+ g.fillStyle='#7a6448';rr(g,28,100,334,8,4);g.fill();
+ g.fillStyle='#5a4632';g.beginPath();g.arc(30,104,5,0,6.283);g.fill();g.beginPath();g.arc(360,104,5,0,6.283);g.fill();
+ /* 目标管索引（song）*/
+ var tgt=-1;
+ if(S.mode==='song'&&S.cur<SONGS[S.songIdx].ns.length)tgt=SONGS[S.songIdx].ns[S.cur];
+ /* 管（绕挂点摆动）*/
+ for(var i=0;i<8;i++){var p=S.pipes[i],L=pipeL(i),x=pipeX(i);
+  g.save();g.translate(x,104);g.rotate(p.ang);
+  /* 绳 */
+  g.strokeStyle='#8a7355';g.lineWidth=1.5;
+  g.beginPath();g.moveTo(0,4);g.lineTo(0,14);g.stroke();
+  /* 管身渐变 */
+  var lg=g.createLinearGradient(-9,0,9,0);
+  lg.addColorStop(0,'#8f6f42');lg.addColorStop(0.35,'#c9a86a');lg.addColorStop(1,'#d9bc82');
+  g.fillStyle=lg;rr(g,-9,14,18,L,6);g.fill();
+  g.strokeStyle='#6f5636';g.lineWidth=1;rr(g,-9,14,18,L,6);g.stroke();
+  /* 管口 */
+  g.strokeStyle='rgba(63,49,34,.6)';g.lineWidth=1.5;
+  g.beginPath();g.moveTo(-7,20);g.lineTo(7,20);g.stroke();
+  g.beginPath();g.moveTo(-7,14+L-6);g.lineTo(7,14+L-6);g.stroke();
+  /* 数字牌 */
+  g.fillStyle='#faf5e8';g.beginPath();g.arc(0,14+L+12,11,0,6.283);g.fill();
+  g.strokeStyle='#c9b791';g.lineWidth=1;g.beginPath();g.arc(0,14+L+12,11,0,6.283);g.stroke();
+  g.fillStyle='#5a4632';g.font=(i===7?'10px':'12px')+' sans-serif';g.textAlign='center';
+  g.fillText(i===7?'1·':TAGS[i],0,14+L+16);g.textAlign='left';
+  /* 目标管微光 */
+  if(i===tgt){var gl=0.45+0.35*Math.sin(frame*0.15);
+   g.strokeStyle='rgba(192,57,43,'+gl.toFixed(3)+')';g.lineWidth=4;
+   rr(g,-13,10,26,L+30,8);g.stroke();}
+  g.restore();}
+ /* 粒子 */
+ for(var q2=0;q2<S.parts.length;q2++){var pt=S.parts[q2];
+  g.fillStyle='rgba(184,134,11,'+Math.max(0,pt.a).toFixed(3)+')';
+  g.font='16px sans-serif';g.fillText(pt.ch,pt.x,pt.y);}
+ /* 谱面条（song） */
+ if(S.mode==='song'){
+  g.fillStyle='#faf5e8';rr(g,20,616,350,112,12);g.fill();
+  g.strokeStyle='#d8ccb2';g.lineWidth=1;rr(g,20,616,350,112,12);g.stroke();
+  var sg=SONGS[S.songIdx],len=sg.ns.length;
+  g.fillStyle='#9a8c6e';g.font='11px sans-serif';g.textAlign='center';
+  g.fillText('《'+sg.n+'》',195,636);g.textAlign='left';
+  for(var s2=0;s2<8;s2++){var idx=S.cur+s2;if(idx>=len)break;
+   var cx=50+s2*42,done=idx<S.cur,now=idx===S.cur;
+   if(now){g.fillStyle='#f7e3c8';g.beginPath();g.arc(cx,672,16,0,6.283);g.fill();
+    g.strokeStyle='#c0392b';g.lineWidth=2;g.beginPath();g.arc(cx,672,16,0,6.283);g.stroke();}
+   else if(done){g.fillStyle='#e2e8d8';g.beginPath();g.arc(cx,672,14,0,6.283);g.fill();}
+   else{g.fillStyle='#f2ead6';g.beginPath();g.arc(cx,672,14,0,6.283);g.fill();
+    g.strokeStyle='#d8ccb2';g.lineWidth=1;g.beginPath();g.arc(cx,672,14,0,6.283);g.stroke();}
+   g.fillStyle=now?'#c0392b':(done?'#8a9a7a':'#5a4632');
+   g.font=now?'bold 16px':'14px sans-serif';g.textAlign='center';
+   var lb=sg.ns[idx]===7?'1·':TAGS[sg.ns[idx]];
+   g.fillText(lb,cx,677);
+   if(sg.ds[idx]===2){g.strokeStyle=now?'#c0392b':'#9a8c6e';g.lineWidth=1.5;
+    g.beginPath();g.moveTo(cx-8,690);g.lineTo(cx+8,690);g.stroke();
+    g.beginPath();g.moveTo(cx-8,694);g.lineTo(cx+8,694);g.stroke();}
+   g.textAlign='left';}
+  /* 进度底线 */
+  g.fillStyle='#d8ccb2';g.fillRect(40,706,310,4);
+  g.fillStyle='#c98a2e';g.fillRect(40,706,310*S.cur/len,4);}
+}
+function rr(g,x,y,w,h,r){g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath();}
+
+/* ===== 浮层 ===== */
+function openLay(name){
+ if(S.lay===name)return;
+ if(S.lay)$('lay-'+S.lay).classList.add('hide');
+ S.lay=name;
+ if(name){$('lay-'+name).classList.remove('hide');
+  if(name==='gal')renderGal();
+  if(name==='pick')renderPick();}}
+function closeLay(){if(S.lay){$('lay-'+S.lay).classList.add('hide');S.lay=null;}}
+function starStr(n){return '★★★'.slice(0,n)+'☆☆☆'.slice(0,3-n);}
+function renderGal(){
+ $('galsub').textContent='已收 '+S.cards.length+' / 5'+(S.cards.length>=5?' · 檐下曲成':'');
+ var gr=$('galgrid');gr.innerHTML='';
+ for(var i=0;i<5;i++){
+  var cell=document.createElement('div');
+  var got=S.cards.indexOf(i)>=0;
+  cell.className='gcell'+(got?'':' no');
+  var nm=document.createElement('span');nm.className='gn';
+  nm.textContent=got?'《'+SONGS[i].n+'》':'？';
+  cell.appendChild(nm);
+  var st=document.createElement('span');st.className='gs';
+  st.textContent=got?starStr(S.stars5[i]):'—';
+  cell.appendChild(st);
+  gr.appendChild(cell);}}
+function renderPick(){
+ var row=$('pickrow');row.innerHTML='';
+ for(var i=0;i<5;i++){
+  var it=document.createElement('div');it.className='pitem';
+  var nm=document.createElement('span');nm.className='pn';nm.textContent=SONGS[i].n;
+  it.appendChild(nm);
+  var pm=document.createElement('span');pm.className='pm';
+  var secs=2*60/SONGS[i].bpm+SONGS[i].ds.reduce(function(a,b){return a+b;},0)*60/SONGS[i].bpm;
+  pm.textContent=SONGS[i].bpm+' 拍/分 · '+Math.round(secs)+' 秒 · '+SONGS[i].ns.length+' 音';
+  it.appendChild(pm);
+  var ps=document.createElement('span');ps.className='ps';
+  ps.textContent=S.cards.indexOf(i)>=0?starStr(S.stars5[i]):'未收';
+  it.appendChild(ps);
+  (function(idx){it.addEventListener('click',function(){
+   closeLay();startSong(idx);});})(i);
+  row.appendChild(it);}}
+
+/* ===== 事件 ===== */
+function bindEv(){
+ var cvEl=$('cv');
+ cvEl.addEventListener('pointerdown',function(e){
+  if(S.lay)return;
+  var r=cvEl.getBoundingClientRect();
+  var x=e.clientX-r.left,y=e.clientY-r.top;
+  var hitI=-1;
+  for(var i=0;i<8;i++){
+   var px=pipeX(i),L=pipeL(i);
+   if(Math.abs(x-px)<=16&&y>=110&&y<=118+L+26){hitI=i;break;}}
+  if(hitI>=0)hit(hitI);});
+ $('btn-snd').addEventListener('click',function(){
+  S.snd=!S.snd;try{localStorage.setItem(K_SND,S.snd?'1':'0');}catch(e2){}
+  $('btn-snd').textContent=S.snd?'🔊':'🔇';
+  if(S.snd){ensureAC();if(AC&&AC.state==='suspended'){try{AC.resume();}catch(e3){}}chime(4);}});
+ $('btn-gal').addEventListener('click',function(){
+  if(S.mode==='song'){flash('跟曲中 · 完成本曲再看');return;}
+  S.lay==='gal'?closeLay():openLay('gal');});
+ $('btn-pick').addEventListener('click',function(){
+  if(S.mode==='song')toFree();
+  S.lay==='pick'?closeLay():openLay('pick');});
+ $('gal-close').addEventListener('click',closeLay);
+ $('pick-close').addEventListener('click',closeLay);
+ $('end-replay').addEventListener('click',function(){closeLay();startSong(S.songIdx);});
+ $('end-pick').addEventListener('click',function(){closeLay();toFree();openLay('pick');});
+ window.addEventListener('pagehide',function(){try{saveAll();}catch(e){}});
+ document.addEventListener('visibilitychange',function(){
+  if(document.hidden){try{saveAll();}catch(e){}}});}
+
+/* ===== 主循环 ===== */
+var LT=0;
+function loop(ts){
+ var dt=Math.min(.05,(ts-LT)/1000||0);LT=ts;
+ step(dt);draw();
+ requestAnimationFrame(loop);}
+
+/* ===== boot ===== */
+(function boot(){
+ loadAll();
+ S.day=todayStr();
+ if(S.snd){$('btn-snd').textContent='🔊';
+  var wake=function(){ensureAC();
+   if(AC&&AC.state==='suspended'){try{AC.resume();}catch(e2){}}
+   document.removeEventListener('pointerdown',wake);};
+  document.addEventListener('pointerdown',wake);}
+ updHud();
+ bindEv();
+ draw();
+ requestAnimationFrame(loop);})();
+
+/* ===== DEV 钩子（构建剥除）===== */
+
+</script>
+</body>
+</html>
