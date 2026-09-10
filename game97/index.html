@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>古董开箱</title>
+<style>
+  html,body{margin:0;padding:0;background:#e8e0cd;overflow:hidden;height:100%;
+    font-family:"PingFang SC","Microsoft YaHei",sans-serif;-webkit-user-select:none;user-select:none;}
+  #cv{position:absolute;left:0;top:0;touch-action:none}
+  .btn{position:absolute;border:none;border-radius:10px;background:#b03a2a;color:#faf6ec;
+    font-size:16px;font-weight:600;letter-spacing:2px;box-shadow:0 3px 0 #7d2519;cursor:pointer;}
+  .btn:active{transform:translateY(2px);box-shadow:0 1px 0 #7d2519;}
+  .btn:disabled{opacity:.45;box-shadow:none;cursor:default;}
+  .btn.gold{background:#c9a227;box-shadow:0 3px 0 #8a6f14;}
+  .btn.gold:active{box-shadow:0 1px 0 #8a6f14;}
+  .btn.dim{background:#b9ad93;box-shadow:0 3px 0 #8a7f66;color:#f4eedd;}
+  .btn.small{font-size:13px;letter-spacing:1px;}
+  #btn-snd{position:absolute;right:10px;top:14px;width:38px;height:34px;border:none;border-radius:8px;
+    background:rgba(176,58,42,.14);font-size:17px;cursor:pointer;}
+</style>
+</head>
+<body>
+<canvas id="cv" width="390" height="844"></canvas>
+<button id="btn-snd">🔇</button>
+<button id="btn-dex" class="btn small dim" style="left:24px;top:624px;width:90px;height:44px;">图 鉴</button>
+<button id="btn-open" class="btn gold" style="left:130px;top:616px;width:150px;height:60px;font-size:19px;">开箱 ◇50</button>
+<button id="btn-alms" class="btn small dim" style="left:258px;top:778px;width:104px;height:40px;display:none;">盘缠+100</button>
+<script>
+'use strict';
+/* ===== 常量（规则层单源——与 SPEC 逐条对应） ===== */
+var COIN0 = 500, COST = 50, PITY_N = 20;
+var RAR = [
+  { name: '常见·陶', w: 680, n: 8, sell: 10 },
+  { name: '少见·瓷', w: 200, n: 6, sell: 25 },
+  { name: '稀有·铜', w: 90, n: 4, sell: 90 },
+  { name: '史诗·玉', w: 27, n: 2, sell: 400 },
+  { name: '传说·玺', w: 3, n: 1, sell: 2500 }
+];
+var RCOL = ['#a89878', '#6a9a72', '#5a7fa8', '#8a5aa8', '#c9a227'];
+/* 21 件图鉴（id 前缀档位序）——shape 为绘制形族，col 主色 */
+var ITEMS = [
+  { id: 'A01', name: '青瓷碗', r: 0, shape: 'bowl', col: '#9ab8a8' },
+  { id: 'A02', name: '陶罐', r: 0, shape: 'jar', col: '#b08a5a' },
+  { id: 'A03', name: '铜钱', r: 0, shape: 'coin', col: '#a08a3a' },
+  { id: 'A04', name: '木梳', r: 0, shape: 'comb', col: '#a07848' },
+  { id: 'A05', name: '瓷勺', r: 0, shape: 'spoon', col: '#d8cfc0' },
+  { id: 'A06', name: '陶砚', r: 0, shape: 'inkstone', col: '#8a7a6a' },
+  { id: 'A07', name: '笔洗', r: 0, shape: 'bowl', col: '#c0b8a8' },
+  { id: 'A08', name: '竹香插', r: 0, shape: 'spoon', col: '#9aa878' },
+  { id: 'B01', name: '青花盘', r: 1, shape: 'plate', col: '#7a9ab8' },
+  { id: 'B02', name: '玉佩', r: 1, shape: 'pendant', col: '#88b89a' },
+  { id: 'B03', name: '铜镜', r: 1, shape: 'mirror', col: '#b89a5a' },
+  { id: 'B04', name: '印玺', r: 1, shape: 'seal', col: '#9a8a78' },
+  { id: 'B05', name: '梅瓶', r: 1, shape: 'vase', col: '#8aa8b8' },
+  { id: 'B06', name: '铜炉', r: 1, shape: 'censer', col: '#a8864a' },
+  { id: 'C01', name: '三彩马', r: 2, shape: 'horse', col: '#b8a06a' },
+  { id: 'C02', name: '青花梅瓶', r: 2, shape: 'vase', col: '#5a8ab8' },
+  { id: 'C03', name: '错金铜壶', r: 2, shape: 'pot', col: '#b09a3a' },
+  { id: 'C04', name: '玉山子', r: 2, shape: 'mount', col: '#98c0a8' },
+  { id: 'D01', name: '秘色瓷', r: 3, shape: 'bowl', col: '#a8d0c0' },
+  { id: 'D02', name: '青铜爵', r: 3, shape: 'jue', col: '#6a8a5a' },
+  { id: 'E01', name: '传国玉玺', r: 4, shape: 'seal', col: '#e8d8a0' }
+];
+var OPEN_F = 45;
+
+/* ===== 状态 ===== */
+var S = {
+  coin: COIN0, phase: 'idle',            /* idle|opening|reveal */
+  coll: {}, pity: 0,
+  cur: null, openT: 0,                   /* cur=本局开出件索引 */
+  opens: 0, newGets: 0, dups: 0, alms: 0, done: 0,
+  snd: 0, flashT: 0, flashTxt: '', dex: 0, parts: []
+};
+var RS = (1 + Math.floor(Math.random() * 1e9)) % 2147483647;
+function rnd() { RS = (RS * 48271) % 2147483647; return (RS - 1) / 2147483646; }
+var AC = null;
+
+/* ===== 概率纯函数（SPEC 单源） ===== */
+function itemWeights() {                  /* 21 件单件权重（浮点） */
+  var ws = [];
+  for (var i = 0; i < ITEMS.length; i++) ws.push(RAR[ITEMS[i].r].w / RAR[ITEMS[i].r].n);
+  return ws;
+}
+function drawItem(u, force) {             /* u∈[0,1) → 件索引；force=保底稀有+ */
+  if (force) {
+    var tot = RAR[2].w + RAR[3].w + RAR[4].w, acc = 0, x = u * tot;
+    for (var i2 = 0; i2 < ITEMS.length; i2++) {
+      if (ITEMS[i2].r >= 2) { acc += RAR[ITEMS[i2].r].w / RAR[ITEMS[i2].r].n; if (x < acc) return i2; }
+    }
+    return ITEMS.length - 1;
+  }
+  var ws2 = itemWeights(), tot2 = 0, acc2 = 0, j;
+  for (j = 0; j < ws2.length; j++) tot2 += ws2[j];
+  var x2 = u * tot2;
+  for (j = 0; j < ws2.length; j++) { acc2 += ws2[j]; if (x2 < acc2) return j; }
+  return ws2.length - 1;
+}
+
+/* ===== 存档 ===== */
+function loadAll() {
+  var v;
+  try { v = localStorage.getItem('g97_snd'); if (v !== null) S.snd = (v === '1') ? 1 : 0; } catch (e) { }
+  try {
+    v = localStorage.getItem('g97_main');
+    if (v) {
+      var m = JSON.parse(v);
+      if (typeof m.coin === 'number' && m.coin >= 0 && m.coin < 1e12) S.coin = m.coin;
+      if (typeof m.opens === 'number' && m.opens >= 0) S.opens = m.opens;
+      if (typeof m.newGets === 'number' && m.newGets >= 0) S.newGets = m.newGets;
+      if (typeof m.dups === 'number' && m.dups >= 0) S.dups = m.dups;
+      if (typeof m.alms === 'number' && m.alms >= 0) S.alms = m.alms;
+      if (m.done === 1) S.done = 1;
+    }
+  } catch (e) { }
+  try {
+    v = localStorage.getItem('g97_prog');
+    if (v) {
+      var p2 = JSON.parse(v);
+      if (p2.coll && typeof p2.coll === 'object') {
+        for (var k in p2.coll) {
+          var fnd = false;
+          for (var q = 0; q < ITEMS.length; q++) if (ITEMS[q].id === k) { fnd = true; break; }
+          if (fnd && p2.coll[k] === 1) S.coll[k] = 1;
+        }
+      }
+      if (typeof p2.pity === 'number' && p2.pity >= 0 && p2.pity < PITY_N) S.pity = Math.floor(p2.pity);
+    }
+  } catch (e) { }
+}
+function saveMain() {
+  try {
+    localStorage.setItem('g97_main', JSON.stringify({
+      coin: S.coin, opens: S.opens, newGets: S.newGets, dups: S.dups, alms: S.alms, done: S.done
+    }));
+  } catch (e) { }
+}
+function saveProg() {
+  try { localStorage.setItem('g97_prog', JSON.stringify({ coll: S.coll, pity: S.pity })); } catch (e) { }
+}
+
+/* ===== 音效（AC 手势内懒建+恢复态一次性 wake 自摘） ===== */
+function ensureAC() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { } }
+  if (AC && AC.state === 'suspended') AC.resume();
+}
+function tone(f, d, type, vol, when) {
+  if (!S.snd || !AC) return;
+  var t0 = AC.currentTime + (when || 0);
+  var o = AC.createOscillator(), g = AC.createGain();
+  o.type = type || 'sine'; o.frequency.value = f;
+  g.gain.setValueAtTime(vol || 0.12, t0);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + d);
+  o.connect(g); g.connect(AC.destination);
+  o.start(t0); o.stop(t0 + d + 0.02);
+}
+function sndBox() {                       /* 开箱咔哒（短方波簇，Math.random 与游戏 LCG 分离） */
+  if (!S.snd || !AC) return;
+  for (var i = 0; i < 3; i++) tone(240 + Math.floor(Math.random() * 160), 0.02, 'square', 0.06, i * 0.06);
+}
+function sndReveal() { tone(660, 0.08, 'sine', 0.1, 0); tone(880, 0.08, 'sine', 0.1, 0.09); tone(1100, 0.12, 'sine', 0.1, 0.18); }
+function sndRare() { tone(1320, 0.09, 'sine', 0.1, 0); tone(1760, 0.14, 'sine', 0.09, 0.1); }
+function sndGong() { tone(220, 0.8, 'sine', 0.16, 0); tone(880, 0.5, 'sine', 0.06, 0.05); }
+function wake() {
+  ensureAC();
+  document.removeEventListener('pointerdown', wake);
+}
+function sndOnRestore() {
+  if (S.snd) document.addEventListener('pointerdown', wake);
+}
+
+/* ===== 流程 ===== */
+function flash(t) { S.flashTxt = t; S.flashT = 110; }
+function collCount() { var n = 0; for (var k in S.coll) n++; return n; }
+function openBox() {                      /* 开箱+即时落账（账务与表现分离） */
+  if (S.phase !== 'idle' || S.dex) return null;
+  if (S.coin < COST) { flash('钱不够开箱'); return null; }
+  var force = S.pity >= PITY_N - 1;       /* 连续 19 次无稀有+ → 本次强制 */
+  var idx = drawItem(rnd(), force);
+  var it = ITEMS[idx];
+  var isNew = !S.coll[it.id];
+  S.coin -= COST;
+  S.opens++;
+  if (isNew) { S.coll[it.id] = 1; S.newGets++; saveProg(); }
+  else { S.coin += RAR[it.r].sell; S.dups++; }
+  if (it.r >= 2) S.pity = 0; else S.pity++;
+  if (collCount() === ITEMS.length && !S.done) { S.done = 1; }
+  S.cur = idx; S.curNew = isNew;
+  S.phase = 'opening'; S.openT = 0;
+  saveMain(); saveProg();
+  sndBox();
+  return { idx: idx, id: it.id, name: it.name, r: it.r, isNew: isNew, force: force,
+           sell: RAR[it.r].sell, coin: S.coin, pity: S.pity };
+}
+function alms() {
+  if (S.phase !== 'idle' || S.dex || S.coin >= COST) return false;
+  S.coin += 100; S.alms++; saveMain();
+  flash('盘缠 +100');
+  return true;
+}
+function endReveal() { S.phase = 'idle'; S.cur = null; S.parts = []; }
+
+/* ===== 绘制 ===== */
+var cv = document.getElementById('cv'), fg = cv.getContext('2d');
+function rr(x, y, w, h, r) {
+  fg.beginPath();
+  fg.moveTo(x + r, y);
+  fg.arcTo(x + w, y, x + w, y + h, r); fg.arcTo(x + w, y + h, x, y + h, r);
+  fg.arcTo(x, y + h, x, y, r); fg.arcTo(x, y, x + w, y, r);
+  fg.closePath();
+}
+function drawRelic(x, y, sz, it) {        /* 古董小图（形族+主色） */
+  var m = sz / 40;
+  fg.save();
+  fg.translate(x + sz / 2, y + sz / 2);
+  fg.fillStyle = it.col; fg.strokeStyle = 'rgba(60,50,30,.55)'; fg.lineWidth = 1.2 * m;
+  switch (it.shape) {
+    case 'bowl':
+      fg.beginPath(); fg.moveTo(-14 * m, -6 * m); fg.quadraticCurveTo(0, 14 * m, 14 * m, -6 * m);
+      fg.lineTo(-14 * m, -6 * m); fg.closePath(); fg.fill(); fg.stroke();
+      fg.fillRect(-17 * m, -7 * m, 34 * m, 3 * m); break;
+    case 'jar':
+      fg.beginPath(); fg.moveTo(-4 * m, -15 * m); fg.quadraticCurveTo(-16 * m, -8 * m, -10 * m, 12 * m);
+      fg.lineTo(10 * m, 12 * m); fg.quadraticCurveTo(16 * m, -8 * m, 4 * m, -15 * m);
+      fg.closePath(); fg.fill(); fg.stroke(); break;
+    case 'coin':
+      fg.beginPath(); fg.arc(0, 0, 12 * m, 0, Math.PI * 2); fg.fill(); fg.stroke();
+      fg.beginPath(); fg.arc(0, 0, 5.5 * m, 0, Math.PI * 2); fg.stroke(); break;
+    case 'comb':
+      fg.fillRect(-13 * m, -13 * m, 26 * m, 5 * m);
+      for (var ci = 0; ci < 6; ci++) fg.fillRect((-12 + ci * 4.6) * m, -8 * m, 2 * m, 18 * m); break;
+    case 'spoon':
+      fg.beginPath(); fg.ellipse(0, -8 * m, 6.5 * m, 9 * m, 0, 0, Math.PI * 2); fg.fill(); fg.stroke();
+      fg.fillRect(-1.5 * m, 0, 3 * m, 15 * m); break;
+    case 'inkstone':
+      rr(-14 * m, -9 * m, 28 * m, 18 * m, 4 * m); fg.fill(); fg.stroke();
+      fg.fillStyle = 'rgba(40,35,28,.5)'; fg.beginPath(); fg.ellipse(4 * m, 0, 6 * m, 4.5 * m, 0, 0, Math.PI * 2); fg.fill(); break;
+    case 'plate':
+      fg.beginPath(); fg.ellipse(0, 0, 15 * m, 10 * m, 0, 0, Math.PI * 2); fg.fill(); fg.stroke();
+      fg.strokeStyle = 'rgba(255,255,255,.5)';
+      fg.beginPath(); fg.ellipse(0, 0, 8 * m, 5 * m, 0, 0, Math.PI * 2); fg.stroke(); break;
+    case 'pendant':
+      fg.beginPath(); fg.moveTo(0, -14 * m); fg.quadraticCurveTo(13 * m, 0, 0, 14 * m);
+      fg.quadraticCurveTo(-13 * m, 0, 0, -14 * m); fg.closePath(); fg.fill(); fg.stroke(); break;
+    case 'mirror':
+      fg.beginPath(); fg.arc(0, -3 * m, 11 * m, 0, Math.PI * 2); fg.fill(); fg.stroke();
+      fg.fillRect(-1.5 * m, 7 * m, 3 * m, 8 * m); break;
+    case 'seal':
+      rr(-10 * m, -14 * m, 20 * m, 20 * m, 2 * m); fg.fill(); fg.stroke();
+      fg.fillRect(-5 * m, -19 * m, 10 * m, 6 * m);
+      fg.fillStyle = '#b03a2a'; fg.fillRect(-7 * m, -8 * m, 14 * m, 8 * m); break;
+    case 'vase':
+      fg.beginPath(); fg.moveTo(-4 * m, -15 * m); fg.quadraticCurveTo(-2 * m, -10 * m, -10 * m, -2 * m);
+      fg.quadraticCurveTo(-12 * m, 10 * m, 0, 13 * m); fg.quadraticCurveTo(12 * m, 10 * m, 10 * m, -2 * m);
+      fg.quadraticCurveTo(2 * m, -10 * m, 4 * m, -15 * m); fg.closePath(); fg.fill(); fg.stroke(); break;
+    case 'censer':
+      fg.beginPath(); fg.ellipse(0, 2 * m, 12 * m, 8 * m, 0, Math.PI, Math.PI * 2, true); fg.lineTo(12 * m, 4 * m);
+      fg.lineTo(-12 * m, 4 * m); fg.closePath(); fg.fill(); fg.stroke();
+      fg.fillRect(-10 * m, 4 * m, 4 * m, 6 * m); fg.fillRect(6 * m, 4 * m, 4 * m, 6 * m);
+      fg.beginPath(); fg.arc(0, -4 * m, 3 * m, 0, Math.PI * 2); fg.stroke(); break;
+    case 'horse':
+      fg.beginPath(); fg.moveTo(-12 * m, 10 * m); fg.lineTo(-9 * m, -6 * m); fg.lineTo(-4 * m, -10 * m);
+      fg.lineTo(2 * m, -8 * m); fg.lineTo(4 * m, -13 * m); fg.lineTo(8 * m, -12 * m); fg.lineTo(7 * m, -6 * m);
+      fg.lineTo(12 * m, 2 * m); fg.lineTo(11 * m, 10 * m); fg.lineTo(6 * m, 10 * m); fg.lineTo(5 * m, 2 * m);
+      fg.lineTo(-4 * m, 3 * m); fg.lineTo(-6 * m, 10 * m); fg.closePath(); fg.fill(); fg.stroke(); break;
+    case 'pot':
+      fg.beginPath(); fg.moveTo(-3 * m, -14 * m); fg.quadraticCurveTo(-14 * m, -6 * m, -8 * m, 12 * m);
+      fg.lineTo(8 * m, 12 * m); fg.quadraticCurveTo(14 * m, -6 * m, 3 * m, -14 * m);
+      fg.closePath(); fg.fill(); fg.stroke();
+      fg.strokeStyle = '#e8d070'; fg.beginPath(); fg.moveTo(-7 * m, 0); fg.quadraticCurveTo(0, 6 * m, 7 * m, 0); fg.stroke(); break;
+    case 'mount':
+      fg.beginPath(); fg.moveTo(-14 * m, 12 * m); fg.lineTo(-6 * m, -4 * m); fg.lineTo(0, 4 * m);
+      fg.lineTo(5 * m, -12 * m); fg.lineTo(14 * m, 12 * m); fg.closePath(); fg.fill(); fg.stroke(); break;
+    case 'jue':
+      fg.beginPath(); fg.moveTo(-10 * m, -10 * m); fg.lineTo(-6 * m, 8 * m); fg.lineTo(2 * m, 8 * m);
+      fg.lineTo(6 * m, -10 * m); fg.closePath(); fg.fill(); fg.stroke();
+      fg.beginPath(); fg.moveTo(-10 * m, -10 * m); fg.lineTo(-16 * m, -2 * m); fg.lineTo(-8 * m, -4 * m); fg.closePath(); fg.fill(); fg.stroke();
+      fg.fillRect(-4 * m, -14 * m, 2 * m, 5 * m); fg.fillRect(2 * m, -14 * m, 2 * m, 5 * m); break;
+  }
+  fg.restore();
+}
+function shelfRows() {                    /* 博古架 4 层格位（行宽统一，格数 6/8/4/3） */
+  return [{ y: 96, n: 6 }, { y: 208, n: 8 }, { y: 320, n: 4 }, { y: 432, n: 3 }];
+}
+function cellRect(i) {                    /* 件 i 的格几何（单源：命中+绘制共用；格宽随行自适应防重叠） */
+  var rows = shelfRows(), before = 0;
+  for (var r2 = 0; r2 < rows.length; r2++) {
+    if (i < before + rows[r2].n) {
+      var inRow = i - before, gw = 346 / rows[r2].n, w2 = Math.min(44, gw - 2);
+      return { x: 22 + inRow * gw + (gw - w2) / 2, y: rows[r2].y, w: w2, h: 44 };
+    }
+    before += rows[r2].n;
+  }
+  return null;
+}
+function spawnParts() {                   /* 稀有+揭示粒子 */
+  S.parts = [];
+  var n = S.cur !== null && ITEMS[S.cur].r === 4 ? 26 : (ITEMS[S.cur].r === 3 ? 16 : 8);
+  for (var i = 0; i < n; i++) {
+    S.parts.push({ x: 195 + (Math.random() - 0.5) * 150, y: 330 + Math.random() * 120,
+                   vx: (Math.random() - 0.5) * 1.4, vy: -(0.4 + Math.random() * 1.6),
+                   life: 40 + Math.random() * 30 });
+  }
+}
+function draw() {
+  fg.fillStyle = '#efe8d8'; fg.fillRect(0, 0, 390, 844);
+  /* HUD */
+  fg.fillStyle = '#8a6f14'; fg.font = 'bold 16px sans-serif'; fg.textAlign = 'left'; fg.textBaseline = 'middle';
+  fg.fillText('钱 ◇ ' + S.coin, 16, 32);
+  fg.font = 'bold 13px sans-serif';
+  fg.fillText('图鉴 ' + collCount() + '/' + ITEMS.length, 16, 56);
+  /* 博古架 */
+  fg.fillStyle = '#7a4e30'; rr(10, 68, 370, 478, 10); fg.fill();
+  fg.strokeStyle = '#5d3a20'; fg.lineWidth = 2; fg.stroke();
+  var rows = shelfRows();
+  fg.fillStyle = '#8f5e3c';
+  for (var si = 0; si < rows.length; si++) fg.fillRect(18, rows[si].y + 52, 354, 8);
+  /* 21 格（未解锁=剪影+？） */
+  for (var i2 = 0; i2 < ITEMS.length; i2++) {
+    var it = ITEMS[i2], R = cellRect(i2);
+    if (!R) continue;
+    if (S.coll[it.id]) {
+      drawRelic(R.x, R.y, R.w, it);
+      if (it.r === 4) { fg.strokeStyle = '#c9a227'; fg.lineWidth = 2; rr(R.x - 3, R.y - 3, R.w + 6, 50, 6); fg.stroke(); }
+    } else {
+      fg.fillStyle = 'rgba(60,48,32,.18)'; rr(R.x, R.y, R.w, 44, 6); fg.fill();
+      fg.fillStyle = 'rgba(90,72,48,.55)'; fg.font = 'bold 18px serif'; fg.textAlign = 'center';
+      fg.fillText('？', R.x + R.w / 2, R.y + 23);
+    }
+  }
+  /* 公示概率表+战绩+终局章（仅 idle 画——浮层/图鉴页期遮罩下透出会与揭示文字挤混，G2 VLM 目检修复） */
+  if (S.phase === 'idle' && !S.dex) {
+    fg.fillStyle = '#8a7f66'; fg.font = '12px sans-serif'; fg.textAlign = 'center';
+    fg.fillText('常见68% · 少见20% · 稀有9% · 史诗2.7% · 传说0.3%', 195, 566);
+    fg.fillText('二十抽保底稀有↑ · 重复按档换币', 195, 584);
+    /* 战绩行（左下；右侧 x258..362 y778..818 为盘缠钮——左排避让） */
+    fg.fillStyle = '#8a6f14'; fg.font = 'bold 13px sans-serif'; fg.textAlign = 'left';
+    fg.fillText('箱 ' + S.opens + ' · 新 ' + S.newGets + ' · 重复 ' + S.dups, 16, 798);
+    /* 集齐终局章 */
+    if (S.done) {
+      fg.fillStyle = '#b03a2a'; fg.font = 'bold 13px serif';
+      fg.fillText('✦ 金石鉴赏家', 16, 822);
+    }
+  }
+  /* 图鉴大全页 */
+  if (S.dex) {
+    fg.fillStyle = 'rgba(40,30,15,.45)'; fg.fillRect(0, 0, 390, 844);
+    fg.fillStyle = '#f7f0e3'; rr(20, 60, 350, 724, 14); fg.fill();
+    fg.strokeStyle = '#c9a227'; fg.lineWidth = 3; fg.stroke();
+    fg.fillStyle = '#5a4a33'; fg.font = 'bold 19px serif'; fg.textAlign = 'center';
+    fg.fillText('古玩图鉴 ' + collCount() + ' / ' + ITEMS.length, 195, 88);
+    /* 进度条 */
+    fg.fillStyle = '#e8e0cc'; rr(60, 106, 270, 10, 5); fg.fill();
+    fg.fillStyle = '#c9a227'; rr(60, 106, 270 * collCount() / ITEMS.length, 10, 5); fg.fill();
+    for (var di = 0; di < ITEMS.length; di++) {
+      var dit = ITEMS[di], col2 = di % 3, row2 = Math.floor(di / 3);
+      var dx = 44 + col2 * 106, dy2 = 126 + row2 * 90;
+      var got = S.coll[dit.id];
+      if (got) drawRelic(dx + 21, dy2, 42, dit);
+      else {
+        fg.fillStyle = 'rgba(60,48,32,.15)'; rr(dx + 21, dy2, 42, 42, 6); fg.fill();
+        fg.fillStyle = 'rgba(90,72,48,.5)'; fg.font = 'bold 16px serif'; fg.textAlign = 'center';
+        fg.fillText('？', dx + 42, dy2 + 22);
+      }
+      fg.fillStyle = got ? '#5a4a33' : 'rgba(90,72,48,.55)';
+      fg.font = '11px sans-serif'; fg.textAlign = 'center';
+      fg.fillText(got ? dit.name : '？？？', dx + 42, dy2 + 54);
+      fg.fillStyle = RCOL[dit.r]; fg.font = '10px sans-serif';
+      fg.fillText(RAR[dit.r].name + ' ◇' + RAR[dit.r].sell, dx + 42, dy2 + 67);
+    }
+    fg.fillStyle = '#b9ad93'; fg.font = '12px sans-serif';
+    fg.fillText('点任意处返回', 195, 770);
+  }
+  /* 开箱揭示浮层 */
+  if (S.phase === 'opening' || S.phase === 'reveal') {
+    fg.fillStyle = 'rgba(40,30,15,.55)'; fg.fillRect(0, 0, 390, 844);
+    var prog = Math.min(1, S.openT / OPEN_F);
+    /* 光柱（径向渐变蓄能） */
+    var lg = fg.createRadialGradient(195, 320, 10, 195, 320, 150 + 100 * prog);
+    var glowCol = S.cur !== null ? RCOL[ITEMS[S.cur].r] : '#c9a227';
+    lg.addColorStop(0, 'rgba(250,246,236,' + (0.5 + 0.4 * prog) + ')');
+    lg.addColorStop(1, 'rgba(250,246,236,0)');
+    fg.fillStyle = lg;
+    fg.fillRect(45, 90, 300, 480);
+    /* 箱体（opening 颤动；reveal 让位） */
+    if (S.phase === 'opening') {
+      var shake = Math.sin(S.openT * 1.4) * 4 * prog;
+      fg.fillStyle = '#a8763e'; rr(135 + shake, 300, 120, 86, 8); fg.fill();
+      fg.strokeStyle = '#7a4e30'; fg.lineWidth = 2.5; fg.stroke();
+      fg.fillStyle = '#c9a227'; fg.fillRect(135 + shake, 336, 120, 14);
+      fg.fillStyle = '#8a6f14'; fg.font = 'bold 12px sans-serif'; fg.textAlign = 'center';
+      fg.fillText('开箱中…', 195, 566);
+    } else {
+      var it2 = ITEMS[S.cur];
+      /* 稀有度光效（径向渐变环） */
+      var rg = fg.createRadialGradient(195, 330, 40, 195, 330, 150);
+      rg.addColorStop(0, 'rgba(250,246,236,.55)');
+      rg.addColorStop(.55, RCOL[it2.r] + 'aa');
+      rg.addColorStop(1, 'rgba(0,0,0,0)');
+      fg.fillStyle = rg; fg.beginPath(); fg.arc(195, 330, 150, 0, Math.PI * 2); fg.fill();
+      if (it2.r >= 3) {                   /* 史诗+ 双环脉冲 */
+        var pu = 0.5 + 0.5 * Math.sin(S.openT * 0.08);
+        fg.strokeStyle = RCOL[it2.r]; fg.globalAlpha = 0.5 + 0.4 * pu; fg.lineWidth = 3;
+        fg.beginPath(); fg.arc(195, 330, 120 + 14 * pu, 0, Math.PI * 2); fg.stroke();
+        fg.beginPath(); fg.arc(195, 330, 96 - 8 * pu, 0, Math.PI * 2); fg.stroke();
+        fg.globalAlpha = 1;
+      }
+      /* 粒子（传说/史诗上浮） */
+      for (var pi = 0; pi < S.parts.length; pi++) {
+        var pp = S.parts[pi];
+        fg.fillStyle = RCOL[it2.r];
+        fg.globalAlpha = Math.max(0, Math.min(1, pp.life / 50));
+        fg.beginPath(); fg.arc(pp.x, pp.y, 2.4, 0, Math.PI * 2); fg.fill();
+      }
+      fg.globalAlpha = 1;
+      drawRelic(135, 290, 120, it2);
+      /* 名+档章 */
+      fg.fillStyle = '#faf6ec'; fg.font = 'bold 22px serif'; fg.textAlign = 'center';
+      fg.fillText(it2.name, 195, 462);
+      fg.fillStyle = RCOL[it2.r]; fg.font = 'bold 14px sans-serif';
+      fg.fillText('◆ ' + RAR[it2.r].name, 195, 490);
+      /* 新获/重复 */
+      if (S.curNew) {
+        fg.fillStyle = '#e85a48'; fg.font = 'bold 16px sans-serif';
+        fg.fillText('新获 ✦ 入图鉴', 195, 524);
+      } else {
+        fg.fillStyle = '#e8d070'; fg.font = 'bold 16px sans-serif';
+        fg.fillText('重复 → 换币 +◇' + RAR[it2.r].sell, 195, 524);
+      }
+      fg.fillStyle = '#b9ad93'; fg.font = '12px sans-serif';
+      fg.fillText('点任意处收下', 195, 566);
+    }
+  }
+  /* flash（毡外空带 y690-722——避开开箱钮 y616-676 与盘缠/底栏） */
+  if (S.flashT > 0) {
+    var fa2 = Math.min(1, S.flashT / 30);
+    fg.fillStyle = 'rgba(122,94,45,' + (0.9 * fa2) + ')';
+    rr(95, 690, 200, 32, 8); fg.fill();
+    fg.fillStyle = '#faf6ec'; fg.font = '14px sans-serif'; fg.textAlign = 'center'; fg.textBaseline = 'middle';
+    fg.fillText(S.flashTxt, 195, 706);
+  }
+}
+function updHud() {
+  var idle = S.phase === 'idle' && !S.dex;
+  document.getElementById('btn-open').disabled = !idle;
+  document.getElementById('btn-dex').disabled = !idle;
+  /* 浮层/图鉴页期藏 DOM 钮（半透明 disabled 态浮在 canvas 遮罩/面板上=叠压噪声，g96 G3 同族——G2 VLM 目检修复） */
+  document.getElementById('btn-open').style.display = idle ? '' : 'none';
+  document.getElementById('btn-dex').style.display = idle ? '' : 'none';
+  document.getElementById('btn-alms').style.display = (idle && S.coin < COST) ? '' : 'none';
+  document.getElementById('btn-open').textContent = '开箱 ◇' + COST;
+  document.getElementById('btn-snd').textContent = S.snd ? '🔊' : '🔇';
+}
+
+/* ===== 主循环 ===== */
+function step() {
+  if (S.flashT > 0) S.flashT--;
+  if (S.phase === 'opening') {
+    S.openT++;
+    if (S.openT >= OPEN_F) { S.phase = 'reveal'; S.openT = 0; spawnParts(); sndReveal();
+      var r3 = S.cur !== null ? ITEMS[S.cur].r : 0;
+      if (r3 === 4) sndGong(); else if (r3 >= 2) sndRare();
+    }
+  } else if (S.phase === 'reveal') {
+    S.openT++;
+    for (var pi = 0; pi < S.parts.length; pi++) {
+      var pp = S.parts[pi];
+      pp.x += pp.vx; pp.y += pp.vy; pp.vy += 0.015; pp.life--;
+    }
+    S.parts = S.parts.filter(function (p2) { return p2.life > 0; });
+  }
+  updHud();
+}
+function loop() {
+  step();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+/* ===== 事件 ===== */
+function onBtn(id, fn) {
+  document.getElementById(id).addEventListener('click', function (e) {
+    if (e.preventDefault) e.preventDefault();
+    fn();
+  });
+}
+onBtn('btn-snd', function () {
+  S.snd = S.snd ? 0 : 1;
+  try { localStorage.setItem('g97_snd', S.snd ? '1' : '0'); } catch (e) { }
+  if (S.snd) { ensureAC(); } else if (AC) { try { AC.suspend(); } catch (e) { } }
+});
+onBtn('btn-dex', function () { if (S.phase === 'idle') S.dex = 1; });
+onBtn('btn-open', function () { openBox(); });
+onBtn('btn-alms', function () { alms(); });
+cv.addEventListener('pointerdown', function (e) {
+  if (S.dex) { S.dex = 0; return; }        /* 图鉴页点任意处关 */
+  if (S.phase === 'reveal') { endReveal(); return; }   /* 揭示卡点收 */
+});
+document.addEventListener('visibilitychange', function () {
+  if (document.hidden) { saveMain(); saveProg(); }
+});
+
+/* ===== boot ===== */
+loadAll();
+sndOnRestore();
+updHud();
+requestAnimationFrame(loop);
+
+
+</script>
+</body>
+</html>
