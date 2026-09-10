@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>算盘老铺</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:#171310;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+#app{position:relative;height:100%;max-width:520px;margin:0 auto;overflow:hidden;
+ background:linear-gradient(180deg,#e9dcc3,#ddcda9)}
+#hud{position:absolute;top:0;left:0;right:0;height:64px;display:flex;align-items:center;gap:8px;padding:0 12px;
+ background:linear-gradient(180deg,#3a2f22,#2c2418);border-bottom:1px solid #6b573c;z-index:5}
+.pill{display:flex;align-items:center;gap:5px;color:#c9b895;font-size:13px}
+.pill b{font-size:10px;color:#8a795c;font-weight:600}
+.pill span{min-width:20px;text-align:center;font-size:14px;font-weight:700;color:#f2e8d5;
+ background:rgba(0,0,0,.28);border-radius:8px;padding:1px 6px;font-variant-numeric:tabular-nums}
+.pill .hot{color:#e0a887}
+#tbarw{position:absolute;top:64px;left:0;right:0;height:4px;background:rgba(0,0,0,.25);z-index:6;display:none}
+#tbar{height:100%;width:100%;background:linear-gradient(90deg,#d98e3a,#c0392b)}
+.hbtn{position:absolute;top:16px;right:12px;z-index:10;width:32px;height:32px;border-radius:50%;
+ border:1px solid #6b573c;background:#4a3b28;color:#c9b895;font-size:14px;line-height:1;cursor:pointer}
+.hbtn:active{transform:scale(.92)}
+#cv{position:absolute;top:64px;left:50%;transform:translateX(-50%);touch-action:none;cursor:pointer}
+#btnrow{position:absolute;left:0;right:0;bottom:14px;display:flex;gap:10px;padding:0 20px;z-index:4}
+#btnrow button{flex:1;padding:13px 0;border:1px solid #6b573c;border-radius:10px;background:#3a2f22;
+ color:#c9b895;font-size:15px;letter-spacing:4px;text-indent:4px;cursor:pointer}
+#btnrow button:active{transform:translateY(1px)}
+.lay{position:absolute;inset:0;z-index:8;display:flex;align-items:center;justify-content:center;flex-direction:column;
+ background:rgba(23,19,16,.86);backdrop-filter:blur(2px)}
+.lay.hide{display:none}
+#home{z-index:9;overflow-y:auto}
+.gcard{width:342px;padding:20px 16px 16px;text-align:center;border-radius:14px;
+ background:linear-gradient(180deg,#332a1e,#261f15);border:1px solid #6b573c;box-shadow:0 18px 40px rgba(0,0,0,.5);margin:12px 0}
+.gcard h1{font-size:24px;letter-spacing:8px;color:#f2e8d5;margin-bottom:4px}
+.gcard p{color:#8a795c;font-size:11px;letter-spacing:2px;margin-bottom:12px}
+.mrow{display:flex;gap:8px;margin-bottom:8px}
+.mrow button{flex:1;padding:12px 0;border:1px solid #6b573c;border-radius:10px;background:#3a2f22;
+ color:#c9b895;font-size:14px;letter-spacing:3px;cursor:pointer}
+.mrow .pri{background:linear-gradient(180deg,#8a6a3f,#6e5230);color:#f7ecd9;border-color:#8a6a3f;font-weight:700}
+.mrow button:active{transform:translateY(1px)}
+#bestrow{display:flex;gap:8px;margin-bottom:10px}
+#bestrow div{flex:1;padding:8px 0;border:1px dashed #6b573c;border-radius:8px;color:#8a795c;font-size:11px;line-height:1.6}
+#bestrow b{display:block;color:#e0a887;font-size:18px;font-family:Georgia,serif}
+#optlay{position:absolute;left:0;right:0;bottom:0;padding:10px 14px 14px;z-index:4;display:none;
+ background:linear-gradient(180deg,rgba(23,19,16,0),rgba(23,19,16,.82) 30%)}
+#optlay.show{display:block}
+#optq{color:#f2e8d5;font-size:13px;letter-spacing:2px;text-align:center;margin-bottom:8px}
+#opts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#opts button{padding:14px 0;border:1px solid #6b573c;border-radius:10px;background:#332a1e;
+ color:#f2e8d5;font-size:22px;font-weight:700;font-family:Georgia,serif;cursor:pointer}
+#opts button:active{transform:translateY(1px)}
+#opts button.good{border-color:#c0392b;background:#4a2820}
+#opts button.bad{border-color:#5c688a;opacity:.55}
+#over .gcard h2{font-size:20px;letter-spacing:6px;color:#f2e8d5;margin:6px 0 10px}
+#over .fs{color:#e0a887;font-size:44px;font-family:Georgia,serif;font-weight:700;margin-bottom:4px}
+#over .sub{color:#8a795c;font-size:12px;letter-spacing:2px;margin-bottom:12px}
+</style>
+</head>
+<body>
+<div id="app">
+ <div id="hud">
+  <div class="pill"><b id="mn">老铺</b></div>
+  <div class="pill"><b>分</b><span id="sc">0</span></div>
+  <div class="pill"><b>连</b><span id="stk" class="hot">0</span></div>
+  <div class="pill"><b>命</b><span id="lf">3</span></div>
+ </div>
+ <button class="hbtn" id="btn-snd">🔇</button>
+ <div id="tbarw"><div id="tbar"></div></div>
+ <canvas id="cv" width="390" height="700"></canvas>
+ <div id="optlay">
+  <div id="optq">—— 这铺子上拨的是几？ ——</div>
+  <div id="opts"></div>
+ </div>
+ <div id="btnrow" class="hide">
+  <button id="btn-home0">回老铺</button>
+  <button id="btn-act">藏起数</button>
+ </div>
+ <div id="home" class="lay">
+  <div class="gcard">
+   <h1>算盘老铺</h1>
+   <p>十三档一四珠 · 拨珠听响</p>
+   <div id="bestrow">
+    <div>读数最高<b id="br">0</b></div>
+    <div>拨数最高<b id="bd">0</b></div>
+   </div>
+   <div class="mrow"><button class="pri" id="m-free">自由拨珠</button></div>
+   <div class="mrow"><button id="m-read">读数挑战</button><button id="m-dial">拨数挑战</button></div>
+   <div class="mrow"><button id="btn-home">回棋斋</button></div>
+  </div>
+ </div>
+ <div id="over" class="lay hide">
+  <div class="gcard">
+   <h2>打 烊</h2>
+   <div class="fs" id="fs">0</div>
+   <div class="sub" id="fsub">本盘成绩</div>
+   <div class="mrow"><button class="pri" id="btn-again">再来一盘</button></div>
+   <div class="mrow"><button id="btn-back">回老铺</button></div>
+  </div>
+ </div>
+</div>
+<script>
+'use strict';
+/* ================= 状态 ================= */
+var $=function(id){return document.getElementById(id)};
+var cv=$('cv'),ctx=cv.getContext('2d');
+var Wc=390,Hc=700;
+var KEY_R='g88_best_read',KEY_D='g88_best_dial',KEY_SND='g88_snd';
+/* 算盘几何（canvas 内）：木框 14..376 x 120..450；上区 130..194、梁 194..208、下区 208..440 */
+var FR={x:14,y:120,w:362,h:330};
+var BEAM_T=194,BEAM_B=208,BOT=440,TOP=130;
+var NX=13,XR=27,X0=36;              /* 13 档，档距 27，首档中心 x=36 */
+var BR=11;                          /* 珠半径 */
+var LO_SLOT=24;                     /* 下珠槽距 */
+var UP_ON=183,UP_OFF=141;           /* 上珠中心：靠梁 183 / 离梁 141 */
+function loY(k){return BEAM_B+2+BR+k*LO_SLOT;}        /* 下珠靠梁槽 k=0..3：221,245,269,293 */
+function loYOff(k){return BOT-2-BR-k*LO_SLOT;}        /* 全离梁堆底：427,403,379,355 */
+var S={page:'home',mode:'free',beads:[],hide:false,snd:false,
+       score:0,streak:0,life:3,qn:0,target:0,opts:[],ans:-1,tLeft:0,tMax:10,stable:0,over:false,
+       lock:false,maxStreak:0};
+for(var c0=0;c0<NX;c0++)S.beads.push([0,0]);   /* [下靠梁数 0..4, 上 0/1] */
+var anim=[];                                   /* 每珠 {sy,ty,t0}：col→{lo:[4],up:{}} */
+for(var c1=0;c1<NX;c1++){var a={lo:[],up:{sy:UP_OFF,ty:UP_OFF,t0:0}};
+ for(var k1=0;k1<4;k1++)a.lo.push({sy:loYOff(k1),ty:loYOff(k1),t0:0});anim.push(a);}
+var lastValT=0,AC=null,RS=1,seed=1,TT=null,TQ=null,INJ=0;
+function rnd(){seed=(Math.imul(seed,1103515245)+12345)>>>0;return (seed>>>8)/16777216;}
+
+/* ================= 值与拨珠（规则单源） ================= */
+function abacusVal(){var v=0;
+ for(var c=0;c<NX;c++){var b=S.beads[c];v+=(b[0]+b[1]*5)*Math.pow(10,c);}
+ return v;}
+function setLo(col,n){n=Math.max(0,Math.min(4,n));
+ var b=S.beads[col];if(b[0]===n)return false;
+ b[0]=n;kickAnim(col);valChanged();if(S.snd)beadSnd(false);return true;}
+function setUp(col,v){var b=S.beads[col];if(b[1]===v)return false;
+ b[1]=v;kickAnim(col);valChanged();if(S.snd)beadSnd(true);return true;}
+function valChanged(){S.stable=0;}
+function canPlay(){return S.page==='quiz'&&!S.over&&(S.mode==='free'||S.mode==='dial');}
+function nowShow(o){var e=(Date.now()-o.t0)/120;if(e<0)e=0;if(e>1)e=1;
+ var t=1-(1-e)*(1-e);return o.sy+(o.ty-o.sy)*t;}
+function kickAnim(col){var now=Date.now(),a=anim[col];
+ a.up.sy=nowShow(a.up);a.up.ty=S.beads[col][1]?UP_ON:UP_OFF;a.up.t0=now;
+ for(var k=0;k<4;k++){var o=a.lo[k],slot=S.beads[col][0]>k?loY(k):loYOff(k);
+  if(o.ty!==slot){o.sy=nowShow(o);o.ty=slot;o.t0=now+k*20;}}}   /* 次第 20ms/颗 */
+function animDrain(){                          /* 显示位≠目标位=动画中（m2：不再恒画） */
+ for(var c=0;c<NX;c++){var an=anim[c];
+  if(Math.abs(nowShow(an.up)-an.up.ty)>0.5)return true;
+  for(var k=0;k<4;k++){var o=an.lo[k];if(Math.abs(nowShow(o)-o.ty)>0.5)return true;}}
+ return false;}
+
+/* ================= 题目（LCG 种子化） ================= */
+function digits(){return S.streak<3?1:(S.streak<6?2:3);}
+function genNum(d){var v=0;for(var i=0;i<d;i++){var dg=rnd()*10|0;
+  if(i===d-1&&d>1&&dg===0)dg=1+rnd()*9|0;   /* 首位（最高位）非零 */
+  v+=dg*Math.pow(10,i);}return v;}
+function numToBeads(v){for(var c=0;c<NX;c++){var d=v%10;S.beads[c]=[d%5,d>=5?1:0];kickAnim(c);}valChanged();}
+function distractors(v){var s=String(v),rev=+s.split('').reverse().join('');
+ var miss=0;for(var i=0;i<s.length;i++){var d=+s[i];miss=miss*10+(d>=5?d-5:d);}
+ var pool=[miss,rev,v+1,v-1,v+10,v-10,v+2],out=[];
+ for(var i2=0;i2<pool.length&&out.length<3;i2++){var x=pool[i2];
+  if(x>=0&&x!==v&&out.indexOf(x)<0)out.push(x);}
+ while(out.length<3)out.push(v+out.length+3);
+ return out;}
+function shuffle(arr){for(var i=arr.length-1;i>0;i--){var j=rnd()*(i+1)|0,t=arr[i];arr[i]=arr[j];arr[j]=t;}return arr;}
+function nextQ(){S.qn++;S.stable=0;seed=(RS+S.qn*7919)>>>0;
+ var d=digits();
+ if(S.mode==='read'){S.target=genNum(d);numToBeads(S.target);
+  var ds=distractors(S.target);S.opts=shuffle([S.target].concat(ds));
+  S.ans=S.opts.indexOf(S.target);S.tMax=Math.max(5,10-S.streak*0.5);S.tLeft=S.tMax;
+  $('opts').style.display='';$('optq').textContent='—— 这铺子上拨的是几？ ——';
+  $('optlay').classList.add('show');buildOpts();}
+ else{S.target=genNum(d);for(var c=0;c<NX;c++){S.beads[c]=[0,0];kickAnim(c);}valChanged();
+  S.tMax=Math.max(5,10-S.streak*0.5);S.tLeft=S.tMax;
+  $('opts').style.display='none';$('optq').textContent='目标 · 拨出 '+S.target;
+  $('optlay').classList.add('show');}
+ updHud();draw();}                        /* n1：无珠位变化时目标大字也要刷新（target=0 连过链） */
+function buildOpts(){var box=$('opts');box.innerHTML='';
+ for(var i=0;i<4;i++){(function(k){var b=document.createElement('button');
+  b.textContent=S.opts[k];
+  b.addEventListener('click',function(){answer(k);});box.appendChild(b);})(i);}}
+function answer(i){if(S.mode!=='read'||S.tLeft<=0||S.over||S.lock)return;
+ if(i<0||i>3)return;                      /* 选项索引防御（真实点击 0..3） */
+ var btns=$('opts').children;
+ if(i===S.ans){btns[i].classList.add('good');S.score+=Math.round(100*(1+S.streak*0.1));
+  S.streak++;if(S.streak>S.maxStreak)S.maxStreak=S.streak;
+  if(S.snd){ensureAC();ping(660,.4);}
+  S.lock=true;qTimer(function(){nextQ();},420);}
+ else{btns[i].classList.add('bad');btns[S.ans].classList.add('good');
+  S.streak=0;S.life--;if(S.snd){ensureAC();buzz();}
+  S.lock=true;qTimer(function(){S.life<=0?gameOver():nextQ();},650);}
+ updHud();}
+function qTimer(fn,ms){if(TQ)clearTimeout(TQ);   /* 换题延迟窗句柄（toHome/toFree 可撤） */
+ TQ=setTimeout(function(){TQ=null;S.lock=false;fn();},ms);}
+function skipQ(){if(S.page!=='quiz'||S.over||S.lock)return;S.streak=0;nextQ();}
+function tick(){if(S.page!=='quiz'||S.over||S.mode==='free'||S.lock)return;
+ S.tLeft=Math.max(0,Math.round((S.tLeft-0.1)*10)/10);   /* 一位小数取整防浮点残留 */
+ if(S.tLeft<=0){S.tLeft=0;S.streak=0;S.life--;if(S.snd){ensureAC();tock();}
+  S.life<=0?gameOver():nextQ();}
+ else if(S.mode==='dial'){
+  if(abacusVal()===S.target){S.stable++;if(S.stable>=3){
+   S.score+=Math.round(100*(1+S.streak*0.1));S.streak++;
+   if(S.streak>S.maxStreak)S.maxStreak=S.streak;
+   if(S.snd){ensureAC();ping(660,.4);}
+   nextQ();}}
+  else S.stable=0;}
+ updHud();}
+function gameOver(){if(S.over)return;S.over=true;S.lock=false;
+ if(TQ){clearTimeout(TQ);TQ=null;}
+ $('optlay').classList.remove('show');
+ var key=S.mode==='read'?KEY_R:KEY_D,best=0;
+ try{best=+(localStorage.getItem(key)||0);}catch(e){}
+ var isNew=S.score>best;
+ if(isNew){try{localStorage.setItem(key,String(S.score));}catch(e){}}
+ $('fs').textContent=S.score;
+ $('fsub').textContent=(isNew?'新铺史最好 · ':'铺史最好 '+best+' · ')+'连答最长 '+S.maxStreak;
+ $('over').classList.remove('hide');updHud();}
+
+/* ================= 页面切换 ================= */
+function toHome(){S.page='home';S.over=false;S.lock=false;
+ if(TT){clearTimeout(TT);TT=null;}
+ if(TQ){clearTimeout(TQ);TQ=null;}
+ $('home').classList.remove('hide');$('over').classList.add('hide');
+ $('btnrow').classList.add('hide');$('optlay').classList.remove('show');
+ $('tbarw').style.display='none';$('mn').textContent='老铺';draw();}
+function toFree(){S.page='quiz';S.mode='free';S.over=false;S.lock=false;
+ if(TT){clearTimeout(TT);TT=null;}
+ if(TQ){clearTimeout(TQ);TQ=null;}
+ S.score=0;S.streak=0;              /* free 不计分，清上一局残留（M2） */
+ $('home').classList.add('hide');$('btnrow').classList.remove('hide');
+ $('optlay').classList.remove('show');$('tbarw').style.display='none';
+ $('btn-act').textContent='藏起数';S.hide=false;
+ $('mn').textContent='自由拨珠';
+ updBest();updHud();draw();}
+function toQuiz(mode){S.page='quiz';S.mode=mode;S.over=false;S.lock=false;
+ S.score=0;S.streak=0;S.life=3;S.qn=0;S.hide=false;S.maxStreak=0;
+ RS=INJ||((Date.now()%2147483647)>>>0)||1;   /* 每盘随机盘种（m3 防背题）；INJ=注入种（钩子 seed，verify 确定性） */
+ if(TQ){clearTimeout(TQ);TQ=null;}
+ $('home').classList.add('hide');$('over').classList.add('hide');$('btnrow').classList.remove('hide');
+ $('btn-act').textContent='跳过这题';
+ $('tbarw').style.display='block';
+ $('mn').textContent=mode==='read'?'读数挑战':'拨数挑战';
+ nextQ();schedTick();draw();}
+function schedTick(){if(TT)clearTimeout(TT);
+ TT=setTimeout(function(){tick();if(S.page==='quiz'&&!S.over)schedTick();},100);}
+function updHud(){
+ if(S.page==='quiz'&&S.mode==='free'){$('sc').textContent='0';$('stk').textContent='0';
+  $('lf').textContent='—';return;}                                /* free 无计分（M2） */
+ $('sc').textContent=S.score;
+ $('stk').textContent=S.streak;$('lf').textContent=S.life;
+ if(S.page==='quiz'&&(S.mode==='read'||S.mode==='dial')){
+  $('tbar').style.width=Math.max(0,S.tLeft/S.tMax*100)+'%';}}
+function updBest(){try{$('br').textContent=localStorage.getItem(KEY_R)||'0';
+ $('bd').textContent=localStorage.getItem(KEY_D)||'0';}catch(e){}}
+
+/* ================= 绘制 ================= */
+function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);
+ c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+function draw(){ctx.clearRect(0,0,Wc,Hc);
+ ctx.fillStyle='#e9dcc3';ctx.fillRect(0,0,Wc,Hc);
+ ctx.strokeStyle='rgba(120,96,60,.16)';ctx.lineWidth=1;
+ for(var yy=44;yy<Hc;yy+=46){ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(Wc,yy);ctx.stroke();}
+ if(S.page==='home'){return;}
+ /* 木框 */
+ var fg=ctx.createLinearGradient(0,FR.y,0,FR.y+FR.h);
+ fg.addColorStop(0,'#8a6a3f');fg.addColorStop(.5,'#6b4a2c');fg.addColorStop(1,'#8a6a3f');
+ ctx.fillStyle=fg;rr(ctx,FR.x,FR.y,FR.w,FR.h,16);ctx.fill();
+ ctx.strokeStyle='#4a3620';ctx.lineWidth=2;rr(ctx,FR.x,FR.y,FR.w,FR.h,16);ctx.stroke();
+ ctx.strokeStyle='rgba(217,185,138,.55)';ctx.lineWidth=1;rr(ctx,FR.x+7,FR.y+7,FR.w-14,FR.h-14,10);ctx.stroke();
+ /* 内底 */
+ ctx.fillStyle='#e6d5ae';ctx.fillRect(FR.x+10,FR.y+10,FR.w-20,FR.h-20);
+ /* 竹档 */
+ for(var c=0;c<NX;c++){var x=X0+c*XR;
+  ctx.strokeStyle='#caa96f';ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(x,TOP-6);ctx.lineTo(x,BOT+6);ctx.stroke();}
+ /* 梁 */
+ ctx.fillStyle='#d9b98a';ctx.fillRect(FR.x+10,BEAM_T,FR.w-20,BEAM_B-BEAM_T);
+ ctx.fillStyle='#8a6a3f';ctx.fillRect(FR.x+10,BEAM_T,FR.w-20,2);ctx.fillRect(FR.x+10,BEAM_B-2,FR.w-20,2);
+ /* 珠 */
+ for(var c2=0;c2<NX;c2++){var cx=X0+c2*XR,a2=anim[c2];
+  drawBead(cx,nowShow(a2.up),true);
+  for(var k2=3;k2>=0;k2--)drawBead(cx,nowShow(a2.lo[k2]),false);}
+ /* 铜钉 */
+ ctx.fillStyle='#c9a06a';
+ var nv=[[FR.x+13,FR.y+13],[FR.x+FR.w-13,FR.y+13],[FR.x+13,FR.y+FR.h-13],[FR.x+FR.w-13,FR.y+FR.h-13]];
+ for(var i3=0;i3<4;i3++){ctx.beginPath();ctx.arc(nv[i3][0],nv[i3][1],4,0,7);ctx.fill();}
+ /* 值区（y=480..560） */
+ ctx.textAlign='center';
+ if(S.page==='quiz'&&S.mode==='read'){
+  ctx.fillStyle='#8a795c';ctx.font='13px system-ui,sans-serif';
+  ctx.fillText('老掌柜拨了个数，你看是几？',195,505);}
+ else if(S.page==='quiz'&&S.mode==='dial'){
+  ctx.fillStyle='#8a795c';ctx.font='13px system-ui,sans-serif';
+  ctx.fillText('目标 · 拨出这个数',195,498);
+  ctx.fillStyle='#c0392b';ctx.font='700 52px Georgia,"Times New Roman",serif';
+  ctx.fillText(String(S.target),195,556);}
+ else{
+  ctx.fillStyle='#8a795c';ctx.font='13px system-ui,sans-serif';
+  ctx.fillText(S.hide?'藏起数 · 心里读，再点开对':'当前盘面',195,498);
+  if(S.hide){ctx.fillStyle='#4a3620';ctx.font='700 44px Georgia,serif';
+   ctx.fillText('◦ ◦ ◦ ◦',195,552);}
+  else{var vs=fmtVal(abacusVal());
+   ctx.fillStyle='#4a3620';
+   ctx.font='700 '+(vs.length<=7?46:vs.length<=10?36:28)+'px Georgia,"Times New Roman",serif';
+   ctx.fillText(vs,195,552);}}
+ ctx.textAlign='left';
+ /* 挑战提示 */
+ if(S.page==='quiz'&&!S.over&&S.mode==='dial'){
+  ctx.fillStyle='#5e4a30';ctx.font='11px system-ui,sans-serif';ctx.textAlign='center';
+  ctx.fillText('拨准停稳即过 · 上珠一顶五',195,600);ctx.textAlign='left';}}
+function animDrainY(o){var e=(Date.now()-o.t0)/120;if(e<0)e=0;if(e>1)e=1;
+ var t=1-(1-e)*(1-e);return o.y+(o.ty-o.y)*t;}
+function fmtVal(v){var s=String(v);
+ if(s.length<=4)return s;
+ var out='',n=0;for(var i=s.length-1;i>=0;i--){out=s[i]+out;if(++n%4===0&&i>0)out=','+out;}
+ return out;}
+function drawBead(x,y,up){var g=ctx.createRadialGradient(x-3,y-4,2,x,y,BR);
+ if(up){g.addColorStop(0,'#b0543f');g.addColorStop(1,'#6b281e');}
+ else{g.addColorStop(0,'#c06a3e');g.addColorStop(1,'#7a3226');}
+ ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,BR,0,7);ctx.fill();
+ ctx.strokeStyle='rgba(40,20,12,.55)';ctx.lineWidth=1;ctx.stroke();
+ ctx.fillStyle='#caa96f';ctx.beginPath();ctx.arc(x,y,2.6,0,7);ctx.fill();
+ ctx.strokeStyle='rgba(255,235,210,.35)';ctx.lineWidth=1.6;
+ ctx.beginPath();ctx.arc(x-2,y-2,BR-4,-2.4,-1.1);ctx.stroke();}
+
+/* ================= 音效 ================= */
+function ensureAC(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}}
+function tone(hz,dur,vol,type){if(!AC)return;try{var o=AC.createOscillator(),g=AC.createGain();
+ o.frequency.value=hz;o.type=type||'sine';g.gain.value=vol||.3;
+ o.connect(g);g.connect(AC.destination);o.start();
+ g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+dur);o.stop(AC.currentTime+dur);}catch(e){}}
+function ping(hz,v){tone(hz||660,.4,v||.4);}
+function buzz(){tone(180,.3,.3,'square');}
+function tock(){tone(220,.25,.35,'triangle');}
+function beadSnd(up){tone(up?880:660,.09,.25,'triangle');}
+
+/* ================= 事件 ================= */
+function pageXY(e){var r=cv.getBoundingClientRect();
+ return [e.clientX-r.left,e.clientY-r.top];}
+var DRAG=null;   /* {col,part} */
+function hitCol(x){var c=Math.round((x-X0)/XR);return c>=0&&c<NX?c:-1;}
+cv.addEventListener('pointerdown',function(e){
+ if(!canPlay())return;
+ var xy=pageXY(e),x=xy[0],y=xy[1];
+ if(x<FR.x+8||x>FR.x+FR.w-8||y<TOP-4||y>BOT+4)return;
+ var col=hitCol(x);if(col<0)return;
+ if(y<BEAM_T){setUp(col,S.beads[col][1]?0:1);DRAG={col:col,part:'up'};}
+ else if(y>BEAM_B){var slot=Math.floor((y-BEAM_B-2)/LO_SLOT);
+  if(slot>3)slot=3;var k=slot+1,b=S.beads[col];
+  setLo(col,b[0]>=k?k-1:k);
+  DRAG={col:col,part:'lo'};}
+ e.preventDefault();});
+window.addEventListener('pointermove',function(e){
+ if(!DRAG||!canPlay())return;
+ var xy=pageXY(e),y=xy[1],col=DRAG.col;
+ if(DRAG.part==='lo'){var f=1-(y-BEAM_B)/(BOT-BEAM_B);
+  f=Math.max(0,Math.min(1,f));setLo(col,Math.round(f*4));}
+ else{setUp(col,y<(BEAM_T+TOP)/2?0:1);}   /* y 大（近梁）→靠梁，与视觉跟手一致（m1） */
+ e.preventDefault();});
+function endP(){DRAG=null;}
+window.addEventListener('pointerup',endP);
+window.addEventListener('pointercancel',endP);
+window.addEventListener('blur',endP);
+document.addEventListener('visibilitychange',function(){if(document.hidden)endP();});
+
+/* 按钮 */
+$('m-free').addEventListener('click',toFree);
+$('m-read').addEventListener('click',function(){toQuiz('read');});
+$('m-dial').addEventListener('click',function(){toQuiz('dial');});
+$('btn-home').addEventListener('click',function(){location.href='../index.html?v=1.0.90';});
+$('btn-home0').addEventListener('click',toHome);
+$('btn-back').addEventListener('click',toHome);
+$('btn-again').addEventListener('click',function(){$('over').classList.add('hide');toQuiz(S.mode);});
+$('btn-act').addEventListener('click',function(){
+ if(S.page==='quiz'&&(S.mode==='read'||S.mode==='dial')){skipQ();return;}
+ S.hide=!S.hide;$('btn-act').textContent=S.hide?'亮出数':'藏起数';draw();});
+$('btn-snd').addEventListener('click',function(){S.snd=!S.snd;
+ if(S.snd)ensureAC();
+ $('btn-snd').textContent=S.snd?'🔊':'🔇';
+ try{localStorage.setItem(KEY_SND,S.snd?'1':'0');}catch(e){}});
+
+/* ================= 启动 ================= */
+(function boot(){
+ try{var v=localStorage.getItem(KEY_SND);if(v==='1'){S.snd=true;$('btn-snd').textContent='🔊';}}catch(e){}
+ updBest();
+ (function loop(){if(S.page!=='home'&&animDrain())draw();   /* 仅动画期重绘（m2），home 保持画布空白 */
+  requestAnimationFrame(loop);})();})();
+
+
+</script>
+</body>
+</html>
