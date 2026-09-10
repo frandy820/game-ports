@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>篆刻小匠</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;background:#efe8d8;font-family:"Songti SC","STSong","SimSun",serif;touch-action:none}
+#app{position:relative;width:390px;height:844px;margin:0 auto;background:#efe8d8}
+canvas{display:block}
+#cv{position:absolute;left:0;top:0}
+.hud{position:absolute;top:0;left:0;width:100%;height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;z-index:5}
+.pill{background:rgba(90,70,50,.12);border:1px solid rgba(90,70,50,.25);border-radius:14px;padding:5px 12px;font-size:14px;color:#5a4632;letter-spacing:1px}
+#kname{font-size:17px;color:#3f3122;letter-spacing:3px;font-weight:bold}
+#btn-snd{width:38px;height:38px;border-radius:50%;border:1px solid rgba(90,70,50,.3);background:rgba(247,240,227,.9);font-size:17px;color:#5a4632;cursor:pointer}
+#kstat{position:absolute;left:0;top:344px;width:100%;text-align:center;font-size:15px;color:#5a4632;letter-spacing:2px;z-index:5}
+#kstat b{color:#a03a2a}
+#tip{position:absolute;left:0;top:392px;width:100%;text-align:center;font-size:12.5px;color:#8a7355;letter-spacing:1px;z-index:5}
+#flash{position:absolute;left:50%;top:470px;transform:translateX(-50%);background:rgba(63,49,34,.88);color:#f7f0e3;font-size:14px;padding:8px 18px;border-radius:16px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:20;white-space:nowrap}
+#btnrow{position:absolute;left:0;bottom:40px;width:100%;display:flex;justify-content:center;gap:14px;z-index:5}
+#btnrow button{font-family:inherit;font-size:15px;letter-spacing:2px;color:#5a4632;background:rgba(247,240,227,.92);border:1px solid rgba(90,70,50,.35);border-radius:18px;padding:11px 20px;cursor:pointer}
+#btnrow button:active{background:#e8dcc4}
+.lay{position:absolute;inset:0;background:rgba(63,49,34,.55);z-index:9;display:flex;align-items:center;justify-content:center}
+.lay.hide{display:none}
+.panel{background:#f7f0e3;border:2px solid #a0522d;border-radius:14px;padding:20px 18px;width:330px;max-height:640px;overflow-y:auto;position:relative}
+.panel h3{font-size:17px;color:#3f3122;letter-spacing:6px;text-align:center;margin-bottom:4px}
+.psub{font-size:12px;color:#8a7355;text-align:center;letter-spacing:2px;margin-bottom:12px}
+#galgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.gcell{background:#efe8d8;border:1px solid rgba(90,70,50,.25);border-radius:8px;padding:6px 4px;text-align:center}
+.gcell canvas{width:72px;height:72px;margin:0 auto;display:block;background:#c0392b;border-radius:4px}
+.gcell.gdim canvas{background:#d8ccb8}
+.gn{font-size:13px;color:#3f3122;margin-top:3px;letter-spacing:2px}
+.gs{font-size:12px;color:#a03a2a;letter-spacing:1px}
+.gdim .gn{color:#a89a7e}.gdim .gs{color:#b5a88e}
+#pickrow{display:flex;flex-direction:column;gap:9px}
+.pitem{display:flex;align-items:center;justify-content:space-between;background:#efe8d8;border:1px solid rgba(90,70,50,.25);border-radius:9px;padding:11px 15px;cursor:pointer;font-size:16px;color:#3f3122;letter-spacing:2px}
+.pitem:active{background:#e8dcc4}
+.pitem .ps{font-size:13px;color:#a03a2a}
+.pclose{margin-top:14px;width:100%;font-family:inherit;font-size:14px;letter-spacing:3px;padding:9px;color:#5a4632;background:rgba(90,70,50,.1);border:1px solid rgba(90,70,50,.3);border-radius:14px;cursor:pointer}
+#sealcv{width:180px;height:180px;display:block;margin:6px auto 4px;border-radius:6px;box-shadow:0 3px 10px rgba(63,49,34,.3);animation:stamp .32s ease-out}
+@keyframes stamp{0%{transform:scale(1.28);opacity:0}42%{transform:scale(.94);opacity:1}72%{transform:scale(1.05)}100%{transform:scale(1)}}
+#sgrade{font-size:21px;color:#a03a2a;text-align:center;letter-spacing:5px;font-weight:bold}
+#sstars{font-size:16px;color:#c98a2e;text-align:center;letter-spacing:3px;margin:3px 0 2px}
+#snote{font-size:12.5px;color:#8a7355;text-align:center;letter-spacing:1px;margin-bottom:12px}
+.srow{display:flex;gap:12px;justify-content:center}
+.srow button{font-family:inherit;font-size:14.5px;letter-spacing:2px;color:#5a4632;background:rgba(90,70,50,.1);border:1px solid rgba(90,70,50,.32);border-radius:15px;padding:10px 18px;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="app">
+<canvas id="cv" width="390" height="844"></canvas>
+<div class="hud">
+  <span class="pill" id="hp">印谱 0/6</span>
+  <span id="kname">刻 · 一</span>
+  <button id="btn-snd">🔇</button>
+</div>
+<div id="kstat">第 1/1 刀 · 上一刀：<b>—</b></div>
+<div id="tip">沿底稿运刀 · 从空心圆起刀 · 拖完一笔自动评刀</div>
+<div id="flash"></div>
+<div id="btnrow">
+  <button id="btn-gal">印 谱</button>
+  <button id="btn-redo">回上一刀</button>
+  <button id="btn-char">换 字</button>
+</div>
+<div class="lay hide" id="lay-gal"><div class="panel">
+  <h3>印 谱</h3><div class="psub" id="galsub">0 / 6</div>
+  <div id="galgrid"></div>
+  <button class="pclose" id="gal-close">合 上</button>
+</div></div>
+<div class="lay hide" id="lay-pick"><div class="panel">
+  <h3>选 字</h3><div class="psub">六字铁线篆 · 星级取最高</div>
+  <div id="pickrow"></div>
+  <button class="pclose" id="pick-close">合 上</button>
+</div></div>
+<div class="lay hide" id="lay-seal"><div class="panel">
+  <h3 id="sname">成 章</h3>
+  <canvas id="sealcv" width="180" height="180"></canvas>
+  <div id="sgrade">神品</div>
+  <div id="sstars">★★★</div>
+  <div id="snote">顺 1 · 稳 0 · 滞 0</div>
+  <div class="srow">
+    <button id="seal-again">再刻一字</button>
+    <button id="seal-close">合 上</button>
+  </div>
+</div></div>
+<script>
+'use strict';
+/* ===== 基础 ===== */
+var $=function(id){return document.getElementById(id);};
+var cv=$('cv'),g=cv.getContext('2d');
+function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+/* LCG 帧内随机（确定性） */
+var RS=1;
+function rnd(){RS=(Math.imul(RS,1103515245)+12345)>>>0;return (RS>>>8)/16777216;}
+/* ===== 字表（SPEC 单源；20×20 网格 → 画布 75+u*12, 90+v*12）===== */
+var CHARS=[
+ {n:'一',strokes:[[[3,10],[17,10]]]},
+ {n:'山',strokes:[[[10,4],[10,16]],[[5,16],[5,12],[6,8],[8,5]],[[12,5],[14,8],[15,12],[15,16]]]},
+ {n:'木',strokes:[[[6,5],[10,3],[14,5]],[[10,4],[10,16]],[[10,10],[7,9],[4,11]],[[10,10],[13,9],[16,11]],[[7,16],[10,18],[13,16]]]},
+ {n:'日',strokes:[[[12,4],[7,5],[6,10],[7,15],[12,16]],[[12,4],[12,16]],[[8,10],[12,10]]]},
+ {n:'心',strokes:[[[10,3],[8,7],[10,11],[12,15]],[[4,8],[3,12],[5,15]],[[16,8],[17,12],[15,15]],[[6,16],[10,17],[14,16]]]},
+ {n:'水',strokes:[[[10,3],[8,7],[10,10],[12,14],[10,17]],[[6,5],[4,8],[5,11]],[[5,11],[4,14],[6,16]],[[14,5],[16,8],[15,11]],[[15,11],[16,14],[14,16]]]}
+];
+var GX=75,GY=90,GS=12;            /* 印面区原点与网格比 */
+function gpt(uv){return [GX+uv[0]*GS,GY+uv[1]*GS];}   /* 网格 → 画布 */
+function strokePts(ci,si){var s=CHARS[ci].strokes[si],o=[],i;for(i=0;i<s.length;i++)o.push(gpt(s[i]));return o;}
+var R_COV=14,STEP=6;
+var GRADES=['习作','能品','妙品','神品'];
+/* ===== 采样与判定数学（verify 主锚）===== */
+function resample(pts,step){
+  if(pts.length<2){var o1=[],i1;for(i1=0;i1<pts.length;i1++)o1.push([pts[i1][0],pts[i1][1]]);return o1;}
+  var out=[[pts[0][0],pts[0][1]]],need=step,i;
+  for(i=1;i<pts.length;i++){
+    var ax=pts[i-1][0],ay=pts[i-1][1],dx=pts[i][0]-ax,dy=pts[i][1]-ay;
+    var seg=Math.sqrt(dx*dx+dy*dy),pos=0;
+    if(seg<1e-9)continue;
+    while(pos+need<=seg){
+      pos+=need;var t=pos/seg;
+      out.push([ax+dx*t,ay+dy*t]);need=step;
+    }
+    need-=(seg-pos);
+  }
+  return out;
+}
+function dNear(px,py,B){
+  var m=1e18,i;
+  for(i=0;i<B.length;i++){var dx=px-B[i][0],dy=py-B[i][1],d=Math.sqrt(dx*dx+dy*dy);if(d<m)m=d;}
+  return m;
+}
+function covOf(A,B){
+  var c=0,i;
+  for(i=0;i<A.length;i++)if(dNear(A[i][0],A[i][1],B)<=R_COV)c++;
+  return c/A.length;
+}
+function devOf(A,B){
+  var s=0,i;
+  for(i=0;i<A.length;i++)s+=dNear(A[i][0],A[i][1],B);
+  return s/A.length;
+}
+function judge(pts){
+  if(pts.length<4)return {waste:true};
+  var A=resample(pts,STEP),B=resample(strokePts(S.ci,S.si),STEP);
+  var cov=covOf(A,B),dev=devOf(A,B),sc,tag;
+  if(cov>=0.75&&dev<=12){sc=1;tag='顺';}
+  else if(cov>=0.50&&dev<=20){sc=0.7;tag='稳';}
+  else{sc=0.3;tag='滞';}
+  return {cov:cov,dev:dev,sc:sc,tag:tag,waste:false};
+}
+function gradeOf(score){return score>=0.88?3:score>=0.70?2:score>=0.50?1:0;}
+/* ===== 状态 ===== */
+var S={snd:false,lay:null,ci:0,si:0,scores:[],marks:[],pending:-1,lastTag:'—',lastScore:0,lastGrade:0,
+       seals:[],stars:[0,0,0,0,0,0],parts:[],flashT:0,done:false};
+var frame=0,AC=null,carving=false,CARVE=null;
+/* ===== 存档（每键独立 try）===== */
+function tryGet(k){try{return localStorage.getItem(k);}catch(e){return null;}}
+function trySet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
+function loadAll(){
+  if(tryGet('g92_snd')==='1')S.snd=true;
+  var t=tryGet('g92_seals');
+  if(t){var a=t.split(','),seen={},o=[],i;
+    for(i=0;i<a.length;i++){var x=parseInt(a[i],10);if(x>=0&&x<6&&!isNaN(x)&&!seen[x]){seen[x]=1;o.push(x);}}
+    S.seals=o;}
+  var b=tryGet('g92_best');
+  if(b){var a2=b.split(','),i2;
+    for(i2=0;i2<6&&i2<a2.length;i2++){var y=parseInt(a2[i2],10);if(!isNaN(y)&&y>=0&&y<=3)S.stars[i2]=y;}}
+}
+function saveAll(){
+  trySet('g92_snd',S.snd?'1':'0');
+  trySet('g92_seals',S.seals.join(','));
+  trySet('g92_best',S.stars.join(','));
+}
+/* ===== 音效（AC 手势内懒建；g89 J2 范式）===== */
+function ensureAC(){
+  if(AC)return;
+  try{
+    var C=window.AudioContext||window.webkitAudioContext;
+    if(!C)return;
+    AC=new C();
+    document.removeEventListener('pointerdown',wake);
+  }catch(e){}
+}
+function wake(){ensureAC();if(AC&&AC.state==='suspended')AC.resume();}
+function carveSnd(sp){
+  if(!S.snd||!AC)return;
+  var t=AC.currentTime,dur=0.05;
+  var n=AC.createBufferSource(),buf=AC.createBuffer(1,Math.ceil(AC.sampleRate*dur),AC.sampleRate);
+  var d=buf.getChannelData(0),i;
+  for(i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*(1-i/d.length);
+  n.buffer=buf;
+  var f=AC.createBiquadFilter();f.type='bandpass';
+  f.frequency.value=1800+Math.min(1,sp/400)*1400;f.Q.value=1.2;
+  var gn=AC.createGain();gn.gain.setValueAtTime(0.16,t);gn.gain.exponentialRampToValueAtTime(0.001,t+0.08);
+  n.connect(f);f.connect(gn);gn.connect(AC.destination);n.start(t);
+}
+function thud(){
+  if(!S.snd||!AC)return;
+  var t=AC.currentTime,o=AC.createOscillator(),gn=AC.createGain();
+  o.type='sine';o.frequency.setValueAtTime(100,t);o.frequency.exponentialRampToValueAtTime(55,t+0.16);
+  gn.gain.setValueAtTime(0.5,t);gn.gain.exponentialRampToValueAtTime(0.001,t+0.18);
+  o.connect(gn);gn.connect(AC.destination);o.start(t);o.stop(t+0.2);
+}
+function ping3(){
+  if(!S.snd||!AC)return;
+  var fs=[523.25,659.25,783.99],i;
+  for(i=0;i<3;i++){
+    var t=AC.currentTime+i*0.12,o=AC.createOscillator(),gn=AC.createGain();
+    o.type='sine';o.frequency.value=fs[i];
+    gn.gain.setValueAtTime(0.0001,t);gn.gain.linearRampToValueAtTime(0.22,t+0.015);
+    gn.gain.exponentialRampToValueAtTime(0.001,t+0.5);
+    o.connect(gn);gn.connect(AC.destination);o.start(t);o.stop(t+0.55);
+  }
+}
+/* ===== UI ===== */
+function flash(msg){
+  var f=$('flash');f.textContent=msg;f.style.opacity=1;S.flashT=100;
+}
+function updHud(){
+  $('hp').textContent='印谱 '+S.seals.length+'/6';
+  $('kname').textContent='刻 · '+CHARS[S.ci].n;
+  var tot=CHARS[S.ci].strokes.length;
+  $('kstat').innerHTML='第 '+(Math.min(S.si+1,tot))+'/'+tot+' 刀 · 上一刀：<b>'+S.lastTag+'</b>';
+}
+function openLay(n){
+  S.lay=n;
+  $('lay-gal').classList.toggle('hide',n!=='gal');
+  $('lay-pick').classList.toggle('hide',n!=='pick');
+  $('lay-seal').classList.toggle('hide',n!=='seal');
+  if(n==='gal')buildGal();
+  if(n==='pick')buildPick();
+}
+function closeLay(){S.lay=null;$('lay-gal').classList.add('hide');$('lay-pick').classList.add('hide');$('lay-seal').classList.add('hide');}
+function mkSealCell(ctx,ci,marks,sz){
+  /* 白文印：朱底+刀迹纸色镂空；marks 空=该字底稿全刀（图鉴缩略），否则=玩家刀迹（成章浮层）；不变异入参 */
+  var ms=(!marks||marks.length===0)?CHARS[ci].strokes.map(function(_,k2){return strokePts(ci,k2);}):marks;
+  ctx.fillStyle='#c0392b';ctx.fillRect(0,0,sz,sz);
+  var k=sz/240,i,j;
+  ctx.strokeStyle='#f7f0e3';ctx.lineCap='round';ctx.lineJoin='round';ctx.lineWidth=9*k;
+  for(i=0;i<ms.length;i++){
+    var m=ms[i];if(!m||m.length<2)continue;
+    ctx.beginPath();ctx.moveTo((m[0][0]-GX)*k,(m[0][1]-GY)*k);
+    for(j=1;j<m.length;j++)ctx.lineTo((m[j][0]-GX)*k,(m[j][1]-GY)*k);
+    ctx.stroke();
+  }
+}
+function buildGal(){
+  var gr=$('galgrid');gr.innerHTML='';
+  var full=S.seals.length>=6,i;
+  for(i=0;i<6;i++){
+    var cell=document.createElement('div');
+    var has=S.seals.indexOf(i)>=0;
+    cell.className='gcell'+(has?'':' gdim');
+    var c=document.createElement('canvas');c.width=72;c.height=72;
+    var cc=c.getContext('2d');
+    if(has){mkSealCell(cc,i,[],72);cell.appendChild(c);}
+    else{cc.fillStyle='#d8ccb8';cc.fillRect(0,0,72,72);cc.fillStyle='#a89a7e';cc.font='30px serif';cc.textAlign='center';cc.textBaseline='middle';cc.fillText('？',36,38);cell.appendChild(c);}
+    var gn=document.createElement('div');gn.className='gn';gn.textContent=has?CHARS[i].n+' · '+GRADES[S.stars[i]]:'未 刻';
+    cell.appendChild(gn);
+    var gs=document.createElement('div');gs.className='gs';gs.textContent=has?'★'.repeat(S.stars[i])||'—':'　';
+    cell.appendChild(gs);
+    gr.appendChild(cell);
+  }
+  $('galsub').textContent=full?'铁笔开花 · 6 / 6':S.seals.length+' / 6';
+}
+function buildPick(){
+  var pr=$('pickrow');pr.innerHTML='';
+  var i;
+  for(i=0;i<6;i++){
+    var it=document.createElement('div');it.className='pitem';
+    var st=S.stars[i];
+    it.innerHTML='<span>'+CHARS[i].n+'</span><span class="ps">'+(st>0?'★'.repeat(st)+' · '+GRADES[st]:'未成')+'</span>';
+    (function(idx){
+      it.addEventListener('click',function(){pickChar(idx);});
+    })(i);
+    pr.appendChild(it);
+  }
+}
+/* ===== 刻章流程 ===== */
+function pickChar(i){
+  S.ci=i;S.si=0;S.scores=[];S.marks=[];S.pending=-1;S.lastTag='—';S.done=false;
+  closeLay();updHud();
+}
+function doStroke(pts){
+  var j=judge(pts);
+  if(j.waste){flash('运刀太短');return false;}
+  if(S.si<S.scores.length){           /* 重刻（redoknife 回退后）*/
+    if(j.sc>S.scores[S.si]){S.scores[S.si]=j.sc;S.marks[S.si]=pts.map(function(p){return [p[0],p[1]];});}
+  }else{
+    S.scores.push(j.sc);
+    S.marks.push(pts.map(function(p){return [p[0],p[1]];}));
+  }
+  S.lastTag=j.tag;
+  S.si++;
+  if(S.si>=CHARS[S.ci].strokes.length){S.pending=48;}
+  updHud();
+  return true;
+}
+function redoknife(){
+  if(S.si<=0)return false;
+  if(S.pending>=0)S.pending=-1;
+  S.si--;
+  updHud();
+  return true;
+}
+function sealNow(){
+  var tot=CHARS[S.ci].strokes.length;
+  if(S.scores.length<tot)return false;
+  var sum=0,i;
+  for(i=0;i<S.scores.length;i++)sum+=S.scores[i];
+  var score=sum/S.scores.length,st=gradeOf(score);
+  if(S.seals.indexOf(S.ci)<0)S.seals.push(S.ci);
+  if(st>S.stars[S.ci])S.stars[S.ci]=st;
+  S.lastScore=score;S.lastGrade=st;S.done=true;S.pending=-1;
+  var c1=0,c2=0,c3=0;
+  for(i=0;i<S.scores.length;i++){if(S.scores[i]===1)c1++;else if(S.scores[i]===0.7)c2++;else c3++;}
+  $('sname').textContent='成 章 · '+CHARS[S.ci].n;
+  var sc=$('sealcv'),scc=sc.getContext('2d');
+  mkSealCell(scc,S.ci,S.marks,180);
+  $('sgrade').textContent=GRADES[st];
+  $('sstars').textContent=st>0?'★'.repeat(st):'· 未入品 ·';
+  $('snote').textContent='顺 '+c1+' · 稳 '+c2+' · 滞 '+c3;
+  openLay('seal');
+  saveAll();
+  thud();
+  if(st===3)setTimeout(ping3,320);
+  updHud();
+  return true;
+}
+/* ===== 输入 ===== */
+function toCv(e){
+  var r=cv.getBoundingClientRect();
+  return [(e.clientX-r.left)*390/r.width,(e.clientY-r.top)*844/r.height];
+}
+function inSeal(p){return p[0]>=GX&&p[0]<=GX+240&&p[1]>=GY&&p[1]<=GY+240;}
+cv.addEventListener('pointerdown',function(e){
+  if(S.lay!==null)return;
+  if(S.pending>=0){flash('将成章 · 稍候');return;}
+  if(S.done){flash('已成章 · 换字重刻');return;}
+  var p=toCv(e);
+  if(!inSeal(p)){flash('在田字格内运刀');return;}
+  carving=true;CARVE=[[p[0],p[1]]];
+  try{cv.setPointerCapture(e.pointerId);}catch(_){}   /* 拖出画布仍可收 pointerup */
+  e.preventDefault();
+});
+cv.addEventListener('pointermove',function(e){
+  if(!carving||!CARVE)return;
+  var p=toCv(e),q=CARVE[CARVE.length-1];
+  var dx=p[0]-q[0],dy=p[1]-q[1];
+  if(dx*dx+dy*dy>=9){
+    if(CARVE.length<160)CARVE.push([p[0],p[1]]);   /* 单刀记录点软上限 */
+    carveSnd(Math.sqrt(dx*dx+dy*dy));
+    var i2,np=2+Math.floor(rnd()*2);
+    for(i2=0;i2<np;i2++)S.parts.push({x:p[0],y:p[1],vx:(rnd()-.5)*30,vy:-rnd()*20,life:22+rnd()*14});
+  }
+  e.preventDefault();
+});
+function endCarve(){
+  if(!carving)return;
+  carving=false;
+  doStroke(CARVE);CARVE=null;
+}
+cv.addEventListener('pointerup',endCarve);
+window.addEventListener('pointerup',endCarve);   /* 鼠标拖出画布松手兜底（mouse 无隐式捕获） */
+cv.addEventListener('pointercancel',endCarve);
+window.addEventListener('blur',endCarve);
+document.addEventListener('visibilitychange',function(){if(document.hidden){endCarve();saveAll();}});
+/* ===== 按钮 ===== */
+$('btn-snd').addEventListener('click',function(){
+  S.snd=!S.snd;
+  $('btn-snd').textContent=S.snd?'🔊':'🔇';
+  if(S.snd){ensureAC();if(AC&&AC.state==='suspended')AC.resume();}
+  saveAll();
+});
+$('btn-gal').addEventListener('click',function(){
+  if(S.lay==='gal')closeLay();else if(S.lay===null)openLay('gal');
+});
+$('btn-char').addEventListener('click',function(){
+  if(S.lay==='pick')closeLay();else if(S.lay===null)openLay('pick');
+});
+$('btn-redo').addEventListener('click',function(){
+  if(S.lay!==null)return;
+  if(S.done){flash('已成章 · 换字重刻');return;}
+  if(!redoknife())flash('已是第一刀');
+});
+$('gal-close').addEventListener('click',closeLay);
+$('pick-close').addEventListener('click',closeLay);
+$('seal-close').addEventListener('click',function(){closeLay();flash('已成章 · 换字重刻');});
+$('seal-again').addEventListener('click',function(){closeLay();openLay('pick');});
+/* ===== 绘制 ===== */
+function drawStrokePath(pts,color,w,glow){
+  if(!pts||pts.length<2)return;
+  g.strokeStyle=color;g.lineWidth=w;g.lineCap='round';g.lineJoin='round';
+  if(glow!==undefined){g.shadowColor=color;g.shadowBlur=glow;}
+  g.beginPath();g.moveTo(pts[0][0],pts[0][1]);
+  var i;
+  for(i=1;i<pts.length;i++)g.lineTo(pts[i][0],pts[i][1]);
+  g.stroke();
+  g.shadowBlur=0;
+}
+function draw(){
+  var i,j;
+  /* 纸底 */
+  g.fillStyle='#efe8d8';g.fillRect(0,0,390,844);
+  /* 印面区：宣纸底+朱框+米字 */
+  g.fillStyle='#f7f0e3';rr(g,GX-10,GY-10,260,260,10);g.fill();
+  g.strokeStyle='#c0392b';g.lineWidth=2;rr(g,GX-10,GY-10,260,260,10);g.stroke();
+  g.save();
+  g.strokeStyle='rgba(160,82,45,.28)';g.lineWidth=1;g.setLineDash([4,5]);
+  g.beginPath();
+  g.moveTo(GX,GY);g.lineTo(GX+240,GY+240);
+  g.moveTo(GX+240,GY);g.lineTo(GX,GY+240);
+  g.moveTo(GX+120,GY);g.lineTo(GX+120,GY+240);
+  g.moveTo(GX,GY+120);g.lineTo(GX+240,GY+120);
+  g.stroke();g.restore();
+  /* 底稿描红 */
+  var tot=CHARS[S.ci].strokes.length;
+  for(i=0;i<tot;i++){
+    var pts=strokePts(S.ci,i);
+    if(i<S.si)drawStrokePath(pts,'#a0522d',6);
+    else if(i===S.si&&!S.done&&S.pending<0){
+      var gl=8+5*Math.sin(frame*0.15);
+      drawStrokePath(pts,'#c0392b',6,gl);
+      /* 起刀点空心圆 */
+      g.strokeStyle='#c0392b';g.lineWidth=2.5;
+      g.beginPath();g.arc(pts[0][0],pts[0][1],8,0,Math.PI*2);g.stroke();
+    }
+    else drawStrokePath(pts,'#d9b8a8',6);
+  }
+  /* 已刻刀迹（最高分轨迹）*/
+  for(i=0;i<S.marks.length&&i<S.si;i++)drawStrokePath(S.marks[i],'#4a3a2c',2.5);
+  /* 运刀中当前轨迹 */
+  if(carving&&CARVE)drawStrokePath(CARVE,'#4a3a2c',2.5);
+  /* 石屑粒子 */
+  for(i=0;i<S.parts.length;i++){
+    var q=S.parts[i];
+    g.fillStyle='rgba(216,204,184,'+Math.min(1,q.life/30)+')';
+    g.fillRect(q.x-1,q.y-1,2.4,2.4);
+  }
+  /* 刀态小格（每刀状态）*/
+  var gy0=470;
+  g.fillStyle='rgba(90,70,50,.10)';rr(g,55,gy0-18,280,64,10);g.fill();
+  for(i=0;i<tot;i++){
+    var sx=75+i*40,sy=gy0;
+    g.fillStyle='#f7f0e3';rr(g,sx,sy,34,34,5);g.fill();
+    g.strokeStyle=i<S.si?'#a0522d':'rgba(160,82,45,.35)';g.lineWidth=1.4;rr(g,sx,sy,34,34,5);g.stroke();
+    /* mini 刀迹 */
+    var mp=strokePts(S.ci,i),k=34/240;
+    g.strokeStyle=i<S.si?'#a0522d':(i===S.si?'#c0392b':'#d9b8a8');
+    g.lineWidth=3;g.lineCap='round';g.lineJoin='round';
+    g.beginPath();
+    g.moveTo(sx+17+(mp[0][0]-GX-120)*k*0.9,sy+17+(mp[0][1]-GY-120)*k*0.9);
+    for(j=1;j<mp.length;j++)g.lineTo(sx+17+(mp[j][0]-GX-120)*k*0.9,sy+17+(mp[j][1]-GY-120)*k*0.9);
+    g.stroke();
+  }
+  /* 印泥盒+印石静物（右下小角，手艺场景）*/
+  var bx=270,by=620;
+  g.fillStyle='#a03a2a';rr(g,bx,by,84,30,4);g.fill();
+  g.fillStyle='#c0392b';rr(g,bx+6,by+5,72,20,3);g.fill();
+  g.fillStyle='#f5df9a';g.font='12px serif';g.textAlign='center';g.fillText('印泥',bx+42,by+19);
+  g.fillStyle='#d9bc82';rr(g,bx+4,by+36,34,16,2);g.fill();
+  g.fillStyle='#c9a86a';rr(g,bx+46,by+36,34,16,2);g.fill();
+  /* 待成章倒计提示 */
+  if(S.pending>=0){
+    g.fillStyle='rgba(160,58,42,.85)';rr(g,120,780,150,30,15);g.fill();
+    g.fillStyle='#f7f0e3';g.font='14px serif';g.fillText('将 成 章 …',195,800);
+  }
+}
+/* ===== 主循环 ===== */
+var lastT=0,acc=0;
+function step(dt){
+  frame++;
+  var i;
+  for(i=S.parts.length-1;i>=0;i--){
+    var q=S.parts[i];
+    q.x+=q.vx*dt;q.y+=q.vy*dt;q.vy+=90*dt;q.life-=dt*60;
+    if(q.life<=0)S.parts.splice(i,1);
+  }
+  if(S.parts.length>30)S.parts.splice(0,S.parts.length-30);
+  if(S.pending>=0){
+    S.pending--;
+    if(S.pending<=0){sealNow();}
+  }
+  if(S.flashT>0){S.flashT--;if(S.flashT===0)$('flash').style.opacity=0;}
+  acc+=dt;
+  if(acc>10){acc=0;saveAll();}
+}
+function loop(ts){
+  var dt=lastT?Math.min(0.05,(ts-lastT)/1000):0.016;
+  lastT=ts;
+  step(dt);draw();
+  requestAnimationFrame(loop);
+}
+/* ===== 启动 ===== */
+loadAll();
+$('btn-snd').textContent=S.snd?'🔊':'🔇';
+if(S.snd)document.addEventListener('pointerdown',wake);
+document.addEventListener('pagehide',saveAll);
+updHud();
+requestAnimationFrame(loop);
+/* ===== DEV 钩子（build 剥除）===== */
+
+</script>
+</body>
+</html>
