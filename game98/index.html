@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>电梯调度</title>
+<style>
+  html,body{margin:0;padding:0;background:#e6e9e4;overflow:hidden;height:100%;
+    font-family:"PingFang SC","Microsoft YaHei",sans-serif;-webkit-user-select:none;user-select:none;}
+  #cv{position:absolute;left:0;top:0;touch-action:none}
+  .btn{position:absolute;border:none;border-radius:10px;background:#8a6a3c;color:#faf6ec;
+    font-size:17px;font-weight:600;letter-spacing:1px;box-shadow:0 3px 0 #5d4526;cursor:pointer;}
+  .btn:active{transform:translateY(2px);box-shadow:0 1px 0 #5d4526;}
+  .btn:disabled{opacity:.45;box-shadow:none;cursor:default;}
+  .btn.copper{background:#b0783a;box-shadow:0 3px 0 #7d5222;}
+  .btn.copper:active{box-shadow:0 1px 0 #7d5222;}
+  .btn.sage{background:#6a8a76;box-shadow:0 3px 0 #47604f;}
+  .btn.sage:active{box-shadow:0 1px 0 #47604f;}
+  .btn.small{font-size:13px;letter-spacing:1px;}
+  #btn-snd{position:absolute;right:10px;top:12px;width:38px;height:32px;border:none;border-radius:8px;
+    background:rgba(138,106,60,.16);font-size:16px;cursor:pointer;}
+</style>
+</head>
+<body>
+<canvas id="cv" width="390" height="844"></canvas>
+<button id="btn-snd">🔇</button>
+<button id="btn-up" class="btn copper" style="left:24px;top:758px;width:104px;height:54px;">▲ 上行</button>
+<button id="btn-stop" class="btn" style="left:143px;top:758px;width:104px;height:54px;">⏸ 驻停</button>
+<button id="btn-down" class="btn copper" style="left:262px;top:758px;width:104px;height:54px;">▼ 下行</button>
+<button id="btn-next" class="btn sage" style="left:60px;top:640px;width:130px;height:52px;display:none;">下一日</button>
+<button id="btn-retry" class="btn small" style="left:210px;top:640px;width:120px;height:52px;display:none;">重开本日</button>
+<script>
+'use strict';
+/* ===== 常量（规则层单源——与 SPEC 逐条对应） ===== */
+var FLOORS = 9, CAP = 8;
+var MOVE_F = 36, DOOR_F = 54;            /* 帧/层 0.6s；开门 0.9s */
+var DAY_F = 75 * 60;                     /* 日长 4500 帧 */
+var FAIL_MISS = 5;
+var WEEK = 7;
+function genIvF(d) { return Math.max(2.6, 4.5 * Math.pow(0.94, d - 1)) * 60; }   /* 生成节拍（帧） */
+function patF(d) { return (21 - 1.5 * (d - 1)) * 60; }                          /* 耐心（帧） */
+function rating(m) { return m === 0 ? 'S' : (m <= 1 ? 'A' : (m <= 3 ? 'B' : 'C')); }
+var TOP_Y = 78, BOT_Y = 740, LH = (BOT_Y - TOP_Y) / FLOORS;   /* 层高 73.5 */
+function floorY(L) { return BOT_Y - L * LH; }                 /* 层 L 带顶 y（层带 [floorY, floorY+LH)） */
+
+/* ===== 状态 ===== */
+var S = {
+  phase: 'dayrun',                       /* dayrun|dayend|dayfail|weekend */
+  day: 1, score: 0, streak: 0, miss: 0, delivered: 0,
+  t: 0, nextGen: 0,
+  guests: [], load: [],
+  elevL: 1, elevP: 0, dir: 0, doorT: 0, intent: 0,   /* intent=玩家意图：1/-1/0（层边界生效） */
+  ratings: '', high: 0,
+  snd: 0, flashT: 0, flashTxt: '', gen: 0
+};
+var RS = (1 + Math.floor(Math.random() * 1e9)) % 2147483647;
+function rnd() { RS = (RS * 48271) % 2147483647; return (RS - 1) / 2147483646; }
+var AC = null;
+
+/* ===== 存档 ===== */
+function loadAll() {
+  var v;
+  try { v = localStorage.getItem('g98_snd'); if (v !== null) S.snd = (v === '1') ? 1 : 0; } catch (e) { }
+  try {
+    v = localStorage.getItem('g98_main');
+    if (v) {
+      var m = JSON.parse(v);
+      if (typeof m.score === 'number' && m.score >= 0) S.score = Math.floor(m.score);
+      if (typeof m.high === 'number' && m.high >= 0) S.high = Math.floor(m.high);
+      if (typeof m.ratings === 'string') S.ratings = m.ratings.replace(/[^SABC]/g, '').slice(0, WEEK);
+      /* 日初快照：恢复到日初重开本日（防刷新白嫖 streak / 逃 miss） */
+      if (m.snap && typeof m.snap.day === 'number' && m.snap.day >= 1 && m.snap.day <= WEEK) {
+        S.day = Math.floor(m.snap.day);
+        if (typeof m.snap.score === 'number' && m.snap.score >= 0) S.score = Math.floor(m.snap.score);
+      }
+    }
+  } catch (e) { }
+}
+function saveMain(rat) {
+  try {
+    localStorage.setItem('g98_main', JSON.stringify({
+      score: S.score, high: S.high, ratings: rat !== undefined ? rat : S.ratings,
+      snap: { day: S.day, score: S.dayScore0 }    /* dayScore0=本日初分数 */
+    }));
+  } catch (e) { }
+}
+
+/* ===== 音效（AC 手势内懒建+恢复态一次性 wake 自摘） ===== */
+function ensureAC() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { } }
+  if (AC && AC.state === 'suspended') AC.resume();
+}
+function tone(f, d, type, vol, when) {
+  if (!S.snd || !AC) return;
+  var t0 = AC.currentTime + (when || 0);
+  var o = AC.createOscillator(), g = AC.createGain();
+  o.type = type || 'sine'; o.frequency.value = f;
+  g.gain.setValueAtTime(vol || 0.12, t0);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + d);
+  o.connect(g); g.connect(AC.destination);
+  o.start(t0); o.stop(t0 + d + 0.02);
+}
+function sndDing() { tone(880, 0.09, 'sine', 0.1, 0); tone(1320, 0.12, 'sine', 0.09, 0.07); }
+function sndChak() { tone(220, 0.05, 'square', 0.07, 0); }
+function sndPop() { tone(660, 0.06, 'sine', 0.1, 0); tone(880, 0.08, 'sine', 0.1, 0.05); }
+function sndMiss() { tone(180, 0.22, 'sawtooth', 0.08, 0); }
+function sndGong() { tone(220, 0.8, 'sine', 0.15, 0); tone(880, 0.5, 'sine', 0.06, 0.05); }
+function wake() { ensureAC(); document.removeEventListener('pointerdown', wake); }
+function sndOnRestore() { if (S.snd) document.addEventListener('pointerdown', wake); }
+
+/* ===== 客与电梯 ===== */
+function spawnGuest() {
+  var f = 1 + Math.floor(rnd() * FLOORS);
+  var t = 1 + Math.floor(rnd() * (FLOORS - 1));
+  if (t >= f) t++;
+  S.guests.push({ f: f, t: t, born: S.t, pat: patF(S.day) });
+  S.gen++;
+}
+function service() {                      /* 到层服务：先下后上（出生序），容量满继续等 */
+  var fl = S.elevL, got = false, off = 0, i;
+  for (i = 0; i < S.load.length; i++) {
+    if (S.load[i].t === fl) {
+      S.load.splice(i, 1); i--;
+      S.delivered++; S.streak++;
+      S.score += 10 + 2 * (S.streak - 1);
+      got = true; off++;
+    }
+  }
+  for (i = 0; i < S.guests.length && S.load.length < CAP; i++) {
+    if (S.guests[i].f === fl) {
+      S.load.push({ t: S.guests[i].t });
+      S.guests.splice(i, 1); i--;
+      got = true;
+    }
+  }
+  if (got) { S.doorT = DOOR_F; sndDing(); if (off) sndPop(); }
+  return got;
+}
+function applyIntent() {                  /* 意图生效（三处统一：钳端保护——端层外向意图=驻停） */
+  if (S.elevL >= FLOORS && S.intent === 1) { S.dir = 0; return false; }
+  if (S.elevL <= 1 && S.intent === -1) { S.dir = 0; return false; }
+  S.dir = S.intent;
+  return true;
+}
+function arriveFloor() {                  /* 到层判定（dir 已推进 elevL）：先服务后方向 */
+  if (service()) return;                  /* 开门服务（含端层——9F 有人下也得开门） */
+  if (!applyIntent()) {                   /* 撞端驻停 */
+    S.elevP = 0;
+    flash(S.elevL >= FLOORS ? '顶层 9F' : '底层 1F');
+  }
+}
+function flash(t) { S.flashTxt = t; S.flashT = 100; }
+function dayEndNow() {
+  S.phase = 'dayend';
+  var r = rating(S.miss);
+  S.ratings += r;
+  if (S.miss === 0) { S.score += 50; }
+  if (S.score > S.high) S.high = S.score;
+  S.dir = 0; S.doorT = 0;
+  saveMain(S.ratings.slice(0, S.day - 1));   /* 落盘裁掉当日评级：面板期刷新重打=抹当日（与 retryDay 对齐，G3 m3） */
+  sndGong();
+}
+function dayFailNow() {
+  S.phase = 'dayfail';
+  S.score = S.dayScore0;                  /* 回退日初 */
+  S.dir = 0; S.doorT = 0;
+  sndMiss();
+}
+function nextDay() {
+  if (S.day >= WEEK) {
+    S.phase = 'weekend';
+    if (S.score > S.high) S.high = S.score;
+    /* 通关落盘=重开一周初值（high 保留）：面板期刷新等价重开一周，防反复刷日 7 缝合 high（G3 m4） */
+    try {
+      localStorage.setItem('g98_main', JSON.stringify({ score: 0, high: S.high, ratings: '', snap: { day: 1, score: 0 } }));
+    } catch (e) { }
+    return;
+  }
+  S.day++; startDay();
+}
+function startDay() {
+  S.phase = 'dayrun'; S.t = 0; S.miss = 0; S.delivered = 0; S.streak = 0; S.gen = 0;
+  S.guests = []; S.load = [];
+  S.elevL = 1; S.elevP = 0; S.dir = 0; S.doorT = 0; S.intent = 0;
+  S.dayScore0 = S.score;
+  S.nextGen = Math.floor(30 + rnd() * genIvF(S.day));
+  saveMain();
+}
+function retryDay() {
+  S.score = S.dayScore0;
+  S.ratings = S.ratings.slice(0, S.day - 1);   /* 抹掉 FAIL 日未记评级（FAIL 不入串） */
+  startDay();
+}
+function restartWeek() {
+  S.day = 1; S.score = 0; S.ratings = '';
+  startDay();
+}
+
+/* ===== 主循环 ===== */
+function step() {
+  if (S.flashT > 0) S.flashT--;
+  if (S.phase !== 'dayrun') return;
+  S.t++;
+  /* 生成 */
+  if (S.t >= S.nextGen) {
+    spawnGuest();
+    S.nextGen = S.t + Math.floor(genIvF(S.day) * (0.7 + rnd() * 0.6));
+  }
+  /* 耐心 */
+  var alive = [];
+  for (var i = 0; i < S.guests.length; i++) {
+    if (S.t - S.guests[i].born >= S.guests[i].pat) {
+      S.miss++; S.streak = 0; sndMiss();
+    } else alive.push(S.guests[i]);
+  }
+  S.guests = alive;
+  if (S.miss >= FAIL_MISS) { dayFailNow(); return; }
+  /* 电梯 */
+  if (S.doorT > 0) {
+    S.doorT--;
+    if (S.doorT === 0) { sndChak(); S.elevP = 0; arriveFloor(); }   /* 门末重出发=到层语义：补接门期新客+钳端 flash（G3 M1/m8） */
+  } else if (S.dir !== 0) {
+    S.elevP++;
+    if (S.elevP >= MOVE_F) {
+      S.elevL += S.dir; S.elevP = 0;
+      arriveFloor();
+    }
+  } else {
+    if (!service()) applyIntent();        /* 驻停先应召本层客（G3 M1），无客取意图 */
+  }
+  /* 日终 */
+  if (S.t >= DAY_F) dayEndNow();
+}
+function loop() {
+  step();
+  draw();
+  updHud();                                /* 每帧刷（step 在面板期早退——updHud 必须挂 loop） */
+  requestAnimationFrame(loop);
+}
+
+/* ===== 绘制 ===== */
+var cv = document.getElementById('cv'), fg = cv.getContext('2d');
+function rr(x, y, w, h, r) {
+  fg.beginPath();
+  fg.moveTo(x + r, y);
+  fg.arcTo(x + w, y, x + w, y + h, r); fg.arcTo(x + w, y + h, x, y + h, r);
+  fg.arcTo(x, y + h, x, y, r); fg.arcTo(x, y, x + w, y, r);
+  fg.closePath();
+}
+function patColor(frac) { return frac > 0.5 ? '#5a8a5f' : (frac > 0.25 ? '#c9a227' : '#b03a2a'); }
+function drawGuest(gx, gy, g, now) {
+  var frac = Math.max(0, 1 - (now - g.born) / g.pat);
+  fg.strokeStyle = patColor(frac); fg.lineWidth = 2.4;
+  fg.beginPath(); fg.arc(gx, gy, 12, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac); fg.stroke();
+  fg.fillStyle = g.t > g.f ? '#3f7a6a' : '#a8663a';
+  fg.beginPath(); fg.arc(gx, gy, 7, 0, Math.PI * 2); fg.fill();
+  fg.fillStyle = '#faf6ec'; fg.font = 'bold 8px sans-serif'; fg.textAlign = 'center'; fg.textBaseline = 'middle';
+  fg.fillText(String(g.t), gx, gy + 0.5);
+  fg.fillStyle = g.t > g.f ? '#3f7a6a' : '#a8663a';
+  fg.font = '8px sans-serif';
+  fg.fillText(g.t > g.f ? '▲' : '▼', gx + 11, gy - 11);
+}
+function draw() {
+  fg.fillStyle = '#e9ece6'; fg.fillRect(0, 0, 390, 844);
+  /* HUD */
+  fg.fillStyle = '#5a4a33'; fg.font = 'bold 15px sans-serif'; fg.textAlign = 'left'; fg.textBaseline = 'middle';
+  fg.fillText('第 ' + S.day + ' / ' + WEEK + ' 日', 14, 28);
+  fg.fillText('分 ' + S.score, 14, 52);
+  fg.fillStyle = '#e0ddd2'; rr(120, 22, 180, 12, 6); fg.fill();
+  fg.fillStyle = '#6a8a76'; rr(120, 22, 180 * Math.min(1, S.t / DAY_F), 12, 6); fg.fill();
+  fg.fillStyle = S.miss >= 3 ? '#b03a2a' : '#5a4a33'; fg.font = 'bold 13px sans-serif'; fg.textAlign = 'right';
+  fg.fillText('错过 ' + S.miss + '/' + FAIL_MISS, 344, 52);
+  /* 楼体 */
+  fg.fillStyle = '#d9dcd4'; fg.fillRect(10, TOP_Y, 354, BOT_Y - TOP_Y);
+  fg.strokeStyle = '#b8bcae'; fg.lineWidth = 1;
+  for (var L = 1; L <= FLOORS; L++) {
+    var yT = floorY(L);
+    fg.beginPath(); fg.moveTo(10, yT + LH); fg.lineTo(296, yT + LH); fg.stroke();
+    fg.fillStyle = '#7a746a'; fg.font = 'bold 13px sans-serif'; fg.textAlign = 'left';
+    fg.fillText(L + 'F', 18, yT + LH / 2);
+  }
+  /* 候梯客（层内横排，最多 5 + 溢出点数） */
+  var byFloor = {};
+  for (var gi = 0; gi < S.guests.length; gi++) {
+    (byFloor[S.guests[gi].f] = byFloor[S.guests[gi].f] || []).push(S.guests[gi]);
+  }
+  for (var f2 in byFloor) {
+    var arr = byFloor[f2], yM = floorY(+f2) + LH / 2;
+    var show = arr.slice(0, 5);
+    for (var si = 0; si < show.length; si++) drawGuest(96 + si * 40, yM, show[si], S.t);
+    if (arr.length > 5) {
+      fg.fillStyle = '#8a8478'; fg.font = 'bold 11px sans-serif'; fg.textAlign = 'left';
+      fg.fillText('+' + (arr.length - 5), 96 + 5 * 40, yM);
+    }
+  }
+  /* 井道 */
+  fg.fillStyle = '#c4c8bd'; fg.fillRect(300, TOP_Y, 58, BOT_Y - TOP_Y);
+  fg.strokeStyle = '#a8ad9f';
+  for (var L2 = 1; L2 <= FLOORS; L2++) {
+    fg.beginPath(); fg.moveTo(300, floorY(L2) + LH); fg.lineTo(358, floorY(L2) + LH); fg.stroke();
+  }
+  /* 轿厢（层+进度插值；dir=0 时驻当前层） */
+  var cy = floorY(S.elevL + (S.dir > 0 ? S.elevP / MOVE_F : (S.dir < 0 ? -S.elevP / MOVE_F : 0))) + 4;
+  var ch = LH - 8;
+  fg.fillStyle = '#b0783a'; rr(306, cy, 46, ch, 6); fg.fill();
+  fg.strokeStyle = '#7d5222'; fg.lineWidth = 2; fg.stroke();
+  if (S.doorT > 0) {                      /* 开门双门线 */
+    var open = Math.sin(Math.min(1, (DOOR_F - S.doorT) / DOOR_F) * Math.PI) * 12;
+    fg.strokeStyle = '#f2e6cf'; fg.lineWidth = 2;
+    fg.beginPath(); fg.moveTo(310, cy + 4 + open); fg.lineTo(310, cy + ch - 4 - open); fg.stroke();
+    fg.beginPath(); fg.moveTo(348, cy + 4 + open); fg.lineTo(348, cy + ch - 4 - open); fg.stroke();
+  }
+  fg.fillStyle = '#faf6ec'; fg.font = 'bold 13px sans-serif'; fg.textAlign = 'center';
+  fg.fillText(S.load.length + '/' + CAP, 329, cy + ch / 2);
+  /* 意图箭头（井道顶） */
+  if (S.intent !== 0 && S.phase === 'dayrun') {
+    fg.fillStyle = '#5a4a33'; fg.font = 'bold 15px sans-serif'; fg.textAlign = 'center';
+    fg.fillText(S.intent > 0 ? '▲' : '▼', 329, TOP_Y - 10);
+  }
+  /* 面板（dayend/dayfail/weekend） */
+  if (S.phase !== 'dayrun') {
+    fg.fillStyle = 'rgba(40,46,40,.5)'; fg.fillRect(0, 0, 390, 844);
+    fg.fillStyle = '#f5f2e8'; rr(40, 200, 310, 340, 14); fg.fill();
+    fg.strokeStyle = '#b0783a'; fg.lineWidth = 3; fg.stroke();
+    fg.textAlign = 'center';
+    if (S.phase === 'dayend') {
+      var r = S.ratings.charAt(S.ratings.length - 1);
+      fg.fillStyle = r === 'S' ? '#c9a227' : (r === 'A' ? '#5a8a5f' : (r === 'B' ? '#5a7fa8' : '#a86a5a'));
+      fg.font = 'bold 64px Georgia,serif';
+      fg.fillText(r, 195, 300);
+      fg.fillStyle = '#5a4a33'; fg.font = 'bold 17px sans-serif';
+      fg.fillText(S.miss === 0 ? '完美日！+50' : '今日评级 ' + r, 195, 350);
+    } else if (S.phase === 'dayfail') {
+      fg.fillStyle = '#b03a2a'; fg.font = 'bold 30px sans-serif';
+      fg.fillText('客人流失过多', 195, 290);
+      fg.fillStyle = '#5a4a33'; fg.font = 'bold 16px sans-serif';
+      fg.fillText('错过 ' + S.miss + ' 位，本日重来', 195, 335);
+    } else {
+      fg.fillStyle = '#c9a227'; fg.font = 'bold 34px Georgia,serif';
+      fg.fillText('一周通关', 195, 285);
+      fg.fillStyle = '#5a4a33'; fg.font = 'bold 20px sans-serif';
+      fg.fillText('总分 ' + S.score, 195, 330);
+      fg.font = 'bold 16px sans-serif';
+      fg.fillText(S.ratings + '（最高 ' + S.high + '）', 195, 365);
+    }
+    fg.fillStyle = '#8a8478'; fg.font = '13px sans-serif';
+    fg.fillText('送达 ' + S.delivered + ' · 错过 ' + S.miss + ' · 分 ' + S.score, 195, 500);
+  }
+  /* flash（y716-748——避开按钮带 y756+） */
+  if (S.flashT > 0) {
+    var fa = Math.min(1, S.flashT / 30);
+    fg.fillStyle = 'rgba(90,74,51,' + (0.9 * fa) + ')';
+    rr(95, 716, 200, 32, 8); fg.fill();
+    fg.fillStyle = '#faf6ec'; fg.font = '14px sans-serif'; fg.textAlign = 'center'; fg.textBaseline = 'middle';
+    fg.fillText(S.flashTxt, 195, 732);
+  }
+}
+function updHud() {
+  var run = S.phase === 'dayrun';
+  document.getElementById('btn-up').disabled = !run;
+  document.getElementById('btn-stop').disabled = !run;
+  document.getElementById('btn-down').disabled = !run;
+  /* 面板期藏方向钮（g97 VLM 叠压修复范式） */
+  document.getElementById('btn-up').style.display = run ? '' : 'none';
+  document.getElementById('btn-stop').style.display = run ? '' : 'none';
+  document.getElementById('btn-down').style.display = run ? '' : 'none';
+  var showNext = S.phase === 'dayend' || S.phase === 'weekend';
+  document.getElementById('btn-next').style.display = showNext ? '' : 'none';
+  document.getElementById('btn-next').textContent = S.phase === 'weekend' ? '重开一周' : '进入下一日';
+  document.getElementById('btn-retry').style.display = (S.phase === 'dayfail' || S.phase === 'dayend') ? '' : 'none';
+  document.getElementById('btn-retry').textContent = S.phase === 'dayend' ? '重打本日' : '重开本日';
+  document.getElementById('btn-snd').textContent = S.snd ? '🔊' : '🔇';
+}
+
+/* ===== 事件 ===== */
+function onBtn(id, fn) {
+  document.getElementById(id).addEventListener('click', function (e) {
+    if (e.preventDefault) e.preventDefault();
+    fn();
+  });
+}
+onBtn('btn-snd', function () {
+  S.snd = S.snd ? 0 : 1;
+  try { localStorage.setItem('g98_snd', S.snd ? '1' : '0'); } catch (e) { }
+  if (S.snd) { ensureAC(); } else if (AC) { try { AC.suspend(); } catch (e) { } }
+});
+onBtn('btn-up', function () { if (S.phase === 'dayrun') { S.intent = 1; } });
+onBtn('btn-stop', function () { if (S.phase === 'dayrun') { S.intent = 0; } });
+onBtn('btn-down', function () { if (S.phase === 'dayrun') { S.intent = -1; } });
+onBtn('btn-next', function () {
+  if (S.phase === 'dayend') nextDay();
+  else if (S.phase === 'weekend') restartWeek();
+});
+onBtn('btn-retry', function () {
+  if (S.phase === 'dayfail') retryDay();
+  else if (S.phase === 'dayend') retryDay();   /* 重打本日：抹评级重来 */
+});
+document.addEventListener('visibilitychange', function () {
+  if (document.hidden && S.phase === 'dayrun') saveMain();   /* 仅日中回写：dayend 已落裁剪档/dayfail 有日初档/weekend 已排除（G3 二审 N1） */
+});
+
+/* ===== boot ===== */
+loadAll();
+S.dayScore0 = S.score;
+startDay();                                /* 刷新=重开本日（日初快照语义） */
+sndOnRestore();
+updHud();
+requestAnimationFrame(loop);
+
+
+</script>
+</body>
+</html>
