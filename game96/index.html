@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>骰宝押注</title>
+<style>
+  html,body{margin:0;padding:0;background:#e8e0cd;overflow:hidden;height:100%;
+    font-family:"PingFang SC","Microsoft YaHei",sans-serif;-webkit-user-select:none;user-select:none;}
+  #cv{position:absolute;left:0;top:0;touch-action:none}
+  .btn{position:absolute;border:none;border-radius:10px;background:#b03a2a;color:#faf6ec;
+    font-size:16px;font-weight:600;letter-spacing:2px;box-shadow:0 3px 0 #7d2519;cursor:pointer;}
+  .btn:active{transform:translateY(2px);box-shadow:0 1px 0 #7d2519;}
+  .btn:disabled{opacity:.45;box-shadow:none;cursor:default;}
+  .btn.gold{background:#c9a227;box-shadow:0 3px 0 #8a6f14;}
+  .btn.gold:active{box-shadow:0 1px 0 #8a6f14;}
+  .btn.dim{background:#b9ad93;box-shadow:0 3px 0 #8a7f66;color:#f4eedd;}
+  .btn.small{font-size:13px;letter-spacing:1px;}
+  #btn-snd{position:absolute;right:10px;top:14px;width:38px;height:34px;border:none;border-radius:8px;
+    background:rgba(176,58,42,.14);font-size:17px;cursor:pointer;}
+</style>
+</head>
+<body>
+<canvas id="cv" width="390" height="844"></canvas>
+<button id="btn-snd">🔇</button>
+<button id="btn-chip" class="btn small dim" style="left:24px;top:652px;width:104px;height:44px;">筹码 ◇10</button>
+<button id="btn-clear" class="btn small dim" style="left:140px;top:652px;width:100px;height:44px;">清 空</button>
+<button id="btn-rebet" class="btn small dim" style="left:252px;top:652px;width:100px;height:44px;">重 押</button>
+<button id="btn-roll" class="btn gold" style="left:125px;top:708px;width:140px;height:56px;font-size:19px;">摇 骰</button>
+<button id="btn-alms" class="btn small dim" style="left:258px;top:778px;width:104px;height:40px;display:none;">盘缠+100</button>
+<script>
+'use strict';
+/* ===== 常量（规则层单源——与 SPEC 逐条对应） ===== */
+var GOLD0 = 200;
+var STAKES = [10, 25, 50];
+var ODDS = { big: 1, small: 1, triple: 200, combo: 6 };   /* 赢返=(odds+1)×注 */
+var ROLL_F = 60, REVEAL_F = 40, SETTLE_F = 50;
+var VALID = ['big', 'small'];
+(function () { for (var i = 1; i <= 6; i++) VALID.push('t' + i); })();
+(function () { for (var i = 1; i <= 6; i++) for (var j = i + 1; j <= 6; j++) VALID.push('c' + i + '' + j); })();
+
+/* ===== 状态 ===== */
+var S = {
+  gold: GOLD0, phase: 'idle',           /* idle|rolling|reveal|settle */
+  stake: 10, bets: {}, lastBets: {},
+  dice: [1, 1, 1], lastResult: null,
+  rollT: 0, revealT: 0, settleT: 0,
+  rounds: 0, wins: 0, loses: 0, bestWin: 0, alms: 0,
+  snd: 0, flashT: 0, flashTxt: ''
+};
+var RS = (1 + Math.floor(Math.random() * 1e9)) % 2147483647;
+function rnd() { RS = (RS * 48271) % 2147483647; return (RS - 1) / 2147483646; }
+var AC = null;
+
+/* ===== 规则纯函数（SPEC 单源） ===== */
+function sum3(a, b, c) { return a + b + c; }
+function winKeys(a, b, c) {               /* 赢位 key 列表（围骰时大/小皆输） */
+  var ks = [], s = a + b + c, tp = (a === b && b === c), i, j;
+  if (tp) ks.push('t' + a);
+  else { if (s >= 11) ks.push('big'); else ks.push('small'); }
+  var has = function (x) { return a === x || b === x || c === x; };
+  for (i = 1; i <= 6; i++) for (j = i + 1; j <= 6; j++) {
+    if (has(i) && has(j)) ks.push('c' + i + '' + j);
+  }
+  return ks;
+}
+function oddsOf(key) { return key === 'big' || key === 'small' ? ODDS.big : key[0] === 't' ? ODDS.triple : ODDS.combo; }
+function payout(a, b, c, bets) {          /* 给定三骰+注单 → 赔返（纯函数） */
+  var ws = winKeys(a, b, c), ret = 0, detail = {}, k;
+  for (k in bets) {
+    if (ws.indexOf(k) >= 0) { var g = (oddsOf(k) + 1) * bets[k]; ret += g; detail[k] = g; }
+    else detail[k] = 0;
+  }
+  return { ret: ret, detail: detail, winKeys: ws };
+}
+function betsTotal(b) { var t = 0; for (var k in b) t += b[k]; return t; }
+
+/* ===== 存档 ===== */
+function loadAll() {
+  var v;
+  try { v = localStorage.getItem('g96_snd'); if (v !== null) S.snd = (v === '1') ? 1 : 0; } catch (e) { }
+  try {
+    v = localStorage.getItem('g96_main');
+    if (v) {
+      var m = JSON.parse(v);
+      if (typeof m.gold === 'number' && m.gold >= 0 && m.gold < 1e12) S.gold = m.gold;
+      if (typeof m.rounds === 'number' && m.rounds >= 0) S.rounds = m.rounds;
+      if (typeof m.wins === 'number' && m.wins >= 0) S.wins = m.wins;
+      if (typeof m.loses === 'number' && m.loses >= 0) S.loses = m.loses;
+      if (typeof m.bestWin === 'number' && m.bestWin >= 0) S.bestWin = m.bestWin;
+      if (typeof m.alms === 'number' && m.alms >= 0) S.alms = m.alms;
+      if (m.lastBets && typeof m.lastBets === 'object') {
+        var lb = {};
+        for (var k in m.lastBets) {
+          if (VALID.indexOf(k) >= 0 && typeof m.lastBets[k] === 'number' && m.lastBets[k] > 0) lb[k] = m.lastBets[k];
+        }
+        S.lastBets = lb;
+      }
+      /* 注单在（gold 已扣语义）恢复：押注期注单即资产，刷新不丢 */
+      if (m.bets && typeof m.bets === 'object') {
+        var bt = {};
+        for (var k2 in m.bets) {
+          if (VALID.indexOf(k2) >= 0 && typeof m.bets[k2] === 'number' && m.bets[k2] > 0) bt[k2] = m.bets[k2];
+        }
+        S.bets = bt;
+      }
+    }
+  } catch (e) { }
+}
+function saveMain() {
+  try {
+    localStorage.setItem('g96_main', JSON.stringify({
+      gold: S.gold, rounds: S.rounds, wins: S.wins, loses: S.loses,
+      bestWin: S.bestWin, alms: S.alms, lastBets: S.lastBets, bets: S.bets
+    }));
+  } catch (e) { }
+}
+
+/* ===== 音效（AC 手势内懒建+恢复态一次性 wake 自摘） ===== */
+function ensureAC() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { } }
+  if (AC && AC.state === 'suspended') AC.resume();
+}
+function tone(f, d, type, vol, when) {
+  if (!S.snd || !AC) return;
+  var t0 = AC.currentTime + (when || 0);
+  var o = AC.createOscillator(), g = AC.createGain();
+  o.type = type || 'sine'; o.frequency.value = f;
+  g.gain.setValueAtTime(vol || 0.12, t0);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + d);
+  o.connect(g); g.connect(AC.destination);
+  o.start(t0); o.stop(t0 + d + 0.02);
+}
+function sndShake() {                     /* 摇骰哗啦：随机短方波簇（Math.random 与游戏 LCG 分离——G3 minor1） */
+  if (!S.snd || !AC) return;
+  for (var i = 0; i < 6; i++) {
+    tone(800 + Math.floor(Math.random() * 800), 0.018, 'square', 0.05, i * 0.075);
+  }
+}
+function sndOpen() {                      /* 开盅滑响：下行扫频 */
+  if (!S.snd || !AC) return;
+  var t0 = AC.currentTime;
+  var o = AC.createOscillator(), g = AC.createGain();
+  o.type = 'sine'; o.frequency.setValueAtTime(300, t0);
+  o.frequency.exponentialRampToValueAtTime(150, t0 + 0.12);
+  g.gain.setValueAtTime(0.08, t0);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.12);
+  o.connect(g); g.connect(AC.destination); o.start(t0); o.stop(t0 + 0.14);
+}
+function sndWin() { tone(1320, 0.07, 'sine', 0.1, 0); tone(1320, 0.1, 'sine', 0.1, 0.09); }
+function sndGong() { tone(220, 0.8, 'sine', 0.16, 0); tone(880, 0.5, 'sine', 0.06, 0.05); }
+function wake() {
+  ensureAC();
+  document.removeEventListener('pointerdown', wake);
+}
+function sndOnRestore() {
+  if (S.snd) document.addEventListener('pointerdown', wake);
+}
+
+/* ===== 流程 ===== */
+function flash(t) { S.flashTxt = t; S.flashT = 110; }
+function place(key) {                     /* 押注即扣（SPEC：押注期点格累加） */
+  if (S.phase !== 'idle') return false;
+  if (VALID.indexOf(key) < 0) return false;
+  if (S.gold < S.stake) { flash('金库不足'); return false; }
+  S.bets[key] = (S.bets[key] || 0) + S.stake;
+  S.gold -= S.stake;
+  saveMain();
+  return true;
+}
+function clearBets() {                    /* 清空=全额退注 */
+  if (S.phase !== 'idle') return false;
+  var t = betsTotal(S.bets);
+  if (t === 0) return false;
+  S.gold += t; S.bets = {};
+  saveMain();
+  return true;
+}
+function rebet() {                        /* 重押=上局注单叠加到当前注单 */
+  if (S.phase !== 'idle') return false;
+  var t = betsTotal(S.lastBets);
+  if (t === 0) { flash('没有上局注单'); return false; }
+  if (S.gold < t) { flash('金库不足'); return false; }
+  for (var k in S.lastBets) { S.bets[k] = (S.bets[k] || 0) + S.lastBets[k]; S.gold -= S.lastBets[k]; }
+  saveMain();
+  return true;
+}
+function roll() {                         /* 摇骰+即时结算落账（账务与表现分离） */
+  if (S.phase !== 'idle') return null;
+  var total = betsTotal(S.bets);
+  if (total === 0) { flash('先押一注'); return null; }
+  /* 单输出 u∈[0,216) 分解三骰（216=6³ 单 rnd 内三骰独立）——
+     连续三次 floor(rnd()*6) 因 LCG 乘子 48271≡1(mod 6) 产生 mod 6 结构相关（实测 triple 6 倍偏高） */
+  var u = Math.floor(rnd() * 216);
+  var d = [Math.floor(u / 36) + 1, Math.floor(u / 6) % 6 + 1, u % 6 + 1];
+  var r = payout(d[0], d[1], d[2], S.bets);
+  var net = r.ret - total;
+  S.dice = d;
+  S.lastResult = { bets: JSON.parse(JSON.stringify(S.bets)), ret: r.ret, net: net, winKeys: r.winKeys };
+  S.gold += r.ret;
+  S.rounds++;
+  if (net > 0) S.wins++; else S.loses++;
+  if (net > S.bestWin) S.bestWin = net;
+  S.lastBets = JSON.parse(JSON.stringify(S.bets));
+  S.bets = {};                          /* 注单已消费（结算展示走 lastResult.bets）——清后落盘防刷新复活重摇（账务守恒） */
+  S.phase = 'rolling'; S.rollT = 0;
+  saveMain();
+  sndShake();
+  return { dice: d.slice(), sum: d[0] + d[1] + d[2], triple: d[0] === d[1] && d[1] === d[2], ret: r.ret, net: net, phase: 'rolling' };
+}
+function alms() {
+  if (S.phase !== 'idle' || S.gold >= STAKES[0]) return false;
+  S.gold += 100; S.alms++; saveMain();
+  flash('盘缠 +100');
+  return true;
+}
+function endSettle() {                    /* settle 结束回 idle：注单清空开新局 */
+  S.phase = 'idle'; S.bets = {};
+}
+
+/* ===== 绘制 ===== */
+var cv = document.getElementById('cv'), fg = cv.getContext('2d');
+function rr(x, y, w, h, r) {
+  fg.beginPath();
+  fg.moveTo(x + r, y);
+  fg.arcTo(x + w, y, x + w, y + h, r); fg.arcTo(x + w, y + h, x, y + h, r);
+  fg.arcTo(x, y + h, x, y, r); fg.arcTo(x, y, x + w, y, r);
+  fg.closePath();
+}
+function drawDie(x, y, v, sz) {           /* 白底骰+点阵（1/4 朱点） */
+  var m = sz / 64;
+  fg.fillStyle = '#faf6ec'; rr(x, y, sz, sz, 9 * m); fg.fill();
+  fg.strokeStyle = '#c9b98f'; fg.lineWidth = 1.5 * m; fg.stroke();
+  var col = (v === 1 || v === 4) ? '#b03a2a' : '#3a3a3a';
+  fg.fillStyle = col;
+  var P = { 1: [[32, 32]], 2: [[19, 19], [45, 45]], 3: [[19, 19], [32, 32], [45, 45]], 4: [[19, 19], [45, 19], [19, 45], [45, 45]], 5: [[19, 19], [45, 19], [32, 32], [19, 45], [45, 45]], 6: [[19, 15], [19, 32], [19, 49], [45, 15], [45, 32], [45, 49]] }[v];
+  for (var i = 0; i < P.length; i++) {
+    fg.beginPath(); fg.arc(x + P[i][0] * m, y + P[i][1] * m, 5 * m, 0, Math.PI * 2); fg.fill();
+  }
+}
+function keyRect(key) {                   /* 注位格几何（单源：命中+绘制共用） */
+  if (key === 'big') return { x: 22, y: 300, w: 165, h: 60 };
+  if (key === 'small') return { x: 203, y: 300, w: 165, h: 60 };
+  if (key[0] === 't') return { x: 21 + (key[1] - 1) * 57, y: 374, w: 53, h: 46 };
+  /* 组合格序号封闭式（G2 修复：双层循环 break 只断内层致 c16/c26/c36/c46 及同行前置组错位） */
+  var i = +key[1], j = +key[2];
+  var idx = (i - 1) * 6 - (i - 1) * i / 2 + (j - i - 1);
+  return { x: 21 + (idx % 5) * 70, y: 432 + Math.floor(idx / 5) * 44, w: 66, h: 38 };
+}
+function keyLabel(key) {
+  if (key === 'big') return '大'; if (key === 'small') return '小';
+  if (key[0] === 't') return key[1];
+  return key[1] + '·' + key[2];
+}
+function drawChip(x, y, amt) {            /* 筹码圆饼（值缩写） */
+  fg.fillStyle = '#c9a227'; fg.beginPath(); fg.arc(x, y, 13, 0, Math.PI * 2); fg.fill();
+  fg.strokeStyle = '#8a6f14'; fg.lineWidth = 1.5; fg.stroke();
+  fg.fillStyle = '#faf6ec'; fg.font = 'bold 9px sans-serif'; fg.textAlign = 'center'; fg.textBaseline = 'middle';
+  fg.fillText(amt >= 1000 ? (amt / 1000).toFixed(amt % 1000 ? 1 : 0) + 'k' : '' + amt, x, y + 0.5);
+}
+function drawCup(rot, dx) {               /* 扣杯（rolling 摆动；reveal 右滑离 dx） */
+  fg.save();
+  fg.translate(195 + (dx || 0), 190); fg.rotate(rot || 0);
+  fg.fillStyle = '#f0e6d2';
+  fg.beginPath(); fg.moveTo(-78, 30); fg.quadraticCurveTo(-70, -44, 0, -46); fg.quadraticCurveTo(70, -44, 78, 30);
+  fg.lineTo(66, 34); fg.quadraticCurveTo(0, 22, -66, 34); fg.closePath(); fg.fill();
+  fg.strokeStyle = '#c9b98f'; fg.lineWidth = 2; fg.stroke();
+  fg.fillStyle = '#b03a2a';
+  fg.beginPath(); fg.ellipse(0, -46, 16, 7, 0, 0, Math.PI * 2); fg.fill();
+  fg.restore();
+}
+function drawBowl() {                     /* 木碗托底 */
+  fg.fillStyle = '#7a4e30';
+  fg.beginPath(); fg.ellipse(195, 248, 148, 26, 0, 0, Math.PI * 2); fg.fill();
+  fg.fillStyle = '#8f5e3c';
+  fg.beginPath(); fg.ellipse(195, 242, 140, 22, 0, 0, Math.PI * 2); fg.fill();
+}
+function draw() {
+  fg.fillStyle = '#efe8d8'; fg.fillRect(0, 0, 390, 844);
+  /* HUD */
+  fg.fillStyle = '#8a6f14'; fg.font = 'bold 16px sans-serif'; fg.textAlign = 'left'; fg.textBaseline = 'middle';
+  fg.fillText('金库 ◇ ' + S.gold, 16, 32);
+  /* 骰盅区 */
+  drawBowl();
+  var showDice = (S.phase === 'reveal' || S.phase === 'settle' || (S.phase === 'idle' && S.lastResult));
+  if (S.phase === 'rolling') {
+    drawDie(131, 210, 1, 34); drawDie(179, 214, 3, 34); drawDie(225, 210, 5, 34);   /* 盅沿露角 */
+    drawCup(Math.sin(S.rollT / 60 * Math.PI * 6) * 0.12);
+    fg.fillStyle = '#5a4a33'; fg.font = '13px sans-serif'; fg.textAlign = 'center';
+    fg.fillText('摇骰中…', 195, 108);
+  } else if (showDice) {
+    var dy = S.phase === 'reveal' ? 150 + Math.min(1, S.revealT / 18) * 20 : 170;
+    drawDie(95, dy, S.dice[0], 64); drawDie(163, dy, S.dice[1], 64); drawDie(231, dy, S.dice[2], 64);   /* 64 骰+4 缝均布（60 间距曾重叠 4px） */
+    if (S.phase === 'reveal' && S.revealT < 12) drawCup((S.revealT / 12) * 0.25, (S.revealT / 12) * 175);   /* 杯右滑离（G3 修复：原只旋转未平移） */
+    var tp = S.dice[0] === S.dice[1] && S.dice[1] === S.dice[2];
+    fg.fillStyle = tp ? '#b03a2a' : '#5a4a33';
+    fg.font = 'bold 15px sans-serif'; fg.textAlign = 'center';
+    fg.fillText(tp ? '围骰 ' + S.dice[0] : '和 ' + (S.dice[0] + S.dice[1] + S.dice[2]), 195, 256);
+  } else {
+    drawCup(0);
+    fg.fillStyle = 'rgba(90,74,51,.5)'; fg.font = '12px sans-serif'; fg.textAlign = 'center';
+    fg.fillText('押注后摇骰开盅', 195, 108);
+  }
+  /* 押注台（绿毡） */
+  fg.fillStyle = '#3e5c46'; rr(15, 285, 360, 356, 16); fg.fill();
+  fg.strokeStyle = '#2e4434'; fg.lineWidth = 2; fg.stroke();
+  fg.fillStyle = '#d9c98f'; fg.font = 'bold 12px serif'; fg.textAlign = 'center'; fg.textBaseline = 'middle';
+  fg.fillText('骰 宝 押 注 台', 195, 293);
+  /* 注位格 */
+  var idle = S.phase === 'idle';
+  for (var ki = 0; ki < VALID.length; ki++) {
+    var key = VALID[ki], R = keyRect(key);
+    var hot = idle && S.bets[key] !== undefined;
+    fg.fillStyle = hot ? 'rgba(201,162,39,.25)' : 'rgba(250,246,236,.07)';
+    rr(R.x, R.y, R.w, R.h, 7); fg.fill();
+    fg.strokeStyle = hot ? '#c9a227' : 'rgba(217,201,143,.4)'; fg.lineWidth = hot ? 2 : 1;
+    fg.stroke();
+    var big2 = (key === 'big' || key === 'small');
+    fg.fillStyle = big2 ? (key === 'big' ? '#e8c4b8' : '#c4d4e0') : '#e6dcc0';
+    fg.font = big2 ? 'bold 22px serif' : (key[0] === 't' ? 'bold 17px serif' : 'bold 14px sans-serif');
+    fg.textAlign = 'center'; fg.textBaseline = 'middle';
+    if (key[0] === 't') {
+      /* 围骰格画 mini 点阵 */
+      var v = +key[1];
+      fg.fillStyle = '#e6dcc0';
+      fg.fillText(keyLabel(key), R.x + R.w / 2, R.y + 13);
+      var mini = { 1: [[10, 10]], 2: [[5, 5], [15, 15]], 3: [[5, 5], [10, 10], [15, 15]], 4: [[5, 5], [15, 5], [5, 15], [15, 15]], 5: [[5, 5], [15, 5], [10, 10], [5, 15], [15, 15]], 6: [[5, 4], [5, 10], [5, 16], [15, 4], [15, 10], [15, 16]] }[v];
+      fg.fillStyle = '#d9c98f';
+      for (var pi = 0; pi < mini.length; pi++) {
+        fg.beginPath(); fg.arc(R.x + R.w / 2 - 10 + mini[pi][0], R.y + 28 + mini[pi][1], 1.6, 0, Math.PI * 2); fg.fill();
+      }
+    } else {
+      fg.fillText(keyLabel(key), R.x + R.w / 2, R.y + (big2 ? 22 : 12));
+    }
+    /* 赔率角标 */
+    fg.fillStyle = 'rgba(217,201,143,.75)'; fg.font = '9px sans-serif';
+    fg.textAlign = 'right';
+    fg.fillText('1:' + oddsOf(key), R.x + R.w - 4, R.y + 8);
+    fg.textAlign = 'center';
+    /* 筹码（idle=当前注单；轮中=本局已消费注单副本） */
+    var chipSrc = idle ? S.bets : (S.lastResult ? S.lastResult.bets : {});
+    if (chipSrc[key] !== undefined) drawChip(R.x + R.w / 2, big2 ? R.y + R.h - 16 : R.y + R.h - 13, chipSrc[key]);   /* 半径 13 圆底缘齐格线不溢出 */
+  }
+  /* 注单汇总 */
+  var tot = betsTotal(idle ? S.bets : (S.lastResult ? S.lastResult.bets : {}));
+  fg.fillStyle = tot > 0 ? '#f0e6c8' : 'rgba(240,230,200,.4)';
+  fg.font = 'bold 14px sans-serif'; fg.textAlign = 'center'; fg.textBaseline = 'middle';
+  fg.fillText(tot > 0 ? '本局共押 ◇ ' + tot : '点押注格下筹码 · 赔率见格角', 195, 632);
+  /* settle 结算面板 */
+  if (S.phase === 'settle' && S.lastResult) {
+    fg.fillStyle = 'rgba(40,30,15,.45)'; fg.fillRect(0, 90, 390, 545);
+    fg.fillStyle = '#f7f0e3'; rr(30, 108, 330, 330, 14); fg.fill();
+    fg.strokeStyle = '#c9a227'; fg.lineWidth = 3; fg.stroke();
+    var LR = S.lastResult;
+    fg.textAlign = 'center'; fg.textBaseline = 'middle';
+    fg.fillStyle = LR.net > 0 ? '#8a6f14' : '#6a5b45';
+    fg.font = 'bold 24px serif';
+    fg.fillText(LR.net > 0 ? '净赢 ◇' + LR.net : (LR.net === 0 ? '平局' : '净输 ◇' + (-LR.net)), 195, 138);
+    fg.font = '14px sans-serif'; fg.fillStyle = '#5a4a33';
+    fg.fillText('骰 ' + S.dice[0] + ' · ' + S.dice[1] + ' · ' + S.dice[2] + '（' +
+      ((S.dice[0] === S.dice[1] && S.dice[1] === S.dice[2]) ? '围骰' : '和 ' + (S.dice[0] + S.dice[1] + S.dice[2])) + '）', 195, 164);
+    /* 明细行（>9 注截断+尾注——G3 minor6） */
+    var names = { big: '大', small: '小' };
+    var yi = 190, cnt = 0, totCnt = 0, k2;
+    for (k2 in LR.bets) totCnt++;
+    for (var bk in LR.bets) {
+      var won = LR.winKeys.indexOf(bk) >= 0;
+      fg.textAlign = 'left'; fg.font = '13px sans-serif';
+      fg.fillStyle = won ? '#b03a2a' : '#8a7f66';
+      var nm = names[bk] || (bk[0] === 't' ? '围骰' + bk[1] : '组' + bk[1] + bk[2]);
+      fg.fillText((won ? '● ' : '○ ') + nm + '　押 ◇' + LR.bets[bk], 52, yi);
+      fg.textAlign = 'right';
+      fg.fillStyle = won ? '#8a6f14' : '#8a7f66';
+      fg.fillText(won ? '返 ◇' + ((oddsOf(bk) + 1) * LR.bets[bk]) : '—', 338, yi);
+      yi += 22; cnt++;
+      if (cnt >= 9) break;
+    }
+    if (totCnt > 9) {
+      fg.textAlign = 'center'; fg.font = '12px sans-serif'; fg.fillStyle = '#8a7f66';
+      fg.fillText('…等 ' + totCnt + ' 注（明细略）', 195, yi + 2);
+    }
+    if (cnt === 0) fg.fillText('(无)', 195, 190);
+    fg.textAlign = 'center'; fg.font = '12px sans-serif'; fg.fillStyle = '#b9ad93';
+    fg.fillText('(' + Math.round((1 - S.settleT / SETTLE_F) * 100) + ') 点任意处再开', 195, 424);
+  }
+  /* 底栏战绩（左下；右侧 x258..362 y778..818 为盘缠钮——左排避让） */
+  fg.fillStyle = '#8a6f14'; fg.font = 'bold 13px sans-serif'; fg.textAlign = 'left'; fg.textBaseline = 'middle';
+  fg.fillText('局 ' + S.rounds + ' · 胜 ' + S.wins + ' · 最大赢 ◇' + S.bestWin, 16, 798);
+  /* flash（G3 修复：原 y660 带被 chip/clear/rebet 三 DOM 钮完全遮死——移毡面空带 y592-624，二审再上移 4px 避汇总文字顶缘） */
+  if (S.flashT > 0) {
+    var fa2 = Math.min(1, S.flashT / 30);
+    fg.fillStyle = 'rgba(122,94,45,' + (0.9 * fa2) + ')';
+    rr(95, 592, 200, 32, 8); fg.fill();
+    fg.fillStyle = '#faf6ec'; fg.font = '14px sans-serif'; fg.textAlign = 'center'; fg.textBaseline = 'middle';
+    fg.fillText(S.flashTxt, 195, 608);
+  }
+}
+function updHud() {
+  var idle = S.phase === 'idle';
+  document.getElementById('btn-chip').disabled = !idle;
+  document.getElementById('btn-clear').disabled = !idle;
+  document.getElementById('btn-rebet').disabled = !idle;
+  document.getElementById('btn-roll').disabled = !idle;
+  document.getElementById('btn-roll').textContent = idle ? '摇 骰' : '开盅中…';
+  document.getElementById('btn-chip').textContent = '筹码 ◇' + S.stake;
+  document.getElementById('btn-alms').style.display = (idle && S.gold < STAKES[0]) ? '' : 'none';
+  document.getElementById('btn-snd').textContent = S.snd ? '🔊' : '🔇';
+}
+
+/* ===== 主循环 ===== */
+function step() {
+  if (S.flashT > 0) S.flashT--;
+  if (S.phase === 'rolling') {
+    S.rollT++;
+    if (S.rollT >= ROLL_F) { S.phase = 'reveal'; S.revealT = 0; sndOpen(); }
+  } else if (S.phase === 'reveal') {
+    S.revealT++;
+    if (S.revealT >= REVEAL_F) {
+      S.phase = 'settle'; S.settleT = 0;
+      if (S.lastResult && S.lastResult.net > 0) {
+        if (S.lastResult.net >= 500 || S.lastResult.winKeys.some(function (k) { return k[0] === 't'; })) sndGong(); else sndWin();
+      }
+    }
+  } else if (S.phase === 'settle') {
+    S.settleT++;
+    if (S.settleT >= SETTLE_F) endSettle();
+  }
+  updHud();
+}
+function loop() {
+  step();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+/* ===== 事件 ===== */
+function onBtn(id, fn) {
+  document.getElementById(id).addEventListener('click', function (e) {
+    if (e.preventDefault) e.preventDefault();
+    fn();
+  });
+}
+onBtn('btn-snd', function () {
+  S.snd = S.snd ? 0 : 1;
+  try { localStorage.setItem('g96_snd', S.snd ? '1' : '0'); } catch (e) { }
+  if (S.snd) { ensureAC(); } else if (AC) { try { AC.suspend(); } catch (e) { } }
+});
+onBtn('btn-chip', function () {
+  if (S.phase !== 'idle') return;
+  var i = STAKES.indexOf(S.stake);
+  S.stake = STAKES[(i + 1) % STAKES.length];
+});
+onBtn('btn-clear', function () { clearBets(); });
+onBtn('btn-rebet', function () { rebet(); });
+onBtn('btn-roll', function () { roll(); });
+onBtn('btn-alms', function () { alms(); });
+cv.addEventListener('pointerdown', function (e) {
+  if (S.phase === 'settle') { endSettle(); return; }         /* 结算卡点跳过 */
+  if (S.phase !== 'idle') return;
+  /* 押注格命中（keyRect 单源几何） */
+  var r = cv.getBoundingClientRect();
+  var x = (e.clientX - r.left) * (390 / r.width), y = (e.clientY - r.top) * (844 / r.height);
+  for (var i = 0; i < VALID.length; i++) {
+    var R = keyRect(VALID[i]);
+    if (x >= R.x && x <= R.x + R.w && y >= R.y && y <= R.y + R.h) { place(VALID[i]); return; }
+  }
+});
+document.addEventListener('visibilitychange', function () {
+  if (document.hidden) saveMain();
+});
+
+/* ===== boot ===== */
+loadAll();
+sndOnRestore();
+updHud();
+requestAnimationFrame(loop);
+
+
+</script>
+</body>
+</html>
