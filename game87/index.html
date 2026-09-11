@@ -387,7 +387,8 @@ function drawMenuBg(){ctx.fillStyle='#e9dcc3';ctx.fillRect(0,0,Wc,Hc);
  for(var y=40;y<Hc;y+=46){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(Wc,y);ctx.stroke();}}
 
 /* ================= 音效 ================= */
-function ensureAC(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}}
+function ensureAC(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}if(AC&&AC.state==='suspended'){try{AC.resume()}catch(e){}}} /* J2：补 resume——boot 直建的 suspended AC 须手势内唤醒 */
+function wake(){ensureAC();if(document.removeEventListener)document.removeEventListener('pointerdown',wake)} /* 恢复开声态：首手势内建/醒 AC 后自摘（J2 家族修复） */
 function ping(hz,vol){if(!AC)return;try{var o=AC.createOscillator(),g=AC.createGain();
  o.frequency.value=hz;o.type='sine';g.gain.value=vol||.4;
  o.connect(g);g.connect(AC.destination);o.start();
@@ -436,6 +437,7 @@ $('btn-snd').addEventListener('click',function(){S.snd=!S.snd;
 /* ================= 启动 ================= */
 (function boot(){
  try{var v=localStorage.getItem(KEY_SND);if(v==='1'){S.snd=true;$('btn-snd').textContent='🔊';}}catch(e){}
+ if(S.snd&&document.addEventListener)document.addEventListener('pointerdown',wake); /* J2：恢复开声无手势钩=整局无声 */
  loadDone();renderGal();draw();
  /* 动画帧循环：淡出/章渐入期持续重绘 */
  (function loop(){if(S.page==='play'&&(S.fading||S.seal))draw();

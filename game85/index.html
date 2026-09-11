@@ -391,6 +391,7 @@ for(var _l=0;_l<3;_l++)(function(k){
   snd('ui')},false)})(_l);
 var AC=null;
 function ensureAC(){if(!S.mute)return;try{if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume()}catch(e){}}
+function wake(){ensureAC();if(document.removeEventListener)document.removeEventListener('pointerdown',wake)} /* 恢复开声态：首手势内建/醒 AC 后自摘（J2 家族修复） */
 function snd(k){if(!S.mute||!AC)return;try{var o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime;
  var fq=k==='win'?880:(k==='lose'?196:(k==='cap'?240:(k==='mv'?320:(k==='bad'?100:(k==='ui'?520:440)))));
  o.frequency.value=fq;o.type='sine';
@@ -535,6 +536,7 @@ loadRec();
 try{var _lv0=localStorage.getItem(LV_KEY);if(_lv0!==null&&_lv0!==''&&+_lv0>=0&&+_lv0<3)S.lv=+_lv0;
  for(var _j=0;_j<3;_j++)$('lv'+_j).classList.toggle('on',_j===S.lv)}catch(e){}
 try{S.mute=localStorage.getItem('g85_mute')==='1'}catch(e){}
+if(S.mute&&document.addEventListener)document.addEventListener('pointerdown',wake); /* J2：恢复开声无手势钩=整局无声 */
 $('btn-snd').textContent=S.mute?'🔊':'🔇';
 $('mrec').textContent='本档战绩 '+S.rec[S.lv][0]+' 胜 '+S.rec[S.lv][1]+' 负';
 P=mkPieces();rebuild();updHUD();requestAnimationFrame(draw);
