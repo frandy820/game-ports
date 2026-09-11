@@ -792,6 +792,7 @@ function bind(){
     var p=cvPos(e);
     S.pull=pullVec(p.x,p.y);
     S._pd={x:p.x,y:p.y};S._pid=(e.pointerId==null?1:e.pointerId); /* 只认首个 pointerId */
+    if(el.cv.setPointerCapture&&e.pointerId!=null){try{el.cv.setPointerCapture(e.pointerId)}catch(_){}} /* 拖出画布仍收 up（g58/g92 M1 范式） */
     el.cv.classList.add('drag');
   });
   el.cv.addEventListener('pointermove',function(e){
@@ -814,8 +815,13 @@ function bind(){
     var v0=CFG.PULL_K*d;
     launch(S.pull.dx/d*v0,S.pull.dy/d*v0); /* 发射=锚-指位（拖拽反方向） */
   };
+  var clearPull=function(){S.pull=null;S._pid=null;S._st=0;el.cv.classList.remove('drag')}; /* 打断/失焦统一清拉弓态 */
   el.cv.addEventListener('pointerup',up);
-  el.cv.addEventListener('pointercancel',function(){S.pull=null;el.cv.classList.remove('drag');S._st=0});
+  el.cv.addEventListener('pointercancel',clearPull);
+  window.addEventListener('pointerup',up);            /* 拉弓被暂停浮层截获 up 时兜底（M1） */
+  window.addEventListener('pointercancel',clearPull);
+  window.addEventListener('blur',clearPull);
+  if(document.addEventListener)document.addEventListener('visibilitychange',function(){if(document.hidden)clearPull()});
   el['btn-go'].addEventListener('click',function(){SND.resume();startGame();SND.ui()});
   el['btn-snd'].addEventListener('click',function(){
     S.muted=!S.muted;el['btn-snd'].textContent=S.muted?'♪̶':'♪';
@@ -823,7 +829,7 @@ function bind(){
   });
   el['btn-pause'].addEventListener('click',function(){
     if(S.mode==='play'){
-      S.mode='pause';el['pause-ov'].classList.add('on');
+      S.mode='pause';el['pause-ov'].classList.add('on');clearPull();  /* 拉弓中暂停：立即清态防死锁（M1） */
       var left=S.plates.filter(function(p){return!p.cleared}).length;
       el['pause-sub'].textContent='剩 '+S.birds+' 只鸟 · 雀牌还有 '+left+' 张';SND.ui();
     }
