@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>夜市掌柜</title>
+<style>
+  html,body{margin:0;padding:0;background:#efe8da;overflow:hidden;height:100%;
+    font-family:"PingFang SC","Microsoft YaHei",sans-serif;-webkit-user-select:none;user-select:none;}
+  #cv{position:absolute;left:0;top:0;touch-action:none}
+  .btn{position:absolute;border:none;border-radius:10px;background:#8a5a34;color:#faf6ec;
+    font-size:17px;font-weight:600;letter-spacing:1px;box-shadow:0 3px 0 #5d3a1e;cursor:pointer;}
+  .btn:active{transform:translateY(2px);box-shadow:0 1px 0 #5d3a1e;}
+  .btn:disabled{opacity:.45;box-shadow:none;cursor:default;}
+  .btn.ember{background:#c96f2f;box-shadow:0 3px 0 #8a4a1a;}
+  .btn.ember:active{box-shadow:0 1px 0 #8a4a1a;}
+  .btn.sage{background:#6a8a76;box-shadow:0 3px 0 #47604f;}
+  .btn.sage:active{box-shadow:0 1px 0 #47604f;}
+  .btn.small{font-size:14px;letter-spacing:0;}
+  #btn-snd{position:absolute;right:10px;top:8px;width:38px;height:30px;border:none;border-radius:8px;
+    background:rgba(250,246,236,.18);font-size:15px;cursor:pointer;}
+</style>
+</head>
+<body>
+<canvas id="cv" width="390" height="844"></canvas>
+<button id="btn-snd">🔇</button>
+<button id="btn-ing0" style="position:absolute;left:12px;top:652px;width:56px;height:56px;border:none;border-radius:10px;background:#f0d060;color:#5a4632;font-size:15px;font-weight:700;box-shadow:0 3px 0 #b89a3a;cursor:pointer;">蛋</button>
+<button id="btn-ing1" style="position:absolute;left:75px;top:652px;width:56px;height:56px;border:none;border-radius:10px;background:#6a9a4a;color:#faf6ec;font-size:15px;font-weight:700;box-shadow:0 3px 0 #47604f;cursor:pointer;">葱</button>
+<button id="btn-ing2" style="position:absolute;left:138px;top:652px;width:56px;height:56px;border:none;border-radius:10px;background:#8a5a2a;color:#faf6ec;font-size:15px;font-weight:700;box-shadow:0 3px 0 #5d3a1e;cursor:pointer;">酱</button>
+<button id="btn-ing3" style="position:absolute;left:201px;top:652px;width:56px;height:56px;border:none;border-radius:10px;background:#c04a3a;color:#faf6ec;font-size:15px;font-weight:700;box-shadow:0 3px 0 #7a2a1e;cursor:pointer;">辣</button>
+<button id="btn-ing4" style="position:absolute;left:264px;top:652px;width:56px;height:56px;border:none;border-radius:10px;background:#4a8a3a;color:#faf6ec;font-size:14px;font-weight:700;box-shadow:0 3px 0 #2c5a1e;cursor:pointer;display:none;">香菜</button>
+<button id="btn-ing5" style="position:absolute;left:327px;top:652px;width:56px;height:56px;border:none;border-radius:10px;background:#d8a84a;color:#5a4632;font-size:14px;font-weight:700;box-shadow:0 3px 0 #9a782a;cursor:pointer;display:none;">脆饼</button>
+<button id="btn-slide" class="btn ember" style="left:12px;top:724px;width:118px;height:88px;">摊饼</button>
+<button id="btn-scrap" class="btn" style="left:138px;top:724px;width:110px;height:88px;">倒掉</button>
+<button id="btn-plate" class="btn sage" style="left:256px;top:724px;width:122px;height:88px;">出餐</button>
+<button id="btn-next" class="btn sage" style="left:125px;top:740px;width:140px;height:56px;display:none;">明日开张</button>
+<script>
+'use strict';
+/* ===== 常量（规则层单源——SPEC B 组 D2 定参逐条对应） ===== */
+var DAY_F = 4200;                        /* 日长 70s */
+var TOSS_F = 21, PLATE_F = 18, SCRAP_F = 24;   /* 放料/出餐/倒掉动画锁（0.35/0.3/0.4s） */
+var QMAX = 5;                            /* 队列上限（含制作中） */
+var BASE = 6;                            /* 饼底价 */
+var ING = [                              /* [键,名,价,主色] —— idx 0-3 初始，4-5 解锁 */
+  ['egg', '蛋', 2, '#f0d060'], ['sc', '葱', 2, '#6a9a4a'], ['js', '酱', 2, '#8a5a2a'],
+  ['la', '辣', 2, '#c04a3a'], ['xc', '香菜', 3, '#4a8a3a'], ['cb', '脆饼', 3, '#d8a84a']
+];
+var TGT = [185, 225, 275, 325, 365, 420, 445];   /* 日目标营收表（sim 定参） */
+var UP_NAME = ['麻利手脚', '好脾气灯笼', '香菜摊位', '脆饼货源', '吆喝喇叭'];
+var UP_MAX = [3, 2, 1, 1, 2];
+var UP_COST = [[45, 85, 140], [55, 105], [60], [75], [50, 95]];
+function patF(d) { return Math.max(10, 24 - 2.5 * (d - 1)) * 60 + 2 * 60 * S.up[1]; }   /* 耐心帧 */
+function ivF(d) { return Math.max(2.2, 4.2 * Math.pow(0.91, d - 1)) * 60 * Math.pow(0.9, S.up[4]); }  /* 到店间隔帧 */
+function slideF() { return (2.2 - 0.5 * S.up[0]) * 60; }
+function poolOf() { var p = [0, 1, 2, 3]; if (S.up[2]) p.push(4); if (S.up[3]) p.push(5); return p; }
+function orderCap(d) { return Math.min(1 + d, 4); }
+function fullPrice(o) { var s = BASE; for (var i = 0; i < o.length; i++) s += ING[o[i]][2]; return s; }
+
+/* ===== 判定纯函数（三态——V4 核心门禁） ===== */
+function judge(order, placed) {
+  var oS = {}, pS = {}, i;
+  for (i = 0; i < order.length; i++) oS[order[i]] = 1;
+  for (i = 0; i < placed.length; i++) pS[placed[i]] = 1;
+  var extra = false, missN = 0, sumP = 0;
+  for (i = 0; i < placed.length; i++) { if (!oS[placed[i]]) extra = true; sumP += ING[placed[i]][2]; }
+  for (i = 0; i < order.length; i++) { if (!pS[order[i]]) missN++; }
+  if (!extra && missN === 0) return { kind: 'perfect', amt: Math.round(fullPrice(order) * 1.25) };
+  if (extra) return { kind: 'extra', amt: Math.round(fullPrice(order) * 0.5) };
+  return { kind: 'missing', amt: Math.max(0, BASE + sumP - missN) };   /* 空饼全漏可负→钳 0 */
+}
+function rateDay(miss, rev, d) {
+  var t = TGT[d - 1];
+  if (miss === 0 && rev >= t) return 'S';
+  if (miss <= 1 && rev * 100 >= 85 * t) return 'A';   /* 整数化比较——恰值点（如日6 357/294）无浮点翻转 */
+  if (miss <= 3 && rev * 100 >= 70 * t) return 'B';
+  return 'C';
+}
+
+/* ===== 状态 ===== */
+var S = {
+  phase: 'dayrun',                       /* dayrun|dayend|dayfail|weekend */
+  day: 1, coin: 0, rev: 0, miss: 0, served: 0, perfect: 0, lost: 0,
+  t: 0, nextArr: 0, queue: [], making: null,
+  pan: 'none', panT: 0, placed: [], tossT: 0, plateT: 0, scrapT: 0,
+  up: [0, 0, 0, 0, 0], weekBest: null, dayRate: '', flashT: 0, flashTxt: '',
+  snd: 0, rates7: '', weekTot: 0
+};
+var RS = (1 + Math.floor(Math.random() * 1e9)) % 2147483647;
+function rnd() { RS = (RS * 48271) % 2147483647; return (RS - 1) / 2147483646; }
+var AC = null;
+
+/* ===== 存档 ===== */
+function washUp(u) {
+  var o = [0, 0, 0, 0, 0];
+  if (u && u.forEach) for (var i = 0; i < 5; i++) {
+    var v = Math.floor(+u[i] || 0); o[i] = Math.max(0, Math.min(UP_MAX[i], v));
+  }
+  return o;
+}
+function loadAll() {
+  var v;
+  try { v = localStorage.getItem('g100_snd'); if (v !== null) S.snd = (v === '1') ? 1 : 0; } catch (e) { }
+  try {
+    v = localStorage.getItem('g100_main');
+    if (v) {
+      var m = JSON.parse(v);
+      if (typeof m.day === 'number') S.day = Math.max(1, Math.min(7, Math.floor(m.day)));
+      if (typeof m.coin === 'number') S.coin = Math.max(0, Math.floor(m.coin));
+      S.up = washUp(m.up);
+      if (m.weekBest && typeof m.weekBest.tot === 'number')
+        S.weekBest = { tot: Math.floor(m.weekBest.tot), rates: String(m.weekBest.rates || '').replace(/[^SABC]/g, '').slice(0, 7) };
+      S.rates7 = String(m.rates7 || '').replace(/[^SABC]/g, '').slice(0, 7);   /* 评级串随档走（刷新不丢） */
+      if (typeof m.weekTot === 'number') S.weekTot = Math.max(0, Math.floor(m.weekTot));
+    }
+  } catch (e) { }
+  try {                                   /* 日初快照优先（日中刷新=回日初） */
+    v = localStorage.getItem('g100_day');
+    if (v) {
+      var d = JSON.parse(v);
+      if (d && +d.day === S.day) { S.coin = Math.max(0, Math.floor(+d.coin || 0)); S.up = washUp(d.up); }
+    }
+  } catch (e) { }
+}
+function saveMain() {
+  try { localStorage.setItem('g100_main', JSON.stringify({ day: S.day, coin: S.coin, up: S.up, weekBest: S.weekBest, rates7: S.rates7 || '', weekTot: S.weekTot | 0 })); } catch (e) { }
+}
+function saveDaySnap() {
+  try { localStorage.setItem('g100_day', JSON.stringify({ day: S.day, coin: S.coin, up: S.up })); } catch (e) { }
+}
+
+/* ===== 音效 ===== */
+function ensureAC() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { } }
+  if (AC && AC.state === 'suspended') AC.resume();
+}
+function tone(f, d, type, vol, when, f2) {
+  if (!S.snd || !AC) return;
+  var t0 = AC.currentTime + (when || 0);
+  var o = AC.createOscillator(), g = AC.createGain();
+  o.type = type || 'sine'; o.frequency.setValueAtTime(f, t0);
+  if (f2) o.frequency.linearRampToValueAtTime(f2, t0 + d);
+  g.gain.setValueAtTime(vol || 0.12, t0);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + d);
+  o.connect(g); g.connect(AC.destination);
+  o.start(t0); o.stop(t0 + d + 0.02);
+}
+function sndSizzle() { tone(180, 0.15, 'square', 0.05, 0, 240); }
+function sndToss() { tone(660, 0.06, 'triangle', 0.08, 0); }
+function sndPlate() { tone(880, 0.1, 'sine', 0.1, 0); tone(1170, 0.12, 'sine', 0.07, 0.05); }
+function sndPerfect() { tone(523, 0.3, 'sine', 0.1, 0, 786); }
+function sndLeave() { tone(196, 0.4, 'sawtooth', 0.06, 0, 150); }
+function sndGong() { tone(220, 0.8, 'sine', 0.11, 0); tone(440, 0.9, 'sine', 0.07, 0.1); }
+function sndBuy() { tone(990, 0.15, 'sine', 0.09, 0); tone(1320, 0.2, 'sine', 0.07, 0.08); }
+function wake() { ensureAC(); document.removeEventListener('pointerdown', wake); }
+function sndOnRestore() { if (S.snd) document.addEventListener('pointerdown', wake); }
+
+/* ===== 流程 ===== */
+function mkOrder(rngv, d) {              /* 无放回抽 n 料 */
+  var pool = poolOf(), cap = orderCap(d);
+  var n = 1 + Math.floor(rngv * (cap + 1));
+  n = Math.min(n, pool.length);
+  var cand = pool.slice(), out = [];
+  for (var i = 0; i < n; i++) {
+    var j = Math.floor(rnd() * cand.length) % cand.length;
+    out.push(cand.splice(j, 1)[0]);
+  }
+  return out;
+}
+function spawnCust() {
+  if (S.queue.length + (S.making ? 1 : 0) >= QMAX) return false;
+  S.queue.push({ arr: S.t, P: patF(S.day), order: mkOrder(rnd(), S.day), hue: Math.floor(rnd() * 4) });
+  return true;
+}
+function startSlide() {
+  if (S.phase !== 'dayrun' || S.pan !== 'none' || S.scrapT > 0) return false;
+  if (!S.making) {                       /* 无在做单：从队首取（取单时刻=开始摊饼时刻） */
+    if (!S.queue.length) return false;
+    S.making = S.queue.shift();
+  }                                      /* making 在=倒掉重做同一单，queue 空也可摊（S3d 语义缺口修复） */
+  S.pan = 'sliding'; S.panT = 0; S.placed = [];
+  sndSizzle();
+  return true;
+}
+function toss(i) {
+  if (S.phase !== 'dayrun' || S.pan !== 'ready' || S.tossT > 0 || S.plateT > 0) return false;   /* 出餐动画期锁单禁改 placed */
+  var ix = S.placed.indexOf(i);
+  if (ix >= 0) S.placed.splice(ix, 1); else S.placed.push(i);
+  S.tossT = TOSS_F; sndToss();
+  return true;
+}
+function scrap() {
+  if (S.phase !== 'dayrun' || S.pan === 'none' || S.scrapT > 0) return false;
+  S.pan = 'none'; S.placed = []; S.scrapT = SCRAP_F;
+  return true;
+}
+function plate() {
+  if (S.phase !== 'dayrun' || S.pan !== 'ready' || !S.making || S.plateT > 0 || S.tossT > 0) return false;
+  S.plateT = PLATE_F;
+  return true;
+}
+function settlePlate() {                 /* 出餐判定（plateT 归零时调） */
+  var r = judge(S.making.order, S.placed);
+  S.coin += r.amt; S.rev += r.amt; S.served++;
+  if (r.kind === 'perfect') { S.perfect++; sndPerfect(); flash('完美！+' + r.amt + '（含小费）'); }
+  else if (r.kind === 'extra') flash('放多了… +' + r.amt);
+  else flash('少了点… +' + r.amt);
+  S.making = null; S.pan = 'none'; S.placed = [];
+  sndPlate();
+  return r;
+}
+function startDay() {
+  S.t = 0; S.rev = 0; S.miss = 0; S.served = 0; S.perfect = 0; S.lost = 0;
+  S.queue = []; S.making = null;
+  S.pan = 'none'; S.panT = 0; S.placed = []; S.tossT = 0; S.plateT = 0; S.scrapT = 0;
+  S.flashT = 0; S.flashTxt = '';
+  S.nextArr = Math.floor(ivF(S.day) / 2);
+  S.phase = 'dayrun'; S.dayRate = '';
+  saveDaySnap(); saveMain();
+}
+function endDay() {
+  S.dayRate = rateDay(S.miss, S.rev, S.day);
+  S.phase = 'dayend'; S.flashT = 0;      /* 清 flash——防末单提示条压在商店卡上（VLM 实锤） */
+  saveMain();                            /* 只落 main——daySnap 仍日初：面板期刷新=重开本日（防刷新重打当日刷 coin，g98 范式） */
+  sndGong();
+}
+function failDay() {
+  /* 不落 main（dayrun 期 main 保持日初值）+ 不删 daySnap——dayfail 期刷新/重开均回日初 */
+  S.phase = 'dayfail'; S.flashT = 0;
+  sndLeave();
+}
+function retryDay() {                    /* FAIL 重开：金币/升级回日初快照（异日脏 daySnap 拒用） */
+  try {
+    var v = localStorage.getItem('g100_day');
+    if (v) { var d = JSON.parse(v); if (+d.day === S.day) { S.coin = Math.max(0, Math.floor(+d.coin || 0)); S.up = washUp(d.up); } }
+  } catch (e) { }
+  startDay();
+}
+function nextDay() {
+  if (S.day >= 7) {
+    var tot = S.coin, rates = S.rates7 || '';
+    if (!S.weekBest || tot > S.weekBest.tot) S.weekBest = { tot: tot, rates: rates };
+    S.phase = 'weekend';
+    S.day = 1; S.coin = 0; S.up = [0, 0, 0, 0, 0];   /* 落盘=重开一周初值（防刷日 7 缝合 high） */
+    saveMain();
+    try { localStorage.removeItem('g100_day'); } catch (e) { }
+    return;
+  }
+  S.day++; startDay();
+}
+function buyU(k) {
+  if (S.phase !== 'dayend') return false;
+  var lv = S.up[k];
+  if (lv >= UP_MAX[k] || S.coin < UP_COST[k][lv]) return false;
+  S.coin -= UP_COST[k][lv]; S.up[k]++;
+  saveMain(); saveDaySnap();             /* 买完即日初快照同步（明日起点） */
+  sndBuy();
+  return true;
+}
+function flash(t) { S.flashTxt = t; S.flashT = 100; }
+
+/* ===== 主循环 ===== */
+function step() {
+  if (S.flashT > 0) S.flashT--;
+  if (S.phase !== 'dayrun') return;
+  /* 到店 */
+  if (S.t >= S.nextArr && S.t < DAY_F - 120) {
+    if (!spawnCust()) S.lost++;
+    S.nextArr = S.t + Math.max(1, Math.floor(ivF(S.day) * (1 + (rnd() - 0.5) * 0.5)));
+  }
+  /* 耐心（排队+制作中全程烧） */
+  var i, gone = [];
+  for (i = 0; i < S.queue.length; i++) { S.queue[i].P -= 1; if (S.queue[i].P <= 0) gone.push(i); }
+  for (i = gone.length - 1; i >= 0; i--) { S.queue.splice(gone[i], 1); S.miss++; }
+  if (gone.length) flash('排队客人走了…');
+  if (S.making) {
+    S.making.P -= 1;
+    if (S.making.P <= 0) {               /* 制作中客走：饼作废清板 */
+      S.making = null; S.pan = 'none'; S.placed = []; S.panT = 0;
+      S.miss++; flash('客人等不及走了…');
+    }
+  }
+  if (S.miss >= 5) { failDay(); return; }
+  /* 饼状态推进 */
+  if (S.scrapT > 0) S.scrapT--;
+  if (S.tossT > 0) S.tossT--;
+  if (S.pan === 'sliding') {
+    S.panT++;
+    if (S.panT >= slideF()) { S.pan = 'ready'; S.panT = 0; }
+  }
+  if (S.plateT > 0) {
+    S.plateT--;
+    if (S.plateT === 0 && S.making && S.pan === 'ready') settlePlate();
+  }
+  S.t++;
+  if (S.t >= DAY_F) { endDay(); return; }
+  /* 音效：走人提示 */
+  if (gone.length) sndLeave();
+}
+
+/* ===== 绘制 ===== */
+var cv = document.getElementById('cv'), fg = cv.getContext('2d');
+function rr(x, y, w, h, r) {
+  fg.beginPath();
+  fg.moveTo(x + r, y);
+  fg.arcTo(x + w, y, x + w, y + h, r); fg.arcTo(x + w, y + h, x, y + h, r);
+  fg.arcTo(x, y + h, x, y, r); fg.arcTo(x, y, x + w, y, r);
+  fg.closePath();
+}
+function drawIng(i, x, y, s) {           /* 配料图标（s=缩放基准 1） */
+  var c = ING[i][3];
+  fg.save(); fg.translate(x, y); fg.scale(s, s);
+  if (i === 0) { fg.fillStyle = c; fg.beginPath(); fg.arc(0, 0, 10, 0, Math.PI * 2); fg.fill(); fg.fillStyle = '#f8e6a0'; fg.beginPath(); fg.arc(-3, -3, 4, 0, Math.PI * 2); fg.fill(); }
+  else if (i === 1) { fg.fillStyle = c; for (var a = 0; a < 5; a++) { fg.beginPath(); fg.arc(-8 + a * 4, (a % 2) * 5 - 2, 2.5, 0, Math.PI * 2); fg.fill(); } }
+  else if (i === 2) { fg.fillStyle = c; rr(-11, -5, 22, 10, 5); fg.fill(); }
+  else if (i === 3) { fg.fillStyle = c; for (var b = 0; b < 4; b++) { fg.beginPath(); fg.arc(-6 + (b % 2) * 12, -6 + Math.floor(b / 2) * 12, 3.5, 0, Math.PI * 2); fg.fill(); } }
+  else if (i === 4) { fg.fillStyle = c; for (var e = 0; e < 3; e++) { rr(-10 + e * 7, -7 + (e % 2) * 5, 5, 14, 2.5); fg.fill(); } }
+  else { fg.fillStyle = c; rr(-11, -9, 22, 18, 4); fg.fill(); fg.fillStyle = '#f0cc7a'; rr(-11, -3, 22, 3, 1.5); fg.fill(); }
+  fg.restore();
+}
+function draw() {
+  fg.fillStyle = '#efe8da'; fg.fillRect(0, 0, 390, 844);
+  /* 夜色带+灯泡串 */
+  fg.fillStyle = '#2a2f3e'; fg.fillRect(0, 0, 390, 72);
+  fg.strokeStyle = 'rgba(120,130,160,.5)'; fg.lineWidth = 1.5;
+  fg.beginPath(); fg.moveTo(0, 20); fg.quadraticCurveTo(195, 44, 390, 20); fg.stroke();
+  for (var L = 0; L < 7; L++) {
+    var lx = 27 + L * 56, ly = 20 + Math.sin(Math.PI * (L + 0.5) / 7) * 22 + 6;
+    var gl = 0.75 + 0.25 * Math.sin(S.t * 0.05 + L * 1.7);
+    fg.fillStyle = 'rgba(250,214,120,' + gl.toFixed(3) + ')';
+    fg.beginPath(); fg.arc(lx, ly, 5, 0, Math.PI * 2); fg.fill();
+    fg.fillStyle = 'rgba(250,214,120,.12)';
+    fg.beginPath(); fg.arc(lx, ly, 11, 0, Math.PI * 2); fg.fill();
+  }
+  /* HUD（夜色带内浅字） */
+  fg.fillStyle = '#faf6ec'; fg.font = 'bold 15px sans-serif'; fg.textAlign = 'left'; fg.textBaseline = 'middle';
+  fg.fillText('第 ' + S.day + '/7 夜', 12, 26);
+  fg.fillText('◇' + S.coin, 12, 50);
+  fg.font = 'bold 12px sans-serif';
+  var tp = Math.min(1, S.rev / TGT[S.day - 1]);
+  fg.fillStyle = 'rgba(250,246,236,.25)'; rr(150, 18, 150, 12, 6); fg.fill();
+  fg.fillStyle = '#e8b44a'; if (tp > 0) { rr(150, 18, Math.max(6, 150 * tp), 12, 6); fg.fill(); }
+  fg.fillStyle = '#faf6ec';
+  fg.fillText('目标 ' + S.rev + '/' + TGT[S.day - 1], 152, 40);
+  fg.fillText('走 ' + S.miss + '/5', 306, 40);
+  /* 摊车+横幅 */
+  fg.fillStyle = '#b08a5a'; rr(20, 78, 350, 250, 12); fg.fill();
+  fg.fillStyle = '#8a6a42'; fg.fillRect(30, 300, 350 - 20, 8);
+  fg.fillStyle = '#c94a35'; rr(60, 92, 270, 34, 8); fg.fill();
+  fg.fillStyle = '#faf6ec'; fg.font = 'bold 19px sans-serif'; fg.textAlign = 'center';
+  fg.fillText('夜 市 煎 饼', 195, 109);
+  fg.fillStyle = 'rgba(255,236,180,.16)'; rr(28, 84, 334, 240, 10); fg.fill();   /* 灯光晕 */
+  /* 铁板 */
+  fg.fillStyle = '#3a3d42'; rr(50, 300, 290, 170, 14); fg.fill();
+  fg.fillStyle = '#4a4e55'; rr(60, 308, 270, 154, 10); fg.fill();
+  fg.strokeStyle = '#2c2f34'; fg.lineWidth = 3; rr(50, 300, 290, 170, 14); fg.stroke();
+  /* 饼 */
+  if (S.pan !== 'none') {
+    var pr = S.pan === 'sliding' ? 68 * (0.25 + 0.75 * S.panT / slideF()) : 68;
+    fg.fillStyle = '#e8c88a'; fg.beginPath(); fg.arc(195, 385, pr, 0, Math.PI * 2); fg.fill();
+    fg.strokeStyle = '#d4b070'; fg.lineWidth = 3; fg.stroke();
+    if (S.pan === 'sliding') {                     /* 摊糊进度环 */
+      fg.strokeStyle = 'rgba(250,246,236,.7)'; fg.lineWidth = 4;
+      fg.beginPath(); fg.arc(195, 385, pr + 8, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * S.panT / slideF()); fg.stroke();
+    }
+    for (var p = 0; p < S.placed.length; p++) {    /* 配料排布饼面圆周 */
+      var ang = -Math.PI / 2 + p * Math.PI * 2 / Math.max(3, S.placed.length);
+      drawIng(S.placed[p], 195 + Math.cos(ang) * 34, 385 + Math.sin(ang) * 34, 1);
+    }
+  } else if (S.making) {
+    fg.fillStyle = 'rgba(250,246,236,.5)'; fg.font = 'bold 16px sans-serif'; fg.textAlign = 'center';
+    fg.fillText('摊一张饼吧 →', 195, 385);
+  }
+  /* 队首订单气泡+耐心环 */
+  var tgt = S.making || S.queue[0];
+  if (tgt && S.phase === 'dayrun') {
+    fg.fillStyle = '#f7f2e6'; rr(30, 420, 330, 100, 14); fg.fill();
+    fg.strokeStyle = '#c9a86a'; fg.lineWidth = 2.5; rr(30, 420, 330, 100, 14); fg.stroke();
+    fg.beginPath(); fg.moveTo(70, 520); fg.lineTo(90, 520); fg.lineTo(62, 545); fg.closePath(); fg.fill();
+    fg.fillStyle = '#5a4632'; fg.font = 'bold 15px sans-serif'; fg.textAlign = 'left';
+    fg.fillText('煎饼' + (S.making ? '（在做）' : ''), 46, 446);
+    var ox = 46;
+    for (var q = 0; q < tgt.order.length; q++) {
+      fg.fillStyle = '#7a5a3a'; fg.font = 'bold 13px sans-serif';
+      fg.fillText('+' + ING[tgt.order[q]][1], ox, 472);
+      drawIng(tgt.order[q], ox + 42, 468, 0.9);
+      ox += 78;
+      if (ox > 300) break;
+    }
+    var pfull = patF(S.day), pr2 = Math.max(0, tgt.P / pfull);
+    fg.strokeStyle = pr2 > 0.5 ? '#6a9a5f' : (pr2 > 0.25 ? '#d8a83a' : '#c04a3a');
+    fg.lineWidth = 4;
+    fg.beginPath(); fg.arc(338, 448, 14, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * pr2); fg.stroke();
+    fg.fillStyle = '#8a7a64'; fg.font = '11px sans-serif'; fg.textAlign = 'center';
+    fg.fillText(Math.ceil(tgt.P / 60) + 's', 338, 448);
+  }
+  /* 队列小人 */
+  var HUE = ['#e8b48a', '#d8a06a', '#c9987a', '#b9886a'];
+  var head = S.making || S.queue[0];
+  if (head) {
+    fg.fillStyle = HUE[head.hue]; fg.beginPath(); fg.arc(70, 606, 26, 0, Math.PI * 2); fg.fill();
+    fg.fillStyle = '#5a4632'; fg.beginPath(); fg.arc(70, 600, 13, Math.PI, 0); fg.fill();
+    fg.fillStyle = '#c94a35'; fg.font = 'bold 11px sans-serif'; fg.textAlign = 'center';
+    fg.fillText(S.making ? '等饼中' : '队首', 70, 644);
+  }
+  for (var w2 = 1; w2 < S.queue.length + (S.making ? 1 : 0); w2++) {
+    var c2 = S.making ? w2 - 1 : w2;
+    if (c2 >= S.queue.length) break;
+    var qx = 118 + (w2 - 1) * 46;
+    fg.fillStyle = HUE[S.queue[c2].hue]; fg.beginPath(); fg.arc(qx, 612, 17, 0, Math.PI * 2); fg.fill();
+    fg.fillStyle = '#5a4632'; fg.beginPath(); fg.arc(qx, 608, 8.5, Math.PI, 0); fg.fill();
+  }
+  fg.fillStyle = '#8a7a64'; fg.font = '12px sans-serif'; fg.textAlign = 'center';
+  fg.fillText(S.queue.length + (S.making ? 1 : 0) + ' 位排队 · 路过 ' + S.lost, 195, 668);
+  /* 面板 */
+  if (S.phase === 'dayend') drawDayEnd();
+  if (S.phase === 'dayfail') drawFail();
+  if (S.phase === 'weekend') drawWeek();
+  drawFlash();
+}
+function drawDayEnd() {
+  fg.fillStyle = 'rgba(40,32,24,.62)'; fg.fillRect(0, 0, 390, 844);
+  fg.fillStyle = '#f7f2e6'; rr(24, 64, 342, 640, 14); fg.fill();
+  fg.strokeStyle = '#c9a86a'; fg.lineWidth = 3; rr(24, 64, 342, 640, 14); fg.stroke();
+  fg.textAlign = 'center';
+  fg.fillStyle = S.dayRate === 'S' ? '#c9a227' : (S.dayRate === 'A' ? '#5a8a5f' : (S.dayRate === 'B' ? '#5a7fa8' : '#a86a5a'));
+  fg.font = 'bold 46px Georgia,serif';
+  fg.fillText(S.dayRate + ' 日', 195, 120);
+  fg.fillStyle = '#5a4632'; fg.font = 'bold 14px sans-serif';
+  fg.fillText('营收 ' + S.rev + '（目标 ' + TGT[S.day - 1] + '）· 客 ' + S.served + ' · 完美 ' + S.perfect + ' · 走人 ' + S.miss, 195, 156);
+  fg.font = 'bold 17px sans-serif';
+  fg.fillText('打烊了——升级摊位（◇' + S.coin + '）', 195, 196);
+  for (var k = 0; k < 5; k++) {         /* 商店条目（点击购买——cv pointerdown 命中） */
+    var y = 216 + k * 80, lv = S.up[k], max = UP_MAX[k];
+    var afford = lv < max && S.coin >= UP_COST[k][lv];
+    fg.fillStyle = afford ? '#efe6d2' : '#e4dcc9'; rr(40, y, 310, 70, 10); fg.fill();
+    if (afford) { fg.strokeStyle = '#c9a227'; fg.lineWidth = 2; rr(40, y, 310, 70, 10); fg.stroke(); }
+    fg.fillStyle = '#5a4632'; fg.font = 'bold 15px sans-serif'; fg.textAlign = 'left';
+    fg.fillText(UP_NAME[k], 54, y + 24);
+    fg.fillStyle = '#8a7a64'; fg.font = '12px sans-serif';
+    fg.fillText(['摊饼更快（-0.5s）', '客人耐心 +2s', '解锁香菜（+3 卖价）', '解锁脆饼（+3 卖价）', '客到更勤（-10%）'][k], 54, y + 46);
+    fg.textAlign = 'right';
+    var bars2 = '';
+    for (var b2 = 0; b2 < max; b2++) bars2 += (b2 < lv ? '●' : '○');
+    fg.fillStyle = '#c9a227'; fg.font = 'bold 13px sans-serif';
+    fg.fillText(lv >= max ? '已满级' : '◇' + UP_COST[k][lv], 336, y + 24);
+    fg.fillText(bars2, 336, y + 46);
+  }
+  fg.fillStyle = '#8a7a64'; fg.font = '13px sans-serif'; fg.textAlign = 'center';
+  fg.fillText('（点条目购买 · 完了点下方开张）', 195, 648);
+}
+function drawFail() {
+  fg.fillStyle = 'rgba(40,32,24,.7)'; fg.fillRect(0, 0, 390, 844);
+  fg.fillStyle = '#f7f2e6'; rr(50, 240, 290, 260, 14); fg.fill();
+  fg.strokeStyle = '#b03a2a'; fg.lineWidth = 3; rr(50, 240, 290, 260, 14); fg.stroke();
+  fg.fillStyle = '#b03a2a'; fg.font = 'bold 30px sans-serif'; fg.textAlign = 'center';
+  fg.fillText('今晚手忙脚乱…', 195, 300);
+  fg.fillStyle = '#5a4632'; fg.font = '14px sans-serif';
+  fg.fillText('走掉 ' + S.miss + ' 位客人，先收摊', 195, 348);
+  fg.fillText('金币/升级回到今晚开始', 195, 376);
+  fg.fillText('（歇口气，重开这一夜）', 195, 428);
+}
+function drawWeek() {
+  fg.fillStyle = 'rgba(40,32,24,.66)'; fg.fillRect(0, 0, 390, 844);
+  fg.fillStyle = '#f7f2e6'; rr(36, 160, 318, 420, 14); fg.fill();
+  fg.strokeStyle = '#c9a227'; fg.lineWidth = 4; rr(36, 160, 318, 420, 14); fg.stroke();
+  fg.fillStyle = '#c9a227'; fg.font = 'bold 30px sans-serif'; fg.textAlign = 'center';
+  fg.fillText('夜市七日收官！', 195, 224);
+  fg.fillStyle = '#5a4632'; fg.font = 'bold 17px sans-serif';
+  fg.fillText('七夜共赚 ◇' + S.weekTot, 195, 286);
+  fg.font = 'bold 15px sans-serif';
+  fg.fillText('七夜评级：' + (S.rates7 || '—'), 195, 330);
+  if (S.weekBest) {
+    fg.fillStyle = '#8a7a64'; fg.font = '13px sans-serif';
+    fg.fillText('最佳：◇' + S.weekBest.tot, 195, 372);
+    fg.fillText(S.weekBest.rates, 195, 398);
+  }
+  fg.fillStyle = '#8a7a64'; fg.font = '13px sans-serif';
+  fg.fillText('（点下方再开一周）', 195, 520);
+}
+function drawFlash() {
+  if (S.flashT > 0) {
+    var fa = Math.min(1, S.flashT / 30);
+    fg.fillStyle = 'rgba(90,70,50,' + (0.9 * fa).toFixed(3) + ')';
+    rr(85, 612, 220, 32, 8); fg.fill();
+    fg.fillStyle = '#faf6ec'; fg.font = '14px sans-serif'; fg.textAlign = 'center'; fg.textBaseline = 'middle';
+    fg.fillText(S.flashTxt, 195, 628);
+  }
+}
+function updHud() {
+  var run = S.phase === 'dayrun';
+  document.getElementById('btn-slide').disabled = !run;
+  document.getElementById('btn-scrap').disabled = !run;
+  document.getElementById('btn-plate').disabled = !run;
+  document.getElementById('btn-slide').style.display = run ? '' : 'none';
+  document.getElementById('btn-scrap').style.display = run ? '' : 'none';
+  document.getElementById('btn-plate').style.display = run ? '' : 'none';
+  for (var i = 0; i < 6; i++) {          /* 料钮：dayrun 显（4/5 需解锁），面板期全藏（g99 VLM 教训内建） */
+    var b = document.getElementById('btn-ing' + i);
+    b.style.display = (run && (i < 4 || S.up[i - 2])) ? '' : 'none';   /* ing4=香菜=U3=up[2]、ing5=脆饼=U4=up[3] */
+    b.disabled = !run;
+  }
+  var nx = document.getElementById('btn-next');
+  nx.style.display = run ? 'none' : '';
+  nx.textContent = S.phase === 'dayend' ? '明日开张' : (S.phase === 'dayfail' ? '重开这一夜' : '再开一周');
+  document.getElementById('btn-snd').textContent = S.snd ? '🔊' : '🔇';
+}
+
+/* ===== 事件 ===== */
+function onBtn(id, fn) {
+  document.getElementById(id).addEventListener('click', function (e) {
+    if (e.preventDefault) e.preventDefault();
+    fn();
+  });
+}
+onBtn('btn-snd', function () {
+  S.snd = S.snd ? 0 : 1;
+  try { localStorage.setItem('g100_snd', S.snd ? '1' : '0'); } catch (e) { }
+  if (S.snd) { ensureAC(); } else if (AC) { try { AC.suspend(); } catch (e) { } }
+});
+for (var gi = 0; gi < 6; gi++) (function (ix) {   /* 料钮（i 隔离——闭包捕获） */
+  onBtn('btn-ing' + ix, function () { toss(ix); });
+})(gi);
+onBtn('btn-slide', function () { startSlide(); });
+onBtn('btn-scrap', function () { scrap(); });
+onBtn('btn-plate', function () { plate(); });
+onBtn('btn-next', function () {
+  if (S.phase === 'dayend') {
+    S.rates7 = ((S.rates7 || '') + S.dayRate).slice(0, 7);   /* 上限 7（防刷新重打拼接溢出） */
+    if (S.day >= 7) { S.weekTot = S.coin; nextDay(); }
+    else nextDay();
+  } else if (S.phase === 'dayfail') retryDay();
+  else if (S.phase === 'weekend') { S.rates7 = ''; S.weekTot = 0; startDay(); }
+});
+cv.addEventListener('pointerdown', function (e) {
+  var r = cv.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
+  if (S.phase === 'dayend') {            /* 商店购买命中 */
+    for (var k = 0; k < 5; k++) {
+      var y = 216 + k * 80;
+      if (px >= 40 && px <= 350 && py >= y && py <= y + 70) { buyU(k); return; }
+    }
+    return;
+  }
+  if (S.phase !== 'dayrun') return;
+});
+
+/* ===== boot ===== */
+loadAll();
+sndOnRestore();
+updHud();
+startDay();
+requestAnimationFrame(loop);
+function loop() { step(); draw(); updHud(); requestAnimationFrame(loop); }
+
+
+</script>
+</body>
+</html>
