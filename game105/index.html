@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>骨牌摊</title>
+<style>
+  html,body{margin:0;padding:0;background:#181008;height:100%;overflow:hidden;font-family:system-ui,"Microsoft YaHei",sans-serif}
+  #app{position:relative;width:390px;height:844px;margin:0 auto;background:#241a10;overflow:hidden}
+  canvas{position:absolute;left:0;top:64px;width:390px;height:780px;touch-action:none}
+  .hud{position:absolute;left:0;top:0;width:390px;height:64px;display:flex;align-items:center;gap:8px;
+       background:#1c130a;border-bottom:1px solid #3a2c1c;padding:0 10px;box-sizing:border-box;z-index:5}
+  .hud .st{flex:1;display:flex;gap:12px;font-size:13px;color:#9a8868}
+  .hud .st b{color:#e8dcc0;font-size:15px;font-weight:600}
+  .ibtn{width:40px;height:40px;border-radius:10px;border:1px solid #4a3a24;background:#241a10;color:#e8b45c;
+        font-size:17px;line-height:38px;text-align:center;cursor:pointer;user-select:none;flex:none}
+  .ibtn:active{background:#2e2214}
+  .lay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:9;background:rgba(12,8,4,.9)}
+  .lay.hide{display:none}
+  .pan{width:300px;background:#2a1e12;border:1px solid #4a3a24;border-radius:16px;padding:26px 24px;text-align:center;
+       box-shadow:0 8px 28px rgba(0,0,0,.5)}
+  .pan h1{margin:0 0 4px;font-size:34px;letter-spacing:6px;color:#efe4c8;font-weight:700}
+  .pan h2{margin:0 0 12px;font-size:20px;letter-spacing:3px;color:#efe4c8}
+  .pan .sub{font-size:12px;color:#8a7a5a;margin-bottom:14px;letter-spacing:2px}
+  .pan .bst{font-size:13px;color:#e8b45c;margin-bottom:16px}
+  .pan .bst b{font-size:20px}
+  .pan .tips{font-size:12px;color:#a89878;line-height:1.8;text-align:left;margin:0 6px 18px;list-style:none;padding:0}
+  .pan .tips li::before{content:"·";color:#e8b45c;margin-right:6px}
+  .btn{display:block;width:100%;margin:10px 0;padding:13px 0;border-radius:12px;border:none;cursor:pointer;
+       font-size:17px;letter-spacing:4px;color:#241a10;background:#e8b45c;font-family:inherit}
+  .btn:active{background:#d4a244}
+  .btn.ghost{background:#2e2214;color:#d8ccae;border:1px solid #4a3a24}
+  .btn.ghost:active{background:#382a18}
+  .res{display:flex;justify-content:space-between;font-size:14px;color:#a89878;margin:6px 4px}
+  .res b{color:#efe4c8;font-size:16px}
+  #abtns{position:absolute;left:0;top:756px;width:390px;display:flex;gap:12px;padding:0 24px;box-sizing:border-box;z-index:6}
+  #abtns.hide{display:none}
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="cv" width="390" height="780"></canvas>
+  <div class="hud" id="hud">
+    <div class="st"><span>我的残点 <b id="h-diff">0</b></span><span>墙余 <b id="h-wall">14</b></span><span>对手 <b id="h-opp">7</b></span></div>
+    <div class="ibtn" id="btn-snd">♪</div>
+    <div class="ibtn" id="btn-pause">‖</div>
+  </div>
+  <div class="lay" id="menu">
+    <div class="pan">
+      <h1>骨牌摊</h1>
+      <div class="sub">NIGHT MARKET · 摸牌接龙</div>
+      <div class="bst">最高净胜纪录 <b id="m-best">—</b></div>
+      <ul class="tips">
+        <li>点手牌选中，再点链端接牌</li>
+        <li>端点数字对上才能接</li>
+        <li>没牌接就摸牌，摸到能接为止</li>
+        <li>先出完赢对方残点，双锁比点</li>
+      </ul>
+      <button class="btn" id="btn-go">开 局</button>
+    </div>
+  </div>
+  <div id="abtns" class="hide">
+    <button class="btn ghost" id="btn-draw">摸 牌</button>
+    <button class="btn ghost" id="btn-pass">过</button>
+  </div>
+  <div class="lay hide" id="pause">
+    <div class="pan">
+      <h2>歇 摊</h2>
+      <button class="btn" id="btn-resume">续 摊</button>
+      <button class="btn ghost" id="btn-restart">重 开 一 局</button>
+      <button class="btn ghost" id="btn-menu">收 摊</button>
+    </div>
+  </div>
+  <div class="lay hide" id="over">
+    <div class="pan">
+      <h2 id="o-title">牌摊清档</h2>
+      <div class="res"><span>净胜</span><b id="o-diff">0</b></div>
+      <div class="res"><span>我残点</span><b id="o-mine">0</b></div>
+      <div class="res"><span>对手残点</span><b id="o-opp">0</b></div>
+      <div class="res"><span>最佳纪录</span><b id="o-best">—</b></div>
+      <button class="btn" id="btn-again">再 摊 一 局</button>
+      <button class="btn ghost" id="btn-menu2">收 摊</button>
+    </div>
+  </div>
+</div>
+<script>
+'use strict';
+/* ===== 骨牌摊 · 第 105 款（Draw Dominoes 机制 · 夜市骨牌摊意象）===== */
+var CFG = {
+  TILE_W: 44, TILE_H: 24,       /* 链上横牌 */
+  HAND_W: 48, HAND_H: 28,       /* 手牌 */
+  ROW_N: 8, CHAIN_Y: 100, ROW_H: 58,   /* 链区：8 槽/行 蛇形 */
+  HAND_Y: 470, HAND_ROW_H: 42,
+  OPP_Y: 10,
+  THINK_MIN: .6, THINK_MAX: 1.2, HINT_T: 3, FLOAT_T: 1.4
+};
+
+/* ===== 音效（WebAudio 手势内建立 · J2 wake 范式）===== */
+var AC = null;
+function ensureAC() { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { } } if (AC && AC.state === 'suspended') { AC.resume(); } }
+function tone(f, dur, type, vol, delay) {
+  if (S.muted || !AC) return;
+  var t0 = AC.currentTime + (delay || 0);
+  var o = AC.createOscillator(), g = AC.createGain();
+  o.type = type || 'sine'; o.frequency.value = f;
+  g.gain.setValueAtTime(vol || .1, t0);
+  g.gain.exponentialRampToValueAtTime(.001, t0 + dur);
+  o.connect(g); g.connect(AC.destination);
+  o.start(t0); o.stop(t0 + dur + .02);
+}
+var SND = {
+  clack: function(){ tone(520,.04,'square',.06); tone(300,.05,'triangle',.07,.02); },   /* 木牌击桌 */
+  draw:  function(){ tone(700,.05,'triangle',.04); tone(900,.04,'triangle',.03,.04); },
+  pass:  function(){ tone(240,.06,'sine',.05); },
+  win:   function(){ tone(523,.35,'triangle',.13); tone(659,.35,'triangle',.11,.12); tone(784,.65,'triangle',.11,.24); },
+  lose:  function(){ tone(220,.3,'triangle',.11); tone(165,.45,'triangle',.11,.22); tone(110,.75,'triangle',.11,.42); },
+  ui:    function(){ tone(440,.05,'square',.05); }
+};
+
+/* ===== 状态 ===== */
+var S = {
+  mode: 'menu', muted: true, best: 0,
+  hand: [], oppHand: [], wall: [], chain: [],
+  ends: null,                    /* null=链空 | [lo,hi] 链首值/链尾值 */
+  turn: 'me', thinkT: 0, passStreak: 0,
+  sel: null,                     /* 选中手牌 idx */
+  hintT: 0, floats: [],
+  drewFx: null,                  /* {n,t} 对手摸牌浮字 */
+  in: null, lastDiff: 0
+};
+var rndS = 1;
+function rnd() { rndS = (Math.imul(rndS, 1103515245) + 12345) >>> 0; return (rndS >>> 16) & 0x7fff; }
+function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function save(k, v) { try { localStorage.setItem(k, String(v)); } catch (e) { } }
+function el(id) { return document.getElementById(id); }
+function show(id) { el(id).classList.remove('hide'); }
+function hide(id) { el(id).classList.add('hide'); }
+function clearInput() { S.in = null; }
+
+/* ===== 牌逻辑（与 sim105 同构）===== */
+function fullDeck() {
+  var d = [];
+  for (var a = 0; a < 7; a++) for (var b = a; b < 7; b++) d.push([a, b]);
+  return d;
+}
+function shuffleDraw() {
+  var d = fullDeck(), i, j, t;
+  for (i = d.length - 1; i > 0; i--) { j = rnd() % (i + 1); t = d[i]; d[i] = d[j]; d[j] = t; }
+  return d;
+}
+function playOptions(hand, ends) {
+  /* 可出选项 [(idx, 'lo'|'hi')]；链空=任意 [(i,'any')] */
+  var out = [];
+  for (var i = 0; i < hand.length; i++) {
+    var a = hand[i][0], b = hand[i][1];
+    if (ends === null) { out.push([i, 'any']); continue; }
+    if (a === ends[0] || b === ends[0]) out.push([i, 'lo']);
+    if ((a === ends[1] || b === ends[1]) && ends[1] !== ends[0]) out.push([i, 'hi']);
+  }
+  return out;
+}
+function applyTile(tile, end) {
+  /* 返回新 ends：匹配值贴链端，另一值成新端 */
+  if (S.ends === null) return [tile[0], tile[1]];
+  var a = tile[0], b = tile[1];
+  if (end === 'lo') {
+    var other = (a === S.ends[0]) ? b : a;
+    return [other, S.ends[1]];
+  } else {
+    var other2 = (a === S.ends[1]) ? b : a;
+    return [S.ends[0], other2];
+  }
+}
+function handPts(h) { var s = 0; for (var i = 0; i < h.length; i++) s += h[i][0] + h[i][1]; return s; }
+function canPlayAny(hand, ends) { return playOptions(hand, ends).length > 0; }
+
+/* ===== 对局流程 ===== */
+function startGame() {
+  var d = shuffleDraw();
+  S.hand = d.slice(0, 7); S.oppHand = d.slice(7, 14); S.wall = d.slice(14);
+  S.chain = []; S.ends = null; S.turn = 'me'; S.thinkT = 0; S.passStreak = 0; S.sel = null;
+  S.hintT = CFG.HINT_T; S.floats = []; S.drewFx = null; S.lastDiff = 0;
+  S.mode = 'play';
+  hide('menu'); hide('over'); hide('pause'); hide('abtns');
+  syncHud(); refreshAbtns();
+}
+function mePlay(idx, end) {
+  /* 我出牌：返回 true/false（非法拒收） */
+  if (S.mode !== 'play' || S.turn !== 'me') return false;
+  var opts = playOptions(S.hand, S.ends);
+  var legal = false;
+  for (var k = 0; k < opts.length; k++) if (opts[k][0] === idx && (opts[k][1] === end || (S.ends === null && end === 'any'))) legal = true;
+  if (!legal && (end === 'lo' || end === 'hi')) {
+    /* 单端可接的牌点错端自动纠正（单张链中心点击/端区分模糊时的友好性；双端牌不受影响） */
+    var alt = (end === 'lo') ? 'hi' : 'lo';
+    for (var k2 = 0; k2 < opts.length; k2++) if (opts[k2][0] === idx && opts[k2][1] === alt) { end = alt; legal = true; break; }
+  }
+  if (!legal) return false;
+  var tile = S.hand[idx];
+  var oldE = S.ends;
+  var newEnds = applyTile(tile, S.ends === null ? 'any' : end);
+  /* 链上牌存「匹配值朝内」的规范方向：相邻牌端点数字视觉相接 */
+  if (oldE === null) S.chain.push([tile[0], tile[1]]);
+  else if (end === 'lo') S.chain.unshift([newEnds[0], oldE[0]]);
+  else S.chain.push([oldE[1], newEnds[1]]);
+  S.ends = newEnds;
+  S.hand.splice(idx, 1);
+  S.sel = null; S.passStreak = 0;
+  SND.clack();
+  addFloat(endText(end) + ' ' + tileTxt(tile), '#e8dcc0');
+  syncHud(); refreshAbtns();
+  if (!S.hand.length) { endGame(handPts(S.oppHand), 'domino'); return true; }
+  S.turn = 'opp';
+  S.thinkT = CFG.THINK_MIN + (rnd() % 100) / 100 * (CFG.THINK_MAX - CFG.THINK_MIN);
+  return true;
+}
+function endText(end) { return S.chain.length <= 1 ? '首张' : (end === 'lo' ? '接首' : '接尾'); }
+function tileTxt(t) { return t[0] + ':' + t[1]; }
+function addFloat(txt, col) { S.floats.push({ txt: txt, col: col || '#e8dcc0', t: CFG.FLOAT_T }); }
+function meDraw() {
+  /* 我摸一张：返回 true/false */
+  if (S.mode !== 'play' || S.turn !== 'me') return false;
+  if (canPlayAny(S.hand, S.ends)) return false;      /* 有牌可出禁摸 */
+  if (!S.wall.length) return false;
+  S.hand.push(S.wall.pop());
+  SND.draw();
+  syncHud(); refreshAbtns();
+  return true;
+}
+function mePass() {
+  if (S.mode !== 'play' || S.turn !== 'me') return false;
+  if (canPlayAny(S.hand, S.ends) || S.wall.length) return false;   /* 有牌可出或墙有余禁过 */
+  S.passStreak++;
+  SND.pass();
+  addFloat('过', '#a89878');
+  if (S.passStreak >= 2) { blockedEnd(); return true; }
+  S.turn = 'opp';
+  S.thinkT = CFG.THINK_MIN + (rnd() % 100) / 100 * (CFG.THINK_MAX - CFG.THINK_MIN);
+  refreshAbtns();
+  return true;
+}
+/* AI：perfect 同构（大牌+对子早出+端值控制——sim105 bot_perfect） */
+function aiPick() {
+  var hand = S.oppHand, ends = S.ends;
+  var opts = playOptions(hand, ends);
+  if (!opts.length) return null;
+  var best = null, bestS = -1e9;
+  for (var k = 0; k < opts.length; k++) {
+    var o = opts[k], a = hand[o[0]][0], b = hand[o[0]][1];
+    var s = (a + b) * 1.0;
+    if (a === b) s += 3.5;
+    if (ends !== null) {
+      var m = (o[1] === 'lo') ? ends[0] : ends[1];
+      var other = (a === m) ? b : a;
+      var cnt = 0;
+      for (var q = 0; q < hand.length; q++) if (hand[q][0] === other || hand[q][1] === other) cnt++;
+      s += (cnt - 1) * 2.2;
+    }
+    if (s > bestS) { bestS = s; best = o; }
+  }
+  return best;
+}
+function aiStep() {
+  /* 对手回合一步（thinkT 归零后由 tick 调）：摸齐→出牌或过 */
+  var drew = 0;
+  while (!canPlayAny(S.oppHand, S.ends) && S.wall.length) {
+    S.oppHand.push(S.wall.pop()); drew++;
+  }
+  if (drew) { SND.draw(); S.drewFx = { n: drew, t: 1.6 }; syncHud(); }
+  var pick = aiPick();
+  if (pick === null) {
+    S.passStreak++;
+    SND.pass();
+    if (S.passStreak >= 2) { blockedEnd(); return; }
+    S.turn = 'me'; refreshAbtns();
+    return;
+  }
+  var tile = S.oppHand[pick[0]];
+  var oldE = S.ends;
+  var newEnds = applyTile(tile, S.ends === null ? 'any' : pick[1]);
+  /* 同 mePlay：规范方向入链 */
+  if (oldE === null) S.chain.push([tile[0], tile[1]]);
+  else if (pick[1] === 'lo') S.chain.unshift([newEnds[0], oldE[0]]);
+  else S.chain.push([oldE[1], newEnds[1]]);
+  S.ends = newEnds;
+  S.oppHand.splice(pick[0], 1);
+  S.passStreak = 0;
+  SND.clack();
+  addFloat('对手' + endText(pick[1]) + ' ' + tileTxt(tile), '#d0a05a');
+  syncHud();
+  if (!S.oppHand.length) { endGame(-handPts(S.hand), 'dominoLose'); return; }
+  S.turn = 'me'; refreshAbtns();
+}
+function blockedEnd() {
+  /* 锁局：残点小者赢差值 */
+  var a = handPts(S.hand), b = handPts(S.oppHand);
+  if (a === b) endGame(0, 'tie');
+  else if (a < b) endGame(b - a, 'blockedWin');
+  else endGame(-(a - b), 'blockedLose');
+}
+function endGame(diff, kind) {
+  S.mode = 'over'; S.lastDiff = diff;
+  var titles = { domino: '牌摊清档', dominoLose: '对手清档', blockedWin: '双锁比点', blockedLose: '双锁输了', tie: '双锁平点' };
+  el('o-title').textContent = titles[kind] || '终局';
+  el('o-diff').textContent = (diff > 0 ? '+' : '') + diff;
+  el('o-mine').textContent = handPts(S.hand);
+  el('o-opp').textContent = handPts(S.oppHand);
+  if (diff > S.best) { S.best = diff; save('g105_best', S.best); }
+  el('o-best').textContent = S.best ? String(S.best) : '—';
+  hide('abtns'); show('over');
+  if (diff > 0) SND.win(); else if (diff < 0) SND.lose(); else SND.pass();
+}
+function toMenu() { S.mode = 'menu'; clearInput(); hide('pause'); hide('over'); hide('abtns'); show('menu'); el('m-best').textContent = S.best ? String(S.best) : '—'; }
+function syncHud() {
+  /* 只显示我方残点——对手手牌是暗牌，实时差值=信息泄露 */
+  el('h-diff').textContent = String(handPts(S.hand));
+  el('h-wall').textContent = S.wall.length;
+  el('h-opp').textContent = S.oppHand.length;
+}
+function refreshAbtns() {
+  /* 摸牌/过 钮显隐：轮到我+我不能出 */
+  var need = S.mode === 'play' && S.turn === 'me' && !canPlayAny(S.hand, S.ends);
+  if (!need) { hide('abtns'); return; }
+  show('abtns');
+  el('btn-draw').style.display = S.wall.length ? '' : 'none';
+  el('btn-pass').style.display = S.wall.length ? 'none' : '';
+}
+
+/* ===== 演出 ===== */
+function tick(dt) {
+  if (S.mode === 'play' && S.hintT > 0) S.hintT = Math.max(0, S.hintT - dt);
+  if (S.drewFx && S.drewFx.t > 0) { S.drewFx.t -= dt; if (S.drewFx.t <= 0) S.drewFx = null; }
+  for (var i = S.floats.length - 1; i >= 0; i--) {
+    S.floats[i].t -= dt;
+    if (S.floats[i].t <= 0) S.floats.splice(i, 1);
+  }
+  if (S.mode === 'play' && S.turn === 'opp') {
+    S.thinkT -= dt;
+    if (S.thinkT <= 0) aiStep();
+  }
+}
+
+/* ===== 链布局（蛇形折行：8 槽/行，奇数行右→左）===== */
+function chainSlot(i) {
+  var row = Math.floor(i / CFG.ROW_N), col = i % CFG.ROW_N;
+  if (row % 2 === 1) col = CFG.ROW_N - 1 - col;
+  return { x: 23 + col * (CFG.TILE_W + 2), y: CFG.CHAIN_Y + row * CFG.ROW_H, row: row, col: col };
+}
+function chainRect(i) {
+  var s = chainSlot(i);
+  return { x: s.x, y: s.y, w: CFG.TILE_W, h: CFG.TILE_H, cx: s.x + CFG.TILE_W / 2, cy: s.y + CFG.TILE_H / 2 };
+}
+
+/* ===== 手势 ===== */
+var cv = null;
+function onDown(e) {
+  ensureAC(); wakeSnd();
+  if (S.mode !== 'play') return;
+  e.preventDefault && e.preventDefault();
+  if (S.in) return;
+  var x = e.clientX, y = e.clientY - 64;
+  try { cv.setPointerCapture(e.pointerId); } catch (err) { }
+  if (S.turn === 'me') S.in = { id: e.pointerId, kind: 'tap', x: x, y: y };
+}
+function onUp(e) {
+  if (!S.in || (e.pointerId !== undefined && e.pointerId !== S.in.id)) return;
+  var x = e.clientX, y = e.clientY - 64;
+  S.in = null;
+  if (S.mode !== 'play' || S.turn !== 'me') return;
+  /* 1) 点手牌：选中/换选 */
+  var hi = handHit(x, y);
+  if (hi !== -1) { S.sel = (S.sel === hi) ? null : hi; SND.ui(); return; }
+  /* 2) 点链端：出选中牌 */
+  if (S.sel !== null) {
+    var end = endHit(x, y);
+    if (end) { mePlay(S.sel, end); return; }
+  }
+}
+function onCancel(e) {
+  if (!S.in || (e.pointerId !== undefined && e.pointerId !== S.in.id)) return;
+  clearInput();
+}
+function handHit(x, y) {
+  var n = S.hand.length;
+  var rows = handRows(n), per = Math.ceil(n / rows);
+  for (var i = 0; i < n; i++) {
+    var row = Math.floor(i / per), col = i % per;
+    var w = 52, hx = 12 + col * w, hy = CFG.HAND_Y + row * CFG.HAND_ROW_H;
+    if (S.sel === i) hy -= 6;
+    if (x >= hx && x <= hx + CFG.HAND_W && y >= hy && y <= hy + CFG.HAND_H) return i;
+  }
+  return -1;
+}
+function handRows(n) { return n <= 7 ? 1 : (n <= 14 ? 2 : 3); }   /* 21 张上限 3 行（7/行=376px ≤390） */
+function endHit(x, y) {
+  /* 链两端热区：链空=中区任意；两端热区重叠（链 1-2 张）按点击左右半判端 */
+  if (!S.chain.length) {
+    if (y >= CFG.CHAIN_Y && y <= CFG.CHAIN_Y + CFG.ROW_H * 2 && x >= 23 && x <= 390) return 'any';
+    return null;
+  }
+  var r0 = chainRect(0), r1 = chainRect(S.chain.length - 1);
+  var hit0 = Math.abs(x - r0.cx) <= 34 && Math.abs(y - r0.cy) <= 26;
+  var hit1 = Math.abs(x - r1.cx) <= 34 && Math.abs(y - r1.cy) <= 26;
+  if (hit0 && hit1) return x < (r0.cx + r1.cx) / 2 ? 'lo' : 'hi';
+  if (hit0) return 'lo';
+  if (hit1) return 'hi';
+  return null;
+}
+/* J2 wake */
+var wakeBound = false;
+function wakeSnd() {
+  if (!wakeBound && !S.muted) {
+    wakeBound = true;
+    document.addEventListener('pointerdown', function once() {
+      document.removeEventListener('pointerdown', once);
+      wakeBound = false;
+      ensureAC();
+    });
+  }
+}
+
+/* ===== 绘制 ===== */
+var ctx = null;
+function draw() {
+  ctx.save();
+  /* 木桌底 */
+  var g = ctx.createLinearGradient(0, 0, 0, 780);
+  g.addColorStop(0, '#2b2013'); g.addColorStop(1, '#211709');
+  ctx.fillStyle = g; ctx.fillRect(-8, 0, 406, 780);
+  /* 桌面木纹 */
+  ctx.strokeStyle = 'rgba(60,44,24,.5)'; ctx.lineWidth = 1;
+  for (var wy = 0; wy < 780; wy += 46) { ctx.beginPath(); ctx.moveTo(0, wy + 8); ctx.bezierCurveTo(120, wy + 4, 260, wy + 14, 390, wy + 8); ctx.stroke(); }
+  /* 摊位灯暖光 */
+  var lg = ctx.createRadialGradient(195, 90, 20, 195, 90, 320);
+  lg.addColorStop(0, 'rgba(255,214,140,.10)'); lg.addColorStop(1, 'rgba(255,214,140,0)');
+  ctx.fillStyle = lg; ctx.fillRect(0, 0, 390, 780);
+  if (S.mode === 'menu') { ctx.restore(); return; }
+  /* 对手背牌 */
+  drawOppBacks();
+  /* 信息带 */
+  drawInfoBand();
+  /* 牌链 */
+  drawChain();
+  /* 牌墙堆 */
+  drawWallStack();
+  /* 我的手牌 */
+  drawHand();
+  /* 摸牌浮字 */
+  if (S.drewFx) {
+    ctx.globalAlpha = Math.min(1, S.drewFx.t * 2);
+    ctx.fillStyle = '#d0a05a'; ctx.font = 'bold 15px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText('对手摸了 ' + S.drewFx.n + ' 张…', 195, 640);   /* y640——y84 与「对手N张」挤叠（G3-minor6） */
+    ctx.globalAlpha = 1;
+  }
+  /* 出牌浮字 */
+  for (var f = 0; f < S.floats.length; f++) {
+    var fl = S.floats[f];
+    ctx.globalAlpha = Math.min(1, fl.t * 2.2);
+    ctx.fillStyle = fl.col; ctx.font = '13px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText(fl.txt, 195, 448 - (CFG.FLOAT_T - fl.t) * 16);
+    ctx.globalAlpha = 1;
+  }
+  /* 首手提示（y656——避开 756 起的动作钮带） */
+  if (S.mode === 'play' && S.hintT > 0) {
+    ctx.globalAlpha = Math.min(1, S.hintT);
+    ctx.fillStyle = '#3a2c14'; rr(ctx, 55, 656, 280, 30, 8); ctx.fill();
+    ctx.fillStyle = '#e8dcc0'; ctx.font = '12px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText(S.chain.length ? '点牌选中 · 点链端接牌' : '你先出 · 点一张手牌再点桌心', 195, 675);
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+}
+function drawOppBacks() {
+  var n = S.oppHand.length;
+  var gap = Math.min(30, 344 / Math.max(1, n));   /* n≥13 起收间距防出画布（G3-minor5） */
+  for (var i = 0; i < n; i++) {
+    var x = 195 - (n - 1) * gap / 2 + i * gap - 16;
+    ctx.fillStyle = '#3a2c1a'; rr(ctx, x, CFG.OPP_Y, 32, 46, 5); ctx.fill();
+    ctx.strokeStyle = '#57432a'; rr(ctx, x, CFG.OPP_Y, 32, 46, 5); ctx.stroke();
+    ctx.fillStyle = '#57432a'; ctx.beginPath(); ctx.arc(x + 16, CFG.OPP_Y + 23, 4, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.fillStyle = '#9a8868'; ctx.font = '11px system-ui'; ctx.textAlign = 'center';
+  ctx.fillText('对手 ' + n + ' 张', 195, CFG.OPP_Y + 62);
+}
+function drawInfoBand() {
+  ctx.fillStyle = '#9a8868'; ctx.font = '12px system-ui'; ctx.textAlign = 'left';
+  ctx.fillText('骨牌链' + (S.ends ? '（首 ' + S.ends[0] + ' · 尾 ' + S.ends[1] + '）' : '（空）'), 23, CFG.CHAIN_Y - 10);
+}
+function drawChain() {
+  var ph = (Date.now() % 1600) / 1600;
+  for (var i = 0; i < S.chain.length; i++) {
+    var t = S.chain[i], r = chainRect(i);
+    /* 蛇形奇数行（右→左填）渲染时左右互换：物理相贴/拐角相接的两半恒显示匹配值（G3-M1） */
+    var flip = (chainSlot(i).row % 2 === 1);
+    drawTileFace(flip ? t[1] : t[0], flip ? t[0] : t[1], r.x, r.y, CFG.TILE_W, CFG.TILE_H, false);
+    /* 端点呼吸框（可接提示：轮到我+选中牌能接该端） */
+    var isEnd = (i === 0 || i === S.chain.length - 1);
+    if (isEnd && S.mode === 'play' && S.turn === 'me' && S.sel !== null) {
+      var end = (i === 0) ? 'lo' : 'hi';
+      var tile = S.hand[S.sel];
+      if (tile && S.ends && (tile[0] === (end === 'lo' ? S.ends[0] : S.ends[1]) || tile[1] === (end === 'lo' ? S.ends[0] : S.ends[1]))) {
+        ctx.globalAlpha = .45 + .4 * Math.sin(ph * Math.PI * 2);
+        ctx.strokeStyle = (i === 0) ? '#e8b45c' : '#e07a4a'; ctx.lineWidth = 2.5;
+        rr(ctx, r.x - 3, r.y - 3, r.w + 6, r.h + 6, 5); ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+    }
+  }
+  /* 行末拐角连接线（蛇形连续感） */
+  ctx.strokeStyle = 'rgba(220,205,170,.5)'; ctx.lineWidth = 2;
+  var rows = Math.ceil(S.chain.length / CFG.ROW_N);
+  for (var row2 = 0; row2 < rows - 1; row2++) {
+    var lastIdx = (row2 + 1) * CFG.ROW_N - 1;
+    var nextIdx = lastIdx + 1;
+    if (nextIdx >= S.chain.length) continue;
+    var ra = chainRect(Math.min(lastIdx, S.chain.length - 1)), rb = chainRect(nextIdx);
+    ctx.beginPath();
+    ctx.moveTo(ra.cx, ra.y + ra.h);
+    ctx.lineTo(ra.cx, rb.y - 6);
+    ctx.lineTo(rb.cx, rb.y - 6);
+    ctx.stroke();
+  }
+  if (!S.chain.length) {
+    ctx.fillStyle = 'rgba(190,170,130,.55)'; ctx.font = '13px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText('— 桌心空位 · 首张任意 —', 195, CFG.CHAIN_Y + 30);
+  }
+}
+function drawWallStack() {
+  var x = 330, y = CFG.CHAIN_Y - 34;
+  for (var i = 0; i < 3; i++) {
+    ctx.fillStyle = '#3a2c1a'; rr(ctx, x - i * 2, y - i * 2, 36, 22, 4); ctx.fill();
+    ctx.strokeStyle = '#57432a'; rr(ctx, x - i * 2, y - i * 2, 36, 22, 4); ctx.stroke();
+  }
+  ctx.fillStyle = '#e8b45c'; ctx.font = 'bold 11px system-ui'; ctx.textAlign = 'center';
+  ctx.fillText('墙 ' + S.wall.length, x + 16, y + 34);
+}
+function drawHand() {
+  var n = S.hand.length;
+  var rows = handRows(n), per = Math.ceil(n / rows);
+  for (var i = 0; i < n; i++) {
+    var row = Math.floor(i / per), col = i % per;
+    var x = 12 + col * 52, y = CFG.HAND_Y + row * CFG.HAND_ROW_H;
+    var sel = (S.sel === i);
+    if (sel) y -= 6;
+    /* 可出微亮 */
+    var opts = playOptions(S.hand, S.ends);
+    var playable = false;
+    for (var q = 0; q < opts.length; q++) if (opts[q][0] === i) playable = true;
+    drawTileFace(S.hand[i][0], S.hand[i][1], x, y, CFG.HAND_W, CFG.HAND_H, playable);
+    if (sel) {
+      ctx.strokeStyle = '#e8b45c'; ctx.lineWidth = 2.5;
+      rr(ctx, x - 2, y - 2, CFG.HAND_W + 4, CFG.HAND_H + 4, 5); ctx.stroke();
+    }
+  }
+  ctx.fillStyle = '#9a8868'; ctx.font = '11px system-ui'; ctx.textAlign = 'left';
+  ctx.fillText('我的手牌 ' + n + ' 张 · 残点 ' + handPts(S.hand), 12, CFG.HAND_Y - 8);
+}
+/* 骨牌面：两半点阵 */
+var PIP = {
+  0: [], 1: [[1, 1]], 2: [[0, 0], [2, 2]], 3: [[0, 0], [1, 1], [2, 2]],
+  4: [[0, 0], [0, 2], [2, 0], [2, 2]], 5: [[0, 0], [0, 2], [1, 1], [2, 0], [2, 2]],
+  6: [[0, 0], [0, 1], [0, 2], [2, 0], [2, 1], [2, 2]]
+};
+function drawTileFace(a, b, x, y, w, h, lit) {
+  ctx.fillStyle = lit ? '#e8dcb8' : '#e4d6ae';   /* lit=可出微亮 */
+  rr(ctx, x, y, w, h, 4); ctx.fill();
+  ctx.strokeStyle = '#8a7448'; ctx.lineWidth = 1;
+  rr(ctx, x, y, w, h, 4); ctx.stroke();
+  /* 中线 */
+  ctx.strokeStyle = 'rgba(120,96,58,.6)';
+  ctx.beginPath(); ctx.moveTo(x + 3, y + h / 2); ctx.lineTo(x + w - 3, y + h / 2); ctx.stroke();
+  var half = w / 2, pad = h * 0.18;
+  var isDouble = (a === b);   /* 对子两半同金（G3-minor3：原只染 a 半） */
+  drawPips(a, x + 2, y + 2, half - 4, h - 4, pad, isDouble);
+  drawPips(b, x + half + 2, y + 2, half - 4, h - 4, pad, isDouble);
+}
+function drawPips(v, px, py, pw, ph, pad, gold) {
+  var pts = PIP[v] || [];
+  var cw = pw / 3, ch = ph / 3;
+  for (var i = 0; i < pts.length; i++) {
+    var cx2 = px + cw * (pts[i][0] + .5), cy2 = py + ch * (pts[i][1] + .5);
+    var r = Math.max(1.4, Math.min(cw, ch) * .26);
+    ctx.fillStyle = gold ? '#b0802e' : '#2c2418';
+    ctx.beginPath(); ctx.arc(cx2, cy2, r, 0, Math.PI * 2); ctx.fill();
+  }
+}
+function rr(c2, x, y, w, h, r) {
+  c2.beginPath();
+  c2.moveTo(x + r, y);
+  c2.arcTo(x + w, y, x + w, y + h, r);
+  c2.arcTo(x + w, y + h, x, y + h, r);
+  c2.arcTo(x, y + h, x, y, r);
+  c2.arcTo(x, y, x + w, y, r);
+  c2.closePath();
+}
+
+/* ===== 事件接线 ===== */
+function bind() {
+  cv = el('cv'); ctx = cv.getContext('2d');
+  cv.addEventListener('pointerdown', onDown);
+  cv.addEventListener('pointerup', onUp);
+  cv.addEventListener('pointercancel', onCancel);
+  window.addEventListener('pointerup', function (e) { if (S.in) onUp(e); });
+  window.addEventListener('pointercancel', onCancel);
+  window.addEventListener('blur', function () { clearInput(); if (S.mode === 'play') { S.mode = 'pause'; show('pause'); } });
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) { clearInput(); if (S.mode === 'play') { S.mode = 'pause'; show('pause'); } }
+  });
+  el('btn-go').addEventListener('click', function () { ensureAC(); SND.ui(); startGame(); });
+  el('btn-again').addEventListener('click', function () { ensureAC(); SND.ui(); startGame(); });
+  el('btn-restart').addEventListener('click', function () { ensureAC(); SND.ui(); startGame(); });
+  el('btn-resume').addEventListener('click', function () { SND.ui(); S.mode = 'play'; hide('pause'); });
+  el('btn-menu').addEventListener('click', function () { SND.ui(); toMenu(); });
+  el('btn-menu2').addEventListener('click', function () { SND.ui(); toMenu(); });
+  el('btn-pause').addEventListener('click', function () { if (S.mode === 'play') { clearInput(); S.mode = 'pause'; show('pause'); } });
+  el('btn-snd').addEventListener('click', function () {
+    ensureAC();
+    S.muted = !S.muted; save('g105_mute', S.muted ? '1' : '0');
+    el('btn-snd').textContent = S.muted ? '♪̸' : '♪';
+    if (!S.muted) { SND.ui(); wakeSnd(); }
+  });
+  el('btn-draw').addEventListener('click', function () { ensureAC(); meDraw(); });
+  el('btn-pass').addEventListener('click', function () { ensureAC(); mePass(); });
+}
+function boot() {
+  S.muted = load('g105_mute') !== '0';
+  var b = load('g105_best'); S.best = b ? +b || 0 : 0;
+  el('m-best').textContent = S.best ? String(S.best) : '—';
+  el('btn-snd').textContent = S.muted ? '♪̸' : '♪';
+  rndS = (Date.now() % 2147483647) || 1;
+  bind();
+  var last = 0;
+  function frame(ts) {
+    var dt = Math.min(.05, (ts - last) / 1000);
+    if (!last) dt = .016;
+    last = ts;
+    tick(dt);
+    draw();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+boot();
+</script>
+</body>
+</html>
