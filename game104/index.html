@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>雾港灯哨</title>
+<style>
+  html,body{margin:0;padding:0;background:#101820;height:100%;overflow:hidden;font-family:system-ui,"Microsoft YaHei",sans-serif}
+  #app{position:relative;width:390px;height:844px;margin:0 auto;background:#0d141c;overflow:hidden}
+  canvas{position:absolute;left:0;top:64px;width:390px;height:780px;touch-action:none}
+  .hud{position:absolute;left:0;top:0;width:390px;height:64px;display:flex;align-items:center;gap:8px;
+       background:#131c26;border-bottom:1px solid #263340;padding:0 10px;box-sizing:border-box;z-index:5}
+  .hud .st{flex:1;display:flex;gap:12px;font-size:13px;color:#7a8a99}
+  .hud .st b{color:#c8d6e2;font-size:15px;font-weight:600}
+  .ibtn{width:40px;height:40px;border-radius:10px;border:1px solid #2c3a48;background:#18232e;color:#e8b45c;
+        font-size:17px;line-height:38px;text-align:center;cursor:pointer;user-select:none;flex:none}
+  .ibtn:active{background:#1e2a36}
+  .lay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:9;background:rgba(10,16,22,.9)}
+  .lay.hide{display:none}
+  .pan{width:300px;background:#141e28;border:1px solid #2c3a48;border-radius:16px;padding:26px 24px;text-align:center;
+       box-shadow:0 8px 28px rgba(0,0,0,.5)}
+  .pan h1{margin:0 0 4px;font-size:34px;letter-spacing:6px;color:#dce8f2;font-weight:700}
+  .pan h2{margin:0 0 12px;font-size:20px;letter-spacing:3px;color:#dce8f2}
+  .pan .sub{font-size:12px;color:#6a7a89;margin-bottom:14px;letter-spacing:2px}
+  .pan .bst{font-size:13px;color:#e8b45c;margin-bottom:16px}
+  .pan .bst b{font-size:20px}
+  .pan .tips{font-size:12px;color:#8a9aa9;line-height:1.8;text-align:left;margin:0 6px 18px;list-style:none;padding:0}
+  .pan .tips li::before{content:"·";color:#e8b45c;margin-right:6px}
+  .btn{display:block;width:100%;margin:10px 0;padding:13px 0;border-radius:12px;border:none;cursor:pointer;
+       font-size:17px;letter-spacing:4px;color:#141e28;background:#e8b45c;font-family:inherit}
+  .btn:active{background:#d4a244}
+  .btn.ghost{background:#1c2833;color:#c8d6e2;border:1px solid #2c3a48}
+  .btn.ghost:active{background:#243240}
+  .res{display:flex;justify-content:space-between;font-size:14px;color:#8a9aa9;margin:6px 4px}
+  .res b{color:#dce8f2;font-size:16px}
+  #dbtns{position:absolute;left:0;top:762px;width:390px;display:flex;gap:12px;padding:0 24px;box-sizing:border-box;z-index:6}
+  #dbtns.hide{display:none}
+  #dbtns .btn{margin:0}
+  #dbtns .btn.go{opacity:.35;pointer-events:none}
+  #dbtns .btn.go.rdy{opacity:1;pointer-events:auto}
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="cv" width="390" height="780"></canvas>
+  <div class="hud" id="hud">
+    <div class="st"><span>炮 <b id="h-shots">0</b></span><span>敌舰 <b id="h-foe">5</b></span><span>我舰 <b id="h-mine">5</b></span></div>
+    <div class="ibtn" id="btn-snd">♪</div>
+    <div class="ibtn" id="btn-pause">‖</div>
+  </div>
+  <div class="lay" id="menu">
+    <div class="pan">
+      <h1>雾港灯哨</h1>
+      <div class="sub">FOG HARBOR · 探照寻船</div>
+      <div class="bst">最少炮数纪录 <b id="m-best">—</b></div>
+      <ul class="tips">
+        <li>拖灯船入海布阵，点船转向</li>
+        <li>点敌海探照：亮圈=空水，火叉=命中</li>
+        <li>照沉一艘会报名，五艘全沉清港</li>
+        <li>炮数越少，评级越高</li>
+      </ul>
+      <button class="btn" id="btn-go">出 海</button>
+    </div>
+  </div>
+  <div id="dbtns" class="hide">
+    <button class="btn ghost" id="btn-rand">随 机 布 阵</button>
+    <button class="btn go" id="btn-go2">出 发</button>
+  </div>
+  <div class="lay hide" id="pause">
+    <div class="pan">
+      <h2>歇 哨</h2>
+      <button class="btn" id="btn-resume">续 哨</button>
+      <button class="btn ghost" id="btn-restart">重 新 布 阵</button>
+      <button class="btn ghost" id="btn-menu">回 港</button>
+    </div>
+  </div>
+  <div class="lay hide" id="over">
+    <div class="pan">
+      <h2 id="o-title">雾散港清</h2>
+      <div class="res"><span>用炮</span><b id="o-shots">0</b></div>
+      <div class="res"><span>评级</span><b id="o-grade">—</b></div>
+      <div class="res"><span>击沉</span><b id="o-sunk">0/5</b></div>
+      <div class="res"><span>最佳纪录</span><b id="o-best">—</b></div>
+      <button class="btn" id="btn-again">再 哨 一 晚</button>
+      <button class="btn ghost" id="btn-menu2">回 港</button>
+    </div>
+  </div>
+</div>
+<script>
+'use strict';
+/* ===== 雾港灯哨 · 第 104 款（海战棋 Battleship 机制 · 夜雾渔港探照意象）===== */
+var CFG = {
+  N: 8, CELL: 32, GX: 67, GY_E: 24, GY_M: 344,   /* 敌盘 y24-280(相对canvas) 我盘 y344-600 */
+  DOCK_Y: 620,                                    /* 舰坞带（canvas 相对） */
+  BANNER_T: 1.2, HINT_T: 3, RING_T: .5, THINK_MIN: .2, THINK_MAX: .6
+};
+var FLEET_DEF = [
+  { len: 4, name: '纲船' }, { len: 3, name: '罟船' }, { len: 3, name: '哨船' },
+  { len: 2, name: '舢板' }, { len: 2, name: '灯艇' }
+];
+
+/* ===== 音效（WebAudio 手势内建立 · J2 wake 范式）===== */
+var AC = null;
+function ensureAC() { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { } } if (AC && AC.state === 'suspended') { AC.resume(); } }
+function tone(f, dur, type, vol, delay) {
+  if (S.muted || !AC) return;
+  var t0 = AC.currentTime + (delay || 0);
+  var o = AC.createOscillator(), g = AC.createGain();
+  o.type = type || 'sine'; o.frequency.value = f;
+  g.gain.setValueAtTime(vol || .1, t0);
+  g.gain.exponentialRampToValueAtTime(.001, t0 + dur);
+  o.connect(g); g.connect(AC.destination);
+  o.start(t0); o.stop(t0 + dur + .02);
+}
+var SND = {
+  beam:  function(){ tone(880,.06,'sine',.05); tone(1320,.05,'sine',.04,.05); },
+  splash:function(){ tone(300,.08,'triangle',.06); tone(210,.1,'triangle',.05,.05); },
+  hit:   function(){ tone(180,.16,'square',.09); tone(120,.22,'triangle',.1,.06); },
+  sunk:  function(){ tone(150,.3,'triangle',.12); tone(100,.5,'triangle',.12,.2); tone(70,.7,'triangle',.1,.42); },
+  win:   function(){ tone(523,.4,'triangle',.14); tone(659,.4,'triangle',.12,.12); tone(784,.7,'triangle',.12,.24); },
+  lose:  function(){ tone(220,.3,'triangle',.12); tone(165,.45,'triangle',.12,.22); tone(110,.8,'triangle',.12,.44); },
+  ui:    function(){ tone(440,.05,'square',.05); }
+};
+
+/* ===== 状态 ===== */
+var S = {
+  mode: 'menu', muted: true, best: 0,
+  myGrid: [], foeMarks: [], myMarks: [],     /* myGrid: 0/sid+1；marks: 0未照/1水/2火/3沉 */
+  fleet: [],                                  /* 我方 [{len,name,r,c,hor,cells:[],sunk}] r,c=null=在坞 */
+  foeShips: [],                               /* 敌方 [{len,name,cells:[],sunk}] */
+  turn: 'me', thinkT: 0, shots: 0, mySunk: 0, foeSunk: 0, pauseFrom: 'play', shakeT: 0,
+  bannerT: 0, hintT: 0, ring: null,           /* ring={r,c,t} 最新水花圈 */
+  parts: [],                                  /* 命中烟粒 */
+  drag: null,                                 /* 拖舰态 {sid, hor, len, px, py, offR, offC, from} */
+  ai: { excl: {}, par: 0 },                   /* AI：排除集+奇偶相位 */
+  in: null
+};
+var rndS = 1;
+function rnd() { rndS = (Math.imul(rndS, 1103515245) + 12345) >>> 0; return (rndS >>> 16) & 0x7fff; }
+function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function save(k, v) { try { localStorage.setItem(k, String(v)); } catch (e) { } }
+function el(id) { return document.getElementById(id); }
+function show(id) { el(id).classList.remove('hide'); }
+function hide(id) { el(id).classList.add('hide'); }
+function clearInput() { S.in = null; if (S.mode === 'deploy') S.drag = null; }
+
+/* ===== 布阵（不出界+不重叠+3×3 邻域无他舰——击沉排除安全性前提，SPEC v2）===== */
+function shipCells(len, r, c, hor) {
+  var cs = [];
+  for (var k = 0; k < len; k++) cs.push(hor ? [r, c + k] : [r + k, c]);
+  return cs;
+}
+function fitShip(len, r, c, hor, grid, ignoreSid) {
+  /* grid: 0/sid+1；ignoreSid=旋转/移动自身时忽略自己 */
+  var cs = shipCells(len, r, c, hor);
+  for (var i = 0; i < cs.length; i++) {
+    var rr = cs[i][0], cc = cs[i][1];
+    if (rr < 0 || cc < 0 || rr >= CFG.N || cc >= CFG.N) return false;
+    for (var dr = -1; dr <= 1; dr++) for (var dc = -1; dc <= 1; dc++) {
+      var nr = rr + dr, nc = cc + dc;
+      if (nr < 0 || nc < 0 || nr >= CFG.N || nc >= CFG.N) continue;
+      var v = grid[nr][nc];
+      if (v && v !== ignoreSid + 1) return false;
+    }
+  }
+  return true;
+}
+function applyFleet() {
+  /* fleet → myGrid 重刷 */
+  S.myGrid = [];
+  for (var r = 0; r < CFG.N; r++) S.myGrid.push([0, 0, 0, 0, 0, 0, 0, 0]);
+  for (var i = 0; i < S.fleet.length; i++) {
+    var f = S.fleet[i];
+    f.cells = [];
+    if (f.r === null) continue;
+    f.cells = shipCells(f.len, f.r, f.c, f.hor);
+    for (var k = 0; k < f.cells.length; k++) S.myGrid[f.cells[k][0]][f.cells[k][1]] = i + 1;
+  }
+  var go2 = el('btn-go2');
+  if (go2) { if (allPlaced()) go2.classList.add('rdy'); else go2.classList.remove('rdy'); }
+}
+function placeFleet(rng) {
+  /* 随机合法布 5 舰（与 sim104 同构：3×3 邻域约束）——返回 [{len,name,cells,hor}]；缺舰=整轮重试，4 轮不成返回 []（调用方守卫） */
+  for (var att = 0; att < 4; att++) {
+    var grid = [];
+    for (var r = 0; r < CFG.N; r++) grid.push([0, 0, 0, 0, 0, 0, 0, 0]);
+    var out = [];
+    for (var sid = 0; sid < FLEET_DEF.length; sid++) {
+      var ln = FLEET_DEF[sid].len;
+      for (var tries = 0; tries < 5000; tries++) {
+        var hor = rnd2(rng) % 2 === 0, r0 = rnd2(rng) % CFG.N, c0 = rnd2(rng) % CFG.N;
+        if (fitShip(ln, r0, c0, hor, grid, -1)) {
+          var cs = shipCells(ln, r0, c0, hor);
+          for (var k = 0; k < cs.length; k++) grid[cs[k][0]][cs[k][1]] = sid + 1;
+          out.push({ len: ln, name: FLEET_DEF[sid].name, cells: cs, hor: hor, r: r0, c: c0, sunk: false });
+          break;
+        }
+      }
+    }
+    if (out.length === FLEET_DEF.length) return out;   /* 完成校验：少舰=胜局软锁，禁静默 */
+  }
+  return [];
+}
+function rnd2(rng) { return rng(); }
+
+/* ===== 对局 ===== */
+function startDeploy() {
+  S.fleet = [];
+  for (var i = 0; i < FLEET_DEF.length; i++)
+    S.fleet.push({ len: FLEET_DEF[i].len, name: FLEET_DEF[i].name, r: null, c: null, hor: true, cells: [], sunk: false });
+  applyFleet();
+  S.foeMarks = blankMarks(); S.myMarks = blankMarks();
+  S.turn = 'me'; S.thinkT = 0; S.shots = 0; S.mySunk = 0; S.foeSunk = 0;
+  S.bannerT = 0; S.hintT = 0; S.ring = null; S.parts = []; S.drag = null; S.shakeT = 0;
+  S.ai = { excl: {}, par: 0 };
+  S.mode = 'deploy';
+  hide('menu'); hide('over'); hide('pause');
+  applyFleet();                       /* 刷新出发钮 rdy 态 */
+  show('dbtns');
+  syncHud();
+}
+function blankMarks() { var m = []; for (var r = 0; r < CFG.N; r++) m.push([0, 0, 0, 0, 0, 0, 0, 0]); return m; }
+function allPlaced() { for (var i = 0; i < S.fleet.length; i++) if (S.fleet[i].r === null) return false; return true; }
+function startBattle() {
+  if (!allPlaced()) return false;
+  S.foeShips = placeFleet(rnd);
+  if (!S.foeShips.length) return false;   /* 布阵失败守卫（天文概率）*/
+  S.mode = 'play'; S.hintT = CFG.HINT_T;
+  hide('dbtns');
+  syncHud();
+  return true;
+}
+function foeShipAt(r, c) {
+  for (var i = 0; i < S.foeShips.length; i++) {
+    var cs = S.foeShips[i].cells;
+    for (var k = 0; k < cs.length; k++) if (cs[k][0] === r && cs[k][1] === c) return i;
+  }
+  return -1;
+}
+function fire(r, c) {
+  /* 我照敌海一格；返回 {res:'miss'|'hit'|'sunk', ship} */
+  if (S.mode !== 'play' || S.turn !== 'me' || S.bannerT > 0) return null;
+  if (S.foeMarks[r][c]) return null;            /* 已照过=无效（onUp 侧触发轻震） */
+  SND.beam();                                   /* 探照扫频（SPEC §2）*/
+  var sid = foeShipAt(r, c);
+  S.shots++;
+  if (sid < 0) {
+    S.foeMarks[r][c] = 1; S.ring = { r: r, c: c, t: CFG.RING_T };
+    SND.splash();
+  } else {
+    S.foeMarks[r][c] = 2;
+    SND.hit();
+    spawnSmoke(foeXY(r, c));
+    var ship = S.foeShips[sid];
+    var allHit = true;
+    for (var k = 0; k < ship.cells.length; k++)
+      if (S.foeMarks[ship.cells[k][0]][ship.cells[k][1]] !== 2) { allHit = false; break; }
+    if (allHit) {
+      ship.sunk = true; S.foeSunk++;
+      for (var k2 = 0; k2 < ship.cells.length; k2++) S.foeMarks[ship.cells[k2][0]][ship.cells[k2][1]] = 3;
+      S.bannerT = CFG.BANNER_T;
+      setSunkBanner(ship.name + ' 沉了', '#e8b45c');
+      SND.sunk();
+    }
+  }
+  syncHud();
+  if (S.foeSunk >= 5) { endGame(true); return { res: 'end' }; }
+  S.turn = 'foe';
+  S.thinkT = CFG.THINK_MIN + (rnd() % 100) / 100 * (CFG.THINK_MAX - CFG.THINK_MIN);
+  return { res: sid < 0 ? 'miss' : (S.foeMarks[r][c] === 3 ? 'sunk' : 'hit') };
+}
+function aiPick() {
+  /* perfect 同构（SPEC §4）：追击（未沉命中格四邻，跳排除）→ checkerboard → 全格兜底 */
+  var marks = S.myMarks, excl = S.ai.excl;
+  var hits = [];
+  for (var r = 0; r < CFG.N; r++) for (var c = 0; c < CFG.N; c++) if (marks[r][c] === 2) hits.push([r, c]);
+  hits.sort(function (a, b) { return a[0] - b[0] || a[1] - b[1]; });
+  for (var i = 0; i < hits.length; i++) {
+    var h = hits[i];
+    var opts = [];
+    var nb = [[h[0] - 1, h[1]], [h[0] + 1, h[1]], [h[0], h[1] - 1], [h[0], h[1] + 1]];
+    for (var j = 0; j < 4; j++) {
+      var rr = nb[j][0], cc = nb[j][1];
+      if (rr < 0 || cc < 0 || rr >= CFG.N || cc >= CFG.N) continue;
+      if (marks[rr][cc] || excl[rr * CFG.N + cc]) continue;
+      opts.push([rr, cc]);
+    }
+    if (opts.length) return opts[rnd() % opts.length];
+  }
+  var cand = [], candAll = [];
+  for (var r2 = 0; r2 < CFG.N; r2++) for (var c2 = 0; c2 < CFG.N; c2++) {
+    if (marks[r2][c2] || excl[r2 * CFG.N + c2]) continue;
+    candAll.push([r2, c2]);
+    if ((r2 + c2) % 2 === S.ai.par) cand.push([r2, c2]);
+  }
+  var pool = cand.length ? cand : candAll;
+  return pool[rnd() % pool.length];
+}
+function aiFire() {
+  /* 敌照我海（thinkT 归零后由 tick 调用） */
+  SND.beam();
+  var pick = aiPick();
+  var r = pick[0], c = pick[1];
+  var sid = S.myGrid[r][c] - 1;
+  if (sid < 0) {
+    S.myMarks[r][c] = 1; S.ring = { r: r, c: c, t: CFG.RING_T, mine: true };
+    SND.splash();
+  } else {
+    S.myMarks[r][c] = 2;
+    SND.hit();
+    spawnSmoke(myXY(r, c));
+    var f = S.fleet[sid];
+    var allHit = true;
+    for (var k = 0; k < f.cells.length; k++)
+      if (S.myMarks[f.cells[k][0]][f.cells[k][1]] !== 2) { allHit = false; break; }
+    if (allHit) {
+      f.sunk = true; S.mySunk++;
+      for (var k2 = 0; k2 < f.cells.length; k2++) S.myMarks[f.cells[k2][0]][f.cells[k2][1]] = 3;
+      /* 击沉排除：周边一圈（舰不相邻约束下必为水）——只入排除集不虚标已照 */
+      for (var k3 = 0; k3 < f.cells.length; k3++) {
+        var cr = f.cells[k3][0], cc2 = f.cells[k3][1];
+        for (var dr = -1; dr <= 1; dr++) for (var dc = -1; dc <= 1; dc++) {
+          var nr = cr + dr, nc = cc2 + dc;
+          if (nr < 0 || nc < 0 || nr >= CFG.N || nc >= CFG.N) continue;
+          if (!S.myMarks[nr][nc]) S.ai.excl[nr * CFG.N + nc] = 1;
+        }
+      }
+      S.bannerT = CFG.BANNER_T;
+      setSunkBanner(f.name + ' 被击沉', '#d0604a');
+      SND.sunk();
+    }
+  }
+  syncHud();
+  if (S.mySunk >= 5) { endGame(false); return; }
+  S.turn = 'me';
+}
+function grade(sh) { return sh <= 32 ? 'S' : sh <= 38 ? 'A' : sh <= 44 ? 'B' : 'C'; }
+function endGame(win) {
+  S.mode = 'over';
+  el('o-title').textContent = win ? '雾散港清' : '渔排失守';
+  el('o-shots').textContent = S.shots;
+  el('o-grade').textContent = win ? grade(S.shots) : '—';
+  el('o-sunk').textContent = S.foeSunk + '/5';
+  if (win && (S.shots < S.best || !S.best)) { S.best = S.shots; save('g104_best', S.best); }
+  el('o-best').textContent = S.best ? String(S.best) : '—';
+  show('over');
+  if (win) SND.win(); else SND.lose();
+}
+function toMenu() { S.mode = 'menu'; clearInput(); hide('pause'); hide('over'); hide('dbtns'); show('menu'); el('m-best').textContent = S.best ? String(S.best) : '—'; }
+function syncHud() {
+  el('h-shots').textContent = S.shots;
+  el('h-foe').textContent = 5 - S.foeSunk;
+  el('h-mine').textContent = 5 - S.mySunk;
+}
+
+/* ===== 演出 ===== */
+function foeXY(r, c) { return [CFG.GX + c * CFG.CELL + CFG.CELL / 2, CFG.GY_E + r * CFG.CELL + CFG.CELL / 2]; }
+function myXY(r, c) { return [CFG.GX + c * CFG.CELL + CFG.CELL / 2, CFG.GY_M + r * CFG.CELL + CFG.CELL / 2]; }
+function spawnSmoke(xy) {
+  for (var i = 0; i < 2; i++)
+    S.parts.push({ x: xy[0] + (Math.random() - .5) * 8, y: xy[1], vx: (Math.random() - .5) * 12, vy: -22 - Math.random() * 14, life: .9 });
+}
+var bannerTxt = '', bannerCol = '#e8b45c';
+function setSunkBanner(t, col) { bannerTxt = t; bannerCol = col; }
+
+/* ===== 步进 ===== */
+function tick(dt) {
+  if (S.bannerT > 0) S.bannerT = Math.max(0, S.bannerT - dt);
+  if (S.shakeT > 0) S.shakeT = Math.max(0, S.shakeT - dt);
+  if (S.mode === 'play' && S.hintT > 0) S.hintT = Math.max(0, S.hintT - dt);
+  if (S.ring && S.ring.t > 0) { S.ring.t -= dt; if (S.ring.t <= 0) S.ring = null; }
+  for (var i = S.parts.length - 1; i >= 0; i--) {
+    var p = S.parts[i];
+    p.x += p.vx * dt; p.y += p.vy * dt; p.vy -= 10 * dt; p.life -= dt;
+    if (p.life <= 0) S.parts.splice(i, 1);
+  }
+  if (S.mode === 'play' && S.turn === 'foe' && S.bannerT === 0) {
+    S.thinkT -= dt;
+    if (S.thinkT <= 0) aiFire();
+  }
+}
+
+/* ===== 手势（deploy=拖舰+点旋转；play=点敌海；M1 全套）===== */
+var cv = null;
+function onDown(e) {
+  ensureAC(); wakeSnd();
+  if (S.mode !== 'deploy' && S.mode !== 'play') return;
+  e.preventDefault && e.preventDefault();
+  var x = e.clientX, y = e.clientY - 64;
+  if (S.in) return;
+  try { cv.setPointerCapture(e.pointerId); } catch (err) { }
+  if (S.mode === 'deploy') {
+    var hit = dockHit(x, y) !== -1 ? { dock: dockHit(x, y) } : boardShipHit(x, y);
+    if (hit.dock !== undefined) {
+      S.in = { id: e.pointerId, kind: 'drag', sid: hit.dock, sx: x, sy: y, moved: false };
+      var f = S.fleet[hit.dock];
+      S.drag = { sid: hit.dock, hor: f.hor, len: f.len, px: x, py: y, offR: 0, offC: 0, from: null };
+    } else if (hit.sid !== undefined) {
+      S.in = { id: e.pointerId, kind: 'drag', sid: hit.sid, sx: x, sy: y, moved: false };
+      var f2 = S.fleet[hit.sid];
+      var rc = pxToMy(x, y);                 /* 锚点=按下格 */
+      var cell0 = f2.cells[0];
+      S.drag = { sid: hit.sid, hor: f2.hor, len: f2.len, px: x, py: y, offR: cell0[0] - rc[0], offC: cell0[1] - rc[1], from: { r: f2.r, c: f2.c, hor: f2.hor } };
+      f2.r = null; applyFleet();            /* 拿在手里=先从盘上取下 */
+    }
+  } else if (S.mode === 'play' && S.turn === 'me' && S.bannerT === 0) {
+    S.in = { id: e.pointerId, kind: 'fire', sx: x, sy: y };
+  }
+}
+function onMove(e) {
+  if (!S.in || e.pointerId !== S.in.id) return;
+  var x = e.clientX, y = e.clientY - 64;
+  if (S.in.kind === 'drag' && S.drag) {
+    S.drag.px = x; S.drag.py = y;
+    if (Math.abs(x - S.in.sx) + Math.abs(y - S.in.sy) > 6) S.in.moved = true;
+  }
+}
+function onUp(e) {
+  if (!S.in || (e.pointerId !== undefined && e.pointerId !== S.in.id)) return;
+  var kind = S.in.kind, sid = S.in.sid, moved = S.in.moved;
+  var x = e.clientX, y = e.clientY - 64;
+  S.in = null;
+  if (kind === 'drag' && S.drag) {
+    var d = S.drag; S.drag = null;
+    if (!moved) {
+      /* 点按=旋转（原位试转，失败保持原方向弹回原位——SPEC「拒收弹回」） */
+      var f = S.fleet[sid];
+      var base = d.from || { r: null, c: null };
+      if (base.r !== null) {
+        if (fitShip(f.len, base.r, base.c, !f.hor, S.myGrid, sid)) f.hor = !f.hor;
+        f.r = base.r; f.c = base.c;          /* 成败都回原位 */
+      } else { f.hor = !f.hor; }             /* 在坞=自由转 */
+      applyFleet(); SND.ui();
+      return;
+    }
+    var rc = pxToMy(x, y);                   /* 拖点格（锚点保持） */
+    var r0 = rc[0] + d.offR, c0 = rc[1] + d.offC;
+    if (fitShip(d.len, r0, c0, d.hor, S.myGrid, sid)) {
+      var f2 = S.fleet[sid];
+      f2.r = r0; f2.c = c0; f2.hor = d.hor;
+      applyFleet(); SND.ui();
+    }
+    /* 非法=舰回坞（拖失败不留悬空） */
+  } else if (kind === 'fire') {
+    var rc2 = pxToFoe(x, y);
+    if (rc2) {
+      var fres = fire(rc2[0], rc2[1]);
+      if (fres === null && S.mode === 'play' && S.foeMarks[rc2[0]][rc2[1]]) S.shakeT = 0.2;   /* 已照格轻震 */
+    }
+  }
+}
+function onCancel(e) {
+  if (!S.in || (e.pointerId !== undefined && e.pointerId !== S.in.id)) return;
+  clearInput();
+}
+function pxToFoe(x, y) {
+  var c = Math.floor((x - CFG.GX) / CFG.CELL), r = Math.floor((y - CFG.GY_E) / CFG.CELL);
+  if (r < 0 || c < 0 || r >= CFG.N || c >= CFG.N) return null;
+  return [r, c];
+}
+function pxToMy(x, y) {
+  var c = Math.floor((x - CFG.GX) / CFG.CELL), r = Math.floor((y - CFG.GY_M) / CFG.CELL);
+  if (r < 0 || c < 0 || r >= CFG.N || c >= CFG.N) return [-99, -99];
+  return [r, c];
+}
+function dockHit(x, y) {
+  /* 舰坞：5 舰横排 y620-680 带；格 22px 步距、8 间隔、起点 25（与 drawDeployUI 同一套压缩式槽位——放走的舰不占位） */
+  if (y < CFG.DOCK_Y || y > CFG.DOCK_Y + 60) return -1;
+  var cx = 25;
+  for (var i = 0; i < S.fleet.length; i++) {
+    if (S.fleet[i].r === null) {
+      var w = S.fleet[i].len * 22;
+      if (x >= cx && x <= cx + w) return i;
+      cx += w + 8;
+    }
+  }
+  return -1;
+}
+function boardShipHit(x, y) {
+  var rc = pxToMy(x, y);
+  if (rc[0] < 0) return {};
+  var v = S.myGrid[rc[0]][rc[1]];
+  return v ? { sid: v - 1 } : {};
+}
+/* J2 wake */
+var wakeBound = false;
+function wakeSnd() {
+  if (!wakeBound && !S.muted) {
+    wakeBound = true;
+    document.addEventListener('pointerdown', function once() {
+      document.removeEventListener('pointerdown', once);
+      wakeBound = false;
+      ensureAC();
+    });
+  }
+}
+
+/* ===== 绘制 ===== */
+var ctx = null;
+function draw() {
+  ctx.save();
+  /* 夜海底 */
+  var g = ctx.createLinearGradient(0, 0, 0, 780);
+  g.addColorStop(0, '#0e1722'); g.addColorStop(1, '#0a1018');
+  ctx.fillStyle = g; ctx.fillRect(-8, 0, 406, 780);
+  /* 月与雾带 */
+  ctx.fillStyle = 'rgba(220,232,245,.85)'; ctx.beginPath(); ctx.arc(330, 46, 13, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(220,232,245,.12)'; ctx.beginPath(); ctx.arc(330, 46, 22, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(120,140,160,.08)';
+  ctx.fillRect(0, 60, 390, 14); ctx.fillRect(0, 380, 390, 10);
+  /* 标头 */
+  ctx.font = 'bold 13px system-ui'; ctx.textAlign = 'left';
+  ctx.fillStyle = '#d0604a'; ctx.fillText('敌 海 · 雾 船', CFG.GX - 8, 16);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#7a8a99'; ctx.fillText('点格探照', CFG.GX + 264, 16);
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#e8b45c'; ctx.fillText('我 海 · 灯 船', CFG.GX - 8, CFG.GY_M - 12);
+  /* 双盘（敌盘已照格轻震 0.2s——SPEC §6）*/
+  if (S.shakeT > 0) {
+    ctx.save();
+    ctx.translate(Math.round(Math.sin(S.shakeT * 50) * 2), 0);
+    drawBoard(CFG.GY_E, S.foeMarks, 'foe');
+    ctx.restore();
+  } else drawBoard(CFG.GY_E, S.foeMarks, 'foe');
+  drawBoard(CFG.GY_M, S.myMarks, 'my');
+  /* 中带剩舰指示 */
+  drawDockStrip();
+  /* 我盘舰体（对局+布舰态都可见） */
+  drawMyShips();
+  /* 拖拽预览 */
+  drawDrag();
+  /* 水花圈动画 */
+  if (S.ring) drawRing(S.ring);
+  /* 烟粒 */
+  for (var i = 0; i < S.parts.length; i++) {
+    var p = S.parts[i];
+    var a = Math.max(0, Math.min(1, p.life * 1.1));
+    var gr = Math.max(0, 2 + (0.9 - p.life) * 7);
+    ctx.globalAlpha = a * .45;
+    ctx.fillStyle = '#8a97a8';
+    ctx.beginPath(); ctx.arc(p.x, p.y, gr, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  /* 击沉横幅 */
+  if (S.bannerT > 0) {
+    var ba = Math.min(1, S.bannerT * 2.4);
+    ctx.globalAlpha = ba * .92;
+    ctx.fillStyle = 'rgba(12,20,28,.72)';
+    ctx.fillRect(0, 356, 390, 68);
+    ctx.fillStyle = bannerCol; ctx.fillRect(0, 356, 390, 2); ctx.fillRect(0, 422, 390, 2);
+    ctx.globalAlpha = ba;
+    ctx.fillStyle = '#e8f0f8'; ctx.font = 'bold 24px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText(bannerTxt, 195, 398);
+    ctx.globalAlpha = 1;
+  }
+  /* 提示条 */
+  if (S.mode === 'play' && S.hintT > 0) {
+    ctx.globalAlpha = Math.min(1, S.hintT);
+    ctx.fillStyle = '#22405a'; rr(ctx, 55, 664, 280, 30, 8); ctx.fill();
+    ctx.fillStyle = '#c8d6e2'; ctx.font = '12px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText('点敌海探照 · 火叉处四邻追击', 195, 683);
+    ctx.globalAlpha = 1;
+  }
+  if (S.mode === 'deploy') drawDeployUI();
+  ctx.restore();
+}
+function drawBoard(gy, marks, which) {
+  ctx.fillStyle = 'rgba(30,44,58,.55)';
+  rr(ctx, CFG.GX - 6, gy - 6, 268, 268, 8); ctx.fill();
+  for (var r = 0; r < CFG.N; r++) for (var c = 0; c < CFG.N; c++) {
+    var x = CFG.GX + c * CFG.CELL, y = gy + r * CFG.CELL;
+    ctx.fillStyle = ((r + c) % 2 === 0) ? 'rgba(38,56,74,.75)' : 'rgba(30,46,62,.75)';
+    ctx.fillRect(x + 1, y + 1, CFG.CELL - 2, CFG.CELL - 2);
+    var m = marks[r][c];
+    if (m === 1) {                                   /* 水=白圈点 */
+      ctx.strokeStyle = 'rgba(190,208,222,.55)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(x + 16, y + 16, 5, 0, Math.PI * 2); ctx.stroke();
+    } else if (m === 2) {                            /* 命中=橙火叉 */
+      ctx.strokeStyle = '#e8862e'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(x + 8, y + 8); ctx.lineTo(x + 24, y + 24);
+      ctx.moveTo(x + 24, y + 8); ctx.lineTo(x + 8, y + 24);
+      ctx.stroke();
+    } else if (m === 3) {                            /* 沉=暗红块+叉 */
+      ctx.fillStyle = 'rgba(160,52,42,.4)';
+      ctx.fillRect(x + 2, y + 2, CFG.CELL - 4, CFG.CELL - 4);
+      ctx.strokeStyle = '#d0604a'; ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(x + 9, y + 9); ctx.lineTo(x + 23, y + 23);
+      ctx.moveTo(x + 23, y + 9); ctx.lineTo(x + 9, y + 23);
+      ctx.stroke();
+    }
+  }
+  /* 盘边坐标（防迷路） */
+  ctx.fillStyle = 'rgba(122,138,153,.5)'; ctx.font = '9px system-ui'; ctx.textAlign = 'center';
+  for (var i2 = 0; i2 < CFG.N; i2++) {
+    ctx.fillText(String(i2 + 1), CFG.GX + i2 * CFG.CELL + 16, gy + 276);
+  }
+}
+function drawMyShips() {
+  for (var i = 0; i < S.fleet.length; i++) {
+    var f = S.fleet[i];
+    if (f.r === null || (S.drag && S.drag.sid === i)) continue;
+    for (var k = 0; k < f.cells.length; k++) {
+      var x = CFG.GX + f.cells[k][1] * CFG.CELL, y = CFG.GY_M + f.cells[k][0] * CFG.CELL;
+      ctx.fillStyle = f.sunk ? 'rgba(90,60,48,.85)' : 'rgba(64,84,66,.9)';
+      rr(ctx, x + 2, y + 2, CFG.CELL - 4, CFG.CELL - 4, 6); ctx.fill();
+      ctx.strokeStyle = f.sunk ? '#7a4438' : '#7fae82'; ctx.lineWidth = 1;
+      rr(ctx, x + 2, y + 2, CFG.CELL - 4, CFG.CELL - 4, 6); ctx.stroke();
+    }
+    /* 首格舰字 */
+    var x0 = CFG.GX + f.cells[0][1] * CFG.CELL, y0 = CFG.GY_M + f.cells[0][0] * CFG.CELL;
+    ctx.fillStyle = f.sunk ? '#c08a7a' : '#cfe8d0'; ctx.font = '10px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText(f.name[0], x0 + 16, y0 + 20);
+  }
+}
+function drawDrag() {
+  if (!S.drag) return;
+  var d = S.drag;
+  var rc = pxToMy(d.px, d.py);
+  var r0 = rc[0] + d.offR, c0 = rc[1] + d.offC;
+  var legal = fitShip(d.len, r0, c0, d.hor, S.myGrid, d.sid);
+  var cs = shipCells(d.len, r0, c0, d.hor);
+  var onBoard = r0 >= 0 && c0 >= 0 && r0 < CFG.N && c0 < CFG.N;
+  /* 手指处舰影（跟随） */
+  ctx.globalAlpha = .9;
+  for (var k = 0; k < d.len; k++) {
+    var bx = d.px + (d.hor ? k * 22 : 0) - 11, by = d.py + (d.hor ? 0 : k * 22) - 11;
+    ctx.fillStyle = 'rgba(96,124,100,.95)';
+    rr(ctx, bx, by, 20, 20, 5); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  if (onBoard) {
+    for (var k2 = 0; k2 < cs.length; k2++) {
+      var x = CFG.GX + cs[k2][1] * CFG.CELL, y = CFG.GY_M + cs[k2][0] * CFG.CELL;
+      ctx.strokeStyle = legal ? '#e8b45c' : '#d0604a'; ctx.lineWidth = 2;
+      ctx.strokeRect(x + 2, y + 2, CFG.CELL - 4, CFG.CELL - 4);
+      if (legal) { ctx.fillStyle = 'rgba(232,180,92,.15)'; ctx.fillRect(x + 2, y + 2, CFG.CELL - 4, CFG.CELL - 4); }
+    }
+  }
+}
+function drawRing(ring) {
+  var xy = ring.mine ? myXY(ring.r, ring.c) : foeXY(ring.r, ring.c);
+  var k = 1 - ring.t / CFG.RING_T;
+  ctx.strokeStyle = 'rgba(200,220,240,' + (1 - k) * .8 + ')';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(xy[0], xy[1], 4 + k * 14, 0, Math.PI * 2); ctx.stroke();
+}
+function drawDockStrip() {
+  /* 中带 y312-344（敌盘底 280 到我盘头 332 之间）：敌我剩舰点 */
+  ctx.font = '10px system-ui';
+  for (var i = 0; i < 5; i++) {
+    var xE = CFG.GX + 8 + i * 20;
+    ctx.fillStyle = i < 5 - S.foeSunk ? '#d0604a' : 'rgba(90,70,68,.5)';
+    ctx.beginPath(); ctx.arc(xE, 316, 5, 0, Math.PI * 2); ctx.fill();
+    var xM = CFG.GX + 150 + i * 20;
+    ctx.fillStyle = i < 5 - S.mySunk ? '#e8b45c' : 'rgba(90,80,58,.5)';
+    ctx.beginPath(); ctx.arc(xM, 316, 5, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.fillStyle = '#6a7a89'; ctx.textAlign = 'left';
+  ctx.fillText('雾船', CFG.GX - 30, 320);
+  ctx.fillText('灯船', CFG.GX + 112, 320);
+}
+function drawDeployUI() {
+  /* 舰坞带 + 提示 + 双钮 */
+  ctx.fillStyle = 'rgba(20,32,44,.9)';
+  rr(ctx, 8, CFG.DOCK_Y, 374, 66, 10); ctx.fill();
+  ctx.strokeStyle = '#2c3a48'; rr(ctx, 8, CFG.DOCK_Y, 374, 66, 10); ctx.stroke();
+  var cx = 25;
+  for (var i = 0; i < S.fleet.length; i++) {
+    var f = S.fleet[i];
+    if (f.r === null) {
+      for (var k = 0; k < f.len; k++) {
+        ctx.fillStyle = 'rgba(96,124,100,.95)';
+        rr(ctx, cx + k * 22, CFG.DOCK_Y + 18, 20, 20, 5); ctx.fill();
+        ctx.strokeStyle = '#7fae82'; rr(ctx, cx + k * 22, CFG.DOCK_Y + 18, 20, 20, 5); ctx.stroke();
+      }
+      ctx.fillStyle = '#cfe8d0'; ctx.font = '9px system-ui'; ctx.textAlign = 'left';
+      ctx.fillText(f.name, cx, CFG.DOCK_Y + 13);
+      cx += f.len * 22 + 8;      /* 压缩式：放走的舰不占位（与 dockHit 同构——G3 M1）*/
+    }
+  }
+  ctx.fillStyle = '#8a9aa9'; ctx.font = '11px system-ui'; ctx.textAlign = 'center';
+  ctx.fillText('拖舰入海 · 点舰转向 · 舰间须隔一格', 195, CFG.DOCK_Y + 58);
+}
+function rr(c2, x, y, w, h, r) {
+  c2.beginPath();
+  c2.moveTo(x + r, y);
+  c2.arcTo(x + w, y, x + w, y + h, r);
+  c2.arcTo(x + w, y + h, x, y + h, r);
+  c2.arcTo(x, y + h, x, y, r);
+  c2.arcTo(x, y, x + w, y, r);
+  c2.closePath();
+}
+
+/* ===== 事件接线 ===== */
+function bind() {
+  cv = el('cv'); ctx = cv.getContext('2d');
+  cv.addEventListener('pointerdown', onDown);
+  cv.addEventListener('pointermove', onMove);
+  cv.addEventListener('pointerup', onUp);
+  cv.addEventListener('pointercancel', onCancel);
+  window.addEventListener('pointerup', function (e) { if (S.in) onUp(e); });
+  window.addEventListener('pointercancel', onCancel);
+  window.addEventListener('blur', function () { clearInput(); if (S.mode === 'play' || S.mode === 'deploy') { S.pauseFrom = S.mode; S.mode = 'pause'; show('pause'); } });
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) { clearInput(); if (S.mode === 'play' || S.mode === 'deploy') { S.pauseFrom = S.mode; S.mode = 'pause'; show('pause'); } }
+  });
+  el('btn-go').addEventListener('click', function () { ensureAC(); SND.ui(); startDeploy(); });
+  el('btn-again').addEventListener('click', function () { ensureAC(); SND.ui(); startDeploy(); });
+  el('btn-restart').addEventListener('click', function () { SND.ui(); startDeploy(); });
+  el('btn-resume').addEventListener('click', function () { SND.ui(); S.mode = S.pauseFrom === 'deploy' ? 'deploy' : 'play'; hide('pause'); });
+  el('btn-menu').addEventListener('click', function () { SND.ui(); toMenu(); });
+  el('btn-menu2').addEventListener('click', function () { SND.ui(); toMenu(); });
+  el('btn-pause').addEventListener('click', function () { if (S.mode === 'play' || S.mode === 'deploy') { clearInput(); S.pauseFrom = S.mode; S.mode = 'pause'; show('pause'); } });
+  el('btn-snd').addEventListener('click', function () {
+    ensureAC();
+    S.muted = !S.muted; save('g104_mute', S.muted ? '1' : '0');
+    el('btn-snd').textContent = S.muted ? '♪̸' : '♪';
+    if (!S.muted) { SND.ui(); wakeSnd(); }
+  });
+  /* 部署态 DOM 钮（canvas 钮与拖舰 up 误触面已除） */
+  el('btn-rand').addEventListener('click', function () { ensureAC(); SND.ui(); randomizeFleet(); });
+  el('btn-go2').addEventListener('click', function () { ensureAC(); if (allPlaced()) { SND.ui(); startBattle(); } });
+  window.addEventListener('keydown', function (e) {
+    if (e.repeat) return;
+    if (S.mode === 'deploy' && e.key === 'Enter' && allPlaced()) { SND.ui(); startBattle(); }
+  });
+}
+function randomizeFleet() {
+  var placed = placeFleet(rnd);
+  if (!placed.length) return;   /* 布阵失败守卫（天文概率，保持现状不崩）*/
+  for (var i = 0; i < S.fleet.length; i++) {
+    S.fleet[i].r = placed[i].r; S.fleet[i].c = placed[i].c;
+    S.fleet[i].hor = placed[i].hor; S.fleet[i].sunk = false;
+  }
+  applyFleet();
+}
+function boot() {
+  S.muted = load('g104_mute') !== '0';
+  var b = load('g104_best'); S.best = b ? +b || 0 : 0;
+  el('m-best').textContent = S.best ? String(S.best) : '—';
+  el('btn-snd').textContent = S.muted ? '♪̸' : '♪';
+  S.myGrid = []; S.foeMarks = blankMarks(); S.myMarks = blankMarks();
+  for (var r = 0; r < CFG.N; r++) S.myGrid.push([0, 0, 0, 0, 0, 0, 0, 0]);
+  rndS = (Date.now() % 2147483647) || 1;
+  bind();
+  var last = 0;
+  function frame(ts) {
+    var dt = Math.min(.05, (ts - last) / 1000);
+    if (!last) dt = .016;
+    last = ts;
+    tick(dt);
+    draw();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+boot();
+</script>
+</body>
+</html>
