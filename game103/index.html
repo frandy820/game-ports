@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>合香师</title>
+<style>
+  html,body{margin:0;padding:0;background:#e9e2d2;height:100%;overflow:hidden;font-family:system-ui,"Microsoft YaHei",sans-serif}
+  #app{position:relative;width:390px;height:844px;margin:0 auto;background:#f4eee1;overflow:hidden}
+  canvas{position:absolute;left:0;top:64px;width:390px;height:780px;touch-action:none}
+  .hud{position:absolute;left:0;top:0;width:390px;height:64px;display:flex;align-items:center;gap:8px;
+       background:#efe8da;border-bottom:1px solid #d8cdb4;padding:0 10px;box-sizing:border-box;z-index:5}
+  .hud .st{flex:1;display:flex;gap:14px;font-size:13px;color:#6a6458}
+  .hud .st b{color:#4a4438;font-size:15px;font-weight:600}
+  .ibtn{width:40px;height:40px;border-radius:10px;border:1px solid #c9bda0;background:#f7f2e6;color:#7a5a2e;
+        font-size:17px;line-height:38px;text-align:center;cursor:pointer;user-select:none;flex:none}
+  .ibtn:active{background:#e8dfc8}
+  .lay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:9;background:rgba(240,233,218,.94)}
+  .lay.hide{display:none}
+  .pan{width:300px;background:#faf6ec;border:1px solid #d8cdb4;border-radius:16px;padding:26px 24px;text-align:center;
+       box-shadow:0 8px 28px rgba(90,70,40,.18)}
+  .pan h1{margin:0 0 4px;font-size:34px;letter-spacing:6px;color:#4a4438;font-weight:700}
+  .pan h2{margin:0 0 12px;font-size:20px;letter-spacing:3px;color:#4a4438}
+  .pan .sub{font-size:12px;color:#9a927e;margin-bottom:14px;letter-spacing:2px}
+  .pan .bst{font-size:13px;color:#7a5a2e;margin-bottom:16px}
+  .pan .bst b{font-size:20px}
+  .pan .tips{font-size:12px;color:#8a8272;line-height:1.8;text-align:left;margin:0 6px 18px;list-style:none;padding:0}
+  .pan .tips li::before{content:"·";color:#b0802e;margin-right:6px}
+  .btn{display:block;width:100%;margin:10px 0;padding:13px 0;border-radius:12px;border:none;cursor:pointer;
+       font-size:17px;letter-spacing:4px;color:#faf6ec;background:#b0802e;font-family:inherit}
+  .btn:active{background:#9a6f26}
+  .btn.ghost{background:#efe8da;color:#7a5a2e;border:1px solid #c9bda0}
+  .btn.ghost:active{background:#e4dac2}
+  .res{display:flex;justify-content:space-between;font-size:14px;color:#6a6458;margin:6px 4px}
+  .res b{color:#4a4438;font-size:16px}
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="cv" width="390" height="780"></canvas>
+  <div class="hud" id="hud">
+    <div class="st"><span>韵 <b id="h-score">0</b></span><span>高丸 <b id="h-max">—</b></span><span>合 <b id="h-merge">0</b></span></div>
+    <div class="ibtn" id="btn-snd">♪</div>
+    <div class="ibtn" id="btn-pause">‖</div>
+  </div>
+  <div class="lay" id="menu">
+    <div class="pan">
+      <h1>合香师</h1>
+      <div class="sub">BLEND · 同数相融</div>
+      <div class="bst">最高香韵 <b id="m-best">0</b></div>
+      <ul class="tips">
+        <li>四向滑匣：香丸齐滑</li>
+        <li>同数相触：融为一炉升一阶</li>
+        <li>合出 2048「天香」即香成</li>
+        <li>匣满无对：香尽收工</li>
+      </ul>
+      <button class="btn" id="btn-go">开 合</button>
+    </div>
+  </div>
+  <div class="lay hide" id="pause">
+    <div class="pan">
+      <h2>歇 一 炉</h2>
+      <button class="btn" id="btn-resume">续 合</button>
+      <button class="btn ghost" id="btn-restart">重 起 一 炉</button>
+      <button class="btn ghost" id="btn-menu">回 香 斋</button>
+    </div>
+  </div>
+  <div class="lay hide" id="over">
+    <div class="pan">
+      <h2 id="o-title">香 尽 匣 满</h2>
+      <div class="res"><span>香韵总值</span><b id="o-score">0</b></div>
+      <div class="res"><span>最高香阶</span><b id="o-max">—</b></div>
+      <div class="res"><span>相融次数</span><b id="o-merge">0</b></div>
+      <div class="res"><span>最佳纪录</span><b id="o-best">0</b></div>
+      <button class="btn" id="btn-again">再 合 一 炉</button>
+      <button class="btn ghost" id="btn-menu2">回 香 斋</button>
+    </div>
+  </div>
+</div>
+<script>
+'use strict';
+/* ===== 合香师 · 第 103 款（2048 滑动合并机制 · 合香道意象）===== */
+var CFG = {
+  N: 4, CELL: 78, GX: 39, GY: 200,          /* 香匣 4×4，盘 312×312（y200-512） */
+  SWIPE_MIN: 24,                            /* 手势判定阈 px */
+  SLIDE_T: .11, POP_T: .16, BANNER_T: 1.6, HINT_T: 3
+};
+var NAMES = { 2:'沉水', 4:'栈香', 8:'青木', 16:'零陵', 32:'藿香', 64:'白檀', 128:'龙脑',
+              256:'麝香', 512:'鹅梨帐中香', 1024:'百和香', 2048:'天香', 4096:'瑞龙脑', 8192:'沉水龙脑' };
+var CLRS = { 2:['#efe6d0','#6a5f4a'], 4:['#e8d9b8','#5f543e'], 8:['#dfc79a','#4a4438'],
+             16:['#d4b078','#43392c'], 32:['#c9985c','#faf6ec'], 64:['#bd7f44','#faf6ec'],
+             128:['#b06a3c','#faf6ec'], 256:['#a2583a','#faf6ec'], 512:['#8f4a3c','#faf6ec'],
+             1024:['#7a3f3f','#faf6ec'], 2048:['#b0802e','#fff8e6'], 4096:['#6a3a2f','#faf6ec'], 8192:['#5a2f28','#faf6ec'] };
+
+/* ===== 音效（WebAudio 手势内建立 · J2 wake 范式）===== */
+var AC = null;
+function ensureAC() { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { } } if (AC && AC.state === 'suspended') { AC.resume(); } }
+function tone(f, dur, type, vol, delay) {
+  if (S.muted || !AC) return;
+  var t0 = AC.currentTime + (delay || 0);
+  var o = AC.createOscillator(), g = AC.createGain();
+  o.type = type || 'square'; o.frequency.value = f;
+  g.gain.setValueAtTime(vol || .12, t0);
+  g.gain.exponentialRampToValueAtTime(.001, t0 + dur);
+  o.connect(g); g.connect(AC.destination);
+  o.start(t0); o.stop(t0 + dur + .02);
+}
+var SND = {
+  slide:  function(){ tone(190,.035,'triangle',.05); },
+  merge:  function(lv){ tone(320 + lv * 42, .1, 'triangle', .1); tone(480 + lv * 42, .08, 'sine', .07, .02); },
+  win:    function(){ tone(523,.5,'triangle',.15); tone(659,.5,'triangle',.12,.14); tone(784,.8,'triangle',.12,.28); },
+  over:   function(){ tone(220,.3,'triangle',.12); tone(165,.45,'triangle',.12,.25); tone(110,.7,'triangle',.12,.5); },
+  ui:     function(){ tone(440,.05,'square',.06); }
+};
+
+/* ===== 状态 ===== */
+var S = {
+  mode: 'menu', muted: true, best: 0,
+  grid: [], preGrid: [],                     /* preGrid=滑动前盘（slideT 插值用） */
+  score: 0, mergeN: 0, won: false,
+  slideT: 0, popT: 0, bannerT: 0, hintT: 0,
+  parts: [], floats: [],
+  in: null                                   /* 输入态（M1：打断必清） */
+};
+var rndS = 1;
+function rnd() { rndS = (Math.imul(rndS, 1103515245) + 12345) >>> 0; return (rndS >>> 16) & 0x7fff; }
+function newTileVal() { return rnd() % 100 < 90 ? 2 : 4; }
+function spawnTile() {
+  var empt = [];
+  for (var r = 0; r < CFG.N; r++) for (var c = 0; c < CFG.N; c++) if (!S.grid[r][c]) empt.push([r, c]);
+  if (!empt.length) return false;
+  var k = empt[rnd() % empt.length];
+  S.grid[k[0]][k[1]] = newTileVal();
+  return true;
+}
+function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function save(k, v) { try { localStorage.setItem(k, String(v)); } catch (e) { } }
+function el(id) { return document.getElementById(id); }
+function show(id) { el(id).classList.remove('hide'); }
+function hide(id) { el(id).classList.add('hide'); }
+function clearInput() { S.in = null; }
+function nameOf(v) { return NAMES[v] || String(v); }
+function maxTile() { var m = 0; for (var r = 0; r < 4; r++) for (var c = 0; c < 4; c++) if (S.grid[r][c] > m) m = S.grid[r][c]; return m; }
+
+/* ===== 滑动语义（标准 2048：滑动侧优先合并，每丸每回合至多一次）===== */
+function slideLine(line) {
+  var vals = [], i;
+  for (i = 0; i < line.length; i++) if (line[i]) vals.push(line[i]);
+  var out = [], gained = 0, mIdx = [];            /* mIdx=合并产物在 out 中的下标 */
+  i = 0;
+  while (i < vals.length) {
+    if (i + 1 < vals.length && vals[i] === vals[i + 1]) { out.push(vals[i] * 2); gained += vals[i] * 2; mIdx.push(out.length - 1); i += 2; }
+    else { out.push(vals[i]); i++; }
+  }
+  while (out.length < CFG.N) out.push(0);
+  return { line: out, gained: gained, mIdx: mIdx };
+}
+function moveGrid(d) {
+  /* 返回 {grid,score,moved,merges}；d: 0左 1上 2右 3下；merges=[{r,c,v}] 原盘坐标合并点 */
+  var g = S.grid.map(function (row) { return row.slice(); });
+  var rev = (d === 2 || d === 3), tr = (d === 1 || d === 3);
+  var work = g;
+  if (tr) work = transpose(g);
+  var total = 0, moved = false, ng = [], merges = [];
+  for (var r = 0; r < CFG.N; r++) {
+    var line = work[r].slice();
+    if (rev) line.reverse();
+    var res = slideLine(line);
+    /* 先在 reverse 前记合并点（mIdx 相对压缩行 index0=滑动侧），翻回原盘须镜像 */
+    for (var m = 0; m < res.mIdx.length; m++) {
+      var oc = rev ? CFG.N - 1 - res.mIdx[m] : res.mIdx[m];
+      if (tr) merges.push({ r: oc, c: r, v: res.line[res.mIdx[m]] });  /* 转置系 (r,oc)→原盘(oc,r) */
+      else merges.push({ r: r, c: oc, v: res.line[res.mIdx[m]] });
+    }
+    var nl = res.line;
+    if (rev) nl.reverse();
+    ng.push(nl); total += res.gained;
+    for (var c = 0; c < CFG.N; c++) if (nl[c] !== work[r][c]) moved = true;
+  }
+  var out = tr ? transpose(ng) : ng;
+  return { grid: out, score: total, moved: moved, merges: merges };
+}
+function transpose(g) {
+  var t = [];
+  for (var r = 0; r < CFG.N; r++) { t.push([]); for (var c = 0; c < CFG.N; c++) t[r].push(g[c][r]); }
+  return t;
+}
+function canMove() {
+  for (var d = 0; d < 4; d++) if (moveGrid(d).moved) return true;
+  return false;
+}
+
+/* ===== 一回滑（逻辑+演出）===== */
+function doMove(d) {
+  if (S.mode !== 'play' || S.slideT > 0 || S.bannerT > 0) return false;
+  var res = moveGrid(d);
+  if (!res.moved) return false;
+  S.preGrid = S.grid.map(function (row) { return row.slice(); });
+  S.grid = res.grid;
+  S.score += res.score;
+  if (res.merges.length) {
+    S.mergeN += res.merges.length;
+    SND.merge(Math.min(9, Math.log2(maxTile())));
+    spawnFx(res.merges);
+  } else SND.slide();
+  S.slideT = CFG.SLIDE_T;
+  if (res.merges.length) S.popT = CFG.POP_T + CFG.SLIDE_T;
+  if (!S.won && maxTile() >= 2048) { S.won = true; S.bannerT = CFG.BANNER_T; SND.win(); }
+  spawnTile();                                   /* 滑动后恰满匣时 spawn 失败=无新丸 */
+  syncHud();
+  if (!canMove()) endGame();
+  return true;
+}
+function spawnFx(merges) {
+  /* 精确合并点：每点 2 缕烟（保底）+≥128 飘香名 */
+  for (var i = 0; i < merges.length; i++) {
+    var r = merges[i].r, c = merges[i].c, v = merges[i].v;
+    var cx = CFG.GX + c * CFG.CELL + CFG.CELL / 2, cy = CFG.GY + r * CFG.CELL + CFG.CELL / 2;
+    S.parts.push({ x: cx, y: cy, vx: (Math.random() - .5) * 14, vy: -26 - Math.random() * 18, life: .9 });
+    S.parts.push({ x: cx + (Math.random() - .5) * 30, y: cy, vx: (Math.random() - .5) * 10, vy: -20, life: .7 });
+    if (v >= 2048) S.floats.push({ x: cx, y: CFG.GY + r * CFG.CELL - 8, txt: nameOf(v), t: 1.4, col: '#b0802e' });
+    else if (v >= 128) S.floats.push({ x: cx, y: CFG.GY + r * CFG.CELL - 8, txt: nameOf(v), t: 1.1, col: '#8a5c3a' });
+  }
+}
+function endGame() {
+  S.mode = 'over'; SND.over();
+  if (S.score > S.best) { S.best = S.score; save('g103_best', S.best); }
+  el('o-score').textContent = S.score;
+  el('o-max').textContent = nameOf(maxTile());
+  el('o-merge').textContent = S.mergeN;
+  el('o-best').textContent = S.best;
+  show('over');
+}
+function startGame() {
+  S.grid = [];
+  for (var r = 0; r < CFG.N; r++) S.grid.push([0, 0, 0, 0]);
+  S.preGrid = [];
+  S.score = 0; S.mergeN = 0; S.won = false;
+  S.slideT = 0; S.popT = 0; S.bannerT = 0; S.hintT = CFG.HINT_T;
+  S.parts = []; S.floats = [];
+  spawnTile(); spawnTile();
+  clearInput();
+  S.mode = 'play';
+  hide('menu'); hide('over'); hide('pause');
+  syncHud();
+}
+function toMenu() { S.mode = 'menu'; clearInput(); hide('pause'); hide('over'); show('menu'); el('m-best').textContent = S.best; }
+function syncHud() {
+  el('h-score').textContent = S.score;
+  var m = maxTile();
+  el('h-max').textContent = m ? nameOf(m) : '—';
+  el('h-merge').textContent = S.mergeN;
+}
+
+/* ===== 步进 ===== */
+function tick(dt) {
+  if (S.slideT > 0) S.slideT = Math.max(0, S.slideT - dt);
+  if (S.popT > 0) S.popT = Math.max(0, S.popT - dt);
+  if (S.bannerT > 0) S.bannerT = Math.max(0, S.bannerT - dt);
+  if (S.mode === 'play' && S.hintT > 0) S.hintT = Math.max(0, S.hintT - dt);
+  for (var i = S.parts.length - 1; i >= 0; i--) {
+    var p = S.parts[i];
+    p.x += p.vx * dt; p.y += p.vy * dt; p.vy -= 14 * dt; p.life -= dt;
+    if (p.life <= 0) S.parts.splice(i, 1);
+  }
+  for (var j = S.floats.length - 1; j >= 0; j--) { S.floats[j].t -= dt; if (S.floats[j].t <= 0) S.floats.splice(j, 1); }
+}
+
+/* ===== 手势（单指四向 swipe：move 越阈即触发，跟手）===== */
+var cv = null;
+function onDown(e) {
+  ensureAC(); wakeSnd();
+  if (S.mode !== 'play' || S.slideT > 0 || S.bannerT > 0) return;
+  e.preventDefault && e.preventDefault();
+  if (S.in) return;
+  try { cv.setPointerCapture(e.pointerId); } catch (err) { }
+  S.in = { id: e.pointerId, sx: e.clientX, sy: e.clientY };
+}
+function onMove(e) {
+  if (!S.in || e.pointerId !== S.in.id) return;
+  var dx = e.clientX - S.in.sx, dy = e.clientY - S.in.sy;
+  if (Math.abs(dx) < CFG.SWIPE_MIN && Math.abs(dy) < CFG.SWIPE_MIN) return;
+  var d = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? 2 : 0) : (dy > 0 ? 3 : 1);
+  S.in = null;                                /* 本轮手势消费，连拖需重新按下 */
+  doMove(d);
+}
+function onUp(e) { if (!S.in || (e.pointerId !== undefined && e.pointerId !== S.in.id)) return; S.in = null; }
+function onCancel(e) {
+  if (!S.in || (e.pointerId !== undefined && e.pointerId !== S.in.id)) return;
+  clearInput();
+}
+/* J2 wake：恢复开声档挂一次性 pointerdown */
+var wakeBound = false;
+function wakeSnd() {
+  if (!wakeBound && !S.muted) {
+    wakeBound = true;
+    document.addEventListener('pointerdown', function once() {
+      document.removeEventListener('pointerdown', once);
+      wakeBound = false;
+      ensureAC();
+    });
+  }
+}
+
+/* ===== 绘制 ===== */
+var ctx = null;
+function draw() {
+  ctx.save();
+  /* 香斋底 */
+  ctx.fillStyle = '#f4eee1'; ctx.fillRect(-8, 0, 406, 780);
+  var grd = ctx.createLinearGradient(0, 0, 0, 780);
+  grd.addColorStop(0, 'rgba(255,252,244,.5)'); grd.addColorStop(1, 'rgba(226,216,192,.35)');
+  ctx.fillStyle = grd; ctx.fillRect(-8, 0, 406, 780);
+  /* 案沿+侧招 */
+  ctx.fillStyle = '#8a6a44'; ctx.fillRect(0, 700, 390, 10);
+  ctx.fillStyle = '#7a5a3a'; ctx.fillRect(0, 710, 390, 70);
+  ctx.fillStyle = '#efe8da'; ctx.font = '11px system-ui'; ctx.textAlign = 'center';
+  ctx.fillText('香 斋 · 合 香 师', 195, 742);
+  ctx.save(); ctx.translate(22, 250); ctx.rotate(-Math.PI / 2);
+  ctx.fillStyle = '#b0802e'; ctx.font = 'bold 14px system-ui';
+  ctx.fillText('同 数 相 融 · 以 成 一 炉', 0, 0); ctx.restore();
+  /* 题头：香韵值+最高香阶 */
+  ctx.fillStyle = '#4a4438'; ctx.font = 'bold 13px system-ui'; ctx.textAlign = 'left';
+  ctx.fillText('香 韵', 39, 118);
+  ctx.fillStyle = '#7a5a2e'; ctx.font = 'bold 44px system-ui';
+  ctx.fillText(String(S.score), 39, 168);
+  ctx.textAlign = 'right';
+  var mt = S.grid.length ? maxTile() : 0;
+  ctx.fillStyle = '#6a6458'; ctx.font = '12px system-ui';
+  ctx.fillText('最高香阶', 351, 118);
+  ctx.fillStyle = '#8a5c3a'; ctx.font = 'bold 24px system-ui';
+  ctx.fillText(mt ? nameOf(mt) : '—', 351, 148);
+  ctx.font = '11px system-ui'; ctx.fillStyle = '#9a927e';
+  ctx.fillText('纪录 ' + S.best, 351, 170);
+  /* 香匣木框+底格 */
+  ctx.fillStyle = '#7a5a3a';
+  rr(ctx, CFG.GX - 12, CFG.GY - 12, CFG.N * CFG.CELL + 24, CFG.N * CFG.CELL + 24, 12); ctx.fill();
+  ctx.fillStyle = '#e6ddc6';
+  rr(ctx, CFG.GX - 4, CFG.GY - 4, CFG.N * CFG.CELL + 8, CFG.N * CFG.CELL + 8, 8); ctx.fill();
+  for (var r = 0; r < CFG.N; r++) for (var c = 0; c < CFG.N; c++) {
+    ctx.fillStyle = 'rgba(176,150,110,.28)';
+    rr(ctx, CFG.GX + c * CFG.CELL + 4, CFG.GY + r * CFG.CELL + 4, CFG.CELL - 8, CFG.CELL - 8, 10); ctx.fill();
+  }
+  /* 香丸（slideT 内 preGrid→grid 插值；popT 末段弹跳） */
+  var k = S.slideT > 0 ? 1 - S.slideT / CFG.SLIDE_T : 1;
+  var pop = 0;
+  if (S.popT > 0) { var pt = 1 - S.popT / (CFG.POP_T + CFG.SLIDE_T); if (pt > 0) pop = Math.sin(Math.min(1, pt * 1.8) * Math.PI) * .18; }
+  for (var r2 = 0; r2 < CFG.N; r2++) for (var c2 = 0; c2 < CFG.N; c2++) {
+    var v = S.grid[r2][c2];
+    if (!v) continue;
+    var px = c2, py = r2;
+    if (S.slideT > 0 && S.preGrid.length) {
+      /* 从前盘找该丸来源格（同值就近：启发——从 preGrid 同列/行找最近同值格） */
+      var src = findSrc(r2, c2, v);
+      px = src[1] + (c2 - src[1]) * k;
+      py = src[0] + (r2 - src[0]) * k;
+    }
+    drawTile(px, py, v, 1 + pop);
+  }
+  /* 烟缕粒子（半径钳非负——life 超常值防 arc 负半径崩溃） */
+  for (var p2 = 0; p2 < S.parts.length; p2++) {
+    var pt2 = S.parts[p2];
+    var a = Math.max(0, Math.min(1, pt2.life * 1.1));
+    var gr1 = Math.max(0, 3 + (0.9 - pt2.life) * 8), gr2 = Math.max(0, 2 + (0.9 - pt2.life) * 5);
+    ctx.globalAlpha = a * .5;
+    ctx.fillStyle = '#a08a6a';
+    ctx.beginPath(); ctx.arc(pt2.x, pt2.y, gr1, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = a * .3;
+    ctx.beginPath(); ctx.arc(pt2.x + 4, pt2.y - 10, gr2, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  /* 升阶飘字 */
+  for (var f = 0; f < S.floats.length; f++) {
+    var fo = S.floats[f];
+    ctx.globalAlpha = Math.min(1, fo.t * 1.4);
+    ctx.fillStyle = fo.col; ctx.font = 'bold 17px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText(fo.txt, fo.x, fo.y - (1.4 - fo.t) * 26);
+  }
+  ctx.globalAlpha = 1;
+  /* 天香横幅 */
+  if (S.bannerT > 0) {
+    var ba = Math.min(1, S.bannerT * 2.2);
+    ctx.globalAlpha = ba * .92;
+    ctx.fillStyle = 'rgba(122,90,58,.55)';
+    ctx.fillRect(0, 300, 390, 116);
+    ctx.fillStyle = '#b0802e'; ctx.fillRect(0, 300, 390, 3); ctx.fillRect(0, 413, 390, 3);
+    ctx.globalAlpha = ba;
+    ctx.fillStyle = '#fff8e6'; ctx.font = 'bold 30px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText('香 成 · 天 香 一 炷', 195, 352);
+    ctx.font = '13px system-ui'; ctx.fillStyle = '#e8d9b8';
+    ctx.fillText('香韵已就，还可续合更高阶', 195, 384);
+    ctx.globalAlpha = 1;
+  }
+  /* 开局提示条 */
+  if (S.mode === 'play' && S.hintT > 0) {
+    ctx.globalAlpha = Math.min(1, S.hintT);
+    ctx.fillStyle = '#8a6a44';
+    rr(ctx, 45, 528, 300, 34, 8); ctx.fill();
+    ctx.fillStyle = '#faf6ec'; ctx.font = '12px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText('四向滑匣 · 同数相融升一阶', 195, 549);
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+}
+function findSrc(r, c, v) {
+  /* slideT 插值：从前盘找本丸来源格——优先精确路径（同行或同列且值为 v 或其半） */
+  var best = null, bd = 99;
+  for (var pr = 0; pr < CFG.N; pr++) for (var pc = 0; pc < CFG.N; pc++) {
+    var pv = S.preGrid[pr][pc];
+    if (!pv) continue;
+    if (pv !== v && pv * 2 !== v) continue;
+    if (pr !== r && pc !== c) continue;          /* 只沿滑动轴 */
+    var d = Math.abs(pr - r) + Math.abs(pc - c);
+    if (d > 0 && d < bd) { bd = d; best = [pr, pc]; }
+  }
+  return best || [r, c];
+}
+function drawTile(px, py, v, scale) {
+  var x = CFG.GX + px * CFG.CELL, y = CFG.GY + py * CFG.CELL;
+  var cx = x + CFG.CELL / 2, cy = y + CFG.CELL / 2;
+  var rr2 = (CFG.CELL - 10) / 2 * scale;
+  var cc = CLRS[v] || ['#6a3a2f', '#faf6ec'];
+  ctx.save();
+  ctx.shadowColor = 'rgba(90,70,40,.25)'; ctx.shadowBlur = 5; ctx.shadowOffsetY = 2;
+  ctx.fillStyle = cc[0];
+  rr(ctx, cx - rr2, cy - rr2, rr2 * 2, rr2 * 2, 12); ctx.fill();
+  ctx.restore();
+  ctx.fillStyle = cc[1];
+  ctx.textAlign = 'center';
+  var fs = v >= 1024 ? 20 : (v >= 128 ? 23 : 26);
+  ctx.font = 'bold ' + fs + 'px system-ui';
+  ctx.fillText(String(v), cx, cy + 2);
+  ctx.font = '10px system-ui';
+  ctx.fillText(nameOf(v), cx, cy + 19);
+}
+function rr(c2, x, y, w, h, r) {
+  c2.beginPath();
+  c2.moveTo(x + r, y);
+  c2.arcTo(x + w, y, x + w, y + h, r);
+  c2.arcTo(x + w, y + h, x, y + h, r);
+  c2.arcTo(x, y + h, x, y, r);
+  c2.arcTo(x, y, x + w, y, r);
+  c2.closePath();
+}
+
+/* ===== 事件接线 ===== */
+function bind() {
+  cv = el('cv'); ctx = cv.getContext('2d');
+  cv.addEventListener('pointerdown', onDown);
+  cv.addEventListener('pointermove', onMove);
+  cv.addEventListener('pointerup', onUp);
+  cv.addEventListener('pointercancel', onCancel);
+  window.addEventListener('pointerup', function (e) { if (S.in) onUp(e); });
+  window.addEventListener('pointercancel', onCancel);
+  window.addEventListener('blur', function () { clearInput(); if (S.mode === 'play') { S.mode = 'pause'; show('pause'); } });
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) { clearInput(); if (S.mode === 'play') { S.mode = 'pause'; show('pause'); } }
+  });
+  el('btn-go').addEventListener('click', function () { ensureAC(); SND.ui(); startGame(); });
+  el('btn-again').addEventListener('click', function () { ensureAC(); SND.ui(); startGame(); });
+  el('btn-restart').addEventListener('click', function () { SND.ui(); startGame(); });
+  el('btn-resume').addEventListener('click', function () { SND.ui(); S.mode = 'play'; hide('pause'); });
+  el('btn-menu').addEventListener('click', function () { SND.ui(); toMenu(); });
+  el('btn-menu2').addEventListener('click', function () { SND.ui(); toMenu(); });
+  el('btn-pause').addEventListener('click', function () { if (S.mode === 'play') { clearInput(); S.mode = 'pause'; show('pause'); } });
+  el('btn-snd').addEventListener('click', function () {
+    ensureAC();
+    S.muted = !S.muted; save('g103_mute', S.muted ? '1' : '0');
+    el('btn-snd').textContent = S.muted ? '♪̸' : '♪';
+    if (!S.muted) { SND.ui(); wakeSnd(); }
+  });
+  /* 键盘兜底（桌面） */
+  window.addEventListener('keydown', function (e) {
+    if (S.mode !== 'play') return;
+    if (e.repeat) return;
+    if (e.key === 'ArrowLeft') doMove(0);
+    else if (e.key === 'ArrowUp') doMove(1);
+    else if (e.key === 'ArrowRight') doMove(2);
+    else if (e.key === 'ArrowDown') doMove(3);
+  });
+}
+function boot() {
+  S.muted = load('g103_mute') !== '0';
+  var b = load('g103_best'); S.best = b ? +b || 0 : 0;
+  el('m-best').textContent = S.best;
+  el('btn-snd').textContent = S.muted ? '♪̸' : '♪';
+  rndS = (Date.now() % 2147483647) || 1;
+  S.grid = [];
+  for (var r = 0; r < CFG.N; r++) S.grid.push([0, 0, 0, 0]);
+  bind();
+  var last = 0;
+  function frame(ts) {
+    var dt = Math.min(.05, (ts - last) / 1000);
+    if (!last) dt = .016;
+    last = ts;
+    tick(dt);
+    draw();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+boot();
+</script>
+</body>
+</html>
