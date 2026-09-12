@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>射五毒</title>
+<style>
+html,body{margin:0;padding:0;background:#151a2e;height:100%;overflow:hidden;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none}
+#app{position:relative;width:390px;height:844px;margin:0 auto;background:#1b2138}
+#cv{position:absolute;left:0;top:0;width:390px;height:844px}
+.lay{position:absolute;left:0;top:0;width:390px;height:844px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;z-index:9;background:rgba(16,20,38,.82)}
+.lay.hide{display:none}
+h1{margin:0 0 8px;font-size:34px;color:#e8d9a8;font-weight:700;letter-spacing:6px;
+  font-family:"Kaiti SC","KaiTi","STKaiti",serif}
+.sub{color:#9aa5c8;font-size:13px;letter-spacing:2px;margin-bottom:34px}
+.bigbtn{background:linear-gradient(180deg,#c98d4e,#a5693a);color:#fff8ec;border:none;
+  font-size:20px;letter-spacing:8px;padding:14px 44px;border-radius:40px;font-family:inherit;
+  box-shadow:0 4px 18px rgba(201,141,78,.4)}
+.hint{color:#6e7898;font-size:12px;margin-top:26px;letter-spacing:1px;line-height:1.9;text-align:center}
+.domBtns{position:absolute;right:10px;top:96px;display:flex;flex-direction:column;gap:10px;z-index:5}
+.domBtns button{width:40px;height:40px;border-radius:50%;border:1px solid rgba(232,217,168,.35);
+  background:rgba(27,33,56,.72);color:#e8d9a8;font-size:17px;line-height:1}
+#scoreFin{color:#e8d9a8;font-size:16px;margin:6px 0 22px;letter-spacing:1px}
+</style>
+</head>
+<body>
+<div id="app">
+<canvas id="cv" width="390" height="844"></canvas>
+<div class="domBtns">
+  <button id="pauseBtn" title="暂停">Ⅱ</button>
+  <button id="muteBtn" title="声音">♪</button>
+</div>
+<div id="menuLay" class="lay">
+  <h1>射 五 毒</h1>
+  <div class="sub">端午门前开硬弓</div>
+  <button id="bgo" class="bigbtn">开 弓</button>
+  <div class="hint">拖动走位 · 柳箭连珠自动上天<br>毒虫过门槛即败 · 接艾草补命</div>
+</div>
+<div id="pauseLay" class="lay hide">
+  <h1 style="font-size:26px">小 憩</h1>
+  <button id="bcont" class="bigbtn" style="font-size:16px;padding:10px 34px">接着射</button>
+</div>
+<div id="overLay" class="lay hide">
+  <h1 id="overTitle" style="font-size:28px">毒虫进了门</h1>
+  <div id="scoreFin"></div>
+  <button id="bre" class="bigbtn" style="font-size:16px;padding:10px 34px">再开一弓</button>
+</div>
+</div>
+<script>
+'use strict';
+/* ===== 常量（SPEC v1 冻结） ===== */
+var W=390,H=844,TOP=92,DANGER=720,PY=770,PR=16,HH=18;
+var CELLW=54,CELLH=50,COLS=5;
+var INT0=0.72,DX=14.0,ARROW_CD=0.40,AS=620,PS=250,MUGV=160;
+var KINDS={
+  sc:{hp:1,sc:10,dx:1.0,dw:1.0},   /* 蝎：基准 */
+  ce:{hp:1,sc:10,dx:1.6,dw:1.0},   /* 蜈蚣：步幅放大，易探边 */
+  sn:{hp:1,sc:15,dx:1.0,dw:2.2},   /* 蛇：吐镖率高 */
+  ge:{hp:2,sc:20,dx:1.0,dw:1.0},   /* 壁虎：首箭断尾 */
+  to:{hp:2,sc:25,dx:1.0,dw:1.0}    /* 蟾蜍：皮厚 */
+};
+var WAVES={1:['sn','sc','sc','sc'],2:['sn','ge','sc','ce','ce'],
+  3:['to','sn','ge','sc','ce','ce'],4:['to','sn','sn','ge','sc','ce','ce']};
+var K_BEST='g112_best',K_MUTE='g112_mute';
+
+/* ===== LCG 48271 单例（毒镖/艾草消耗；音效随机走 Math.random 分离） ===== */
+function mkLcg(seed){var x=seed>0?seed:1;
+  return {x:x,u:function(){x=x*48271%0x7fffffff;return x/0x7fffffff;}};}
+
+/* ===== 音效（WebAudio 短合成） ===== */
+var AC=null;
+function wake(){ if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}
+  if(AC&&AC.state==='suspended')AC.resume(); }
+function tone(f0,f1,dur,vol,type){ if(!AC)return;
+  try{var t=AC.currentTime,o=AC.createOscillator(),g=AC.createGain();
+  o.type=type||'triangle';o.frequency.setValueAtTime(f0,t);
+  o.frequency.exponentialRampToValueAtTime(Math.max(30,f1),t+dur);
+  g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+dur+.02);}catch(e){} }
+function snd(t){ if(S.muted||!AC)return;
+  if(t==='shot')tone(880,420,.07,.05,'square');
+  else if(t==='hit')tone(520,180,.09,.10,'triangle');
+  else if(t==='tail')tone(300,660,.12,.08,'sawtooth');
+  else if(t==='hurt')tone(200,90,.22,.16,'sine');
+  else if(t==='mug')tone(660,990,.14,.10,'sine');
+  else if(t==='clear'){tone(523,784,.12,.10,'sine');setTimeout(function(){tone(659,1046,.16,.10,'sine');},110);}
+  else if(t==='over')tone(240,60,.5,.14,'sine');
+}
+
+/* ===== 状态 ===== */
+var S={phase:'menu',px:195,wave:1,score:0,lives:3,inv:0,cd:0.2,
+  foes:[],arrows:[],darts:[],mugs:[],total0:20,dirx:1,tInt:INT0,dartT:1.5,
+  bannerT:0,overKind:'',best:0,muted:false,lcg:mkLcg(1),shakeT:0,t:0};
+
+var cv=document.getElementById('cv'),g=cv.getContext('2d');
+var els={};
+function el(id){return els[id]||(els[id]=document.getElementById(id));}
+
+function buildWave(w){
+  var rows=WAVES[w<=4?w:4];S.foes=[];
+  for(var r=0;r<rows.length;r++)for(var c=0;c<COLS;c++){
+    var k=rows[r];
+    S.foes.push({k:k,hp:KINDS[k].hp,c:c,r:r,cx:60+CELLW*c,cy:TOP+25+CELLH*r,
+      tail:false,hitT:0,wob:Math.random()*6.28});
+  }
+  S.total0=S.foes.length;S.dirx=1;S.tInt=INT0;
+}
+
+function newGame(seed){
+  S.phase='play';S.px=195;S.wave=1;S.score=0;S.lives=3;S.inv=0;S.cd=0.2;
+  S.arrows=[];S.darts=[];S.mugs=[];S.bannerT=0;S.overKind='';S.shakeT=0;S.t=0;
+  S.lcg=mkLcg(seed||((Date.now()%2147483000)+1));
+  S.dartT=1.2+S.lcg.u()*1.4;   /* 首掷与后续同式 */
+  buildWave(1);
+  el('menuLay').classList.add('hide');el('overLay').classList.add('hide');el('pauseLay').classList.add('hide');
+}
+
+function toOver(kind){
+  if(S.phase!=='play')return;
+  S.phase='over';S.overKind=kind;snd('over');
+  if(S.score>S.best){S.best=S.score;try{localStorage.setItem(K_BEST,''+S.best);}catch(e){}}
+  el('overTitle').textContent=kind==='breach'?'毒虫进了门':'中毒太深';
+  el('scoreFin').textContent='本役 '+S.score+' 分 · 射到第 '+S.wave+' 阵';
+  el('overLay').classList.remove('hide');
+}
+
+/* ===== 逻辑 ===== */
+function aliveFoes(){return S.foes.filter(function(f){return f.hp>0;});}
+
+function stepMarch(){ /* 阵步进：INT=INT0*alive/total*spMul，下限 0.16 */
+  var alive=aliveFoes();if(!alive.length)return;
+  var spMul=Math.min(1.4,1+0.08*(S.wave-1));
+  S.tInt=Math.max(0.16,INT0*alive.length/S.total0*spMul);
+  var edge=false,i,f;
+  for(i=0;i<alive.length;i++){f=alive[i];
+    f.cx+=S.dirx*DX*KINDS[f.k].dx;
+    if(f.cx<22||f.cx>368)edge=true;}
+  if(edge){S.dirx=-S.dirx;
+    for(i=0;i<alive.length;i++){f=alive[i];f.cy+=CELLH;
+      if(f.cy+HH>=DANGER){toOver('breach');return;}}}
+}
+
+function dartSpawn(){ /* 毒镖生成：<=2 发在空；蛇权重 ×2.2 */
+  if(S.darts.length>=2)return;
+  var alive=aliveFoes();if(!alive.length)return;
+  var wsum=0,i;for(i=0;i<alive.length;i++)wsum+=KINDS[alive[i].k].dw;
+  var pick=S.lcg.u()*wsum,acc=0,src=alive[alive.length-1];
+  for(i=0;i<alive.length;i++){acc+=KINDS[alive[i].k].dw;if(pick<=acc){src=alive[i];break;}}
+  S.darts.push({x:src.cx,y:src.cy+14});
+  S.dartT=1.2+S.lcg.u()*1.4;
+}
+
+function killFoe(f){ /* 消灭：分入账 + 12% 艾草 */
+  f.hp=0;S.score+=KINDS[f.k].sc;
+  if(S.lcg.u()<0.12)S.mugs.push({x:f.cx,y:f.cy,ph:Math.random()*6.28});
+}
+
+function tick(dt){
+  if(S.phase!=='play')return;
+  S.t+=dt;
+  var i,j,f,a,d;
+  /* 清波演出窗口：锁发射（cd 不走）；移动/镖/艾草照常 */
+  if(S.bannerT>0){
+    S.bannerT-=dt;
+    if(S.bannerT<=0){S.wave++;buildWave(S.wave);S.darts=[];S.arrows=[];S.inv=0;}
+  }else{
+    S.cd-=dt;
+    if(S.cd<=0&&S.arrows.length<3){S.arrows.push({x:S.px,y:762});S.cd=ARROW_CD;snd('shot');}
+  }
+  /* 箭上移 */
+  for(i=0;i<S.arrows.length;i++){a=S.arrows[i];a.y-=AS*dt;}
+  S.arrows=S.arrows.filter(function(a){return a.y>TOP-30;});
+  /* 阵步进 */
+  if(S.bannerT<=0){
+    S.tInt-=dt;
+    if(S.tInt<=0)stepMarch();
+    if(S.phase!=='play')return;
+  }
+  /* 箭×毒（圆近似） */
+  var killed=false;
+  for(i=0;i<S.arrows.length;i++){a=S.arrows[i];if(a.y<0)continue;
+    for(j=0;j<S.foes.length;j++){f=S.foes[j];
+      if(f.hp>0&&Math.abs(a.x-f.cx)<22&&Math.abs(a.y-f.cy)<22){
+        a.y=-999;f.hp-=1;f.hitT=.12;
+        if(f.hp<=0){snd('hit');killFoe(f);killed=true;}
+        else{snd(f.k==='ge'&&!f.tail?'tail':'hit');if(f.k==='ge')f.tail=true;}
+        break;}}
+  }
+  S.arrows=S.arrows.filter(function(a){return a.y>0;});
+  /* 毒镖 */
+  if(S.bannerT<=0){S.dartT-=dt;if(S.dartT<=0)dartSpawn();}
+  for(i=0;i<S.darts.length;i++){d=S.darts[i];d.y+=PS*dt;}
+  if(S.inv>0)S.inv-=dt;
+  else{
+    for(i=0;i<S.darts.length;i++){d=S.darts[i];
+      if(Math.abs(d.x-S.px)<PR+10&&Math.abs(d.y-PY)<PR+14){
+        d.y=9999;S.lives-=1;S.inv=1.2;S.shakeT=.25;snd('hurt');
+        if(S.lives<=0){toOver('dead');return;}
+        break;}}
+  }
+  S.darts=S.darts.filter(function(d){return d.y<860;});
+  /* 艾草 */
+  for(i=0;i<S.mugs.length;i++){var m=S.mugs[i];m.y+=MUGV*dt;m.ph+=dt*5;}
+  for(i=0;i<S.mugs.length;i++){m=S.mugs[i];
+    if(Math.abs(m.x-S.px)<PR+14&&Math.abs(m.y-PY)<PR+18){
+      m.y=9999;if(S.lives<4){S.lives++;snd('mug');}}}
+  S.mugs=S.mugs.filter(function(m){return m.y<860;});
+  /* 清波 */
+  if(S.phase==='play'&&S.bannerT<=0&&!aliveFoes().length){
+    S.score+=200+50*S.wave;S.bannerT=1.0;S.mugs=[];S.darts=[];snd('clear');
+  }
+  for(i=0;i<S.foes.length;i++){f=S.foes[i];if(f.hitT>0)f.hitT-=dt;}
+  if(S.shakeT>0)S.shakeT-=dt;
+}
+
+/* ===== 渲染 ===== */
+function rr(x,y,w,h,r){g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);
+  g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath();}
+
+function drawFoe(f,t){
+  var x=f.cx,y=f.cy;
+  g.save();
+  if(f.hitT>0){g.globalAlpha=.55;}
+  var col={sc:'#c98a4e',ce:'#b0655a',sn:'#7ea87f',ge:'#8fa86a',to:'#6d8f8a'}[f.k];
+  g.strokeStyle=col;g.fillStyle=col;g.lineWidth=2;g.lineCap='round';
+  if(f.k==='sc'){ /* 蝎：体+双钳+尾钩 */
+    g.beginPath();g.ellipse(x,y,11,7,0,0,6.28);g.fill();
+    g.beginPath();g.moveTo(x+8,y-4);g.quadraticCurveTo(x+18,y-10,x+15,y-18);g.stroke();
+    g.beginPath();g.arc(x+15,y-19,2.4,0,6.28);g.fill();
+    g.beginPath();g.moveTo(x-10,y-2);g.lineTo(x-16,y-6);g.moveTo(x-10,y+2);g.lineTo(x-16,y+6);g.stroke();
+  }else if(f.k==='ce'){ /* 蜈蚣：节+足 */
+    var ph=Math.sin(t*6+f.wob)*1.6;
+    for(var s2=-2;s2<=2;s2++){
+      g.beginPath();g.arc(x+s2*5,y+Math.sin(s2+t*6)*1.5,3.4,0,6.28);g.fill();}
+    g.lineWidth=1.4;
+    for(var s3=-2;s3<=2;s3++){var lx=x+s3*5;
+      g.beginPath();g.moveTo(lx-2,y+3);g.lineTo(lx-5,y+9+ph*(s3%2?1:-1));
+      g.moveTo(lx+2,y+3);g.lineTo(lx+5,y+9-ph*(s3%2?1:-1));g.stroke();}
+    g.lineWidth=2;
+  }else if(f.k==='sn'){ /* 蛇：S 弯+信子 */
+    var ph2=Math.sin(t*4+f.wob)*3;
+    g.beginPath();g.moveTo(x-12,y+6);
+    g.quadraticCurveTo(x-4,y-8+ph2,x+2,y+4);
+    g.quadraticCurveTo(x+7,y+12,x+13,y-2+ph2*.5);g.stroke();
+    g.strokeStyle='#c95a5a';g.lineWidth=1.3;
+    g.beginPath();g.moveTo(x+13,y-2);g.lineTo(x+17,y-6);g.moveTo(x+13,y-2);g.lineTo(x+17,y+2);g.stroke();
+  }else if(f.k==='ge'){ /* 壁虎：四足+尾（断尾态尾短） */
+    g.beginPath();g.ellipse(x,y,10,6,0,0,6.28);g.fill();
+    g.beginPath();g.arc(x+9,y-3,3.4,0,6.28);g.fill();
+    g.lineWidth=1.6;
+    g.beginPath();g.moveTo(x-7,y-4);g.lineTo(x-13,y-10);g.moveTo(x+5,y-5);g.lineTo(x+11,y-10);
+    g.moveTo(x-7,y+4);g.lineTo(x-13,y+9);g.moveTo(x+5,y+5);g.lineTo(x+11,y+9);g.stroke();
+    g.beginPath();
+    if(f.tail){g.moveTo(x-10,y);g.quadraticCurveTo(x-16,y+2,x-18,y-1);}
+    else{g.moveTo(x-10,y);g.quadraticCurveTo(x-20,y+6,x-24,y-2);}
+    g.stroke();
+  }else{ /* 蟾蜍：宽体+疣点 */
+    g.beginPath();g.ellipse(x,y+1,13,9,0,0,6.28);g.fill();
+    g.fillStyle='rgba(255,255,255,.25)';
+    g.beginPath();g.arc(x-5,y-2,1.6,0,6.28);g.arc(x+3,y+3,1.4,0,6.28);g.arc(x+7,y-3,1.2,0,6.28);g.fill();
+    g.fillStyle='#e8e2c8';
+    g.beginPath();g.arc(x-6,y-6,1.8,0,6.28);g.arc(x+6,y-6,1.8,0,6.28);g.fill();
+  }
+  g.restore();
+}
+
+function drawPlayer(t){
+  var y=PY;
+  g.save();
+  if(S.inv>0&&Math.floor(t*14)%2)g.globalAlpha=.35;
+  g.strokeStyle='#e8d9a8';g.fillStyle='#e8d9a8';g.lineWidth=2.4;g.lineCap='round';
+  /* 童子（简形）：斗笠+身 */
+  g.beginPath();g.moveTo(S.px-11,y+6);g.lineTo(S.px+11,y+6);g.lineTo(S.px+5,y+22);g.lineTo(S.px-5,y+22);g.closePath();g.fill();
+  g.beginPath();g.moveTo(S.px-15,y+5);g.quadraticCurveTo(S.px,y-6,S.px+15,y+5);g.closePath();g.fill();
+  /* 弓 */
+  g.strokeStyle='#a86a3c';
+  g.beginPath();g.arc(S.px,y+2,14,-Math.PI*.42,Math.PI*.42);g.stroke();
+  g.strokeStyle='rgba(232,217,168,.7)';g.lineWidth=1.2;
+  g.beginPath();g.moveTo(S.px+14*Math.cos(-Math.PI*.42),y+2+14*Math.sin(-Math.PI*.42));
+  g.lineTo(S.px+14*Math.cos(Math.PI*.42),y+2+14*Math.sin(Math.PI*.42));g.stroke();
+  g.restore();
+}
+
+function draw(){
+  g.clearRect(0,0,W,H);
+  /* 端午夜色：靛蓝渐变 + 悬艾 */
+  var bg=g.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,'#232b45');bg.addColorStop(.6,'#1c2338');bg.addColorStop(1,'#171d30');
+  g.fillStyle=bg;g.fillRect(0,0,W,H);
+  /* 月 */
+  g.fillStyle='rgba(232,217,168,.85)';g.beginPath();g.arc(322,140,17,0,6.28);g.fill();
+  g.fillStyle='#232b45';g.beginPath();g.arc(315,134,15,0,6.28);g.fill();
+  /* 门楣悬艾（顶部装饰带） */
+  g.strokeStyle='#5f7a58';g.lineWidth=3;
+  for(var e=0;e<5;e++){var ex=55+e*70;
+    g.beginPath();g.moveTo(ex,84);g.quadraticCurveTo(ex-6,66,ex+2,54);g.stroke();}
+  if(S.phase==='menu'){drawPlayer(0);drawHud();return;}
+  g.save();
+  if(S.shakeT>0)g.translate((Math.random()-.5)*6,(Math.random()-.5)*6);
+  /* 门槛线（判据同锚：画在 y=DANGER） */
+  g.strokeStyle='rgba(201,90,74,.85)';g.lineWidth=2;g.setLineDash([9,7]);
+  g.beginPath();g.moveTo(16,DANGER);g.lineTo(W-16,DANGER);g.stroke();g.setLineDash([]);
+  g.fillStyle='rgba(201,90,74,.85)';g.font='11px sans-serif';
+  g.fillText('门 槛',20,DANGER-6);
+  /* 阵 */
+  for(var i=0;i<S.foes.length;i++)if(S.foes[i].hp>0)drawFoe(S.foes[i],S.t);
+  /* 箭 */
+  g.strokeStyle='#d9c79a';g.lineWidth=2.2;g.lineCap='round';
+  for(var j=0;j<S.arrows.length;j++){var a=S.arrows[j];
+    g.beginPath();g.moveTo(a.x,a.y-9);g.lineTo(a.x,a.y+9);g.stroke();
+    g.beginPath();g.moveTo(a.x-3,a.y-6);g.lineTo(a.x,a.y-11);g.lineTo(a.x+3,a.y-6);g.stroke();}
+  /* 毒镖 */
+  g.fillStyle='#9ac95a';
+  for(var k=0;k<S.darts.length;k++){var d=S.darts[k];
+    g.beginPath();g.moveTo(d.x,d.y-8);g.lineTo(d.x-4,d.y+5);g.lineTo(d.x+4,d.y+5);g.closePath();g.fill();}
+  /* 艾草 */
+  for(var m=0;m<S.mugs.length;m++){var u=S.mugs[m];
+    g.save();g.translate(u.x,u.y);g.rotate(Math.sin(u.ph)*.3);
+    g.strokeStyle='#7ea87f';g.lineWidth=2;
+    g.beginPath();g.moveTo(0,-10);g.quadraticCurveTo(5,0,0,10);g.quadraticCurveTo(-5,0,0,-10);g.stroke();
+    g.beginPath();g.moveTo(0,-10);g.lineTo(0,-14);g.stroke();g.restore();}
+  drawPlayer(S.t);
+  g.restore();
+  /* 清波横幅 */
+  if(S.bannerT>0){
+    g.fillStyle='rgba(16,20,38,.66)';g.fillRect(0,380,W,84);
+    g.fillStyle='#e8d9a8';g.font='bold 26px "Kaiti SC","KaiTi",serif';g.textAlign='center';
+    g.fillText('五 毒 散',W/2,418);
+    g.font='12px sans-serif';g.fillStyle='#9aa5c8';
+    g.fillText('第 '+(S.wave+1)+' 阵压来',W/2,440);g.textAlign='left';
+  }
+  drawHud();
+}
+
+function drawHud(){
+  g.fillStyle='rgba(20,25,44,.92)';g.fillRect(0,0,W,84);
+  g.strokeStyle='rgba(232,217,168,.18)';g.lineWidth=1;
+  g.beginPath();g.moveTo(0,84);g.lineTo(W,84);g.stroke();
+  g.fillStyle='#e8d9a8';g.font='bold 22px sans-serif';
+  g.fillText(''+S.score,16,38);
+  g.fillStyle='#9aa5c8';g.font='11px sans-serif';
+  g.fillText('第 '+S.wave+' 阵',16,62);
+  g.textAlign='right';
+  g.fillStyle='#9aa5c8';g.font='11px sans-serif';
+  g.fillText('最佳 '+(S.best||0),W-60,26);
+  g.fillText('端午 · 射五毒',W-60,44);
+  /* 命=艾叶 */
+  for(var i=0;i<S.lives;i++){var lx=W-30-i*22;
+    g.strokeStyle='#7ea87f';g.lineWidth=2;
+    g.beginPath();g.moveTo(lx,66);g.quadraticCurveTo(lx+5,56,lx,46);g.quadraticCurveTo(lx-5,56,lx,66);g.stroke();
+    g.beginPath();g.moveTo(lx,66);g.lineTo(lx,42);g.stroke();}
+  g.textAlign='left';
+}
+
+/* ===== 主循环 ===== */
+var last=0;
+function loop(ts){
+  var dt=Math.min(1/30,(ts-last)/1000||0);last=ts;
+  if(S.phase==='play')tick(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+/* ===== 输入 ===== */
+function clampX(x){return Math.max(24,Math.min(366,x));}
+function bindPtr(){
+  cv.addEventListener('pointerdown',function(e){wake();
+    if(S.phase==='play')S.px=clampX(e.clientX-cv.getBoundingClientRect().left);});
+  cv.addEventListener('pointermove',function(e){
+    if(S.phase==='play'&&e.buttons>0)
+      S.px=clampX(e.clientX-cv.getBoundingClientRect().left);});
+  cv.addEventListener('pointercancel',function(){});
+}
+function bindBtns(){
+  el('bgo').addEventListener('click',function(){wake();newGame(0);});
+  el('bre').addEventListener('click',function(){wake();newGame(0);});
+  el('bcont').addEventListener('click',function(){if(S.phase==='pause'){S.phase='play';el('pauseLay').classList.add('hide');}});
+  el('pauseBtn').addEventListener('click',function(){
+    if(S.phase==='play'){S.phase='pause';el('pauseLay').classList.remove('hide');}
+    else if(S.phase==='pause'){S.phase='play';el('pauseLay').classList.add('hide');}});
+  el('muteBtn').addEventListener('click',function(){
+    S.muted=!S.muted;
+    try{localStorage.setItem(K_MUTE,S.muted?'1':'0');}catch(e){}
+    el('muteBtn').textContent=S.muted?'×':'♪';});
+}
+document.addEventListener('visibilitychange',function(){
+  if(document.hidden&&S.phase==='play'){S.phase='pause';el('pauseLay').classList.remove('hide');}});
+
+/* ===== 启动 ===== */
+(function boot(){
+  try{
+    var b=parseInt(localStorage.getItem(K_BEST)||'0',10);if(b>0)S.best=b;
+    var mu=localStorage.getItem(K_MUTE);if(mu==='1'){S.muted=true;el('muteBtn').textContent='×';}
+  }catch(e){}
+  bindPtr();bindBtns();
+  requestAnimationFrame(loop);
+})();
+
+
+</script>
+</body>
+</html>
