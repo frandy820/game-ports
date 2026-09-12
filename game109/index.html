@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#171219">
+<title>打铁花 · 焰火棚</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:#100c12;font-family:"PingFang SC","Microsoft YaHei",sans-serif;
+  -webkit-user-select:none;user-select:none;touch-action:none}
+#app{position:relative;width:390px;height:844px;margin:0 auto;background:#171219;overflow:hidden}
+#cv{position:absolute;left:0;top:64px;width:390px;height:780px}
+#hud{position:absolute;left:0;top:0;width:390px;height:64px;z-index:5;display:flex;align-items:center;
+  padding:0 12px;color:#f0e2c8;background:linear-gradient(180deg,#241a1e,#171219)}
+#hud .m{font-size:26px;font-weight:700;letter-spacing:1px;text-shadow:0 0 8px rgba(240,170,80,.4)}
+#hud .m small{font-size:13px;font-weight:400;color:#a08a74;margin-left:2px}
+#hud .b{margin-left:12px;font-size:12px;color:#a08a74;line-height:1.3}
+#hud .b em{font-style:normal;color:#e8b45c}
+#heatwrap{margin-left:12px;width:76px}
+#heatwrap .lb{font-size:9px;color:#a08a74;letter-spacing:1px;margin-bottom:2px}
+#heatbar{height:7px;border-radius:4px;background:rgba(240,200,140,.12);border:1px solid rgba(240,200,140,.25);overflow:hidden}
+#heatfill{height:100%;width:0%;border-radius:3px;background:linear-gradient(90deg,#c9853e,#f5c96a);transition:width .12s}
+#heatbar.iron #heatfill{background:linear-gradient(90deg,#f5c96a,#fff3c0);animation:hpulse .5s ease-in-out infinite alternate}
+@keyframes hpulse{from{filter:brightness(.9)}to{filter:brightness(1.35)}}
+#lives{margin-left:10px;font-size:13px;letter-spacing:2px;color:#f5a54a}
+#hud .sp{flex:1}
+.hbtn{width:40px;height:40px;border-radius:10px;border:1px solid #4a3a30;background:rgba(36,26,30,.8);
+  color:#e8b45c;font-size:17px;line-height:38px;text-align:center;margin-left:8px;cursor:pointer}
+.lay{position:absolute;inset:0;z-index:9;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:rgba(14,9,12,.9);color:#f0e2c8;text-align:center}
+.hide{display:none!important}
+.lay h1{font-size:36px;letter-spacing:8px;color:#f5c96a;text-shadow:0 0 20px rgba(245,170,80,.55);margin-bottom:6px}
+.lay h2{font-size:22px;letter-spacing:3px;color:#f5c96a;margin-bottom:10px}
+.lay .sub{font-size:13px;color:#a08a74;margin-bottom:24px;letter-spacing:2px}
+.lay .tip{font-size:12.5px;color:#c4ae96;line-height:2;max-width:300px;margin-bottom:24px}
+.lay .tip b{color:#f5c96a;font-weight:600}
+.bigbtn{min-width:170px;padding:13px 34px;border-radius:14px;border:1px solid #b8863e;font-size:19px;letter-spacing:4px;
+  background:linear-gradient(180deg,#8a5a22,#5f3a14);color:#ffe9bd;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,.5)}
+.bigbtn:active{transform:scale(.96)}
+.lay .ov1{font-size:15px;color:#c4ae96;margin-bottom:8px}
+.lay .ov2{font-size:44px;font-weight:700;color:#f5c96a;text-shadow:0 0 16px rgba(245,170,80,.5);margin-bottom:6px}
+.lay .ov2 small{font-size:16px;color:#a08a74;font-weight:400}
+.lay .ov3{font-size:13px;color:#a08a74;margin-bottom:30px}
+.lay .ov3 em{font-style:normal;color:#e8b45c}
+#flash{position:absolute;left:0;top:592px;width:390px;height:34px;z-index:6;text-align:center;line-height:34px;
+  font-size:14px;color:#ffe9bd;letter-spacing:2px;pointer-events:none;opacity:0;transition:opacity .18s}
+#flash.on{opacity:1}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div class="m"><span id="hs">0</span><small>分</small></div>
+    <div class="b">最高 <em id="hb">0</em><br>第 <em id="hw">1</em> 波</div>
+    <div id="heatwrap"><div class="lb">火候</div><div id="heatbar"><div id="heatfill"></div></div></div>
+    <div id="lives">●●●</div>
+    <div class="sp"></div>
+    <div class="hbtn" id="bsnd">♪</div>
+    <div class="hbtn" id="bpau">⏸</div>
+  </div>
+  <canvas id="cv" width="390" height="780"></canvas>
+  <div id="flash"></div>
+  <div class="lay" id="menu">
+    <h1>打铁花</h1>
+    <div class="sub">焰 火 棚 · 一 勺 铁 水 泼 出 满 天 星</div>
+    <div class="tip">按住屏幕<b>左半 / 右半</b>移铁勺，点一下<b>出火星</b>。<br>
+      枝格一磕就裂 · 湿枝要两下 · 老杆得三下。<br>
+      连着击砖攒<b>火候</b>，攒满一百化作<b>铁水</b>——<br>
+      三秒半里火星穿棚而过，砖块成串地落。<br>
+      火星落了地就熄一颗，三颗都熄，今夜收炉。</div>
+    <div class="bigbtn" id="bgo">开 炉</div>
+    <div class="sub" style="margin-top:22px;margin-bottom:0" id="mbest"></div>
+  </div>
+  <div class="lay hide" id="pauselay">
+    <h2>歇 一 口</h2>
+    <div class="bigbtn" id="bresume">续 打</div>
+    <div class="sub" style="margin-top:18px;margin-bottom:0;color:#8a7a6a" id="phint"></div>
+  </div>
+  <div class="lay hide" id="over">
+    <div class="ov1" id="ovwhy">火星落了地</div>
+    <div class="ov2"><span id="ovm">0</span><small> 分</small></div>
+    <div class="ov3" id="ovsub"></div>
+    <div class="bigbtn" id="bretry">再 开 一 炉</div>
+  </div>
+</div>
+<script>
+'use strict';
+/* ===== 打铁花 · Breakout 打砖块（非遗打铁花意象 · 焰火棚）===== */
+var W=390,VH=780,M=0x7fffffff;
+var BW=40,BH=20,BGAP=4,COLS=8,BX0=21,BY0=90;
+var PY=716,PW2=36,PH=12;                 /* 铁勺 y/半宽/高 */
+var PV=320.0;                             /* 勺速 */
+var V0=380.0,VWAVE=20.0,VCAP=560.0;       /* 火星速度 */
+var R=6.0;
+var HEAT_B=14.0,HEAT_C=2.0,HEAT_MAX=100.0,IRON_T=3.5;
+var LIVES=3,MAXANG=60.0,TOP=70.0;         /* TOP=64+R 顶墙 */
+var K_BEST='g109_best',K_MUTE='g109_mute';
+var cv=document.getElementById('cv'),cx2=cv.getContext('2d');
+var $=function(id){return document.getElementById(id)};
+
+/* ---------- LCG（与 sim109 同构：乘积 <2^53 免 imul；双流 waveRng/gameRng）---------- */
+function LCG(seed){this.s=(seed>>>0)||1}
+LCG.prototype.r=function(){this.s=(this.s*48271)%M;return this.s/M};
+
+/* ---------- 音效（WebAudio 家族范式）---------- */
+var AC=null;
+function ensureAC(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}
+  if(AC&&AC.state==='suspended')AC.resume()}
+function tone(f,d,type,vol,slide){
+  if(S.mute||!AC)return;
+  var t=AC.currentTime,o=AC.createOscillator(),g=AC.createGain();
+  o.type=type||'triangle';o.frequency.setValueAtTime(f,t);
+  if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(30,f+slide),t+d);
+  g.gain.setValueAtTime(vol||.12,t);g.gain.exponentialRampToValueAtTime(.001,t+d);
+  o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+d+.02)}
+var SND={
+  serve:function(){tone(320,.10,'square',.05,160)},
+  brick:function(){tone(500+Math.random()*120,.06,'square',.05,-140)},
+  crack:function(){tone(240,.08,'square',.06,-90)},
+  paddle:function(){tone(300,.09,'triangle',.06,120)},
+  iron:function(){tone(200,.3,'sawtooth',.08,700)},
+  wave:function(){tone(440,.16,'triangle',.07,220)},
+  miss:function(){tone(400,.4,'sine',.07,-340)},
+  die:function(){tone(180,.35,'square',.08,-140)},
+  ui:function(){tone(520,.06,'triangle',.06)}
+};
+
+/* ---------- 状态 ---------- */
+var S={phase:'menu',t:0.0,seed:1,wr:null,gr:null,
+  px:W/2,dir:0,pdown:false,
+  stuck:true,bx:W/2,by:PY-R-1,vx:0,vy:-380,bv:V0,
+  bricks:[],w:1,score:0,best:0,mute:false,lives:LIVES,
+  heat:0.0,iron:0.0,combo:0,comboPeak:0,
+  parts:[],trail:[],flashT:0,flashMsg:'',waveIn:0.0};
+
+function clamp(v,a,b){return v<a?a:(v>b?b:v)}
+
+/* ---------- 波次生成（与 sim109.gen_wave 同构；waveRng 专用流）---------- */
+function genWave(w){
+  var rows=Math.min(3+w,8),k=Math.min(w-1,7)/7;
+  var p1=0.70+(0.20-0.70)*k,p2=0.25+(0.45-0.25)*k;
+  var out=[];
+  for(var ri=0;ri<rows;ri++)for(var ci=0;ci<COLS;ci++){
+    var u=S.wr.r();
+    var h=u<p1?1:(u<p1+p2?2:3);
+    out.push({h:h,h0:h,x:BX0+ci*(BW+BGAP),y:BY0+ri*(BH+BGAP)});
+  }
+  return out;
+}
+
+function newRun(seed){
+  S.seed=(seed==null?(((Date.now()&0x7fffffff)^0x2b3c)>>>0):seed)|0;
+  S.wr=new LCG(S.seed);S.gr=new LCG((S.seed^0x5f5f)>>>0||2);
+  S.bricks=genWave(1);S.w=1;S.score=0;S.lives=LIVES;
+  S.heat=0;S.iron=0;S.combo=0;S.comboPeak=0;S.waveIn=0;
+  S.px=W/2;S.dir=0;S.stuck=true;
+  S.bv=Math.min(V0+(S.w-1)*VWAVE,VCAP);
+  S.bx=S.px;S.by=PY-R-1;S.vx=0;S.vy=-S.bv;
+  S.parts=[];S.trail=[];S.t=0;
+  updHUD();
+}
+function serveAngle(){var a=-90+((S.gr.r()*2-1)*20);return a*Math.PI/180}
+function launch(){
+  var a=serveAngle();
+  S.vx=S.bv*Math.cos(a);S.vy=S.bv*Math.sin(a);
+  S.stuck=false;SND.serve();
+}
+function flash(msg){S.flashMsg=msg;S.flashT=1.4;var f=$('flash');f.textContent=msg;f.classList.add('on')}
+function updHUD(){
+  $('hs').textContent=S.score;
+  $('hb').textContent=S.best;
+  $('hw').textContent=S.w;
+  $('lives').textContent=new Array(S.lives+1).join('●');
+  $('heatfill').style.width=Math.min(100,S.heat)+'%';
+  $('heatbar').className=S.iron>0?'iron':'';
+}
+
+/* ---------- tick（与 sim109.run 物理段同构）---------- */
+function tick(dt){
+  S.t+=dt;
+  /* 勺移动 */
+  S.px=clamp(S.px+S.dir*PV*dt,PW2,W-PW2);
+  if(S.stuck){S.bx=S.px;S.by=PY-R-1;return}
+  /* 火星物理 */
+  var nbx=S.bx+S.vx*dt,nby=S.by+S.vy*dt;
+  if(nbx<R){nbx=R;S.vx=Math.abs(S.vx)}
+  if(nbx>W-R){nbx=W-R;S.vx=-Math.abs(S.vx)}
+  if(nby<TOP){nby=TOP;S.vy=Math.abs(S.vy)}
+  /* 铁勺反弹（穿越判定）*/
+  if(S.vy>0&&S.by<=PY-R&&nby>=PY-R){
+    if(Math.abs(nbx-S.px)<=PW2+R*0.6){
+      var e=clamp((nbx-S.px)/PW2,-1,1);
+      var th=(-90+e*MAXANG)*Math.PI/180;
+      S.vx=S.bv*Math.cos(th);S.vy=S.bv*Math.sin(th);
+      nby=PY-R-0.5;
+      if(S.combo>=5){var bonus=S.combo*10;S.score+=bonus;flash('连溅 ×'+S.combo+' +'+bonus)}
+      if(S.comboPeak<S.combo)S.comboPeak=S.combo;
+      S.combo=0;SND.paddle();
+    }
+  }
+  /* 漏球（峰值先于清零更新）*/
+  if(nby>VH+20){
+    S.lives--;S.heat=0;S.iron=0;S.trail=[];
+    if(S.comboPeak<S.combo)S.comboPeak=S.combo;
+    S.combo=0;
+    if(S.lives<=0){S.bx=nbx;S.by=nby;endRun('fall');return}
+    S.stuck=true;SND.miss();flash('火星落地，熄一颗');
+    updHUD();return;
+  }
+  /* 砖命中（一帧一砖；铁水穿透循环+不反弹）*/
+  var broke=[];
+  for(var i=0;i<S.bricks.length;i++){
+    var br=S.bricks[i];
+    if(br.x-R<=nbx&&nbx<=br.x+BW+R&&br.y-R<=nby&&nby<=br.y+BH+R){
+      var cx=clamp(nbx,br.x,br.x+BW),cy=clamp(nby,br.y,br.y+BH);
+      if(S.iron<=0){
+        if(Math.abs(nbx-cx)>Math.abs(nby-cy))S.vx=-S.vx;
+        else S.vy=-S.vy;
+      }
+      br.h--;S.heat=Math.min(S.heat+HEAT_B,999);
+      var mult=S.iron>0?2:1;
+      if(br.h<=0){S.score+=10*br.h0*mult;S.combo++;spawnSparks(br.x+BW/2,br.y+BH/2,br.h0);SND.brick();broke.push(i)}
+      else SND.crack();
+      if(S.iron<=0)break;
+    }
+  }
+  for(var j=broke.length-1;j>=0;j--)S.bricks.splice(broke[j],1);
+  S.bx=nbx;S.by=nby;
+  /* 铁水触发 */
+  if(S.heat>=HEAT_MAX&&S.iron<=0){S.iron=IRON_T;S.heat=0;flash('铁水飞溅！');SND.iron()}
+  /* 清波 */
+  if(S.bricks.length===0){
+    var wb=100+50*S.w;S.score+=wb;
+    flash('第 '+S.w+' 波清棚 +'+wb);
+    S.w++;S.bricks=genWave(S.w);S.waveIn=1.2;
+    S.bv=Math.min(V0+(S.w-1)*VWAVE,VCAP);
+    SND.wave();
+  }
+  /* 冷却（砖区间）*/
+  if(S.by>=BY0&&S.by<=BY0+8*(BH+BGAP))S.heat=Math.max(0,S.heat-HEAT_C*dt);
+  if(S.iron>0)S.iron-=dt;
+  if(S.waveIn>0)S.waveIn-=dt;
+  /* 提示条衰减 */
+  if(S.flashT>0){S.flashT-=dt;if(S.flashT<=0)$('flash').classList.remove('on')}
+  /* 轨迹/粒子 */
+  S.trail.push(S.bx,S.by);if(S.trail.length>(S.iron>0?24:10))S.trail.splice(0,S.trail.length-(S.iron>0?24:10));
+  for(var p=S.parts.length-1;p>=0;p--){var pa=S.parts[p];pa.t+=dt;pa.x+=pa.vx*dt;pa.y+=pa.vy*dt;pa.vy+=300*dt;
+    if(pa.t>1)S.parts.splice(p,1)}
+  updHUD();
+}
+function spawnSparks(x,y,h0){
+  var n=Math.min(3+h0*2,7);
+  for(var i=0;i<n&&S.parts.length<40;i++){
+    var a=Math.random()*6.28,sp=40+Math.random()*110;
+    S.parts.push({x:x,y:y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-60,t:0,
+      c:Math.random()<.5?'#f5c96a':'#e8734a'});
+  }
+}
+function endRun(why){
+  if(S.phase!=='play')return;
+  S.phase='over';
+  if(S.comboPeak<S.combo)S.comboPeak=S.combo;
+  var sc=S.score,nb=sc>S.best;
+  if(nb){S.best=sc;try{localStorage.setItem(K_BEST,''+sc)}catch(e){}}
+  $('ovwhy').textContent={fall:'火星落了地，今夜收炉'}[why]||'火星落了地';
+  $('ovm').textContent=sc;
+  $('ovsub').innerHTML='打到第 <em>'+S.w+'</em> 波'+(S.comboPeak>=5?' · 最长连溅 <em>'+S.comboPeak+'</em> 串':'')+
+    (nb?' · <em>新高！</em>':' · 最高 <em>'+S.best+'</em>');
+  $('over').classList.remove('hide');
+  SND.die();
+}
+
+/* ---------- 绘制 ---------- */
+var bgGrad=null,bgH=0;
+function draw(){
+  var g=cx2;
+  /* 夜炉底（渐变缓存）*/
+  if(!bgGrad){bgGrad=g.createLinearGradient(0,0,0,VH);
+    bgGrad.addColorStop(0,'#171021');bgGrad.addColorStop(.6,'#1d1420');bgGrad.addColorStop(1,'#241418')}
+  g.fillStyle=bgGrad;g.fillRect(0,0,W,VH);
+  /* 远处炉光（底部径向暖光，随火候微涨）*/
+  var glow=g.createRadialGradient(W/2,VH+60,40,W/2,VH+60,340+ S.heat*1.2);
+  glow.addColorStop(0,'rgba(232,120,58,'+(0.10+Math.min(S.heat,100)*0.0012+(S.iron>0?0.08:0))+')');
+  glow.addColorStop(1,'rgba(232,120,58,0)');
+  g.fillStyle=glow;g.fillRect(0,VH-360,W,360);
+  /* 星点（静态散布）*/
+  g.fillStyle='rgba(240,225,200,.5)';
+  for(var i=0;i<26;i++){var sx=(i*147)%W,sy2=(i*211)%(VH-120)+60;
+    g.globalAlpha=.15+.25*((i*37)%10)/10;g.fillRect(sx,sy2,1.6,1.6)}
+  g.globalAlpha=1;
+  /* 新波顶光带（waveIn 1.2s 渐隐）*/
+  if(S.waveIn>0){
+    var wa=Math.min(1,S.waveIn/1.2)*0.5;
+    var wg=g.createLinearGradient(0,70,0,130);
+    wg.addColorStop(0,'rgba(245,201,106,'+wa+')');wg.addColorStop(1,'rgba(245,201,106,0)');
+    g.fillStyle=wg;g.fillRect(0,70,W,60);
+  }
+  /* 砖阵（枝格三 hardness；裂痕按损耗）*/
+  for(var b=0;b<S.bricks.length;b++){
+    var br=S.bricks[b];
+    var col=br.h0===1?'#6e463c':(br.h0===2?'#8a5244':'#a35c48');
+    g.fillStyle=col;
+    rr(br.x,br.y,BW,BH,4);g.fill();
+    /* 顶亮线+底影（枝格体积）*/
+    g.fillStyle='rgba(255,220,170,.18)';g.fillRect(br.x+3,br.y+2,BW-6,2);
+    g.fillStyle='rgba(20,10,8,.3)';g.fillRect(br.x+3,br.y+BH-4,BW-6,2);
+    /* 老杆金铆 */
+    if(br.h0===3){g.fillStyle='#c9964e';g.fillRect(br.x+5,br.y+BH/2-1.5,3,3);g.fillRect(br.x+BW-8,br.y+BH/2-1.5,3,3)}
+    /* 裂痕（h<h0）*/
+    if(br.h<br.h0){g.strokeStyle='rgba(20,10,8,.55)';g.lineWidth=1.2;g.beginPath();
+      var dmg=br.h0-br.h;
+      g.moveTo(br.x+8,br.y+3);g.lineTo(br.x+13,br.y+BH-3);
+      if(dmg>=2){g.moveTo(br.x+BW-9,br.y+2);g.lineTo(br.x+BW-15,br.y+BH-4)}
+      g.stroke()}
+  }
+  /* 火星轨迹 */
+  var tn=S.trail.length/2;
+  for(var k=0;k<tn;k++){
+    var al=(k+1)/tn*(S.iron>0?.68:.3);
+    var cx=S.trail[k*2],cy=S.trail[k*2+1],rad=S.iron>0?2.5+3.5*(k/tn):2+2*(k/tn);
+    if(k>0){
+      g.strokeStyle=S.iron>0?'rgba(255,235,160,'+al+')':'rgba(245,180,90,'+al+')';
+      g.lineWidth=rad*1.6;g.lineCap='round';
+      g.beginPath();g.moveTo(S.trail[k*2-2],S.trail[k*2-1]);g.lineTo(cx,cy);g.stroke();
+    }
+    g.fillStyle=S.iron>0?'rgba(255,235,160,'+al+')':'rgba(245,180,90,'+al+')';
+    g.beginPath();g.arc(cx,cy,rad,0,6.29);g.fill();
+  }
+  /* 火星球（光晕+核）*/
+  var hot=S.iron>0;
+  var bg2=g.createRadialGradient(S.bx,S.by,1,S.bx,S.by,hot?26:16);
+  bg2.addColorStop(0,hot?'rgba(255,240,190,.95)':'rgba(255,200,110,.85)');
+  bg2.addColorStop(1,'rgba(255,120,50,0)');
+  g.fillStyle=bg2;g.beginPath();g.arc(S.bx,S.by,hot?26:16,0,6.29);g.fill();
+  g.fillStyle=hot?'#fff3c8':'#ffd27a';
+  g.beginPath();g.arc(S.bx,S.by,hot?7:5.5,0,6.29);g.fill();
+  /* 铁勺（深铁+金沿+勺窝）*/
+  var px=S.px,py=PY;
+  g.fillStyle='#3d3a44';rr(px-PW2,py,PW2*2,PH,6);g.fill();
+  g.fillStyle='#c9a44e';rr(px-PW2,py,PW2*2,3,2);g.fill();
+  g.fillStyle='rgba(255,220,160,.16)';rr(px-PW2+4,py+5,PW2*2-8,3,2);g.fill();
+  /* 粒子 */
+  for(var q=0;q<S.parts.length;q++){var pp=S.parts[q];
+    g.globalAlpha=Math.max(0,1-pp.t);
+    g.fillStyle=pp.c;g.fillRect(pp.x-1.5,pp.y-1.5,3,3)}
+  g.globalAlpha=1;
+  /* 待发提示 */
+  if(S.stuck&&S.phase==='play'){
+    g.fillStyle='rgba(245,201,106,'+(0.5+0.3*Math.sin(S.t*5))+')';
+    g.font='13px sans-serif';g.textAlign='center';
+    g.fillText('点  一  下  出  火  星',W/2,PY-46);
+  }
+}
+function rr(x,y,w,h,r){cx2.beginPath();cx2.moveTo(x+r,y);cx2.arcTo(x+w,y,x+w,y+h,r);
+  cx2.arcTo(x+w,y+h,x,y+h,r);cx2.arcTo(x,y+h,x,y,r);cx2.arcTo(x,y,x+w,y,r);cx2.closePath()}
+
+/* ---------- 输入（按住半屏；待发点按=发射；M1 家族口径）---------- */
+function dirOf(e){var r=cv.getBoundingClientRect();return (e.clientX-r.left)<195?-1:1}
+function onDown(e){
+  ensureAC();
+  if(S.phase!=='play')return;
+  e.preventDefault();
+  if(cv.setPointerCapture){try{cv.setPointerCapture(e.pointerId)}catch(err){}}
+  S.dir=dirOf(e);S.pdown=true;
+  if(S.stuck)launch();
+}
+function onMove(e){
+  if(!S.pdown||S.phase!=='play')return;
+  e.preventDefault();
+  S.dir=dirOf(e);
+}
+function onUp(){S.dir=0;S.pdown=false}
+cv.addEventListener('pointerdown',onDown);
+cv.addEventListener('pointermove',onMove);
+window.addEventListener('pointerup',onUp);
+window.addEventListener('pointercancel',onUp);
+window.addEventListener('blur',function(){S.dir=0;S.pdown=false;if(S.phase==='play')pauseGame()});
+
+/* ---------- 流程 ---------- */
+function startRun(){
+  newRun(null);
+  S.phase='play';
+  $('menu').classList.add('hide');$('over').classList.add('hide');
+  flash('开炉！第 1 波');
+}
+function pauseGame(){if(S.phase!=='play')return;S.phase='pause';
+  $('phint').textContent='当前 '+S.score+' 分 · 第 '+S.w+' 波';$('pauselay').classList.remove('hide')}
+function resumeGame(){if(S.phase!=='pause')return;S.phase='play';$('pauselay').classList.add('hide');SND.ui()}
+$('bgo').addEventListener('pointerdown',function(e){ensureAC();startRun();e.preventDefault()});
+$('bretry').addEventListener('pointerdown',function(e){ensureAC();startRun();e.preventDefault()});
+$('bresume').addEventListener('pointerdown',function(e){resumeGame();e.preventDefault()});
+$('bpau').addEventListener('pointerdown',function(e){
+  ensureAC();if(S.phase==='play')pauseGame();else if(S.phase==='pause')resumeGame();e.preventDefault()});
+$('bsnd').addEventListener('pointerdown',function(e){
+  ensureAC();S.mute=!S.mute;$('bsnd').textContent=S.mute?'∅':'♪';
+  try{localStorage.setItem(K_MUTE,S.mute?'1':'0')}catch(err){}
+  SND.ui();e.preventDefault()});
+
+/* ---------- boot ---------- */
+function loadBest(){try{var v=parseInt(localStorage.getItem(K_BEST)||'0',10);if(v>0)S.best=v}catch(e){}}
+function loadMute(){try{S.mute=localStorage.getItem(K_MUTE)==='1'}catch(e){}
+  $('bsnd').textContent=S.mute?'∅':'♪'}
+function boot(){
+  loadBest();loadMute();
+  $('hb').textContent=S.best;
+  $('mbest').textContent=S.best?('历史最高 '+S.best+' 分'):'今晚头一炉';
+  newRun(1);S.phase='menu';
+  requestAnimationFrame(loop);
+}
+var lastT=0,acc=0;
+function loop(ts){
+  var dt=Math.min(0.05,(ts-lastT)/1000||0.016);lastT=ts;
+  if(S.phase==='play'){acc+=dt;
+    while(acc>=1/60-1e-9){tick(1/60);acc-=1/60;if(S.phase!=='play')break}}
+  draw();
+  requestAnimationFrame(loop);
+}
+
+
+
+boot();
+</script>
+</body>
+</html>
