@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
+<title>盘灶 · 垒土坯</title>
+<style>
+html,body{margin:0;padding:0;background:#161009;height:100%;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none}
+#app{position:relative;width:390px;height:780px;margin:0 auto;background:#161009}
+#cv{position:absolute;left:0;top:0;width:390px;height:780px;display:block}
+.lay{position:absolute;left:0;top:0;width:390px;height:780px;background:rgba(10,6,3,.82);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:5}
+.lay.hide{display:none}
+h1{color:#e8c98f;font-size:34px;margin:0 0 6px;font-weight:700;letter-spacing:4px}
+.sub{color:#9c8468;font-size:13px;margin:0 0 26px;letter-spacing:2px}
+.bigbtn{background:linear-gradient(180deg,#c98d4e,#a5693a);color:#241408;border:none;border-radius:14px;padding:15px 46px;font-size:21px;font-weight:700;letter-spacing:6px;box-shadow:0 4px 16px rgba(201,141,78,.35)}
+.bigbtn:active{transform:translateY(2px)}
+.mini{color:#7a664e;font-size:12px;margin-top:22px;letter-spacing:1px;line-height:1.9}
+#bsnd{position:absolute;left:12px;top:14px;width:42px;height:30px;background:rgba(60,42,26,.6);border:1px solid #5a4028;border-radius:8px;color:#c9a877;font-size:15px;z-index:6;line-height:30px;text-align:center}
+#bresume{margin-top:18px}
+.pt{color:#e8c98f;font-size:26px;margin:0 0 8px;font-weight:700;letter-spacing:3px}
+.pv{color:#f5e3c0;font-size:44px;margin:0 0 24px;font-weight:800}
+</style>
+</head>
+<body>
+<div id="app">
+<canvas id="cv" width="390" height="780"></canvas>
+<button id="bsnd" class="hide">♪</button>
+<div id="menu" class="lay">
+  <h1>盘 灶</h1>
+  <div class="sub">垒土坯 · 砌一层 夯一层</div>
+  <button id="bgo" class="bigbtn">开 盘</button>
+  <div class="mini">左·右三一 移坯 ┆ 中间点 旋坯<br>快下滑 落坯 ┆ 砌平一整层 就夯实没了</div>
+</div>
+<div id="pause" class="lay hide">
+  <div class="pt">歇 手</div>
+  <button id="bresume" class="bigbtn">接着盘</button>
+</div>
+<div id="over" class="lay hide">
+  <div class="pt">封 顶 了</div>
+  <div class="pv" id="ovm">0</div>
+  <button id="bretry" class="bigbtn">再盘一灶</button>
+</div>
+</div>
+<script>
+'use strict';
+/* ===== 常量（SPEC v1.2 冻结） ===== */
+var COLS=10,ROWS=18,CELL=34,FOX=25,FOY=88;
+var DROP0=.75,DROP_F=.85,DROP_MIN=.12,LINES_LVL=8;
+var SC_L=[0,100,300,500,800];
+var HARD_B=2;
+var DAS=.130;
+var SWIPE_Y=56,SWIPE_T=.250,TAP_MS=.180;
+var LOCK_T=.4,LOCK_N=8;
+var K_BEST='g110_best',K_MUTE='g110_mute';
+var VH=780;
+/* 土坯七色：素/草筋/瓦/石/砖/灰/焦 */
+var EARTH=['#b99a6f','#a3a06a','#7f8a99','#8d8d8d','#a56a52','#6f7f6a','#5d5566'];
+var EARTH_D=['#8a6d48','#75724a','#586274','#636363','#77493a','#4d5a49','#403a4c'];
+var KEYS='IOTSZJL';
+/* 基础格 + 旋转表（与 sim 同构：norm + (x,y)->(y,-x)） */
+var BASE={I:[[0,1],[1,1],[2,1],[3,1]],O:[[1,0],[2,0],[1,1],[2,1]],T:[[0,1],[1,1],[2,1],[1,0]],S:[[1,0],[2,0],[0,1],[1,1]],Z:[[0,0],[1,0],[1,1],[2,1]],J:[[0,0],[0,1],[1,1],[2,1]],L:[[2,0],[0,1],[1,1],[2,1]]};
+function normCells(cs){var mx=99,my=99,i;for(i=0;i<4;i++){if(cs[i][0]<mx)mx=cs[i][0];if(cs[i][1]<my)my=cs[i][1]}var out=[];for(i=0;i<4;i++)out.push([cs[i][0]-mx,cs[i][1]-my]);out.sort(function(a,b){return a[1]*100+a[0]-(b[1]*100+b[0])});return out}
+var ROTS={};
+(function(){var k,b;
+for(var ki=0;ki<7;ki++){k=KEYS[ki];b=normCells(BASE[k]);var st=[b];
+for(var r=0;r<3;r++){var nx=[];for(var i=0;i<4;i++)nx.push([b[i][1],-b[i][0]]);b=normCells(nx);st.push(b)}
+ROTS[k]=st}})();
+function LCG(s){this.x=s%0x7fffffff;if(this.x<=0)this.x=1}
+LCG.prototype.r=function(){this.x=this.x*48271%0x7fffffff;return this.x/0x7fffffff};
+
+/* ===== 音效 ===== */
+var AC=null;
+function ac(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}return AC}
+function tone(f,d,type,vol,slide){if(S.mute)return;var a=ac();if(!a)return;try{
+var o=a.createOscillator(),g=a.createGain();o.type=type||'sine';o.frequency.value=f;
+if(slide)o.frequency.linearRampToValueAtTime(f+slide,a.currentTime+d);
+g.gain.setValueAtTime(vol||.08,a.currentTime);g.gain.exponentialRampToValueAtTime(.0001,a.currentTime+d);
+o.connect(g);g.connect(a.destination);o.start();o.stop(a.currentTime+d)}catch(e){}}
+var SND={
+  move:function(){tone(180,.03,'square',.03)},
+  rot:function(){tone(250,.04,'square',.045)},
+  lock:function(){tone(110,.07,'sine',.1,-30)},
+  clear:function(n){tone(420+n*110,.14,'triangle',.09,160)},
+  hard:function(){tone(150,.05,'sawtooth',.06,-60)},
+  lvl:function(){tone(520,.18,'triangle',.07,220)},
+  over:function(){tone(200,.5,'sine',.1,-130)}
+};
+
+/* ===== 状态 ===== */
+var S={phase:'menu',g:(function(){var a=[],r;for(r=0;r<ROWS;r++)a.push(new Array(COLS).fill(0));return a})(),cur:null,ri:0,cx:0,cy:0,bag:[],acc:0,lockT:0,lockN:0,
+score:0,lines:0,lvl:1,best:0,mute:false,
+flash:[],flashT:0,parts:[],shake:0,dust:0,
+pdown:false,px0:0,py0:0,pt0:0,pz:0,dasT:0,dir:0,pendSwipe:false};
+var bagRng=new LCG(Date.now()%0x7fffffff||12345);
+function bagFill(){if(S.bag.length>=7)return;var b=['I','O','T','S','Z','J','L'],i,j,t;
+for(i=6;i>0;i--){j=Math.floor(bagRng.r()*(i+1));t=b[i];b[i]=b[j];b[j]=t}
+S.bag=S.bag.concat(b)}
+function dropIv(){var d=DROP0,i;for(i=1;i<S.lvl;i++)d*=DROP_F;return d>DROP_MIN?d:DROP_MIN}
+function collide(cx,cy,ri){var cs=ROTS[S.cur][ri],i,X,Y;
+for(i=0;i<4;i++){X=cx+cs[i][0];Y=cy+cs[i][1];
+if(X<0||X>=COLS||Y>=ROWS)return true;if(Y>=0&&S.g[Y][X])return true}return false}
+function spawn(){bagFill();S.cur=S.bag.shift();bagFill();S.ri=0;
+var cs=ROTS[S.cur][0],w=0,i;for(i=0;i<4;i++)if(cs[i][0]+1>w)w=cs[i][0]+1;
+S.cx=(COLS-w)>>1;S.cy=0;S.acc=0;S.lockT=0;S.lockN=0;
+if(collide(S.cx,S.cy,S.ri))gameOver()}
+function tryMove(dx){if(!collide(S.cx+dx,S.cy,S.ri)){S.cx+=dx;SND.move();groundReset();return true}return false}
+function tryRot(){var nr=(S.ri+1)&3,ks=[0,-1,1,-2,2],i;
+for(i=0;i<5;i++){if(!collide(S.cx+ks[i],S.cy,nr)){S.cx+=ks[i];S.ri=nr;SND.rot();groundReset();return true}}
+return false}
+function groundReset(){if(S.lockT>0&&S.lockN<LOCK_N){S.lockT=0;S.lockN++}}
+function ghostY(){var y=S.cy;while(!collide(S.cx,y+1,S.ri))y++;return y}
+function hardDrop(){var gy=ghostY();S.score+=(gy-S.cy)*HARD_B;S.cy=gy;SND.hard();lock();if(S.phase==='play')spawn()}
+function lock(){var cs=ROTS[S.cur][S.ri],i,X,Y;
+for(i=0;i<4;i++){X=S.cx+cs[i][0];Y=S.cy+cs[i][1];if(Y>=0)S.g[Y][X]=KEYS.indexOf(S.cur)+1}
+SND.lock();S.shake=Math.max(S.shake,3);
+var full=[],r;for(r=0;r<ROWS;r++){var ok=true,c;for(c=0;c<COLS;c++)if(!S.g[r][c]){ok=false;break}if(ok)full.push(r)}
+var n=full.length;
+if(n>0){S.score+=SC_L[n]*S.lvl;S.lines+=n;SND.clear(n);
+S.flash=full.slice();S.flashT=.18;S.shake=Math.max(S.shake,4+n);
+for(i=0;i<n*6;i++)S.parts.push({x:FOX+Math.random()*COLS*CELL,y:FOY+(full[0]+Math.random())*CELL,vx:(Math.random()-.5)*90,vy:-40-Math.random()*80,life:.5+Math.random()*.3,col:Math.random()<.5?'#c9b28a':'#8a6d48'});
+full.sort(function(a,b){return a-b});
+for(i=0;i<n;i++)S.g.splice(full[i]-i,1);
+while(n--)S.g.unshift(new Array(COLS).fill(0));
+var nl=S.lvl;while(S.lines>=nl*LINES_LVL){nl++;SND.lvl()}
+if(nl!==S.lvl){S.lvl=nl;S.dust=1}
+}
+S.cur=null}
+function gameOver(){S.phase='over';SND.over();
+if(S.score>S.best){S.best=S.score;try{localStorage.setItem(K_BEST,String(S.best))}catch(e){}}
+var ov=document.getElementById('ovm');if(ov)ov.textContent=String(S.score);
+var o=document.getElementById('over');if(o)o.classList.remove('hide')}
+function reset(){S.g=[];var r;for(r=0;r<ROWS;r++)S.g.push(new Array(COLS).fill(0));
+S.cur=null;S.bag=[];S.score=0;S.lines=0;S.lvl=1;S.acc=0;S.lockT=0;S.lockN=0;
+S.flash=[];S.flashT=0;S.parts=[];S.shake=0;S.pdown=false;S.dir=0;S.dasT=0;S.dust=0;S.pz=0;
+spawn()}
+
+/* ===== tick（dt=1/60 固定步） ===== */
+function tick(n){var k;
+for(k=0;k<n;k++){
+ if(S.phase!=='play')continue;
+ var dt=1/60;
+ /* DAS 横移 */
+ if(S.pdown&&S.dir!==0){S.dasT+=dt;if(S.dasT>=DAS){S.dasT-=DAS;tryMove(S.dir)}}
+ if(S.dust>0){S.dust-=dt*.5;if(S.dust<0)S.dust=0}
+ /* 粒子 */
+ var i;for(i=S.parts.length-1;i>=0;i--){var p=S.parts[i];p.life-=dt;if(p.life<=0){S.parts.splice(i,1);continue}p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=260*dt}
+ if(S.flashT>0)S.flashT-=dt;
+ if(S.shake>0)S.shake-=dt*14;if(S.shake<0)S.shake=0;
+ if(!S.cur)continue;
+ /* 重力 */
+ S.acc+=dt;
+ var iv=dropIv();
+ if(S.acc>=iv){S.acc-=iv;
+  if(!collide(S.cx,S.cy+1,S.ri)){S.cy++;S.lockT=0}
+  else S.acc=0}
+ if(collide(S.cx,S.cy+1,S.ri)){S.lockT+=dt;
+  if(S.lockT>=LOCK_T||S.lockN>=LOCK_N){lock();if(S.phase==='play')spawn()}}
+}}
+
+/* ===== 绘制 ===== */
+var cv=document.getElementById('cv'),g=cv.getContext('2d');
+function rr(x,y,w,h,r){g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath()}
+function drawBG(){
+ var gr=g.createLinearGradient(0,0,0,VH);gr.addColorStop(0,'#241408');gr.addColorStop(.55,'#1a1008');gr.addColorStop(1,'#2b150a');
+ g.fillStyle=gr;g.fillRect(0,0,390,VH);
+ /* 灶膛暖光 */
+ var rg=g.createRadialGradient(195,660,20,195,660,340);rg.addColorStop(0,'rgba(214,120,40,'+(0.10+S.dust*.14)+')');rg.addColorStop(1,'rgba(214,120,40,0)');
+ g.fillStyle=rg;g.fillRect(0,300,390,480);
+ /* 悬浮尘 */
+ var t=Date.now()/1000,i;
+ for(i=0;i<14;i++){var px=(i*61+((t*7)%390))%390,py=(i*127+((t*11)%780))%780;
+ g.fillStyle='rgba(200,170,120,'+(0.05+((i%3)*0.02))+')';g.beginPath();g.arc(px,py,1.4,0,6.29);g.fill()}
+}
+function drawField(){
+ /* 外框 */
+ g.fillStyle='rgba(0,0,0,.28)';g.fillRect(FOX-4,FOY-4,COLS*CELL+8,ROWS*CELL+8);
+ g.strokeStyle='#4a3520';g.lineWidth=2;g.strokeRect(FOX-4,FOY-4,COLS*CELL+8,ROWS*CELL+8);
+ /* 底纹格线 */
+ g.strokeStyle='rgba(90,66,40,.35)';g.lineWidth=1;
+ var r,c;
+ for(r=1;r<ROWS;r++){g.beginPath();g.moveTo(FOX,FOY+r*CELL+.5);g.lineTo(FOX+COLS*CELL,FOY+r*CELL+.5);g.stroke()}
+ for(c=1;c<COLS;c++){g.beginPath();g.moveTo(FOX+c*CELL+.5,FOY);g.lineTo(FOX+c*CELL+.5,FOY+ROWS*CELL);g.stroke()}
+ /* 堆块 */
+ for(r=0;r<ROWS;r++)for(c=0;c<COLS;c++){var v=S.g[r][c];if(v)drawCell(c,r,v)}
+ /* 夯实白闪 */
+ if(S.flashT>0){var a=S.flashT/.18,i;
+  g.fillStyle='rgba(255,244,214,'+(a*.9)+')';
+  for(i=0;i<S.flash.length;i++)g.fillRect(FOX,FOY+S.flash[i]*CELL,COLS*CELL,CELL)}
+}
+function drawCell(c,r,v,ghost){
+ var x=FOX+c*CELL,y=FOY+r*CELL;
+ if(ghost){g.strokeStyle='rgba(233,201,143,.4)';g.lineWidth=1.5;rr(x+2.5,y+2.5,CELL-5,CELL-5,4);g.stroke();return}
+ g.fillStyle=EARTH[v-1];rr(x+1,y+1,CELL-2,CELL-2,4);g.fill();
+ g.strokeStyle=EARTH_D[v-1];g.lineWidth=1.5;rr(x+1,y+1,CELL-2,CELL-2,4);g.stroke();
+ /* 草秸纹理 */
+ g.strokeStyle='rgba(60,44,26,.4)';g.lineWidth=1;
+ g.beginPath();g.moveTo(x+6,y+CELL*.38);g.lineTo(x+CELL-6,y+CELL*.34);g.stroke();
+ g.beginPath();g.moveTo(x+8,y+CELL*.68);g.lineTo(x+CELL-5,y+CELL*.72);g.stroke();
+ g.fillStyle='rgba(255,240,210,.18)';g.fillRect(x+4,y+4,CELL-8,3);
+}
+function drawCur(){
+ if(!S.cur||S.phase==='over')return;
+ var gy=ghostY(),cs=ROTS[S.cur][S.ri],i;
+ if(gy!==S.cy)for(i=0;i<4;i++)drawCell(S.cx+cs[i][0],gy+cs[i][1],KEYS.indexOf(S.cur)+1,true);
+ for(i=0;i<4;i++){var Y=S.cy+cs[i][1];if(Y>=0)drawCell(S.cx+cs[i][0],Y,KEYS.indexOf(S.cur)+1,false)}
+}
+function drawNext(){
+ if(!S.bag.length)return;
+ var k=S.bag[0],cs=ROTS[k][0],i;
+ var bx=330,by=FOY+8;
+ g.fillStyle='rgba(0,0,0,.25)';rr(288,FOY+2,94,74,8);g.fill();
+ g.strokeStyle='#4a3520';g.lineWidth=1.5;rr(288,FOY+2,94,74,8);g.stroke();
+ g.fillStyle='#9c8468';g.font='11px system-ui';g.textAlign='center';g.fillText('下一坯',335,FOY+18);
+ var v=KEYS.indexOf(k)+1;
+ for(i=0;i<4;i++){var x=bx+cs[i][0]*17,y=by+16+cs[i][1]*17;
+  g.fillStyle=EARTH[v-1];rr(x,y,15,15,3);g.fill();g.strokeStyle=EARTH_D[v-1];g.lineWidth=1;rr(x,y,15,15,3);g.stroke()}
+}
+function drawHUD(){
+ g.fillStyle='#1c1208';g.fillRect(0,0,390,70);
+ g.strokeStyle='#4a3520';g.lineWidth=2;g.beginPath();g.moveTo(0,70);g.lineTo(390,70);g.stroke();
+ g.fillStyle='#e8c98f';g.font='800 24px system-ui';g.textAlign='left';
+ g.fillText(String(S.score),60,34);
+ g.fillStyle='#8a7358';g.font='10px system-ui';g.fillText('分',60,50);
+ g.fillStyle='#c9a877';g.font='700 16px system-ui';g.fillText('层 '+S.lvl,160,32);
+ g.fillText('行 '+S.lines,160,52);
+ g.textAlign='right';g.fillStyle='#8a7358';g.font='11px system-ui';g.fillText('最好 '+S.best,370,24);
+ g.fillStyle='#e8c98f';g.font='700 15px system-ui';g.fillText('盘灶',36,32);
+ /* 级别进度条 */
+ g.fillStyle='rgba(90,66,40,.5)';g.fillRect(238,44,132,6);
+ g.fillStyle='#c98d4e';g.fillRect(238,44,132*(S.lines%LINES_LVL)/LINES_LVL,6);
+}
+function drawParts(){var i;
+ for(i=0;i<S.parts.length;i++){var p=S.parts[i],a=Math.max(0,p.life/.8);
+  g.fillStyle=p.col;g.globalAlpha=a;g.beginPath();g.arc(p.x,p.y,2.2,0,6.29);g.fill();g.globalAlpha=1}
+}
+function draw(){
+ g.save();
+ if(S.shake>0)g.translate((Math.random()-.5)*S.shake,(Math.random()-.5)*S.shake);
+ drawBG();drawField();drawCur();drawParts();drawHUD();
+ if(S.phase==='play')drawNext();
+ g.restore();
+}
+
+/* ===== 输入 ===== */
+function zone(x){return x<130?-1:(x>260?1:0)}
+function onDown(e){e.preventDefault();
+ if(AC&&AC.state==='suspended'){try{AC.resume()}catch(err){}}
+ if(cv.setPointerCapture){try{cv.setPointerCapture(e.pointerId)}catch(err){}}
+ if(S.phase==='menu'){startGame();return}
+ if(S.phase!=='play')return;
+ S.pdown=true;S.px0=e.clientX;S.py0=e.clientY;S.pt0=performance.now()/1000;
+ S.pz=zone(e.clientX);S.dir=S.pz;S.dasT=0;
+ if(S.dir!==0)tryMove(S.dir);
+}
+function onMove(e){e.preventDefault();
+ if(!S.pdown||S.phase!=='play')return;
+ var nz=zone(e.clientX);
+ if(nz!==S.pz&&nz!==0){S.pz=nz;S.dir=nz;S.dasT=0;tryMove(nz)}
+ else if(nz===0&&S.pz!==0){S.dir=0;S.pz=0}
+}
+function onUp(e){
+ if(!S.pdown||S.phase!=='play'){S.pdown=false;return}
+ S.pdown=false;S.dir=0;
+ var t=performance.now()/1000-S.pt0;
+ var dx=e.clientX-S.px0,dy=e.clientY-S.py0;
+ if(dy>SWIPE_Y&&Math.abs(dy)>Math.abs(dx)*1.5&&t<SWIPE_T&&S.cur){hardDrop();return}
+ if(S.pz===0&&t<TAP_MS&&Math.abs(dx)<14&&Math.abs(dy)<14&&S.cur)tryRot();
+}
+function startGame(){reset();S.phase='play';
+ document.getElementById('menu').classList.add('hide');
+ document.getElementById('over').classList.add('hide');
+ var b=document.getElementById('bsnd');if(b)b.classList.remove('hide')}
+function toPause(){if(S.phase==='play'){S.phase='pause';S.pdown=false;S.dir=0;S.dasT=0;document.getElementById('pause').classList.remove('hide')}}
+function toResume(){if(S.phase==='pause'){S.phase='play';document.getElementById('pause').classList.add('hide')}}
+function bind(id,fn){var el=document.getElementById(id);if(el)el.addEventListener('pointerdown',function(e){e.preventDefault();e.stopPropagation();fn(e)})}
+cv.addEventListener('pointerdown',onDown);
+cv.addEventListener('pointermove',onMove);
+window.addEventListener('pointerup',onUp);
+window.addEventListener('blur',toPause);
+document.addEventListener('visibilitychange',function(){if(document.hidden)toPause()});
+bind('bgo',startGame);bind('bresume',toResume);
+bind('bretry',startGame);bind('bsnd',function(){S.mute=!S.mute;try{localStorage.setItem(K_MUTE,S.mute?'1':'0')}catch(e){}});
+try{S.best=parseInt(localStorage.getItem(K_BEST)||'0',10)||0;
+S.mute=localStorage.getItem(K_MUTE)==='1'}catch(e){}
+var bs=document.getElementById('bsnd');if(bs)bs.textContent=S.mute?'✕':'♪';
+
+/* ===== 主循环 ===== */
+var last=0;
+function frame(ts){if(!last)last=ts;var dt=(ts-last)/1000;last=ts;
+ var steps=Math.min(4,Math.max(1,Math.round(dt/(1/60))));
+ tick(steps);draw();requestAnimationFrame(frame)}
+requestAnimationFrame(frame);
+
+
+</script>
+</body>
+</html>
