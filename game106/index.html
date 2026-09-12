@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
+<title>匀酒坊</title>
+<style>
+  html,body{margin:0;padding:0;background:#1c130c;height:100%;overflow:hidden;font-family:system-ui,"Microsoft YaHei",sans-serif;-webkit-user-select:none;user-select:none;touch-action:none}
+  #cv{display:block;margin:0 auto}
+  .lay{position:fixed;left:50%;transform:translateX(-50%);width:390px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:14px;background:rgba(12,8,4,.9);z-index:5}
+  .lay.hide{display:none}
+  .lay h2{color:#e8dcc0;font-size:26px;letter-spacing:6px;margin:0 0 4px;font-weight:600}
+  .lay .sub{color:#a89878;font-size:13px;letter-spacing:2px}
+  .lay .best{color:#c9a44e;font-size:15px;letter-spacing:1px}
+  .btn{background:#3a2a1a;border:1px solid #6a5232;color:#e8dcc0;font-size:16px;letter-spacing:3px;padding:12px 34px;border-radius:10px;cursor:pointer;font-family:inherit}
+  .btn:active{background:#4a3624}
+  .btn.gold{background:#5a4218;border-color:#c9a44e;color:#f4e8c8}
+  .row{display:flex;gap:14px}
+  #hud{position:fixed;left:50%;transform:translateX(-50%);width:390px;top:0;height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;box-sizing:border-box;z-index:3;pointer-events:none}
+  #hud.hide{display:none}
+  #hud .tl{color:#e8dcc0;font-size:17px;letter-spacing:3px;font-weight:600}
+  #hud .lv{color:#c9a44e;font-size:13px;letter-spacing:1px}
+  #hud .r2{display:flex;gap:8px;pointer-events:auto}
+  .ico{width:34px;height:34px;border-radius:8px;background:rgba(58,42,26,.7);border:1px solid #6a5232;color:#e8dcc0;font-size:15px;line-height:32px;text-align:center;cursor:pointer}
+  #abtns{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;width:390px;display:none;justify-content:center;gap:16px;z-index:3}
+  #abtns.on{display:flex}
+  #abtns .btn{padding:10px 26px;font-size:15px}
+  .flash{position:fixed;left:50%;transform:translateX(-50%);top:96px;color:#f4e8c8;font-size:15px;letter-spacing:2px;z-index:4;pointer-events:none;opacity:0;transition:opacity .25s}
+</style>
+</head>
+<body>
+<canvas id="cv" width="390" height="844"></canvas>
+<div id="hud" class="hide">
+  <div><div class="tl">匀酒坊</div><div class="lv" id="h-lv">第 1 关</div></div>
+  <div class="r2"><div class="ico" id="btn-snd">♪̸</div><div class="ico" id="btn-pause">⏸</div></div>
+</div>
+<div id="abtns">
+  <button class="btn" id="btn-undo">撤一步</button>
+  <button class="btn" id="btn-resh">重排此关</button>
+</div>
+<div class="flash" id="flash"></div>
+
+<div class="lay" id="menu">
+  <h2>匀 酒 坊</h2>
+  <div class="sub">打烊后的老酒坊 · 一坛坛匀回去</div>
+  <div class="best" id="m-best">—</div>
+  <button class="btn gold" id="btn-go">开 坛</button>
+  <div class="sub" style="font-size:11px;opacity:.7">点坛取酒 · 再点一坛倒入 · 同色相容</div>
+</div>
+
+<div class="lay hide" id="over">
+  <h2 id="o-title">第 1 关 · 匀成</h2>
+  <div class="sub" id="o-sub">步数 0 · 参考 0</div>
+  <div class="best" id="o-best">—</div>
+  <div class="row">
+    <button class="btn" id="btn-menu2">回坊</button>
+    <button class="btn gold" id="btn-next">下一关</button>
+  </div>
+</div>
+
+<div class="lay hide" id="pause">
+  <h2>歇 坊</h2>
+  <div class="sub" id="p-sub">第 1 关 · 步数 0</div>
+  <div class="row">
+    <button class="btn" id="btn-restart">重排此关</button>
+    <button class="btn gold" id="btn-resume">续 坊</button>
+  </div>
+  <button class="btn" id="btn-menu">回坊门</button>
+</div>
+
+<script>
+'use strict';
+/* ============ 匀酒坊 game106 · Water Sort × 老酒坊勾调 ============ */
+var CFG = {
+  W: 390, H: 844, HUD: 64,
+  JAR_W: 62, JAR_H: 172, LAY_H: 36, NECK: 16, CAP: 4,
+  ROW0_Y: 138, ROW1_Y: 352, GAP: 12,
+  POUR_T: 280, FLASH_T: 1600
+};
+var PAL = ['#d98a32', '#b0434a', '#7a9a5a', '#e8dcc0', '#6f7a26', '#7a4a7a', '#4a6a8a', '#5a4a3a'];
+var PNAME = ['花雕', '女儿红', '竹叶青', '烧刀子', '青梅酿', '桑葚酒', '黛蓝烧', '乌米酒'];
+/* 难度曲线六段（SPEC §3：E 恒 1） */
+var SEGS = [
+  { l: 1, k: 3, st: 14 }, { l: 5, k: 4, st: 18 }, { l: 9, k: 5, st: 28 },
+  { l: 15, k: 6, st: 34 }, { l: 20, k: 7, st: 42 }, { l: 25, k: 8, st: 50 }
+];
+function segOf(L) { var s = SEGS[0]; for (var i = 0; i < SEGS.length; i++) if (L >= SEGS[i].l) s = SEGS[i]; return s; }
+var MAXL = 30;
+
+/* ============ RNG（家族 LCG；imul 32 位乘防 2^53 精度丢——与 python 逐位同构） ============ */
+function LCG(seed) {
+  var s = (seed >>> 0) || 1;
+  this.r = function () { s = (Math.imul(s, 1103515245) + 12345) >>> 0; return (s >>> 16) & 0x7fff; };
+}
+
+/* ============ 规则核心（与 sim106.py 同构） ============ */
+function topRun(j) { if (!j.length) return 0; var t = j[j.length - 1], m = 0; for (var i = j.length - 1; i >= 0; i--) { if (j[i] === t) m++; else break; } return m; }
+function legalMoves(jars) {
+  var out = [];
+  for (var a = 0; a < jars.length; a++) {
+    var ra = topRun(jars[a]); if (!ra) continue;
+    for (var b = 0; b < jars.length; b++) {
+      if (a === b) continue;
+      var room = CFG.CAP - jars[b].length;
+      if (room <= 0) continue;
+      if (jars[b].length && jars[b][jars[b].length - 1] !== jars[a][jars[a].length - 1]) continue;
+      out.push([a, b, Math.min(ra, room)]);
+    }
+  }
+  return out;
+}
+function applyMv(jars, mv) { var j2 = jars.map(function (j) { return j.slice(); }); var x = mv[2]; var seg = j2[mv[0]].splice(j2[mv[0]].length - x, x); j2[mv[1]] = j2[mv[1]].concat(seg); return j2; }
+function isSolved(jars) { return jars.every(function (j) { if (!j.length) return true; if (j.length !== CFG.CAP) return false; var u = {}; for (var i = 0; i < j.length; i++) u[j[i]] = 1; return Object.keys(u).length <= 1; }); }
+
+/* 生成器：终态打散（同色段移出+容量足，无色要求）——与 sim106.scatter 同构 */
+function scatter(rng, K, E, steps) {
+  var jars = [], i, a, b, x;
+  for (i = 0; i < K; i++) { var t = []; for (var q = 0; q < 4; q++) t.push(i); jars.push(t); }
+  for (i = 0; i < E; i++) jars.push([]);
+  for (i = 0; i < steps; i++) {
+    var cands = [];
+    for (a = 0; a < jars.length; a++) {
+      var ra = topRun(jars[a]); if (!ra) continue;
+      for (b = 0; b < jars.length; b++) {
+        if (a === b) continue;
+        var room = CFG.CAP - jars[b].length;
+        if (room <= 0) continue;
+        for (x = 1; x <= Math.min(ra, room); x++) cands.push([a, b, x]);
+      }
+    }
+    if (!cands.length) break;
+    var c = cands[rng.r() % cands.length];
+    var seg = jars[c[0]].splice(jars[c[0]].length - c[2], c[2]);
+    jars[c[1]] = jars[c[1]].concat(seg);
+  }
+  return jars;
+}
+/* 求解器：迭代加深 DFS+记忆化——与 sim106.solve 同构（节点上限 6 万） */
+function solveJar(jars, nodeCap) {
+  nodeCap = nodeCap || 60000;
+  var start = jars.map(function (j) { return j.slice(); });
+  var nAll = start.length;
+  var caps = [24, 48, 120, 240], ci, nodes;
+  for (ci = 0; ci < caps.length; ci++) {
+    var seen = {}; nodes = 0;
+    var stack = [[start, 0]];
+    while (stack.length) {
+      var fr = stack.pop(); var st = fr[0], d = fr[1];
+      nodes++;
+      if (nodes > nodeCap) return null;
+      if (isSolved(st)) return d;
+      if (d >= caps[ci]) continue;
+      var key = st.filter(function (j) { return j.length; }).map(function (j) { return j.join(','); }).sort().join('|');
+      if (seen[key]) continue;
+      seen[key] = 1;
+      var jl = st.map(function (j) { return j.slice(); });   /* 空坛保留原位（与 python jars2 同构——filter 垫尾会错位坛索引） */
+      var ms = legalMoves(jl);
+      ms.sort(function (p, q) { return q[2] - p[2]; });
+      for (var mi = 0; mi < ms.length; mi++) stack.push([applyMv(jl, ms[mi]), d + 1]);   /* 正序 push=与 python for mv in ms 同构 */
+    }
+  }
+  return null;
+}
+/* 关卡生成（验证制）：att 0..7 换种子，降打散兜底，终极兜底=一步构造 */
+function genLevel(L, seed) {
+  var sg = segOf(L), K = sg.k, E = 1;
+  for (var st = sg.st; st >= 8; st -= 8) {
+    for (var att = 0; att < 8; att++) {
+      var jars = scatter(new LCG((seed + att * 7919) >>> 0), K, E, st);
+      if (isSolved(jars)) continue;
+      var ref = solveJar(jars);
+      if (ref !== null) return { jars: jars, ref: ref, k: K };
+    }
+  }
+  /* 终极兜底：第一坛顶 2 层移空坛（一步可解、非终态） */
+  var fj = [], q2;
+  for (q2 = 0; q2 < K; q2++) { var t2 = []; for (var w = 0; w < 4; w++) t2.push(q2); fj.push(t2); }
+  fj.push([]);
+  var seg = fj[0].splice(2, 2); fj[K] = fj[K].concat(seg);
+  return { jars: fj, ref: 1, k: K };
+}
+
+/* ============ 状态 ============ */
+var S = {
+  mode: 'menu', seed: 1, level: 1, jars: [], ref: 0, k: 3,
+  sel: -1, steps: 0, undo: [], reshN: 0,
+  anim: null, shakeT: 0, shakeJ: -1, flashT: 0, flashTxt: '', winT: 0,
+  hintT: 0, hint: '', dead: false, winL: 0, best: 0, muted: true,
+  ph: 0, rafOn: false, pauseFrom: 'play'
+};
+var AC = null;
+function ensureAC() { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = null; } } if (AC && AC.state === 'suspended') { AC.resume().catch(function () {}); } }
+var SND = {
+  pour: function () { tone(160, .09, 'sine', .16); setTimeout(function () { tone(120, .1, 'sine', .14); }, 70); },
+  done: function () { tone(392, .14, 'triangle', .12); setTimeout(function () { tone(523, .18, 'triangle', .1); }, 90); },
+  win: function () { [523, 659, 784].forEach(function (f, i) { setTimeout(function () { tone(f, .16, 'triangle', .12); }, i * 110); }); },
+  dead: function () { tone(98, .25, 'sine', .16); },
+  shake: function () { tone(220, .05, 'square', .05); }
+};
+function tone(f, dur, type, vol) {
+  if (S.muted || !AC) return;
+  try {
+    var o = AC.createOscillator(), g = AC.createGain();
+    o.type = type; o.frequency.value = f;
+    g.gain.setValueAtTime(vol, AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001, AC.currentTime + dur);
+    o.connect(g); g.connect(AC.destination);
+    o.start(); o.stop(AC.currentTime + dur);
+  } catch (e) { }
+}
+
+/* ============ DOM ============ */
+var cv = document.getElementById('cv'), g = cv.getContext('2d');
+var els = {};
+['hud', 'h-lv', 'btn-snd', 'btn-pause', 'abtns', 'btn-undo', 'btn-resh', 'flash', 'menu', 'm-best', 'btn-go', 'over', 'o-title', 'o-sub', 'o-best', 'btn-next', 'btn-menu2', 'pause', 'p-sub', 'btn-restart', 'btn-resume', 'btn-menu'].forEach(function (id) { els[id] = document.getElementById(id); });
+function show(id, on) { els[id].classList[on ? 'remove' : 'add']('hide'); }
+function flash(t) { S.flashTxt = t; S.flashT = CFG.FLASH_T; els['flash'].textContent = t; els['flash'].style.opacity = 1; }
+
+/* ============ 布局 ============ */
+function jarRect(i) {
+  var n = S.jars.length;
+  var r0 = n <= 5 ? n : Math.ceil(n / 2);   /* 行0 坛数：≤5 单行；>5 两行均衡（6=3+3/7=4+3/8=4+4/9=5+4）防行1 单坛悬空观感 */
+  var row = i < r0 ? 0 : 1;
+  var col = row === 0 ? i : i - r0;
+  var cnt = row === 0 ? r0 : n - r0;
+  var x0 = (CFG.W - (cnt * CFG.JAR_W + (cnt - 1) * CFG.GAP)) / 2;
+  return { x: x0 + col * (CFG.JAR_W + CFG.GAP), y: row === 0 ? CFG.ROW0_Y : CFG.ROW1_Y, w: CFG.JAR_W, h: CFG.JAR_H, row: row, col: col };
+}
+function jarHit(px, py) {
+  for (var i = 0; i < S.jars.length; i++) {
+    var r = jarRect(i);
+    if (px >= r.x - 6 && px <= r.x + r.w + 6 && py >= r.y - 6 && py <= r.y + r.h + 6) return i;
+  }
+  return -1;
+}
+
+/* ============ 游戏流程 ============ */
+function lvSeed(extra) { return ((S.seed ^ (S.level * 2654435761)) + (extra || 0) * 40503 >>> 0) || 1; }
+function startLevel(L) {
+  S.level = L;
+  var gen = genLevel(L, lvSeed(S.reshN));
+  S.jars = gen.jars; S.ref = gen.ref; S.k = gen.k;
+  S.sel = -1; S.steps = 0; S.undo = []; S.anim = null; S.dead = false; S.winL = 0;
+  S.hintT = 3000;
+  S.hint = L === 1 ? '点坛取酒 · 再点一坛倒入' : '第 ' + L + ' 关 · 参考步 ' + S.ref;
+  syncHud();
+}
+function syncHud() {
+  els['h-lv'].textContent = '第 ' + S.level + ' 关 · 步数 ' + S.steps + (S.ref ? ' / 参考 ' + S.ref : '');
+  els['abtns'].classList[S.mode === 'play' ? 'add' : 'remove']('on');
+}
+function tryPour(b) {
+  var a = S.sel;
+  if (a === b) { S.sel = -1; return; }
+  var ms = legalMoves(S.jars);
+  for (var i = 0; i < ms.length; i++) {
+    if (ms[i][0] === a && ms[i][1] === b) {
+      S.undo.push({ jars: S.jars.map(function (j) { return j.slice(); }), steps: S.steps });
+      if (S.undo.length > 200) S.undo.shift();
+      S.anim = { a: a, b: b, x: ms[i][2], t: 0 };
+      S.sel = -1;
+      SND.pour();
+      return;
+    }
+  }
+  /* 非法：抖动 */
+  S.shakeT = 320; S.shakeJ = b; SND.shake();
+}
+function finishPour() {
+  var an = S.anim;
+  S.jars = applyMv(S.jars, [an.a, an.b, an.x]);
+  S.anim = null; S.steps++;
+  /* 整坛归一检测（非终态时某坛满且纯=金闪） */
+  for (var i = 0; i < S.jars.length; i++) {
+    if (S.jars[i].length === 4 && S.jars[i].every(function (c) { return c === S.jars[i][0]; })) { SND.done(); break; }
+  }
+  syncHud();
+  if (isSolved(S.jars)) { winLevel(); return; }
+  if (!legalMoves(S.jars).length) {
+    S.dead = true; flash('酒匀不开 · 撤一步或重排'); SND.dead();
+  } else S.dead = false;
+}
+function winLevel() {
+  S.winL = S.level; S.dead = false;
+  SND.win();
+  if (S.level > S.best) { S.best = S.level; try { localStorage.setItem('g106_best', String(S.best)); } catch (e) { } }
+  S.winT = 620;   /* tick 驱动的结算延迟（vm 可推进，不依赖 setTimeout） */
+}
+function doUndo() {
+  if (S.winT > 0) { flash('已匀成 · 这就上账'); return; }   /* 胜利锁定窗口（G3-M1+R4：拒绝给反馈） */
+  if (S.anim || !S.undo.length || S.mode !== 'play') return;
+  var u = S.undo.pop();
+  S.jars = u.jars; S.steps = u.steps; S.sel = -1; S.dead = !legalMoves(S.jars).length && !isSolved(S.jars);
+  syncHud();
+}
+function doResh() {
+  if (S.winT > 0) { flash('已匀成 · 这就上账'); return; }   /* 胜利锁定窗口（G3-M1+R4：重排后被判通关=绕关） */
+  if (S.mode !== 'play') return;
+  S.reshN++;
+  var gen = genLevel(S.level, lvSeed(S.reshN));
+  S.jars = gen.jars; S.ref = gen.ref; S.k = gen.k;
+  S.sel = -1; S.steps = 0; S.undo = []; S.anim = null; S.dead = false;
+  flash('重新打散 · 步数清零');
+  syncHud();
+}
+
+/* ============ 输入 ============ */
+function onDown(x, y) {
+  ensureAC();
+  if (S.mode !== 'play' || S.anim || S.winT > 0) return;   /* winT 窗口 tap 亦锁（R2：防结算 steps 漂移） */
+  var j = jarHit(x, y);
+  if (j < 0) { S.sel = -1; return; }
+  if (S.sel < 0) {
+    if (!S.jars[j].length) { S.shakeT = 200; S.shakeJ = j; return; }
+    S.sel = j;
+  } else tryPour(j);
+}
+cv.addEventListener('pointerdown', function (e) {
+  var r = cv.getBoundingClientRect();
+  onDown(Math.round((e.clientX - r.left) * (CFG.W / r.width)), Math.round((e.clientY - r.top) * (CFG.H / r.height)));
+});
+
+/* ============ 绘制 ============ */
+function rrect(x, y, w, h, r) {
+  g.beginPath();
+  g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+}
+function drawJar(i, ph) {
+  var r = jarRect(i), j = S.jars[i];
+  var shx = 0;
+  if (S.shakeT > 0 && S.shakeJ === i) shx = Math.sin(S.shakeT / 22) * 5;
+  g.save(); g.translate(shx, 0);
+  /* 坛影 */
+  g.fillStyle = 'rgba(0,0,0,.3)';
+  g.beginPath(); g.ellipse(r.x + r.w / 2, r.y + r.h - 4, r.w * .42, 6, 0, 0, 7); g.fill();
+  /* 坛身 */
+  var bx = r.x + 5, bw = r.w - 10;
+  var grd = g.createLinearGradient(bx, 0, bx + bw, 0);
+  grd.addColorStop(0, '#3e2c1c'); grd.addColorStop(.5, '#57402a'); grd.addColorStop(1, '#3e2c1c');
+  g.fillStyle = grd;
+  rrect(bx, r.y + CFG.NECK - 8, bw, r.h - CFG.NECK + 4, 14); g.fill();
+  g.strokeStyle = '#2a1c10'; g.lineWidth = 2; g.stroke();
+  /* 坛口 */
+  g.fillStyle = '#6a4e30';
+  rrect(r.x + 12, r.y, r.w - 24, CFG.NECK, 5); g.fill();
+  g.strokeStyle = '#2a1c10'; g.lineWidth = 1.5; g.stroke();
+  /* 液层（底→顶） */
+  var liqY = r.y + CFG.NECK + 2, liqH = CFG.LAY_H * CFG.CAP;
+  g.save();
+  rrect(bx + 4, liqY, bw - 8, liqH, 10); g.clip();
+  for (var L = 0; L < j.length; L++) {
+    var yy = liqY + liqH - CFG.LAY_H * (L + 1);
+    g.fillStyle = PAL[j[L]];
+    g.fillRect(bx + 4, yy, bw - 8, CFG.LAY_H);
+    /* 液面高光 */
+    g.fillStyle = 'rgba(255,244,220,.28)';
+    g.fillRect(bx + 4, yy, bw - 8, 3);
+  }
+  /* 倒入动画：目标坛顶段增长 */
+  if (S.anim && S.anim.b === i) {
+    var grow = S.anim.t * S.anim.x;
+    var yy2 = liqY + liqH - CFG.LAY_H * (j.length + grow);
+    g.fillStyle = PAL[S.jars[S.anim.a][S.jars[S.anim.a].length - 1]];
+    g.fillRect(bx + 4, yy2, bw - 8, CFG.LAY_H * grow);
+    g.fillStyle = 'rgba(255,244,220,.35)';
+    g.fillRect(bx + 4, yy2, bw - 8, 3);
+  }
+  g.restore();
+  /* 倒出动画：源坛顶段逐渐消失（先盖坛底色再画剩余层） */
+  if (S.anim && S.anim.a === i) {
+    g.save();
+    rrect(bx + 4, liqY, bw - 8, liqH, 10); g.clip();
+    var runA = topRun(S.jars[i]);
+    var baseA = S.jars[i].length - runA;
+    var leftA = runA - S.anim.x * S.anim.t;
+    var topY = liqY + liqH - CFG.LAY_H * S.jars[i].length;
+    g.fillStyle = '#241a10';
+    g.fillRect(bx + 4, topY, bw - 8, CFG.LAY_H * runA);
+    if (leftA > 0) {
+      var cA = S.jars[i][S.jars[i].length - 1];
+      for (var q = 0; q < Math.ceil(leftA); q++) {
+        var yq = liqY + liqH - CFG.LAY_H * (baseA + q + 1);
+        g.fillStyle = PAL[cA]; g.fillRect(bx + 4, yq, bw - 8, CFG.LAY_H);
+        g.fillStyle = 'rgba(255,244,220,.28)'; g.fillRect(bx + 4, yq, bw - 8, 3);
+      }
+    }
+    g.restore();
+  }
+  /* 液流（动画中） */
+  if (S.anim && (S.anim.a === i || S.anim.b === i)) {
+    var ra2 = jarRect(S.anim.a), rb2 = jarRect(S.anim.b);
+    var c1 = S.jars[S.anim.a][S.jars[S.anim.a].length - 1];
+    g.strokeStyle = PAL[c1]; g.lineWidth = 7; g.lineCap = 'round';
+    g.beginPath();
+    var sx = ra2.x + ra2.w / 2, sy = ra2.y + CFG.NECK + 6;
+    var tx = rb2.x + rb2.w / 2, ty = rb2.y + CFG.NECK + CFG.LAY_H * S.jars[S.anim.b].length + 6;
+    g.moveTo(sx, sy);
+    if (Math.abs(sx - tx) < 4) g.lineTo(tx, ty);
+    else { g.quadraticCurveTo((sx + tx) / 2 + (sx < tx ? 14 : -14), (sy + ty) / 2, tx, ty); }
+    g.stroke();
+  }
+  /* 顶色签（坛口下小字） */
+  if (j.length) {
+    g.fillStyle = 'rgba(244,232,200,.85)';
+    g.font = '10px system-ui'; g.textAlign = 'center';
+    g.fillText(PNAME[j[j.length - 1]], r.x + r.w / 2, r.y + r.h + 14);
+  } else {
+    g.fillStyle = 'rgba(168,152,120,.5)';
+    g.font = '10px system-ui'; g.textAlign = 'center';
+    g.fillText('空', r.x + r.w / 2, r.y + r.h + 14);
+  }
+  /* 选中金边（呼吸） */
+  if (S.sel === i) {
+    g.strokeStyle = 'rgba(201,164,78,' + (.55 + .35 * Math.sin(ph)) + ')';
+    g.lineWidth = 3;
+    rrect(bx - 2, r.y - 2, bw + 4, r.h + 6, 14); g.stroke();
+    /* 顶段提亮 */
+    var runN = topRun(j);
+    if (runN) {
+      var ry = liqY + liqH - CFG.LAY_H * runN;
+      g.fillStyle = 'rgba(255,236,180,.22)';
+      g.fillRect(bx + 4, ry, bw - 8, CFG.LAY_H * runN);
+    }
+  } else if (S.sel >= 0) {
+    /* 合法目标：坛口亮环 */
+    var ok = legalMoves(S.jars).some(function (m) { return m[0] === S.sel && m[1] === i; });
+    if (ok) {
+      g.strokeStyle = 'rgba(201,164,78,' + (.3 + .18 * Math.sin(ph)) + ')';
+      g.lineWidth = 2;
+      g.beginPath(); g.ellipse(r.x + r.w / 2, r.y + 7, 20, 6, 0, 0, 7); g.stroke();
+    }
+  }
+  g.restore();
+}
+function draw1() {
+  var ph = S.ph;
+  /* 酒窖底 */
+  var bg = g.createLinearGradient(0, 0, 0, CFG.H);
+  bg.addColorStop(0, '#221710'); bg.addColorStop(.5, '#1c130c'); bg.addColorStop(1, '#150e08');
+  g.fillStyle = bg; g.fillRect(0, 0, CFG.W, CFG.H);
+  /* 背景酒架横梁 */
+  g.strokeStyle = 'rgba(90,64,38,.35)'; g.lineWidth = 8;
+  g.beginPath(); g.moveTo(0, 96); g.lineTo(390, 96); g.stroke();
+  g.strokeStyle = 'rgba(90,64,38,.22)'; g.lineWidth = 5;
+  g.beginPath(); g.moveTo(0, 560); g.lineTo(390, 560); g.stroke();
+  for (var i = 0; i < S.jars.length; i++) drawJar(i, ph);
+  /* 死局提示带 */
+  if (S.dead && S.mode === 'play') {
+    g.fillStyle = 'rgba(176,67,74,.85)';
+    g.font = '13px system-ui'; g.textAlign = 'center';
+    g.fillText('酒匀不开 · 撤一步或重排此关', 195, 700);
+  }
+  /* 新关提示 */
+  if (S.hintT > 0 && S.mode === 'play') {
+    g.globalAlpha = Math.min(1, S.hintT / 500);
+    g.fillStyle = '#c9b490';
+    g.font = '13px system-ui'; g.textAlign = 'center';
+    g.fillText(S.hint, 195, 118);
+    g.globalAlpha = 1;
+  }
+}
+function tick(dt) {
+  S.ph = (S.ph + dt / 600) % (Math.PI * 2);
+  if (S.mode !== 'pause') {
+    if (S.flashT > 0) {
+      S.flashT -= dt;
+      els['flash'].textContent = S.flashTxt;
+      els['flash'].style.opacity = S.flashT > 0 ? 1 : 0;
+    }
+    if (S.shakeT > 0) S.shakeT -= dt;
+    if (S.hintT > 0) S.hintT -= dt;
+    if (S.anim) {
+      S.anim.t += dt / CFG.POUR_T;
+      if (S.anim.t >= 1) { S.anim.t = 1; finishPour(); }
+    }
+    if (S.winT > 0) {
+      S.winT -= dt;
+      if (S.winT <= 0 && S.mode === 'play') {
+        S.winT = 0;
+        S.mode = 'over';
+        var last = S.level >= MAXL;
+        els['o-title'].textContent = last ? '三十关全匀成' : '第 ' + S.level + ' 关 · 匀成';
+        els['o-sub'].textContent = '步数 ' + S.steps + ' · 参考 ' + S.ref;
+        els['o-best'].textContent = '坊史最深 · 第 ' + S.best + ' 关';
+        els['btn-next'].textContent = last ? '再酿一轮' : '下一关';
+        show('over', true); els['abtns'].classList.remove('on');
+      }
+    }
+  }
+  if (S.mode === 'play' || S.mode === 'pause') draw1();
+}
+
+/* ============ 主循环 ============ */
+var lastT = 0;
+function loop(t) {
+  var dt = Math.min(50, t - lastT); lastT = t;
+  tick(dt);
+  requestAnimationFrame(loop);
+}
+
+/* ============ 按钮 ============ */
+els['btn-go'].addEventListener('click', function () { ensureAC(); go(); });
+function go() {
+  var b = 1;
+  try { b = +(localStorage.getItem('g106_best') || 0); } catch (e) { }
+  S.best = b || 0;
+  S.reshN = 0;
+  startLevel(Math.min(MAXL, (b || 0) + 1 <= MAXL ? (b || 0) + 1 : 1));
+  S.mode = 'play';
+  show('menu', false); show('hud', true);
+  syncHud();
+}
+els['btn-next'].addEventListener('click', function () {
+  ensureAC();
+  var nx = S.level >= MAXL ? 1 : S.level + 1;
+  S.reshN = 0;
+  startLevel(nx); S.mode = 'play';
+  show('over', false); syncHud();
+});
+els['btn-menu2'].addEventListener('click', function () { toMenu(); });
+els['btn-menu'].addEventListener('click', function () { toMenu(); });
+function toMenu() {
+  S.mode = 'menu'; show('over', false); show('pause', false); show('hud', false);
+  els['abtns'].classList.remove('on');
+  try { S.best = +(localStorage.getItem('g106_best') || 0) || 0; } catch (e) { S.best = 0; }
+  els['m-best'].textContent = S.best ? '坊史最深 · 第 ' + S.best + ' 关' : '新开的老酒坊';
+  show('menu', true);
+}
+els['btn-pause'].addEventListener('click', function () {
+  if (S.mode !== 'play') return;
+  S.pauseFrom = 'play'; S.mode = 'pause';
+  els['p-sub'].textContent = '第 ' + S.level + ' 关 · 步数 ' + S.steps;
+  show('pause', true); els['abtns'].classList.remove('on');
+});
+els['btn-resume'].addEventListener('click', function () {
+  if (S.mode !== 'pause') return;
+  S.mode = S.pauseFrom === 'play' ? 'play' : S.pauseFrom;
+  show('pause', false); syncHud();
+});
+els['btn-restart'].addEventListener('click', function () {
+  if (S.mode !== 'pause') return;
+  show('pause', false);
+  S.mode = 'play'; doResh(); syncHud();
+});
+els['btn-undo'].addEventListener('click', function () { ensureAC(); doUndo(); });
+els['btn-resh'].addEventListener('click', function () { ensureAC(); doResh(); });
+els['btn-snd'].addEventListener('click', function () {
+  S.muted = !S.muted;
+  try { localStorage.setItem('g106_mute', S.muted ? '1' : '0'); } catch (e) { }
+  els['btn-snd'].textContent = S.muted ? '♪̸' : '♪';
+  if (!S.muted) { ensureAC(); SND.done(); }
+});
+window.addEventListener('blur', function () { if (S.mode === 'play') { S.pauseFrom = 'play'; S.mode = 'pause'; els['p-sub'].textContent = '第 ' + S.level + ' 关 · 步数 ' + S.steps; show('pause', true); els['abtns'].classList.remove('on'); } });
+document.addEventListener('visibilitychange', function () { if (document.hidden && S.mode === 'play') { S.pauseFrom = 'play'; S.mode = 'pause'; els['p-sub'].textContent = '第 ' + S.level + ' 关 · 步数 ' + S.steps; show('pause', true); els['abtns'].classList.remove('on'); } });
+
+/* ============ boot ============ */
+(function boot() {
+  try {
+    S.muted = (localStorage.getItem('g106_mute') || '1') === '1';
+    S.best = +(localStorage.getItem('g106_best') || 0) || 0;
+  } catch (e) { }
+  els['btn-snd'].textContent = S.muted ? '♪̸' : '♪';
+  els['m-best'].textContent = S.best ? '坊史最深 · 第 ' + S.best + ' 关' : '新开的老酒坊';
+  requestAnimationFrame(loop);
+})();
+
+
+</script>
+</body>
+</html>
