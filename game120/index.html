@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>胡同挪车</title>
+<style>
+  html,body{margin:0;padding:0;background:#241a14;height:100%;overflow:hidden;touch-action:none;
+    font-family:"PingFang SC","Microsoft YaHei",sans-serif;-webkit-user-select:none;user-select:none}
+  #app{position:relative;width:390px;height:844px;margin:0 auto;background:#241a14;overflow:hidden}
+  canvas{position:absolute;left:0;top:64px;width:390px;height:780px}
+  #hud{position:absolute;left:0;top:0;width:390px;height:64px;box-sizing:border-box;padding:0 12px;
+    display:flex;align-items:center;justify-content:space-between;z-index:5;color:#e8d8b0;font-size:15px}
+  #hud .lt{font-size:14px;color:#d8b878;letter-spacing:1px}
+  #hud .md{font-size:16px;color:#f0e0c0;letter-spacing:2px}
+  #hud .rt{font-size:14px;color:#d8b878;margin-right:96px}  /* 让位 pause/mute 两钮（VLM M1 实锤叠压） */
+  .hbtn{position:absolute;top:16px;width:32px;height:32px;border-radius:8px;border:1px solid #6a543a;
+    background:rgba(58,42,30,.8);color:#d8b878;font-size:16px;line-height:30px;text-align:center;z-index:6;cursor:pointer}
+  #pauseBtn{right:56px}
+  #muteBtn{right:14px}
+  #lvbar{position:absolute;left:0;top:64px;width:390px;height:68px;box-sizing:border-box;overflow-x:auto;
+    overflow-y:hidden;display:flex;align-items:center;gap:6px;padding:8px 12px;z-index:5;background:linear-gradient(180deg,#33241a,#2a1e15);
+    border-bottom:2px solid #4a3528;scrollbar-width:none}
+  #lvbar::-webkit-scrollbar{display:none}
+  .lvc{flex:0 0 52px;width:52px;height:52px;border-radius:9px;border:1.5px solid #5a4432;background:#3a2a1e;
+    color:#d8b878;font-size:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer}
+  .lvc .num{font-size:15px;color:#e8d8b0}
+  .lvc .st{font-size:9px;color:#c9a34e;letter-spacing:-1px}
+  .lvc.lock{opacity:.35;cursor:default}
+  .lvc.cur{border-color:#c9a34e;background:#4a3524;box-shadow:0 0 8px rgba(201,163,78,.35)}
+  .lay{position:absolute;left:0;top:64px;width:390px;height:780px;z-index:9;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;background:rgba(20,12,8,.82)}
+  .lay.hide{display:none}
+  .lay h1{color:#f0e0c0;font-size:34px;letter-spacing:8px;margin:0 0 10px;font-weight:600}
+  .lay h2{color:#e8d8b0;font-size:26px;letter-spacing:6px;margin:0 0 14px;font-weight:600}
+  .lay .sub{color:#b89a6a;font-size:13px;letter-spacing:2px;margin-bottom:26px;line-height:1.9;text-align:center}
+  .lay .stars{font-size:40px;letter-spacing:10px;margin:6px 0 12px;color:#c9a34e;text-shadow:0 0 14px rgba(201,163,78,.6)}
+  .lay .stars .off{color:#4a3a28;text-shadow:none}
+  .lay .verdict{color:#d8b878;font-size:17px;letter-spacing:5px;margin-bottom:8px}
+  .lay .stat{color:#a89068;font-size:13px;letter-spacing:2px;margin-bottom:24px}
+  .lay button{width:180px;height:46px;margin:6px 0;border-radius:10px;border:1.5px solid #8a6a3e;
+    background:linear-gradient(180deg,#5a4028,#46311e);color:#f0e0c0;font-size:17px;letter-spacing:6px;cursor:pointer}
+  .lay button:active{background:#6a4c2e}
+  #winlay .stars span{animation:starpop .45s ease-out both}  /* 逐亮：内联 delay .05/.35/.65s；vm 断言读 class 不受影响 */
+  #winlay .stars span.off{animation:none}
+  @keyframes starpop{from{opacity:.12;transform:scale(.55)}to{opacity:1;transform:scale(1)}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div class="lt" id="hstar">★ 0/72</div>
+    <div class="md" id="hname">胡同挪车</div>
+    <div class="rt" id="hsteps">步 0</div>
+  </div>
+  <div class="hbtn" id="pauseBtn">Ⅱ</div>
+  <div class="hbtn" id="muteBtn">♪</div>
+  <div id="lvbar"></div>
+  <canvas id="cv" width="390" height="780"></canvas>
+
+  <div class="lay" id="menu">
+    <h1>胡同挪车</h1>
+    <div class="sub">黄昏收摊，窄巷里车挤车<br>把红灯糕车挪出巷口，就回家吃饭</div>
+    <button id="startBtn">进 巷</button>
+    <div class="sub" style="margin-top:22px" id="menuStar">已攒 ★ 0/72</div>
+  </div>
+
+  <div class="lay hide" id="pauseLay">
+    <h2>歇 一 会</h2>
+    <button id="resumeBtn">继 续</button>
+    <button id="restartBtn">重 开 本 关</button>
+    <button id="homeBtn">回 巷 口</button>
+  </div>
+
+  <div class="lay hide" id="winlay">
+    <h2 id="winTitle">出 巷 了</h2>
+    <div class="stars" id="winStars"></div>
+    <div class="verdict" id="winVerdict"></div>
+    <div class="stat" id="winStat"></div>
+    <button id="nextBtn">下 一 关</button>
+    <button id="retryBtn">再 挪 一 次</button>
+    <button id="homeBtn2">回 巷 口</button>
+  </div>
+</div>
+<script>
+'use strict';
+/* ===== 常量（冻结） ===== */
+const W = 6, H = 6, G = 56, OX = 27, OY = 236, EXIT_ROW = 2, HERO_LEN = 2;
+const K_BEST = 'g120_best', K_MUTE = 'g120_mute';
+const LVLS = [
+  {n:1,par:3,cars:[[2,3,2,1],[2,5,2,0],[2,1,2,0],[3,2,2,0],[4,5,2,0],[1,4,2,1],[1,0,2,0]]},
+  {n:2,par:3,cars:[[2,2,2,1],[2,1,2,0],[5,1,3,1],[1,5,2,0],[2,4,2,0]]},
+  {n:3,par:4,cars:[[2,1,2,1],[1,5,2,0],[1,3,3,0],[3,0,3,0],[2,4,2,0]]},
+  {n:4,par:4,cars:[[2,1,2,1],[0,3,3,0],[3,1,2,0],[1,5,2,0],[1,4,3,0]]},
+  {n:5,par:5,cars:[[2,1,2,1],[0,5,3,0],[4,1,3,1],[1,3,3,0],[1,4,2,0]]},
+  {n:6,par:6,cars:[[2,2,2,1],[4,3,3,1],[3,2,2,0],[0,5,3,0],[2,4,2,0]]},
+  {n:7,par:7,cars:[[2,1,2,1],[1,5,2,0],[3,1,3,0],[1,3,2,0],[1,4,3,0],[5,2,3,1],[0,2,2,1]]},
+  {n:8,par:7,cars:[[2,0,2,1],[3,1,3,1],[0,3,3,0],[0,0,2,1],[2,4,3,0],[1,2,2,0],[5,4,2,1],[0,5,3,0]]},
+  {n:9,par:7,cars:[[2,2,2,1],[3,2,2,0],[0,0,3,1],[3,5,3,0],[0,3,2,1],[1,5,2,0],[1,4,3,0],[4,3,2,1]]},
+  {n:10,par:8,cars:[[2,2,2,1],[1,0,2,0],[0,5,3,0],[4,4,2,1],[1,4,3,0],[3,2,3,0]]},
+  {n:11,par:9,cars:[[2,0,2,1],[2,4,2,0],[2,2,2,0],[4,5,2,0],[2,3,2,0],[5,1,2,1],[4,1,3,1],[2,5,2,0],[0,3,3,1]]},
+  {n:12,par:12,cars:[[2,0,2,1],[1,5,3,0],[3,1,3,1],[5,1,2,1],[1,3,2,0],[1,4,2,0],[0,2,3,0],[1,0,2,1],[5,3,3,1]]},
+  {n:13,par:13,cars:[[2,2,2,1],[5,4,2,1],[1,2,3,1],[1,0,3,0],[0,1,3,0],[0,4,2,1],[5,2,2,1],[1,5,3,0],[4,4,2,1],[2,4,2,0],[3,3,2,0]]},
+  {n:14,par:13,cars:[[2,1,2,1],[1,4,2,0],[4,2,2,1],[2,5,2,0],[4,5,2,0],[0,3,3,0],[3,1,2,0],[1,0,2,0],[5,0,2,1]]},
+  {n:15,par:14,cars:[[2,0,2,1],[4,2,2,1],[2,4,2,0],[2,5,3,0],[1,2,3,0],[3,0,2,0],[0,3,3,0],[0,0,3,1]]},
+  {n:16,par:14,cars:[[2,2,2,1],[0,5,3,0],[0,2,2,1],[5,1,2,1],[3,3,2,0],[2,4,2,0],[1,2,3,1],[5,4,2,1],[3,0,3,0],[1,1,3,0],[4,4,2,1]]},
+  {n:17,par:15,cars:[[2,2,2,1],[1,1,2,1],[5,0,2,1],[0,3,3,1],[4,2,2,0],[2,1,3,0],[2,4,2,0],[0,1,2,1],[1,5,3,0],[4,3,3,1],[5,4,2,1]]},
+  {n:18,par:15,cars:[[2,1,2,1],[5,2,3,1],[2,0,3,0],[2,4,2,0],[0,2,2,0],[4,1,2,0],[1,3,3,0],[3,1,2,1],[0,5,3,0],[4,4,2,1]]},
+  {n:19,par:15,cars:[[2,1,2,1],[2,3,2,0],[2,5,3,0],[3,2,3,0],[1,4,3,0],[3,1,2,0],[4,3,2,1],[0,1,3,1]]},
+  {n:20,par:15,cars:[[2,1,2,1],[0,3,3,0],[2,5,3,0],[2,4,2,0],[2,0,2,0],[4,1,2,0],[4,2,2,1],[0,1,2,1],[5,3,2,1]]},
+  {n:21,par:17,cars:[[2,1,2,1],[1,4,2,0],[0,1,3,1],[2,0,3,0],[1,1,2,1],[5,0,3,1],[0,0,2,0],[2,3,3,0],[1,5,3,0],[4,4,2,1],[3,2,2,0]]},
+  {n:22,par:17,cars:[[2,0,2,1],[3,1,2,0],[0,4,3,0],[4,3,2,1],[2,3,2,0],[3,2,2,0],[1,2,2,0],[1,5,2,0],[5,2,3,1],[0,0,3,1]]},
+  {n:23,par:19,cars:[[2,0,2,1],[4,3,3,1],[1,4,2,0],[4,1,2,1],[5,0,3,1],[1,3,2,0],[0,2,3,1],[2,2,2,0],[3,0,2,0],[3,4,2,1],[0,5,3,0]]},
+  {n:24,par:20,cars:[[2,0,2,1],[1,0,2,1],[0,3,3,0],[2,4,2,0],[5,4,2,1],[2,5,3,0],[0,2,3,0],[3,2,2,1],[3,0,2,0]]}
+];
+const TIER_NAMES = ['入门', '进阶', '高手', '大师'];
+const CAR_TYPES = [
+  { body: '#7a8a5a', dark: '#55663c', name: '菜筐' },  // 筐：青菜绿
+  { body: '#5a7a8a', dark: '#3e5a68', name: '鱼桶' },  // 桶：鱼市青
+  { body: '#4a4a4a', dark: '#303030', name: '炭车' },  // 炭：乌黑
+  { body: '#a8865a', dark: '#7a5e3c', name: '木箱' },  // 箱：原木
+  { body: '#9a5a72', dark: '#6e3e50', name: '花车' },  // 花：胭脂
+];
+const HERO_BODY = '#a83a2e', HERO_GOLD = '#c9a34e';
+
+/* ===== 状态 ===== */
+var S = {
+  phase: 'menu',        // menu | play | pause | winT | win
+  lv: 1, cars: [],      // [{r,c0,len,hz,pos,type}] pos=轴向绝对位（横=c/竖=r）
+  steps: 0, sel: -1, dragPos: null, pid: null, downXY: null, pos0: 0,
+  winT: 0, wonLv: 0, wonStars: 0,
+};
+var BEST = {};          // {lv:{steps,stars}}
+var AC = null, muted = false;
+
+/* ===== 音效（WebAudio 短合成；AC 手势内建+一次性 wake——g89 J2 范式） ===== */
+function ensureAC() { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = null; } } }
+function wake() { ensureAC(); if (AC && AC.state === 'suspended') { AC.resume(); } document.removeEventListener('pointerdown', wake); }
+document.addEventListener('pointerdown', wake);
+function tone(f, dur, type, vol, slide) {
+  if (muted || !AC) return;
+  try {
+    var o = AC.createOscillator(), g = AC.createGain();
+    o.type = type || 'sine'; o.frequency.value = f;
+    if (slide) { o.frequency.exponentialRampToValueAtTime(Math.max(40, f + slide), AC.currentTime + dur); }
+    g.gain.value = vol || 0.08;
+    g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + dur);
+    o.connect(g); g.connect(AC.destination);
+    o.start(); o.stop(AC.currentTime + dur);
+  } catch (e) {}
+}
+function sndPick() { tone(800, 0.05, 'square', 0.04); }
+function sndSlide(n) { tone(120 + n * 30, 0.08, 'sawtooth', 0.05, -40); }
+function sndBump() { tone(120, 0.1, 'triangle', 0.09, -30); }
+function sndBell() { tone(1320, 0.5, 'sine', 0.08, -100); }
+function sndWin() { [523, 659, 784].forEach(function (f, i) { setTimeout(function () { tone(f, 0.22, 'sine', 0.09); }, i * 130); }); }
+function sndStars3() { [523, 659, 784, 1046].forEach(function (f, i) { setTimeout(function () { tone(f, 0.2, 'sine', 0.08); }, i * 110); }); }
+
+/* ===== 存档 ===== */
+function loadBest() { try { BEST = JSON.parse(localStorage.getItem(K_BEST) || '{}'); } catch (e) { BEST = {}; } }
+function saveBest() { try { localStorage.setItem(K_BEST, JSON.stringify(BEST)); } catch (e) {} }
+function totalStars() { var t = 0; for (var k in BEST) { if (BEST[k] && BEST[k].stars) t += Number(BEST[k].stars) || 0; } return t; }
+
+/* ===== 关卡与移动 ===== */
+function loadLv(n) {
+  var L = LVLS[n - 1];
+  S.lv = n; S.steps = 0; S.sel = -1; S.dragPos = null; S.winT = 0;
+  S.pid = null; S._bumped = false;  // G3 M1：多指拖动中切关→pid 孤儿化全输入死锁，载关即清
+  // pos=轴向绝对位（横=c0/竖=r0）
+  S.cars = L.cars.map(function (c, i) {
+    return { r: c[0], c0: c[1], len: c[2], hz: c[3] ? 1 : 0, pos: c[3] ? c[1] : c[0], type: i === 0 ? 'hero' : ((i - 1) % 5) };
+  });
+}
+function carCells(car, pos) {
+  var out = [];
+  for (var k = 0; k < car.len; k++) {
+    out.push(car.hz ? [car.r, pos + k] : [pos + k, car.c0]);
+  }
+  return out;
+}
+function occupancy(excl) {
+  var occ = {};
+  for (var i = 0; i < S.cars.length; i++) {
+    if (i === excl) continue;
+    var cs = carCells(S.cars[i], S.cars[i].pos);
+    for (var j = 0; j < cs.length; j++) occ[cs[j][0] + ',' + cs[j][1]] = 1;
+  }
+  return occ;
+}
+function freeRange(i) {  // 车 i 当前可滑区间 [min,max]
+  var car = S.cars[i], occ = occupancy(i), lo = car.pos, hi = car.pos;
+  while (lo - 1 >= 0) { if (blockedAt(car, lo - 1, occ)) break; lo--; }
+  var dom = car.hz ? W - car.len : H - car.len;
+  while (hi + 1 <= dom) { if (blockedAt(car, hi + 1, occ)) break; hi++; }
+  return [lo, hi];
+}
+function blockedAt(car, np, occ) {
+  var cs = carCells(car, np);
+  for (var j = 0; j < cs.length; j++) if (occ[cs[j][0] + ',' + cs[j][1]]) return true;
+  return false;
+}
+function legalMove(i, np) {
+  var car = S.cars[i], fr = freeRange(i);
+  var dom = car.hz ? W - car.len : H - car.len;
+  if (np < 0 || np > dom || np < fr[0] || np > fr[1]) return false;
+  return true;
+}
+function doMove(i, np) {  // 落定（含计步+胜利）
+  var car = S.cars[i], pre = car.pos;
+  if (np === pre) return false;
+  if (!legalMove(i, np)) throw new Error('illegal move car' + i + '->' + np);
+  car.pos = np;
+  sndSlide(Math.abs(np - pre) || 1);  // 主角移动同发滑动音（G3 minor：SPEC 未豁免）
+  S.steps++; updHud();
+  if (S.cars[0].pos === W - HERO_LEN && S.phase === 'play') startWin();
+  return true;
+}
+function startWin() {
+  S.phase = 'winT'; S.winT = 1.2;
+  sndBell();
+}
+function starsOf(steps, par) { return steps <= par ? 3 : (steps <= par + 2 ? 2 : 1); }
+function parOf(n) { return LVLS[n - 1].par; }
+
+/* ===== HUD/选关带 ===== */
+function updHud() {
+  document.getElementById('hstar').textContent = '★ ' + totalStars() + '/72';
+  var tier = TIER_NAMES[Math.floor((S.lv - 1) / 6)];
+  document.getElementById('hname').textContent = S.lv > 0 ? ('第' + S.lv + '关 · ' + tier) : '胡同挪车';
+  document.getElementById('hsteps').textContent = '步 ' + S.steps + '（par ' + parOf(S.lv) + '）';
+}
+function unlocked(n) { return n === 1 || !!(BEST[n - 1] && BEST[n - 1].stars >= 1); }
+function buildBar() {
+  var bar = document.getElementById('lvbar');
+  bar.innerHTML = '';
+  for (var n = 1; n <= 24; n++) {
+    (function (n) {
+      var d = document.createElement('div');
+      d.className = 'lvc' + (unlocked(n) ? '' : ' lock') + (n === S.lv ? ' cur' : '');
+      var st = BEST[n] ? BEST[n].stars : 0;
+      d.innerHTML = '<div class="num">' + n + '</div><div class="st">' + (unlocked(n) ? ('★★★'.slice(0, st) || '·') : '锁') + '</div>';
+      if (unlocked(n)) d.onclick = function () { if (S.phase === 'play' || S.phase === 'menu') { enterLv(n); } };
+      bar.appendChild(d);
+    })(n);
+  }
+  var cur = bar.querySelector('.cur');
+  if (cur) cur.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'instant' });
+}
+function enterLv(n) {
+  loadLv(n); S.phase = 'play';
+  document.getElementById('menu').classList.add('hide');
+  document.getElementById('winlay').classList.add('hide');
+  document.getElementById('pauseLay').classList.add('hide');
+  buildBar(); updHud();
+}
+
+/* ===== 渲染 ===== */
+var cv = document.getElementById('cv'), c = cv.getContext('2d');
+function rr(x, y, w, h, r) {
+  c.beginPath();
+  c.moveTo(x + r, y);
+  c.arcTo(x + w, y, x + w, y + h, r);
+  c.arcTo(x + w, y + h, x, y + h, r);
+  c.arcTo(x, y + h, x, y, r);
+  c.arcTo(x, y, x + w, y, r);
+  c.closePath();
+}
+function draw(dt) {
+  /* 巷底（canvas 系满幅 0-780） */
+  c.fillStyle = '#241a14'; c.fillRect(0, 0, 390, 780);
+  /* 顶带天光（盘上方 0-172 canvas 系：墙檐+匾额区） */
+  var sky = c.createLinearGradient(0, 0, 0, 236);
+  sky.addColorStop(0, '#6a4630'); sky.addColorStop(1, '#3a2a1e');
+  c.fillStyle = sky; c.fillRect(0, 0, 390, 236);
+  /* 砖墙（盘区外圈墙裙） */
+  c.fillStyle = '#4a3528';
+  c.fillRect(0, 150, 27, 426); c.fillRect(363, 150, 27, 426);   // 左右墙
+  c.fillRect(0, 150, 390, 86); c.fillRect(0, 576, 390, 84);      // 上下墙（盘 y 236-572 外圈）
+  /* 砖缝 */
+  c.strokeStyle = 'rgba(30,20,14,.5)'; c.lineWidth = 1;
+  for (var yy = 158; yy < 576; yy += 14) { c.beginPath(); c.moveTo(0, yy); c.lineTo(390, yy); c.stroke(); }
+  /* 盘底石板 */
+  c.fillStyle = '#55402e'; c.fillRect(OX, OY, 336, 336);
+  c.strokeStyle = '#3d2e20'; c.lineWidth = 2;
+  for (var i = 0; i <= 6; i++) {
+    c.beginPath(); c.moveTo(OX + i * G, OY); c.lineTo(OX + i * G, OY + 336); c.stroke();
+    c.beginPath(); c.moveTo(OX, OY + i * G); c.lineTo(OX + 336, OY + i * G); c.stroke();
+  }
+  /* 巷口（右壁 row2 开口+暖光晕；G3 minor：EXIT_ROW 常量化） */
+  var glow = 0.5 + 0.5 * Math.sin(performance.now() / 700);
+  var eg = c.createRadialGradient(363, OY + (EXIT_ROW + .5) * G, 4, 363, OY + (EXIT_ROW + .5) * G, 70 + glow * 16);
+  eg.addColorStop(0, 'rgba(232,201,106,' + (0.55 + glow * 0.25) + ')');
+  eg.addColorStop(1, 'rgba(232,201,106,0)');
+  c.fillStyle = eg; c.fillRect(340, OY + G, 50, G * 3);
+  c.fillStyle = '#e8c96a'; c.fillRect(363, OY + EXIT_ROW * G + 3, 27, G - 6);
+  c.fillStyle = '#8a6a3e'; c.font = '11px sans-serif'; c.textAlign = 'center';
+  c.fillText('巷 口', 376, OY + EXIT_ROW * G - 8);
+  /* 匾额 */
+  c.fillStyle = '#3a2a1c'; rr(105, 96, 180, 44, 8); c.fill();
+  c.strokeStyle = '#8a6a3e'; c.lineWidth = 2; rr(105, 96, 180, 44, 8); c.stroke();
+  c.fillStyle = '#d8b878'; c.font = '17px serif'; c.fillText('黄 昏 窄 巷', 195, 124);
+  /* 车 */
+  for (var ci = 0; ci < S.cars.length; ci++) drawCar(ci);
+  /* 选中轨道 */
+  if (S.sel >= 0 && S.phase === 'play') {
+    var car = S.cars[S.sel], fr = freeRange(S.sel);
+    var pos = S.dragPos === null ? car.pos : S.dragPos;
+    var x0, y0, len;
+    if (car.hz) { x0 = OX + fr[0] * G; y0 = OY + car.r * G + G / 2; len = (fr[1] - fr[0] + car.len) * G; }
+    else { x0 = OX + car.c0 * G + G / 2; y0 = OY + fr[0] * G; len = (fr[1] - fr[0] + car.len) * G; }
+    c.strokeStyle = 'rgba(232,201,106,.4)'; c.lineWidth = 2; c.setLineDash([6, 6]);
+    c.beginPath();
+    if (car.hz) { c.moveTo(x0 + 6, y0); c.lineTo(x0 + len - 6, y0); }
+    else { c.moveTo(x0, y0 + 6); c.lineTo(x0, y0 + len - 6); }
+    c.stroke(); c.setLineDash([]);
+  }
+  /* 底部提示 */
+  c.fillStyle = '#a89068'; c.font = '13px sans-serif'; c.textAlign = 'center';
+  c.fillText('点住车 · 顺着车向拖 · 糕车出巷口', 195, 640);
+  c.fillStyle = '#7a6448'; c.font = '12px sans-serif';
+  c.fillText('一次挪动算一步 · 步数少星才多', 195, 668);
+  /* winT 滑出演出：主角车向右滑出 */
+  if (S.phase === 'winT') {
+    var t01 = 1 - S.winT / 1.2;
+    var hero = S.cars[0];
+    var extra = t01 * t01 * 160; // 加速滑出
+    drawHeroAt(OX + (hero.pos * G) + extra, OY + hero.r * G);
+    var gg = c.createRadialGradient(363, OY + (EXIT_ROW + .5) * G, 8, 363, OY + (EXIT_ROW + .5) * G, 120 * t01 + 40);
+    gg.addColorStop(0, 'rgba(232,201,106,' + (0.7 * t01) + ')');
+    gg.addColorStop(1, 'rgba(232,201,106,0)');
+    c.fillStyle = gg; c.fillRect(230, OY + G, 160, G * 3);
+  }
+}
+function carRect(ci) {  // 当前渲染矩形（含拖动浮点）
+  var car = S.cars[ci];
+  var pos = (S.dragPos !== null && ci === S.sel) ? S.dragPos : car.pos;
+  if (car.hz) return [OX + pos * G, OY + car.r * G, car.len * G, G];
+  return [OX + car.c0 * G, OY + pos * G, G, car.len * G];
+}
+function drawCar(ci) {
+  var car = S.cars[ci], R = carRect(ci), x = R[0], y = R[1], w = R[2], h = R[3];
+  if (S.phase === 'winT' && ci === 0) return; // 演出单独画
+  if (car.type === 'hero') { drawHeroAt(x, y); return; }
+  var T = CAR_TYPES[car.type];
+  /* 选中抬起效果 */
+  var lift = (S.sel === ci) ? 3 : 0;
+  c.fillStyle = 'rgba(0,0,0,.35)';
+  rr(x + 3, y + 6 - lift, w - 6, h - 6, 7); c.fill();
+  c.fillStyle = T.body; rr(x + 3, y + 3 - lift, w - 6, h - 6, 7); c.fill();
+  c.fillStyle = 'rgba(255,240,210,.18)'; rr(x + 5, y + 5 - lift, w - 10, (h - 10) / 2, 5); c.fill();
+  c.strokeStyle = T.dark; c.lineWidth = 2; rr(x + 3, y + 3 - lift, w - 6, h - 6, 7); c.stroke();
+  /* 类型细节 */
+  c.strokeStyle = 'rgba(30,20,14,.55)'; c.lineWidth = 1.5;
+  if (car.type === 0) {          // 筐：格纹
+    for (var gx = x + 12; gx < x + w - 10; gx += 12) { c.beginPath(); c.moveTo(gx, y + 8 - lift); c.lineTo(gx, y + h - 8 - lift); c.stroke(); }
+    for (var gy = y + 12; gy < y + h - 10; gy += 12) { c.beginPath(); c.moveTo(x + 8, gy - lift); c.lineTo(x + w - 8, gy - lift); c.stroke(); }
+  } else if (car.type === 1) {   // 桶：箍线
+    for (var b = 1; b <= 2; b++) { var by = car.hz ? y + (h / 4) * b : y + (h / 4) * b; c.beginPath(); c.moveTo(x + 8, by - lift); c.lineTo(x + w - 8, by - lift); c.stroke(); }
+  } else if (car.type === 2) {   // 炭：麻点
+    c.fillStyle = 'rgba(20,14,10,.7)';
+    var seeds = [[.3, .3], [.6, .5], [.4, .7], [.7, .28], [.25, .55], [.55, .78]];
+    for (var s = 0; s < seeds.length; s++) {
+      c.beginPath(); c.arc(x + w * seeds[s][0], y + h * seeds[s][1] - lift, 2.2, 0, 7); c.fill();
+    }
+  } else if (car.type === 3) {   // 箱：板缝+货字
+    c.beginPath(); c.moveTo(x + w / 2, y + 8 - lift); c.lineTo(x + w / 2, y + h - 8 - lift); c.stroke();
+    c.fillStyle = 'rgba(30,20,14,.65)'; c.font = (car.hz ? '13' : '13') + 'px serif';
+    c.textAlign = 'center'; c.fillText('货', x + w / 2, y + h / 2 + 5 - lift);
+  } else {                       // 花：花影
+    c.fillStyle = 'rgba(240,190,200,.8)';
+    var fs = [[.32, .32], [.68, .38], [.5, .68], [.3, .62], [.72, .68]];
+    for (var f2 = 0; f2 < fs.length; f2++) {
+      c.beginPath(); c.arc(x + w * fs[f2][0], y + h * fs[f2][1] - lift, 3, 0, 7); c.fill();
+    }
+    c.fillStyle = '#5a3a28';
+    c.beginPath(); c.arc(x + w * .5, y + h * .5 - lift, 2.4, 0, 7); c.fill();
+  }
+  /* 车轮 */
+  c.fillStyle = '#1a120c';
+  var wr = 3.5;
+  if (car.hz) { c.beginPath(); c.arc(x + 12, y + h - 4 - lift, wr, 0, 7); c.fill(); c.beginPath(); c.arc(x + w - 12, y + h - 4 - lift, wr, 0, 7); c.fill(); }
+  else { c.beginPath(); c.arc(x + w - 4, y + 12 - lift, wr, 0, 7); c.fill(); c.beginPath(); c.arc(x + w - 4, y + h - 12 - lift, wr, 0, 7); c.fill(); }
+  /* 选中亮框 */
+  if (S.sel === ci) {
+    c.strokeStyle = '#e8c96a'; c.lineWidth = 2.5; rr(x + 2, y + 2 - lift, w - 4, h - 4, 8); c.stroke();
+  }
+}
+function drawHeroAt(x, y) {
+  var w = HERO_LEN * G, h = G;
+  c.fillStyle = 'rgba(0,0,0,.4)'; rr(x + 3, y + 8, w - 6, h - 6, 8); c.fill();
+  c.fillStyle = HERO_BODY; rr(x + 3, y + 4, w - 6, h - 6, 8); c.fill();
+  c.strokeStyle = HERO_GOLD; c.lineWidth = 2.5; rr(x + 3, y + 4, w - 6, h - 6, 8); c.stroke();
+  c.fillStyle = 'rgba(255,230,180,.2)'; rr(x + 6, y + 7, w - 12, h / 2 - 6, 5); c.fill();
+  /* 车头灯笼 */
+  c.strokeStyle = HERO_GOLD; c.lineWidth = 2;
+  c.beginPath(); c.moveTo(x + w - 8, y + 10); c.lineTo(x + w - 8, y + 18); c.stroke();
+  c.fillStyle = '#d84a34'; c.beginPath(); c.arc(x + w - 8, y + 22, 5, 0, 7); c.fill();
+  c.strokeStyle = '#8a3a28'; c.lineWidth = 1;
+  c.beginPath(); c.arc(x + w - 8, y + 22, 5, 0, 7); c.stroke();
+  /* 糕字 */
+  c.fillStyle = '#f0d8a8'; c.font = '15px serif'; c.textAlign = 'center';
+  c.fillText('糕', x + w / 2 - 6, y + h / 2 + 6);
+  /* 车轮 */
+  c.fillStyle = '#1a120c';
+  c.beginPath(); c.arc(x + 14, y + h - 4, 4, 0, 7); c.fill();
+  c.beginPath(); c.arc(x + w - 14, y + h - 4, 4, 0, 7); c.fill();
+}
+
+/* ===== 主循环（rAF 只跑动效，不推状态） ===== */
+var lastT = 0;
+function loop(t) {
+  var dt = Math.min(0.05, (t - lastT) / 1000 || 0.016); lastT = t;
+  if (S.phase === 'winT') {
+    S.winT -= dt;
+    if (S.winT <= 0) finishWin();
+  }
+  draw(dt);
+  requestAnimationFrame(loop);
+}
+function finishWin() {
+  S.phase = 'win';
+  var par = parOf(S.lv), st = starsOf(S.steps, par);
+  S.wonLv = S.lv; S.wonStars = st;
+  var old = BEST[S.lv];
+  if (!old || S.steps < old.steps || st > old.stars) {
+    BEST[S.lv] = { steps: Math.min(S.steps, old ? old.steps : 999), stars: Math.max(st, old ? old.stars : 0) };
+    saveBest();
+  }
+  var lay = document.getElementById('winlay');
+  document.getElementById('winStars').innerHTML =
+    '<span class="' + (st >= 1 ? '' : 'off') + '" style="animation-delay:.05s">★</span><span class="' + (st >= 2 ? '' : 'off') + '" style="animation-delay:.35s">★</span><span class="' + (st >= 3 ? '' : 'off') + '" style="animation-delay:.65s">★</span>';
+  document.getElementById('winTitle').textContent = '出 巷 了';
+  document.getElementById('winVerdict').textContent = st === 3 ? '巧' : (st === 2 ? '稳' : '过');
+  document.getElementById('winStat').textContent = '第' + S.lv + '关 · ' + S.steps + ' 步（par ' + par + '）';
+  if (S.lv >= 24) {  // 终局彩蛋「巷神」：24 关全 3★（BEST 已含本关，先判后写文案）
+    var all3 = true;
+    for (var n2 = 1; n2 <= 24; n2++) { if (!BEST[n2] || BEST[n2].stars < 3) { all3 = false; break; } }
+    if (all3) {
+      document.getElementById('winTitle').textContent = '巷 神';
+      document.getElementById('winVerdict').textContent = '二十四关全三星';
+      document.getElementById('winStat').textContent = '窄巷尽头的传说 · 收摊回家';
+    }
+  }
+  document.getElementById('nextBtn').textContent = S.lv >= 24 ? '通 巷 啦' : '下 一 关';
+  lay.classList.remove('hide');
+  updHud(); buildBar();
+  sndWin(); if (st === 3) setTimeout(sndStars3, 450);
+}
+
+/* ===== 输入 ===== */
+function evXY(e) { var r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+function hitCar(x, y) {
+  for (var i = S.cars.length - 1; i >= 0; i--) {  // 后画在上层优先
+    var R = carRect(i);
+    if (x >= R[0] + 2 && x <= R[0] + R[2] - 2 && y >= R[1] + 2 && y <= R[1] + R[3] - 2) return i;
+  }
+  return -1;
+}
+cv.addEventListener('pointerdown', function (e) {
+  wake();
+  if (S.phase !== 'play') return;
+  if (S.pid !== null) return;
+  var xy = evXY(e), i = hitCar(xy[0], xy[1]);
+  if (i < 0) return;
+  S.pid = e.pointerId; S.sel = i; S.pos0 = S.cars[i].pos; S.downXY = xy; S.dragPos = S.cars[i].pos;
+  sndPick();
+  e.preventDefault();
+});
+cv.addEventListener('pointermove', function (e) {
+  if (S.phase !== 'play' || e.pointerId !== S.pid || S.sel < 0) return;
+  var xy = evXY(e), car = S.cars[S.sel], fr = freeRange(S.sel);
+  var d = car.hz ? (xy[0] - S.downXY[0]) / G : (xy[1] - S.downXY[1]) / G;
+  var np = S.pos0 + d;
+  if (np < fr[0]) { np = fr[0]; if (!S._bumped) { sndBump(); S._bumped = true; } }
+  if (np > fr[1]) { np = fr[1]; if (!S._bumped) { sndBump(); S._bumped = true; } }
+  S.dragPos = np;
+  e.preventDefault();
+});
+function endDrag(e) {
+  if (e.pointerId !== S.pid || S.sel < 0) return;
+  var np = Math.round(S.dragPos);
+  S._bumped = false; S.pid = null; S.dragPos = null;
+  var i = S.sel; S.sel = -1;
+  if (S.phase === 'play') doMove(i, np);
+}
+cv.addEventListener('pointerup', endDrag);
+cv.addEventListener('pointercancel', endDrag);
+window.addEventListener('blur', function () { if (S.pid !== null) { S.sel = -1; S.pid = null; S.dragPos = null; S._bumped = false; } });
+
+/* ===== 按钮 ===== */
+document.getElementById('startBtn').onclick = function () {
+  wake();
+  var next = 1;
+  for (var n = 24; n >= 1; n--) { if (BEST[n] && BEST[n].stars >= 1) { next = Math.min(24, n + 1); break; } }
+  enterLv(next);
+};
+document.getElementById('pauseBtn').onclick = function () {
+  if (S.phase === 'play') { S.phase = 'pause'; document.getElementById('pauseLay').classList.remove('hide'); }
+};
+document.getElementById('resumeBtn').onclick = function () {
+  if (S.phase === 'pause') { S.phase = 'play'; document.getElementById('pauseLay').classList.add('hide'); }
+};
+document.getElementById('restartBtn').onclick = function () { enterLv(S.lv); };
+document.getElementById('homeBtn').onclick = homeFn;
+document.getElementById('homeBtn2').onclick = homeFn;
+function homeFn() {
+  S.phase = 'menu'; S.cars = [];
+  document.getElementById('pauseLay').classList.add('hide');
+  document.getElementById('winlay').classList.add('hide');
+  document.getElementById('menu').classList.remove('hide');
+  document.getElementById('menuStar').textContent = '已攒 ★ ' + totalStars() + '/72';
+}
+document.getElementById('nextBtn').onclick = function () {
+  if (S.lv >= 24) { homeFn(); return; }
+  enterLv(S.lv + 1);
+};
+document.getElementById('retryBtn').onclick = function () { enterLv(S.lv); };
+document.getElementById('muteBtn').onclick = function () {
+  muted = !muted;
+  try { localStorage.setItem(K_MUTE, muted ? '1' : '0'); } catch (e) {}
+  document.getElementById('muteBtn').textContent = muted ? '⊘' : '♪';
+};
+document.addEventListener('visibilitychange', function () {
+  if (document.hidden && S.phase === 'play') { S.phase = 'pause'; document.getElementById('pauseLay').classList.remove('hide'); }
+});
+
+/* ===== dev 钩子（build 剥离） ===== */
+
+
+/* ===== boot ===== */
+(function () {
+  try { muted = localStorage.getItem(K_MUTE) === '1'; } catch (e) {}
+  document.getElementById('muteBtn').textContent = muted ? '⊘' : '♪';
+  loadBest();
+  document.getElementById('menuStar').textContent = '已攒 ★ ' + totalStars() + '/72';
+  buildBar();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
