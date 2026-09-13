@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>画铺寻瑕</title>
+<style>
+  html,body{margin:0;padding:0;background:#171310;overflow:hidden;height:100%;
+    font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    -webkit-user-select:none;user-select:none;touch-action:none}
+  #wrap{position:relative;width:390px;height:844px;margin:0 auto;overflow:hidden}
+  canvas{display:block}
+  #hud{position:absolute;left:0;top:0;width:390px;height:84px;pointer-events:none;
+    display:flex;align-items:center;justify-content:space-between;padding:0 16px;box-sizing:border-box;
+    background:linear-gradient(180deg,rgba(23,19,16,.96),rgba(23,19,16,.7) 80%,transparent)}
+  .hgroup{display:flex;align-items:baseline;gap:6px}
+  .hicon{font-size:15px}
+  .hval{font-size:19px;font-weight:800;color:#e8c96a}
+  .hwave{font-size:12px;color:#a89a7c;letter-spacing:2px}
+  .cbtn{position:absolute;top:10px;width:36px;height:36px;border-radius:10px;border:1px solid rgba(232,201,106,.25);
+    background:rgba(40,32,24,.8);color:#cbb98a;font-size:15px;line-height:34px;text-align:center;
+    pointer-events:auto;cursor:pointer}
+  #pauseBtn{right:52px}#muteBtn{right:10px}
+  .lay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:rgba(15,12,9,.97);z-index:5}
+  .ov{font-size:42px;font-weight:900;color:#e8c96a;letter-spacing:12px;text-shadow:0 0 22px rgba(232,201,106,.3)}
+  .ovsub{margin-top:14px;font-size:14px;color:#a89a7c;letter-spacing:2px;line-height:2}
+  .bigbtn{margin-top:30px;padding:13px 52px;font-size:19px;letter-spacing:8px;color:#241a10;
+    background:linear-gradient(90deg,#e0b45f,#c9853f);border:none;border-radius:12px;cursor:pointer;
+    box-shadow:0 3px 0 #8a5f36;font-family:inherit}
+  .bigbtn:active{transform:translateY(3px);box-shadow:0 1px 0 #8a5f36}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="cv" width="390" height="844"></canvas>
+  <div id="hud">
+    <div class="hgroup"><span class="hicon">🖌️</span><span class="hval" id="hsc">0</span></div>
+    <div class="hgroup"><span class="hwave" id="hpair">第一对 · 寻 3 瑕</span></div>
+    <div class="hgroup"><span class="hicon">🏮</span><span class="hval" id="hbest">0</span></div>
+  </div>
+  <div class="cbtn" id="pauseBtn">Ⅱ</div>
+  <div class="cbtn" id="muteBtn">♪</div>
+  <div class="lay" id="overLay" style="display:none">
+    <div class="ov" id="ovt">灯 尽</div>
+    <div class="ovsub" id="ovtxt"></div>
+    <button class="bigbtn" id="bre">再 开 一 铺</button>
+    <div class="ovsub" style="margin-top:18px;font-size:13px;color:#e8c96a;letter-spacing:3px;opacity:.92">火眼鉴摹本 · 寻瑕得真趣</div>
+  </div>
+</div>
+<script>
+'use strict';
+/* ===== 题库（离线 gen117_lib.py 生成，LCG48271；运行时零随机——SPEC v1.0 冻结） =====
+   元素元组 [kind,variant,x,y,size,hue,flip]；差异 [idx,field,delta]，field: 0=hue 1=size 2=flip 3=variant 4=missing */
+var LIB=[{e:[[2,1,96,127,47,35,0],[0,2,256,61,55,90,0],[0,0,195,92,44,18,0],[4,1,265,185,33,35,1],[5,0,141,202,32,35,1],[4,0,284,140,36,18,0],[9,3,147,266,25,200,0],[7,1,298,268,44,200,1]],d:[[5,3,1],[1,4,0],[4,2,1]]},{e:[[2,0,222,125,44,200,1],[2,1,82,119,48,35,0],[1,0,121,69,33,330,1],[3,0,185,174,26,330,1],[4,0,68,169,29,35,1],[5,1,89,249,40,90,0],[3,0,261,201,29,330,0],[7,1,150,259,40,90,1],[6,0,37,236,33,200,0]],d:[[5,1,-14],[7,0,25],[1,2,1],[3,3,1]]},{e:[[2,0,59,138,58,260,0],[1,0,163,74,24,18,0],[0,1,288,95,51,330,1],[4,2,203,166,28,200,0],[5,0,256,212,29,18,1],[4,1,127,180,32,260,1],[7,0,152,247,36,330,1],[6,2,97,272,42,200,0]],d:[[3,3,1],[2,2,1],[0,0,-25],[6,2,1],[7,3,0]]},{e:[[2,0,83,80,57,90,1],[0,1,159,72,56,260,1],[1,0,250,91,32,18,0],[3,2,191,131,29,90,0],[4,2,76,172,30,35,1],[5,0,181,199,29,35,0],[6,2,137,245,30,18,1],[6,2,269,283,32,18,0]],d:[[3,1,14],[4,0,-25],[6,1,14],[0,3,1],[5,0,-25],[2,4,0]]},{e:[[2,1,96,60,57,150,1],[2,1,266,118,47,18,0],[0,2,272,52,51,90,1],[4,2,106,218,34,150,1],[3,2,165,156,33,260,0],[3,1,84,162,24,260,1],[3,2,46,131,35,150,0],[9,1,271,271,24,200,0],[8,1,210,297,56,260,1]],d:[[1,1,14],[4,0,-25],[2,0,-25]]},{e:[[2,0,54,93,59,90,0],[0,1,238,113,38,18,0],[1,0,233,62,25,35,1],[3,0,246,166,29,200,1],[5,0,302,201,32,150,1],[4,0,161,212,39,260,1],[3,2,56,204,25,0,0],[9,2,85,254,29,200,0],[8,0,298,277,63,330,0]],d:[[2,4,0],[3,2,1],[5,3,2],[0,1,14]]},{e:[[2,1,70,123,40,330,0],[2,1,62,66,46,330,0],[0,1,191,94,55,330,0],[5,0,209,153,32,0,0],[3,0,50,178,27,260,1],[3,2,155,146,24,200,0],[8,0,257,266,62,35,0],[8,1,55,261,48,330,0]],d:[[7,3,0],[1,2,1],[6,4,0],[3,1,-14],[2,0,-25]]},{e:[[0,1,153,102,41,330,0],[1,0,247,66,27,90,0],[1,1,110,57,25,200,0],[3,0,115,179,26,0,1],[5,0,189,177,42,0,0],[4,1,77,218,35,35,0],[5,0,234,205,37,150,1],[8,1,188,267,62,330,0],[7,0,56,264,42,260,1]],d:[[2,0,-25],[0,2,1],[5,1,14],[1,4,0],[4,2,1],[7,0,25]]},{e:[[0,0,111,78,43,0,1],[0,2,154,109,57,90,1],[0,1,222,105,55,90,1],[5,1,201,227,35,200,0],[4,1,57,143,37,35,1],[5,1,47,191,40,35,0],[3,2,197,165,27,35,0],[8,1,206,275,54,260,0],[7,0,128,276,36,260,0]],d:[[4,1,14],[1,1,-14],[8,2,1]]},{e:[[0,0,69,54,45,200,1],[2,0,126,74,52,90,1],[1,0,176,63,30,0,0],[3,2,239,174,34,35,0],[3,0,44,127,24,18,0],[3,2,265,125,27,90,1],[9,3,229,256,21,0,0],[7,1,48,252,44,260,1],[6,1,303,270,41,260,0]],d:[[1,0,25],[7,1,14],[3,3,0],[8,3,2]]},{e:[[0,0,264,81,40,330,0],[1,0,184,72,29,90,0],[3,0,137,126,31,330,0],[5,0,210,180,31,18,0],[4,2,265,175,26,260,1],[8,0,228,258,61,330,0],[8,1,158,255,50,260,0],[7,0,53,242,36,200,1]],d:[[3,3,1],[2,2,1],[7,4,0],[5,3,1],[0,0,25]]},{e:[[0,2,253,63,56,18,1],[2,1,70,68,45,260,1],[4,2,267,155,36,260,1],[4,1,157,153,32,35,1],[3,2,80,195,33,90,0],[3,2,224,177,32,150,1],[7,0,224,251,30,18,0],[6,2,54,264,36,150,0],[9,1,181,279,22,330,1]],d:[[2,1,-14],[3,1,14],[4,2,1],[6,3,1],[1,2,1],[0,3,0]]},{e:[[0,2,227,62,51,0,0],[1,1,136,94,26,35,0],[3,0,243,120,34,150,0],[5,0,245,171,39,200,0],[5,0,266,223,33,260,1],[8,1,273,283,59,260,0],[6,1,144,286,47,150,0],[6,1,192,292,30,0,0]],d:[[6,3,2],[2,1,-14],[4,1,14]]},{e:[[0,1,251,94,50,35,1],[0,1,132,82,38,90,0],[4,0,73,161,27,0,1],[4,2,251,146,34,200,0],[4,0,209,171,28,330,0],[8,0,110,258,53,0,0],[9,3,282,289,25,18,1],[9,1,59,261,29,90,0]],d:[[3,1,-14],[2,3,1],[6,3,1],[5,2,1]]},{e:[[0,0,42,118,42,35,0],[2,1,254,67,44,330,1],[3,2,150,188,32,0,0],[5,0,78,237,40,35,0],[5,0,253,214,39,260,0],[4,1,295,144,26,18,1],[8,1,140,303,53,330,0],[9,0,238,291,27,0,1],[8,0,296,297,47,200,0]],d:[[5,0,25],[6,3,0],[0,4,0],[4,0,-25],[7,1,-14]]},{e:[[0,0,268,81,44,330,0],[1,0,111,48,32,200,0],[4,2,202,214,32,35,0],[4,2,50,171,34,150,0],[4,2,123,158,35,35,0],[5,1,116,236,43,200,0],[7,0,77,295,32,330,1],[8,1,245,274,48,18,0],[8,0,166,252,47,35,0]],d:[[2,1,-14],[6,4,0],[0,3,1],[3,2,1],[4,3,0],[7,2,1]]},{e:[[0,2,153,50,53,0,0],[2,0,303,146,48,260,1],[3,2,282,204,25,150,1],[3,1,184,205,29,150,1],[3,2,81,136,34,0,1],[7,0,190,266,40,330,1],[6,1,245,274,30,35,0],[8,0,74,301,59,260,0]],d:[[1,2,1],[3,0,-25],[0,3,0]]},{e:[[0,2,99,90,48,200,1],[1,0,170,46,27,150,0],[4,0,301,168,28,35,0],[4,0,236,193,34,330,0],[4,1,182,175,29,200,0],[4,0,39,180,36,0,1],[6,2,95,238,41,90,1],[8,1,88,304,53,35,1],[7,1,214,288,37,35,0]],d:[[7,0,25],[0,0,-25],[6,3,0],[2,4,0]]},{e:[[0,2,252,76,56,90,0],[0,2,70,51,54,260,0],[3,1,254,197,33,150,0],[3,0,132,184,29,260,1],[3,0,65,190,28,200,0],[3,1,299,138,28,260,1],[9,0,88,293,25,150,0],[7,0,175,287,36,90,1],[6,1,65,239,43,260,1],[7,0,262,282,38,35,0]],d:[[2,2,1],[1,1,14],[0,4,0],[7,2,1],[5,0,25]]},{e:[[0,1,283,99,52,18,0],[2,0,114,113,49,150,0],[4,1,223,188,31,18,0],[4,0,64,195,32,18,1],[5,0,137,246,34,260,0],[6,1,237,248,41,200,1],[8,1,302,251,52,150,0],[7,0,53,302,33,260,0],[6,2,254,296,41,260,0]],d:[[8,4,0],[3,0,-25],[0,1,-14],[4,1,-14],[6,3,0],[2,2,1]]},{e:[[0,0,241,75,41,150,0],[1,0,86,75,33,200,0],[3,0,184,151,27,150,0],[3,2,81,144,29,260,1],[4,2,264,144,34,200,0],[6,2,278,285,33,260,1],[7,0,184,267,34,90,1],[6,0,296,230,36,330,1],[6,0,56,251,31,260,0]],d:[[5,3,1],[1,2,1],[2,0,-25]]},{e:[[0,0,249,66,57,260,0],[2,0,283,149,43,150,1],[4,2,217,186,33,260,1],[5,0,258,232,36,150,1],[5,1,89,229,30,330,1],[4,1,49,151,39,35,1],[6,0,74,276,31,35,0],[6,2,135,282,38,330,0],[9,1,303,286,24,18,0],[9,3,194,283,26,0,1]],d:[[1,1,14],[9,2,1],[3,3,1],[0,0,-25]]},{e:[[0,1,102,118,44,260,0],[1,1,232,97,27,260,0],[0,2,93,66,54,18,1],[3,1,236,148,29,18,0],[4,0,237,209,31,150,1],[5,1,148,155,36,260,1],[9,1,287,272,23,330,1],[9,2,125,293,28,35,1],[9,2,36,274,25,18,1],[6,1,179,274,46,330,0]],d:[[8,1,14],[7,3,1],[1,4,0],[2,1,14],[6,0,-25]]},{e:[[0,2,40,87,51,330,0],[0,2,96,82,48,0,1],[1,1,225,59,32,35,0],[5,1,281,173,36,260,0],[3,1,166,126,33,260,1],[3,0,85,180,29,35,1],[8,0,239,271,50,90,0],[9,0,68,282,24,260,0],[8,0,156,272,63,150,1],[8,0,293,260,55,200,0]],d:[[2,1,14],[6,2,1],[3,1,14],[4,2,1],[8,4,0],[5,3,1]]}];
+var PAIR_TABLE=[4,9,14,19,0,5,10,15,1,6];
+var R_HIT=26,MISS_PEN=5.0,SWAP_T=1.2;
+function timeFor(dn){return dn*10+15;}
+var KNAME=['cloud','moon','pavilion','bird','flower','rock','vase','fish','hill','seal'];
+var K_BEST='g117_best',K_MUTE='g117_mute';
+
+/* ===== 状态 ===== */
+var S={phase:'play',pi:0,score:0,combo:0,found:[],tLeft:0,tMax:1,swapT:0,
+  missMark:null,wonT:0,over:false,best:0,muted:false,floats:[]};
+
+function curPair(){return LIB[PAIR_TABLE[Math.min(S.pi,PAIR_TABLE.length-1)]];}   /* 终演期 pi=10 钳回末对防越界 */
+function loadPair(){
+  var p=curPair();
+  S.found=[];S.combo=0;
+  S.tMax=timeFor(p.d.length);S.tLeft=S.tMax;
+}
+function newGame(){
+  S.phase='play';S.pi=0;S.score=0;S.swapT=0;S.missMark=null;S.wonT=0;S.over=false;S.floats=[];
+  loadPair();
+  document.getElementById('overLay').style.display='none';
+  document.getElementById('hud').style.opacity='1';
+  document.getElementById('pauseBtn').style.display='block';
+  document.getElementById('muteBtn').style.display='block';
+  snd('start');
+  updHUD();
+}
+
+/* ===== tick（SPEC §3 顺序） ===== */
+function tick(dt,raw){
+  if(!raw&&dt>1/30)dt=1/30;
+  if(S.phase!=='play')return;
+  if(S.wonT>0){                      /* 通关终演 2s */
+    S.wonT-=dt;stepFx(dt);
+    if(S.wonT<=0){gameOver(true);}
+    return;
+  }
+  if(S.swapT>0){                     /* 换画演出 */
+    S.swapT-=dt;
+    if(S.swapT<=0){
+      S.pi++;
+      if(S.pi>=PAIR_TABLE.length){S.wonT=2.0;addFloat(170,316,'神目完卷','#e8c96a');}
+      else{loadPair();snd('swap');}
+    }
+    stepFx(dt);
+    return;
+  }
+  S.tLeft-=dt;
+  if(S.tLeft<=0){S.tLeft=0;stepFx(dt);gameOver(false);return;}
+  stepFx(dt);
+}
+function stepFx(dt){
+  for(var i=S.floats.length-1;i>=0;i--){
+    S.floats[i].t-=dt;S.floats[i].y-=18*dt;
+    if(S.floats[i].t<=0)S.floats.splice(i,1);
+  }
+  if(S.missMark){S.missMark.t-=dt;if(S.missMark.t<=0)S.missMark=null;}
+}
+function addFloat(x,y,txt,c){S.floats.push({x:x,y:y,t:1.0,txt:txt,c:c});}
+function gameOver(won){
+  S.phase='over';
+  if(S.score>S.best){S.best=S.score;try{localStorage.setItem(K_BEST,String(S.best));}catch(e){}}
+  document.getElementById('ovt').textContent=won?'完 卷':'灯 尽';
+  document.getElementById('ovtxt').textContent=(won?'十对摹本尽数勘破':'守到第 '+(S.pi+1)+' 对')+' · '+S.score+' 分 · 最佳 '+S.best+' 分';
+  document.getElementById('overLay').style.display='flex';
+  document.getElementById('hud').style.opacity='0';           /* over 层下不再透出 HUD 残影 */
+  document.getElementById('pauseBtn').style.display='none';
+  document.getElementById('muteBtn').style.display='none';
+  snd(won?'win':'over');
+  updHUD();
+}
+
+/* ===== tap（两画共用逻辑坐标系） ===== */
+function tapAt(lx,ly){
+  if(S.phase!=='play'||S.swapT>0||S.wonT>0)return null;
+  var p=curPair();
+  for(var i=0;i<p.d.length;i++){
+    if(S.found.indexOf(i)>=0)continue;
+    var e=p.e[p.d[i][0]];
+    var dx=lx-e[2],dy=ly-e[3];
+    if(dx*dx+dy*dy<=R_HIT*R_HIT){
+      S.found.push(i);
+      S.combo=Math.min(S.combo+1,5);
+      var gain=100*S.combo;
+      S.score+=gain;
+      addFloat(e[2]+25,e[3]-14,'+'+gain,'#7fc9a8');
+      snd('hit');
+      if(S.found.length===p.d.length){
+        var bonus=Math.floor(S.tLeft)*2;
+        S.score+=bonus;
+        addFloat(170,316,'+'+bonus+' 神目','#e8c96a');
+        S.swapT=SWAP_T;
+        snd('clear');
+      }
+      return true;
+    }
+  }
+  S.combo=0;
+  S.tLeft=Math.max(0,S.tLeft-MISS_PEN);
+  S.missMark={x:lx,y:ly,t:0.8};
+  snd('miss');
+  return false;
+}
+
+/* ===== HUD ===== */
+var CNUM=['零','一','二','三','四','五','六','七','八','九','十'];
+function updHUD(){
+  document.getElementById('hsc').textContent=S.score;
+  document.getElementById('hbest').textContent=S.best;
+  document.getElementById('hpair').textContent=(S.pi>=PAIR_TABLE.length?'完卷 · 十对尽数勘破':'第'+CNUM[S.pi+1]+'对 · 寻 '+curPair().d.length+' 瑕 · 命 '+Math.max(0,S.tLeft).toFixed(0)+'s');
+}
+
+/* ===== 音效（WebAudio 短合成） ===== */
+var AC=null;
+function ac(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}if(AC&&AC.state==='suspended'){try{var p=AC.resume();if(p&&p.catch)p.catch(function(){});}catch(e){}}return AC;}
+function tone(f,d1,vol,dur,type){
+  var c=ac();if(!c||S.muted)return;
+  var o=c.createOscillator(),gn=c.createGain();
+  o.type=type||'sine';o.frequency.setValueAtTime(f,c.currentTime);
+  o.frequency.exponentialRampToValueAtTime(Math.max(30,d1),c.currentTime+dur);
+  gn.gain.setValueAtTime(vol,c.currentTime);
+  gn.gain.exponentialRampToValueAtTime(0.001,c.currentTime+dur);
+  o.connect(gn);gn.connect(c.destination);o.start();o.stop(c.currentTime+dur+0.02);
+}
+function snd(k){
+  if(k==='hit'){tone(1180,880,0.09,0.28);}                                        /* 磬 */
+  else if(k==='miss'){tone(190,150,0.13,0.09,'square');}                          /* 木鱼闷 */
+  else if(k==='clear'){tone(523,659,0.09,0.16);setTimeout(function(){tone(784,659,0.08,0.3);},150);}  /* 古琴双音 */
+  else if(k==='swap'){tone(300,420,0.05,0.12,'triangle');}
+  else if(k==='start'){tone(392,392,0.07,0.2,'triangle');}
+  else if(k==='win'){tone(659,784,0.09,0.25);setTimeout(function(){tone(784,1046,0.08,0.25);},180);setTimeout(function(){tone(1046,1318,0.07,0.5);},380);}
+  else if(k==='over'){tone(220,110,0.14,0.9,'triangle');}                          /* 钟 */
+}
+
+/* ===== 工笔元素绘制器（SPEC §2：10 kind × 2-4 variant，墨线+矿物色） ===== */
+var cv=document.getElementById('cv'),g=cv.getContext('2d');
+var AX=25,AY=84,BY=434;                 /* 两画画心原点（逻辑 340×330 */
+function hsl(h,s,l){return 'hsl('+(((h%360)+360)%360)+','+s+'%,'+l+'%)';}
+var INK='#43392c';
+function drawElem(e,df){                 /* e=[kind,variant,x,y,size,hue,flip]; df=差异或 null */
+  var kind=e[0],v=e[1],x=e[2],y=e[3],sz=e[4],hue=e[5],fl=e[6];
+  if(df&&df[1]===4)return;               /* missing：B 侧不画 */
+  if(df&&df[1]===0)hue+=df[2];
+  if(df&&df[1]===1)sz=sz*(1+df[2]/100);
+  if(df&&df[1]===2)fl=1-fl;
+  if(df&&df[1]===3)v=df[2];
+  g.save();g.translate(x,y);if(fl)g.scale(-1,1);
+  g.lineWidth=1.4;g.strokeStyle=INK;
+  var c1=hsl(hue,42,46),c2=hsl(hue,36,62),c3=hsl(hue,30,76);
+  if(kind===0){                          /* 云 */
+    if(v===0){                           /* 如意云：三团 */
+      g.fillStyle=c2;
+      for(var i=-1;i<=1;i++){g.beginPath();g.arc(i*sz*0.42,0,sz*(0.5-Math.abs(i)*0.13),0,7);g.fill();g.stroke();}
+      g.fillStyle=c3;g.beginPath();g.arc(0,-sz*0.1,sz*0.3,0,7);g.fill();
+    }else if(v===1){                     /* 卷云：主团+拖尾 */
+      g.fillStyle=c2;g.beginPath();g.arc(0,0,sz*0.45,0,7);g.fill();g.stroke();
+      g.strokeStyle=c1;g.lineWidth=2;
+      g.beginPath();g.moveTo(sz*0.3,0);g.quadraticCurveTo(sz*0.75,-sz*0.25,sz*1.15,-sz*0.05);g.stroke();
+      g.beginPath();g.moveTo(sz*0.25,sz*0.2);g.quadraticCurveTo(sz*0.6,sz*0.4,sz*0.95,sz*0.3);g.stroke();
+    }else{                               /* 叠云：双层 */
+      g.fillStyle=c3;g.beginPath();g.arc(-sz*0.15,0,sz*0.42,0,7);g.fill();g.stroke();
+      g.fillStyle=c2;g.beginPath();g.arc(sz*0.2,-sz*0.12,sz*0.34,0,7);g.fill();g.stroke();
+    }
+  }else if(kind===1){                    /* 月 */
+    g.fillStyle=hsl(46,60,72);
+    if(v===0){                           /* 满月+桂影 */
+      g.beginPath();g.arc(0,0,sz*0.5,0,7);g.fill();g.stroke();
+      g.strokeStyle='rgba(90,80,50,.5)';g.lineWidth=1;
+      g.beginPath();g.moveTo(-sz*0.15,-sz*0.2);g.quadraticCurveTo(0,0,-sz*0.1,sz*0.25);g.stroke();
+      g.beginPath();g.moveTo(sz*0.1,sz*0.05);g.quadraticCurveTo(sz*0.25,-sz*0.1,sz*0.3,sz*0.1);g.stroke();
+    }else{                               /* 月牙 */
+      g.beginPath();g.arc(0,0,sz*0.5,0,7);g.fill();
+      g.fillStyle='rgba(236,224,200,1)';g.beginPath();g.arc(sz*0.22,-sz*0.12,sz*0.42,0,7);g.fill();
+      g.strokeStyle=INK;g.beginPath();g.arc(0,0,sz*0.5,-0.6,2.2);g.stroke();
+    }
+  }else if(kind===2){                    /* 亭/榭 */
+    g.fillStyle=c1;
+    if(v===0){                           /* 四方亭 */
+      g.beginPath();g.moveTo(-sz*0.55,-sz*0.1);g.lineTo(0,-sz*0.55);g.lineTo(sz*0.55,-sz*0.1);g.closePath();g.fill();g.stroke();
+      g.beginPath();g.moveTo(-sz*0.55,-sz*0.1);g.lineTo(sz*0.55,-sz*0.1);g.stroke();
+      g.strokeStyle=c2;g.lineWidth=2.2;
+      g.beginPath();g.moveTo(-sz*0.42,-sz*0.1);g.lineTo(-sz*0.42,sz*0.45);g.moveTo(sz*0.42,-sz*0.1);g.lineTo(sz*0.42,sz*0.45);g.stroke();
+      g.strokeStyle=INK;g.lineWidth=1.4;g.fillStyle=c3;
+      g.fillRect(-sz*0.55,sz*0.45,sz*1.1,sz*0.14);g.strokeRect(-sz*0.55,sz*0.45,sz*1.1,sz*0.14);
+    }else{                               /* 水榭：台+栏 */
+      g.fillStyle=c3;g.fillRect(-sz*0.6,-sz*0.05,sz*1.2,sz*0.18);g.strokeRect(-sz*0.6,-sz*0.05,sz*1.2,sz*0.18);
+      g.fillStyle=c1;g.beginPath();g.moveTo(-sz*0.5,-sz*0.08);g.lineTo(0,-sz*0.5);g.lineTo(sz*0.5,-sz*0.08);g.closePath();g.fill();g.stroke();
+      g.strokeStyle=c2;g.lineWidth=1.6;
+      g.beginPath();g.moveTo(-sz*0.6,sz*0.3);g.lineTo(sz*0.6,sz*0.3);g.stroke();
+      for(var b=-2;b<=2;b++){g.beginPath();g.moveTo(b*sz*0.24,sz*0.13);g.lineTo(b*sz*0.24,sz*0.3);g.stroke();}
+    }
+  }else if(kind===3){                    /* 鸟 */
+    g.fillStyle=c1;
+    if(v===0){                           /* 燕：剪尾 */
+      g.beginPath();g.ellipse(0,0,sz*0.42,sz*0.22,-0.2,0,7);g.fill();g.stroke();
+      g.beginPath();g.moveTo(-sz*0.38,0);g.lineTo(-sz*0.72,-sz*0.2);g.moveTo(-sz*0.38,0);g.lineTo(-sz*0.72,sz*0.12);g.stroke();
+      g.fillStyle=c2;g.beginPath();g.moveTo(0,-sz*0.1);g.quadraticCurveTo(sz*0.3,-sz*0.5,sz*0.5,-sz*0.28);g.quadraticCurveTo(sz*0.25,-sz*0.05,0,-sz*0.02);g.fill();g.stroke();
+      g.fillStyle=INK;g.beginPath();g.arc(sz*0.34,-sz*0.03,sz*0.045,0,7);g.fill();
+    }else if(v===1){                     /* 雀：圆身 */
+      g.beginPath();g.arc(0,0,sz*0.32,0,7);g.fill();g.stroke();
+      g.beginPath();g.arc(sz*0.28,-sz*0.18,sz*0.16,0,7);g.fill();g.stroke();
+      g.fillStyle='#e8a54a';g.beginPath();g.moveTo(sz*0.4,-sz*0.18);g.lineTo(sz*0.55,-sz*0.14);g.lineTo(sz*0.4,-sz*0.1);g.fill();
+      g.fillStyle=INK;g.beginPath();g.arc(sz*0.32,-sz*0.2,sz*0.035,0,7);g.fill();
+      g.strokeStyle=c2;g.beginPath();g.moveTo(-sz*0.1,sz*0.28);g.lineTo(-sz*0.1,sz*0.42);g.moveTo(sz*0.12,sz*0.28);g.lineTo(sz*0.12,sz*0.42);g.stroke();
+    }else{                               /* 鹭：长颈 */
+      g.beginPath();g.ellipse(0,sz*0.1,sz*0.4,sz*0.2,0,0,7);g.fill();g.stroke();
+      g.strokeStyle=c1;g.lineWidth=3;
+      g.beginPath();g.moveTo(sz*0.3,0);g.quadraticCurveTo(sz*0.45,-sz*0.45,sz*0.3,-sz*0.62);g.stroke();
+      g.lineWidth=1.4;g.strokeStyle=INK;
+      g.fillStyle=c3;g.beginPath();g.ellipse(sz*0.3,-sz*0.62,sz*0.12,sz*0.07,0.5,0,7);g.fill();g.stroke();
+      g.beginPath();g.moveTo(-sz*0.38,sz*0.18);g.lineTo(-sz*0.68,sz*0.5);g.stroke();
+    }
+  }else if(kind===4){                    /* 花 */
+    if(v===0){                           /* 牡丹：层瓣 */
+      for(var ring=2;ring>=0;ring--){
+        g.fillStyle=hsl(hue,40,44+ring*13);
+        for(var pt=0;pt<6;pt++){
+          var a=pt*Math.PI/3+ring*0.3;
+          g.beginPath();g.ellipse(Math.cos(a)*sz*0.18*ring,Math.sin(a)*sz*0.18*ring,sz*0.22,sz*0.13,a,0,7);g.fill();g.stroke();
+        }
+      }
+      g.fillStyle=hsl(46,70,68);
+      g.beginPath();g.arc(0,0,sz*0.1,0,7);g.fill();g.stroke();
+    }else if(v===1){                     /* 菊：细瓣 */
+      g.strokeStyle=c2;g.lineWidth=2;
+      for(var pb=0;pb<12;pb++){
+        var ab=pb*Math.PI/6;
+        g.beginPath();g.moveTo(Math.cos(ab)*sz*0.08,Math.sin(ab)*sz*0.08);
+        g.quadraticCurveTo(Math.cos(ab)*sz*0.3,Math.sin(ab)*sz*0.3,Math.cos(ab+0.22)*sz*0.52,Math.sin(ab+0.22)*sz*0.52);g.stroke();
+      }
+      g.fillStyle=hsl(46,72,66);g.beginPath();g.arc(0,0,sz*0.11,0,7);g.fill();g.strokeStyle=INK;g.lineWidth=1.4;g.stroke();
+    }else{                               /* 梅：枝+五瓣 */
+      g.strokeStyle='#6e5138';g.lineWidth=2.4;
+      g.beginPath();g.moveTo(-sz*0.5,sz*0.35);g.quadraticCurveTo(0,sz*0.1,sz*0.5,-sz*0.3);g.stroke();
+      g.lineWidth=1.4;g.strokeStyle=INK;
+      g.fillStyle=hsl(hue,46,58);
+      for(var pm=0;pm<5;pm++){
+        var am=pm*Math.PI*2/5;
+        g.beginPath();g.arc(Math.cos(am)*sz*0.14+sz*0.1,Math.sin(am)*sz*0.14-sz*0.05,sz*0.11,0,7);g.fill();g.stroke();
+      }
+      g.fillStyle=hsl(46,80,72);g.beginPath();g.arc(sz*0.1,-sz*0.05,sz*0.05,0,7);g.fill();
+    }
+  }else if(kind===5){                    /* 石 */
+    if(v===0){                           /* 太湖石：瘦皱漏 */
+      g.fillStyle=c3;
+      g.beginPath();g.moveTo(-sz*0.4,sz*0.45);g.quadraticCurveTo(-sz*0.55,0,-sz*0.25,-sz*0.3);
+      g.quadraticCurveTo(0,-sz*0.55,sz*0.2,-sz*0.25);g.quadraticCurveTo(sz*0.5,0,sz*0.3,sz*0.45);g.closePath();g.fill();g.stroke();
+      g.fillStyle='rgba(236,224,200,.85)';
+      g.beginPath();g.ellipse(-sz*0.08,0,sz*0.12,sz*0.2,0.4,0,7);g.fill();g.stroke();
+      g.beginPath();g.ellipse(sz*0.18,sz*0.22,sz*0.07,sz*0.1,0,0,7);g.fill();g.stroke();
+    }else{                               /* 卵石组 */
+      g.fillStyle=c2;g.beginPath();g.ellipse(-sz*0.22,sz*0.1,sz*0.26,sz*0.2,0.2,0,7);g.fill();g.stroke();
+      g.fillStyle=c3;g.beginPath();g.ellipse(sz*0.18,-sz*0.05,sz*0.22,sz*0.16,-0.3,0,7);g.fill();g.stroke();
+    }
+  }else if(kind===6){                    /* 瓶 */
+    g.fillStyle=c2;
+    if(v===0){                           /* 梅瓶 */
+      g.beginPath();g.moveTo(-sz*0.14,-sz*0.5);g.quadraticCurveTo(-sz*0.16,-sz*0.2,-sz*0.4,sz*0.1);
+      g.quadraticCurveTo(-sz*0.42,sz*0.5,0,sz*0.5);g.quadraticCurveTo(sz*0.42,sz*0.5,sz*0.4,sz*0.1);
+      g.quadraticCurveTo(sz*0.16,-sz*0.2,sz*0.14,-sz*0.5);g.closePath();g.fill();g.stroke();
+      g.fillStyle=c1;g.fillRect(-sz*0.14,-sz*0.5,sz*0.28,sz*0.08);g.strokeRect(-sz*0.14,-sz*0.5,sz*0.28,sz*0.08);
+      g.strokeStyle=c3;g.beginPath();g.moveTo(-sz*0.3,sz*0.05);g.quadraticCurveTo(0,sz*0.25,sz*0.3,sz*0.05);g.stroke();
+    }else if(v===1){                     /* 贯耳瓶 */
+      g.fillRect(-sz*0.28,-sz*0.5,sz*0.56,sz*0.9);g.strokeRect(-sz*0.28,-sz*0.5,sz*0.56,sz*0.9);
+      g.fillStyle=c3;g.fillRect(-sz*0.32,-sz*0.55,sz*0.07,sz*0.28);g.strokeRect(-sz*0.32,-sz*0.55,sz*0.07,sz*0.28);
+      g.fillRect(sz*0.25,-sz*0.55,sz*0.07,sz*0.28);g.strokeRect(sz*0.25,-sz*0.55,sz*0.07,sz*0.28);
+      g.fillStyle=c1;g.fillRect(-sz*0.28,-sz*0.15,sz*0.56,sz*0.1);g.strokeRect(-sz*0.28,-sz*0.15,sz*0.56,sz*0.1);
+    }else{                               /* 葫芦瓶 */
+      g.beginPath();g.arc(0,-sz*0.3,sz*0.16,0,7);g.fill();g.stroke();
+      g.beginPath();g.arc(0,sz*0.12,sz*0.32,0,7);g.fill();g.stroke();
+      g.fillStyle=c3;g.fillRect(-sz*0.07,-sz*0.48,sz*0.14,sz*0.06);g.strokeRect(-sz*0.07,-sz*0.48,sz*0.14,sz*0.06);
+      g.strokeStyle=c1;g.beginPath();g.arc(0,sz*0.12,sz*0.18,0.5,2.6);g.stroke();
+    }
+  }else if(kind===7){                    /* 鱼 */
+    g.fillStyle=c1;
+    if(v===0){                           /* 金鱼：大尾 */
+      g.beginPath();g.ellipse(0,0,sz*0.38,sz*0.24,0,0,7);g.fill();g.stroke();
+      g.fillStyle=c2;
+      g.beginPath();g.moveTo(-sz*0.34,0);g.quadraticCurveTo(-sz*0.7,-sz*0.4,-sz*0.85,-sz*0.1);g.quadraticCurveTo(-sz*0.6,0,-sz*0.85,sz*0.28);g.quadraticCurveTo(-sz*0.6,sz*0.18,-sz*0.34,0);g.fill();g.stroke();
+      g.fillStyle=c1;g.beginPath();g.moveTo(sz*0.3,-sz*0.18);g.lineTo(sz*0.52,-sz*0.32);g.lineTo(sz*0.4,-sz*0.08);g.fill();g.stroke();
+      g.fillStyle=INK;g.beginPath();g.arc(sz*0.26,-sz*0.06,sz*0.04,0,7);g.fill();
+    }else{                               /* 鲤鱼：壮身 */
+      g.beginPath();g.ellipse(0,0,sz*0.44,sz*0.26,0,0,7);g.fill();g.stroke();
+      g.fillStyle=c3;
+      g.beginPath();g.moveTo(-sz*0.42,0);g.lineTo(-sz*0.68,-sz*0.22);g.lineTo(-sz*0.6,0);g.lineTo(-sz*0.68,sz*0.22);g.closePath();g.fill();g.stroke();
+      g.beginPath();g.moveTo(sz*0.05,-sz*0.24);g.lineTo(sz*0.2,-sz*0.42);g.lineTo(sz*0.26,-sz*0.2);g.closePath();g.fill();g.stroke();
+      g.strokeStyle=c3;g.lineWidth=1;
+      for(var sc=0;sc<3;sc++){g.beginPath();g.arc(sz*0.1-sc*sz*0.15,0,sz*0.12+sc*sz*0.05,-0.9,0.9);g.stroke();}
+      g.lineWidth=1.4;g.strokeStyle=INK;
+      g.fillStyle=INK;g.beginPath();g.arc(sz*0.34,-sz*0.08,sz*0.04,0,7);g.fill();
+    }
+  }else if(kind===8){                    /* 山 */
+    if(v===0){                           /* 远山双层 */
+      g.fillStyle=c3;g.beginPath();g.moveTo(-sz*0.7,sz*0.4);g.quadraticCurveTo(-sz*0.3,-sz*0.35,0,sz*0.4);g.closePath();g.fill();g.stroke();
+      g.fillStyle=c2;g.beginPath();g.moveTo(-sz*0.15,sz*0.4);g.quadraticCurveTo(sz*0.25,-sz*0.5,sz*0.65,sz*0.4);g.closePath();g.fill();g.stroke();
+    }else{                               /* 奇石山：三峰 */
+      g.fillStyle=c2;
+      g.beginPath();g.moveTo(-sz*0.6,sz*0.4);g.lineTo(-sz*0.35,-sz*0.3);g.lineTo(-sz*0.1,sz*0.4);g.closePath();g.fill();g.stroke();
+      g.fillStyle=c3;
+      g.beginPath();g.moveTo(-sz*0.18,sz*0.4);g.lineTo(sz*0.08,-sz*0.5);g.lineTo(sz*0.32,sz*0.4);g.closePath();g.fill();g.stroke();
+      g.fillStyle=c2;
+      g.beginPath();g.moveTo(sz*0.22,sz*0.4);g.lineTo(sz*0.42,-sz*0.15);g.lineTo(sz*0.6,sz*0.4);g.closePath();g.fill();g.stroke();
+    }
+  }else{                                 /* 印章 seal：方章+字 */
+    var ZI=['福','禄','寿','喜'];
+    g.fillStyle=hsl(hue,52,40);
+    var r=sz*0.5;
+    g.fillRect(-r,-r,2*r,2*r);g.strokeRect(-r,-r,2*r,2*r);
+    g.fillStyle='#f4ecd8';g.font='bold '+Math.floor(sz*0.62)+'px "KaiTi","STKaiti",serif';
+    g.textAlign='center';g.textBaseline='middle';
+    g.fillText(ZI[v%4],0,1);
+  }
+  g.restore();
+}
+
+/* ===== 场景绘制（baseY=画心全局 y 原点：上画 AY/下画 BY；元素逻辑坐标→(AX+x, baseY+y)） ===== */
+function drawScene(baseY,isB){
+  var p=curPair();
+  /* 绢底 */
+  var gg=g.createLinearGradient(0,baseY,0,baseY+330);
+  gg.addColorStop(0,'#eee2ca');gg.addColorStop(.5,'#ece0c8');gg.addColorStop(1,'#e6d8bc');
+  g.fillStyle=gg;g.fillRect(AX-9,baseY-9,358,348);
+  /* 绢纹噪点（确定性：坐标取模） */
+  g.fillStyle='rgba(120,100,70,.05)';
+  for(var i=0;i<130;i++){
+    var nx=(i*61+(isB?17:0))%338+1,ny=(i*97+(isB?31:0))%328+1;
+    g.fillRect(AX+nx,baseY+ny,1.4,1.4);
+  }
+  /* 画心元素（drawElem 自带 save/translate/restore，此处补画心原点偏移） */
+  g.save();g.translate(AX,baseY);
+  for(var j=0;j<p.e.length;j++){
+    var df=null;
+    if(isB){for(var k=0;k<p.d.length;k++){if(p.d[k][0]===j){df=p.d[k];break;}}}
+    drawElem(p.e[j],df);
+  }
+  g.restore();
+  /* 裱绫边框 */
+  g.strokeStyle='#8a744e';g.lineWidth=3;g.strokeRect(AX-9,baseY-9,358,348);
+  g.strokeStyle='rgba(138,116,78,.4)';g.lineWidth=1;g.strokeRect(AX-14,baseY-14,368,358);
+  g.fillStyle='rgba(138,116,78,.16)';
+  for(var m=0;m<26;m++){g.fillRect(AX-14+m*14,baseY-14,7,3);g.fillRect(AX-7+m*14,baseY+349,7,3);}
+}
+
+function draw(){
+  /* 堂底 */
+  g.fillStyle='#171310';g.fillRect(0,0,390,844);
+  /* 两画（swap 演出=透明度渐变） */
+  var alpha=1;
+  if(S.swapT>0)alpha=Math.min(1,(SWAP_T-S.swapT)/0.6);
+  g.save();g.globalAlpha=alpha;
+  drawScene(AY,false);
+  drawScene(BY,true);
+  g.restore();
+  /* 卷轴分隔带 */
+  g.fillStyle='#23301f';
+  g.fillRect(0,414,390,20);
+  g.fillStyle='#8a744e';g.fillRect(0,414,390,4);g.fillRect(0,430,390,4);
+  g.fillStyle='#c9a86a';g.font='bold 11px system-ui';g.textAlign='center';g.textBaseline='middle';
+  g.fillText('原 作 · 上',60,424);g.fillText('摹 本 · 下',330,424);
+  g.fillStyle='rgba(201,168,106,.7)';g.fillText('鉴',195,424);
+  /* 命中金圈（两画同位） */
+  var p=curPair();
+  g.strokeStyle='#c9962e';g.lineWidth=2.4;
+  for(var mi=0;mi<S.found.length;mi++){
+    var e2=p.e[p.d[S.found[mi]][0]];
+    for(var b2=0;b2<2;b2++){
+      var by2=b2?BY:AY;
+      g.beginPath();g.arc(AX+e2[2],by2+e2[3],20,0,7);g.stroke();
+      g.beginPath();g.arc(AX+e2[2],by2+e2[3],25,0,7);g.globalAlpha=0.4;g.stroke();g.globalAlpha=1;
+    }
+  }
+  /* 误触红圈 */
+  if(S.missMark){
+    g.globalAlpha=Math.min(1,S.missMark.t*2.5);
+    g.strokeStyle='#c8452f';g.lineWidth=2.2;
+    g.beginPath();g.arc(AX+S.missMark.x,AY+S.missMark.y,16,0,7);g.stroke();
+    g.beginPath();g.arc(AX+S.missMark.x,BY+S.missMark.y,16,0,7);g.stroke();
+    g.globalAlpha=1;
+  }
+  /* 飘字（逻辑坐标→两画同位（与金圈/红圈一致的反馈画幅）；深色描边保证暗化演出期可读） */
+  g.textAlign='center';g.font='bold 13px system-ui';
+  for(var fi=0;fi<S.floats.length;fi++){
+    var fl=S.floats[fi];
+    g.globalAlpha=Math.min(1,fl.t*2);
+    for(var fb=0;fb<2;fb++){
+      var fby=fb?BY:AY;
+      g.lineWidth=3;g.strokeStyle='rgba(23,19,16,.7)';g.strokeText(fl.txt,AX+fl.x,fby+fl.y);
+      g.fillStyle=fl.c;g.fillText(fl.txt,AX+fl.x,fby+fl.y);
+    }
+    g.globalAlpha=1;
+  }
+  /* 底栏：瑕点+计时条 */
+  g.fillStyle='#1d1813';g.fillRect(0,764,390,80);
+  var dn=p.d.length;
+  for(var di=0;di<dn;di++){
+    var cx=195-(dn-1)*11+di*22;
+    g.beginPath();g.arc(cx,786,7,0,7);
+    if(S.found.indexOf(di)>=0){g.fillStyle='#c9962e';g.fill();}
+    else{g.strokeStyle='#6e6148';g.lineWidth=1.6;g.stroke();}
+  }
+  var frac=Math.max(0,S.tLeft/S.tMax);
+  g.fillStyle='rgba(232,201,106,.14)';g.fillRect(35,808,320,10);
+  g.fillStyle=frac>0.3?'#c9962e':'#c8452f';g.fillRect(35,808,320*frac,10);
+  g.strokeStyle='rgba(138,116,78,.5)';g.lineWidth=1;g.strokeRect(35,808,320,10);
+  /* 换画横披 */
+  if(S.swapT>0&&S.pi<9){
+    g.fillStyle='rgba(23,19,16,.75)';g.fillRect(0,380,390,54);
+    g.fillStyle='#e8c96a';g.font='900 22px system-ui';g.textAlign='center';
+    g.fillText('第 '+CNUM[S.pi+2]+' 对',195,412);
+  }
+  /* 暂停徽 */
+  if(S.phase==='pause'){
+    g.fillStyle='rgba(15,12,9,.6)';g.fillRect(0,84,390,680);
+    g.fillStyle='#e8c96a';g.font='900 26px system-ui';g.textAlign='center';
+    g.fillText('鉴画小憩',195,400);
+    g.font='12px system-ui';g.fillStyle='#a89a7c';
+    g.fillText('点 ▶ 继续',195,424);
+  }
+  updHUD();   /* 计时秒数随帧刷新 */
+}
+
+/* ===== 主循环 ===== */
+var lastT=0;
+function loop(ts){
+  var dt=lastT?(ts-lastT)/1000:0.016;lastT=ts;
+  if(S.phase==='play')tick(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+/* ===== 输入 ===== */
+(function(){
+  cv.addEventListener('pointerdown',function(e){
+    e.preventDefault();ac();
+    if(S.phase!=='play')return;
+    var r=cv.getBoundingClientRect();
+    var x=e.clientX-r.left,y=e.clientY-r.top;
+    var lx=x-AX,ly;
+    if(y>=AY&&y<AY+330)ly=y-AY;
+    else if(y>=BY&&y<BY+330)ly=y-BY;
+    else return;
+    if(lx<0||lx>340)return;
+    tapAt(lx,ly);
+    updHUD();
+  });
+})();
+document.getElementById('bre').addEventListener('click',function(){ac();newGame();});
+document.getElementById('pauseBtn').addEventListener('click',function(){
+  if(S.phase==='play'){S.phase='pause';this.textContent='▶';}
+  else if(S.phase==='pause'){S.phase='play';this.textContent='Ⅱ';}
+});
+document.getElementById('muteBtn').addEventListener('click',function(){
+  S.muted=!S.muted;this.textContent=S.muted?'✕':'♪';
+  try{localStorage.setItem(K_MUTE,S.muted?'1':'0');}catch(e){}
+});
+document.addEventListener('visibilitychange',function(){
+  if(document.hidden&&S.phase==='play'){S.phase='pause';document.getElementById('pauseBtn').textContent='▶';}
+});
+
+/* ===== boot ===== */
+(function(){
+  try{
+    var b=localStorage.getItem(K_BEST);if(b)S.best=parseInt(b,10)||0;
+    var m=localStorage.getItem(K_MUTE);if(m==='1'){S.muted=true;document.getElementById('muteBtn').textContent='✕';}
+  }catch(e){}
+  newGame();
+  requestAnimationFrame(loop);
+})();
+
+
+
+</script>
+</body>
+</html>
