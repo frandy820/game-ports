@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>捶丸</title>
+<style>
+  html,body{margin:0;padding:0;background:#26301f;height:100%;overflow:hidden;touch-action:none;
+    font-family:"PingFang SC","Microsoft YaHei",sans-serif;-webkit-user-select:none;user-select:none}
+  #app{position:relative;width:390px;height:844px;margin:0 auto;background:#26301f;overflow:hidden}
+  canvas{position:absolute;left:0;top:64px;width:390px;height:780px}
+  #hud{position:absolute;left:0;top:0;width:390px;height:64px;box-sizing:border-box;padding:0 12px;
+    display:flex;align-items:center;justify-content:space-between;z-index:5;color:#d8cfa8;font-size:15px}
+  #hud .lt{font-size:14px;color:#b9c98a;letter-spacing:1px}
+  #hud .md{font-size:16px;color:#e8e2c8;letter-spacing:2px}
+  #hud .rt{font-size:14px;color:#b9c98a;margin-right:96px}  /* 让位 pause/mute 两钮（g120 M1 叠压教训） */
+  .hbtn{position:absolute;top:16px;width:32px;height:32px;border-radius:8px;border:1px solid #4a5a3a;
+    background:rgba(38,48,31,.85);color:#b9c98a;font-size:16px;line-height:30px;text-align:center;z-index:6;cursor:pointer}
+  #pauseBtn{right:56px}
+  #muteBtn{right:14px}
+  #lvbar{position:absolute;left:0;top:64px;width:390px;height:68px;box-sizing:border-box;overflow-x:auto;
+    overflow-y:hidden;display:flex;align-items:center;gap:6px;padding:8px 12px;z-index:5;background:linear-gradient(180deg,#2c3a26,#242f1f);
+    border-bottom:2px solid #3a4a30;scrollbar-width:none;
+    transform:translateY(-100%);transition:transform .18s ease}   /* 收纳式：场地顶列（L6/L22/L24 洞）玩时必须可见 */
+  #lvbar::-webkit-scrollbar{display:none}
+  #lvbar.open{transform:translateY(0)}
+  #lvTab{position:absolute;top:66px;right:8px;width:26px;height:20px;border-radius:6px;border:1px solid #4a5a3a;
+    background:rgba(38,48,31,.88);color:#b9c98a;font-size:12px;line-height:18px;text-align:center;z-index:7;cursor:pointer}
+  .lvc{flex:0 0 52px;width:52px;height:52px;border-radius:9px;border:1.5px solid #4a5a3a;background:#31402a;
+    color:#b9c98a;font-size:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer}
+  .lvc .num{font-size:15px;color:#e8e2c8}
+  .lvc .st{font-size:9px;color:#c9a34e;letter-spacing:-1px}
+  .lvc.lock{opacity:.35;cursor:default}
+  .lvc.cur{border-color:#c9a34e;background:#3d4f30;box-shadow:0 0 8px rgba(201,163,78,.35)}
+  .lay{position:absolute;left:0;top:64px;width:390px;height:780px;z-index:9;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;background:rgba(16,22,14,.84)}
+  .lay.hide{display:none}
+  .lay h1{color:#e8e2c8;font-size:36px;letter-spacing:10px;margin:0 0 10px;font-weight:600}
+  .lay h2{color:#e8e2c8;font-size:26px;letter-spacing:6px;margin:0 0 14px;font-weight:600}
+  .lay .sub{color:#9aab78;font-size:13px;letter-spacing:2px;margin-bottom:26px;line-height:1.9;text-align:center}
+  .lay .stars{font-size:40px;letter-spacing:10px;margin:6px 0 12px;color:#c9a34e;text-shadow:0 0 14px rgba(201,163,78,.6)}
+  .lay .stars .off{color:#3a4630;text-shadow:none}
+  .lay .verdict{color:#b9c98a;font-size:17px;letter-spacing:5px;margin-bottom:8px}
+  .lay .stat{color:#8a9a68;font-size:13px;letter-spacing:2px;margin-bottom:24px}
+  .lay button{width:180px;height:46px;margin:6px 0;border-radius:10px;border:1.5px solid #8a8a4e;
+    background:linear-gradient(180deg,#4e5430,#3b4024);color:#e8e2c8;font-size:17px;letter-spacing:6px;cursor:pointer}
+  .lay button:active{background:#5a6238}
+  #winlay .stars span{animation:starpop .45s ease-out both}  /* 逐亮：内联 delay .05/.35/.65s；断言读 class 不受影响 */
+  #winlay .stars span.off{animation:none}
+  @keyframes starpop{from{opacity:.12;transform:scale(.55)}to{opacity:1;transform:scale(1)}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div class="lt" id="hstar">★ 0/72</div>
+    <div class="md" id="hname">捶 丸</div>
+    <div class="rt" id="hstrokes">杆 0</div>
+  </div>
+  <div class="hbtn" id="pauseBtn">Ⅱ</div>
+  <div class="hbtn" id="muteBtn">♪</div>
+  <div id="lvbar"></div>
+  <div id="lvTab">▦</div>
+  <canvas id="cv" width="390" height="780"></canvas>
+
+  <div class="lay" id="menu">
+    <h1>捶 丸</h1>
+    <div class="sub">暮春园圃，草地设窝<br>拖住任意处 · 反向拉杆 · 松手击丸入窝</div>
+    <button id="startBtn">开 局</button>
+    <div class="sub" style="margin-top:22px" id="menuStar">已攒 ★ 0/72</div>
+  </div>
+
+  <div class="lay hide" id="pauseLay">
+    <h2>歇 手</h2>
+    <button id="resumeBtn">继 续</button>
+    <button id="restartBtn">重 开 本 关</button>
+    <button id="homeBtn">回 园 圃</button>
+  </div>
+
+  <div class="lay hide" id="winlay">
+    <h2 id="winTitle">出 窝</h2>
+    <div class="stars" id="winStars"></div>
+    <div class="verdict" id="winVerdict"></div>
+    <div class="stat" id="winStat"></div>
+    <button id="nextBtn">下 一 关</button>
+    <button id="retryBtn">再 击 一 次</button>
+    <button id="homeBtn2">回 园 圃</button>
+  </div>
+</div>
+<script>
+'use strict';
+/* ===== 常量（SPEC §2 冻结） ===== */
+var FX = 15, FY = 8, FW = 360, FH = 752, T = 10;
+var R = 9, HR = 13, CAP_D = 10, VCAP = 150;
+var MU = 260.0, MUS = 780.0, E = 0.75, VMAX = 560.0, PULL_K = 2.4, EPS_V = 8.0;
+var HSTEP = 1 / 240, MAXT = 8.0, Q = 6;
+var NSUB = 1920;   /* floor(MAXT/HSTEP) */
+var K_BEST = 'g121_best', K_MUTE = 'g121_mute';
+/* LVLS：终表（lvls121.json——层墙迷宫式生成+量化 BFS par+精确重锚过滤全过） */
+var LVLS = [
+  {n:1,par:2,start:[290,645],hole:[220,306],walls:[[25,375,47,10],[146,375,219,10]],sands:[],waters:[]},
+  {n:2,par:2,start:[55,585],hole:[90,226],walls:[[25,255,42,10],[133,255,232,10],[25,495,208,10],[299,495,66,10]],sands:[],waters:[]},
+  {n:3,par:2,start:[245,545],hole:[185,186],walls:[[25,255,52,10],[143,255,222,10],[25,495,208,10],[299,495,66,10],[160,415,10,70]],sands:[],waters:[]},
+  {n:4,par:3,start:[220,415],hole:[265,111],walls:[[25,375,52,10],[151,375,214,10]],sands:[],waters:[]},
+  {n:5,par:3,start:[185,580],hole:[235,81],walls:[[25,255,62,10],[153,255,212,10],[25,495,218,10],[309,495,56,10]],sands:[],waters:[]},
+  {n:6,par:3,start:[70,635],hole:[230,41],walls:[[25,255,52,10],[143,255,222,10],[25,495,223,10],[314,495,51,10],[50,95,10,90]],sands:[],waters:[]},
+  {n:7,par:3,start:[325,580],hole:[310,261],walls:[[25,375,42,10],[141,375,224,10]],sands:[],waters:[]},
+  {n:8,par:3,start:[315,610],hole:[325,186],walls:[[25,255,57,10],[148,255,217,10],[25,495,218,10],[309,495,56,10]],sands:[],waters:[]},
+  {n:9,par:3,start:[325,610],hole:[260,136],walls:[[25,255,42,10],[133,255,232,10],[25,495,218,10],[309,495,56,10],[170,525,10,90]],sands:[],waters:[]},
+  {n:10,par:4,start:[125,695],hole:[340,206],walls:[[25,255,47,10],[138,255,227,10],[25,495,223,10],[314,495,51,10],[220,285,10,100]],sands:[],waters:[]},
+  {n:11,par:4,start:[200,615],hole:[335,111],walls:[[25,195,52,10],[137,195,228,10],[25,375,213,10],[298,375,67,10],[25,555,62,10],[147,555,218,10]],sands:[],waters:[]},
+  {n:12,par:4,start:[235,595],hole:[185,71],walls:[[25,195,47,10],[132,195,233,10],[25,375,233,10],[318,375,47,10],[25,555,62,10],[147,555,218,10],[180,235,10,100]],sands:[],waters:[[157,331,36,46]]},
+  {n:13,par:4,start:[95,595],hole:[235,161],walls:[[25,195,67,10],[152,195,213,10],[25,375,208,10],[293,375,72,10],[25,555,57,10],[142,555,223,10]],sands:[],waters:[]},
+  {n:14,par:4,start:[190,620],hole:[220,141],walls:[[25,195,57,10],[142,195,223,10],[25,375,208,10],[293,375,72,10],[25,555,52,10],[137,555,228,10],[40,615,10,90]],sands:[],waters:[]},
+  {n:15,par:4,start:[205,695],hole:[130,76],walls:[[25,165,72,10],[153,165,212,10],[25,305,238,10],[319,305,46,10],[25,455,67,10],[148,455,217,10],[25,595,223,10],[304,595,61,10]],sands:[[157,441,50,58]],waters:[]},
+  {n:16,par:5,start:[225,720],hole:[270,131],walls:[[25,195,52,10],[137,195,228,10],[25,375,233,10],[318,375,47,10],[25,555,52,10],[137,555,228,10],[220,305,10,60]],sands:[],waters:[[177,441,46,36]]},
+  {n:17,par:5,start:[125,705],hole:[230,126],walls:[[25,165,67,10],[148,165,217,10],[25,305,223,10],[304,305,61,10],[25,455,67,10],[148,455,217,10],[25,595,233,10],[314,595,51,10]],sands:[[147,481,60,28]],waters:[[177,591,66,36]]},
+  {n:18,par:5,start:[300,665],hole:[315,106],walls:[[25,165,57,10],[138,165,227,10],[25,305,238,10],[319,305,46,10],[25,455,72,10],[153,455,212,10],[25,595,228,10],[309,595,56,10],[210,65,10,90]],sands:[[187,231,70,28]],waters:[[167,151,46,36]]},
+  {n:19,par:5,start:[330,665],hole:[330,106],walls:[[25,195,42,10],[127,195,238,10],[25,375,238,10],[323,375,42,10],[25,555,72,10],[157,555,208,10],[190,215,10,130]],sands:[],waters:[]},
+  {n:20,par:5,start:[55,720],hole:[120,126],walls:[[25,165,47,10],[128,165,237,10],[25,305,233,10],[314,305,51,10],[25,455,62,10],[143,455,222,10],[25,595,218,10],[299,595,66,10]],sands:[[157,201,70,38]],waters:[[137,641,66,46]]},
+  {n:21,par:5,start:[110,700],hole:[255,111],walls:[[25,165,42,10],[123,165,242,10],[25,305,228,10],[309,305,56,10],[25,455,47,10],[128,455,237,10],[25,595,228,10],[309,595,56,10],[210,615,10,90]],sands:[[137,661,40,38]],waters:[[167,551,36,46]]},
+  {n:22,par:6,start:[60,660],hole:[340,61],walls:[[25,165,42,10],[123,165,242,10],[25,305,208,10],[289,305,76,10],[25,455,42,10],[123,455,242,10],[25,595,223,10],[304,595,61,10],[150,65,10,80]],sands:[[177,621,60,58]],waters:[]},
+  {n:23,par:6,start:[260,680],hole:[310,96],walls:[[25,145,67,10],[144,145,221,10],[25,255,228,10],[305,255,60,10],[25,375,57,10],[134,375,231,10],[25,495,228,10],[305,495,60,10],[25,615,67,10],[144,615,221,10]],sands:[[157,481,60,58]],waters:[[167,421,36,26]]},
+  {n:24,par:6,start:[140,710],hole:[100,56],walls:[[25,145,67,10],[144,145,221,10],[25,255,218,10],[295,255,70,10],[25,375,52,10],[129,375,236,10],[25,495,243,10],[320,495,45,10],[25,615,42,10],[119,615,246,10],[190,515,10,80]],sands:[[167,551,70,38]],waters:[[177,121,56,46]]}
+];
+var TIER_NAMES = ['入门', '进阶', '高手', '大师'];
+
+/* ===== 状态 ===== */
+var S = {
+  phase: 'menu',        /* menu | aim | roll | splash | holeT | win | pause */
+  lv: 1, strokes: 0,
+  ball: { x: 0, y: 0, vx: 0, vy: 0 },
+  strokeXY: null,       /* 本杆击球点快照（落水回此） */
+  walls: [], sands: [], waters: [], hole: [0, 0],
+  pid: null, downXY: null, curXY: null,   /* 瞄准拖拽 */
+  subN: 0, acc: 0, trail: [],
+  spT: 0, splashXY: null,                /* 落水演出 */
+  winT: 0, sinkXY: null, capped: false,
+  wonLv: 0, wonStars: 0, wonStrokes: 0,
+  _knock: 0, _wasSand: false, _knockT: 0, _rollT: 0, _sandT: 0,
+};
+var BEST = {};
+var AC = null, muted = false;
+
+/* ===== 音效（WebAudio 短合成；AC 手势内建+一次性 wake——g89 J2 范式） ===== */
+function ensureAC() { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = null; } } }
+function wake() { ensureAC(); if (AC && AC.state === 'suspended') { AC.resume(); } document.removeEventListener('pointerdown', wake); }
+document.addEventListener('pointerdown', wake);
+function tone(f, dur, type, vol, slide) {
+  if (muted || !AC) return;
+  try {
+    var o = AC.createOscillator(), g = AC.createGain();
+    o.type = type || 'sine'; o.frequency.value = f;
+    if (slide) { o.frequency.exponentialRampToValueAtTime(Math.max(40, f + slide), AC.currentTime + dur); }
+    g.gain.value = vol || 0.08;
+    g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + dur);
+    o.connect(g); g.connect(AC.destination);
+    o.start(); o.stop(AC.currentTime + dur);
+  } catch (e) {}
+}
+function sndAim() { tone(640, 0.04, 'square', 0.03); }
+function sndHit(p) { tone(180, 0.07, 'square', 0.04 + 0.05 * p, -60); }
+function sndKnock(v) { tone(140, 0.08, 'triangle', Math.min(0.12, 0.03 + v / 3200), -40); }
+function sndSand() { tone(320, 0.09, 'sawtooth', 0.03, -120); }
+function sndSplash() { tone(300, 0.25, 'sine', 0.09, -220); }   /* 300→80 下滑扑通 */
+function sndHole() { tone(880, 0.18, 'sine', 0.08); setTimeout(function () { tone(1320, 0.3, 'sine', 0.08); }, 90); }
+function sndWin() { [523, 659, 784].forEach(function (f, i) { setTimeout(function () { tone(f, 0.22, 'sine', 0.09); }, i * 130); }); }
+function sndStars3() { [523, 659, 784, 1046].forEach(function (f, i) { setTimeout(function () { tone(f, 0.2, 'sine', 0.08); }, i * 110); }); }
+
+/* ===== 存档 ===== */
+function loadBest() { try { BEST = JSON.parse(localStorage.getItem(K_BEST) || '{}'); } catch (e) { BEST = {}; } }
+function saveBest() { try { localStorage.setItem(K_BEST, JSON.stringify(BEST)); } catch (e) {} }
+function totalStars() { var t = 0; for (var k in BEST) { if (BEST[k] && BEST[k].stars) t += Number(BEST[k].stars) || 0; } return t; }
+
+/* ===== 物理（三方同构积分器——与 phys121.js/phys121.py 逐行同构；顺序冻结：位移→碰撞→洞判→水判→摩擦/静止） ===== */
+function boundary() {
+  return [[FX, FY, FW, T], [FX, FY + FH - T, FW, T], [FX, FY, T, FH], [FX + FW - T, FY, T, FH]];
+}
+function clampN(v, a, b) { return v < a ? a : (v > b ? b : v); }
+/* 一个子步。返回 0=继续 / 1=入洞 / 2=落水 / 3=静止 */
+function stepSub() {
+  var x = S.ball.x, y = S.ball.y, vx = S.ball.vx, vy = S.ball.vy;
+  x += vx * HSTEP; y += vy * HSTEP;
+  for (var wi = 0; wi < S.walls.length; wi++) {
+    var wx = S.walls[wi][0], wy = S.walls[wi][1], ww = S.walls[wi][2], wh = S.walls[wi][3];
+    var cx = clampN(x, wx, wx + ww), cy = clampN(y, wy, wy + wh);
+    var dx = x - cx, dy = y - cy;
+    var d2 = dx * dx + dy * dy;
+    if (d2 < R * R && d2 > 0) {
+      var d = Math.sqrt(d2);
+      var nx = dx / d, ny = dy / d;
+      x = cx + nx * R; y = cy + ny * R;
+      var vn = vx * nx + vy * ny;
+      if (vn < 0) { vx -= (1 + E) * vn * nx; vy -= (1 + E) * vn * ny; if (-vn > S._knock) S._knock = -vn; }
+    }
+  }
+  var ddx = x - S.hole[0], ddy = y - S.hole[1];
+  var sp2 = vx * vx + vy * vy;
+  if (ddx * ddx + ddy * ddy < CAP_D * CAP_D && sp2 < VCAP * VCAP) {
+    S.ball.x = x; S.ball.y = y; S.ball.vx = 0; S.ball.vy = 0;
+    return 1;
+  }
+  for (var wj = 0; wj < S.waters.length; wj++) {
+    var ox = S.waters[wj][0], oy = S.waters[wj][1], ow = S.waters[wj][2], oh = S.waters[wj][3];
+    if (ox <= x && x < ox + ow && oy <= y && y < oy + oh) { S.ball.x = x; S.ball.y = y; return 2; }
+  }
+  var inSand = false;
+  for (var si = 0; si < S.sands.length; si++) {
+    var gx = S.sands[si][0], gy = S.sands[si][1], gw = S.sands[si][2], gh = S.sands[si][3];
+    if (gx <= x && x < gx + gw && gy <= y && y < gy + gh) { inSand = true; break; }
+  }
+  if (inSand && !S._wasSand) { var sn = Math.sqrt(sp2); if (sn > 80) sndSand(); }
+  S._wasSand = inSand;
+  var sp = Math.sqrt(sp2);
+  var dec = (inSand ? MUS : MU) * HSTEP;
+  if (sp <= EPS_V || sp - dec <= 0) {
+    S.ball.x = x; S.ball.y = y; S.ball.vx = 0; S.ball.vy = 0;
+    if (ddx * ddx + ddy * ddy < CAP_D * CAP_D) return 1;   /* 停洞口即入 */
+    return 3;
+  }
+  var k = (sp - dec) / sp;
+  vx *= k; vy *= k;
+  S.ball.x = x; S.ball.y = y; S.ball.vx = vx; S.ball.vy = vy;
+  return 0;
+}
+
+/* ===== 击球与结算 ===== */
+function parOf(n) { return LVLS[n - 1].par; }
+function starsOf(strokes, par) { return strokes <= par ? 3 : (strokes <= par + 2 ? 2 : 1); }
+function snapPos(x, y, lvl) {   /* 静止吸附：格心对齐 BFS 状态（≤3px；水内不吸附防罚杆环） */
+  var sx = Math.floor(x / Q) * Q + Q / 2, sy = Math.floor(y / Q) * Q + Q / 2;
+  var ws = (lvl && lvl.waters) || [];
+  for (var i = 0; i < ws.length; i++) {
+    var w = ws[i];
+    if (w[0] <= sx && sx < w[0] + w[2] && w[1] <= sy && sy < w[1] + w[3]) return [x, y];
+  }
+  return [sx, sy];
+}
+function loadLv(n) {
+  var L = LVLS[n - 1];
+  S.lv = n; S.strokes = 0;
+  S.phase = 'aim';
+  var sp = snapPos(L.start[0], L.start[1], L);
+  S.ball = { x: sp[0], y: sp[1], vx: 0, vy: 0 };
+  S.strokeXY = null;
+  S.walls = boundary().concat(L.walls || []);
+  S.sands = L.sands || []; S.waters = L.waters || []; S.hole = L.hole;
+  S.pid = null; S.downXY = null; S.curXY = null;   /* 载关清指针（g120 M1 孤儿化教训） */
+  S.subN = 0; S.acc = 0; S.trail = [];
+  S.spT = 0; S.splashXY = null; S.winT = 0; S.capped = false;
+  S._knock = 0; S._wasSand = false;
+}
+function checkCap() {   /* 静止/落水后：杆数达 par+6 强制结算（1★） */
+  if (S.phase === 'aim' && S.strokes >= parOf(S.lv) + 6) finishWin(true);
+}
+function applyOutcome(code, instant) {
+  if (code === 1) {
+    if (instant) { finishWin(false); return; }
+    S.phase = 'holeT'; S.winT = 0.9; S.sinkXY = [S.ball.x, S.ball.y]; sndHole();
+  } else if (code === 2) {
+    S.splashXY = [S.ball.x, S.ball.y];
+    if (instant) { S.ball = { x: S.strokeXY[0], y: S.strokeXY[1], vx: 0, vy: 0 }; S.phase = 'aim'; checkCap(); }
+    else { S.phase = 'splash'; S.spT = 0.35; sndSplash(); }
+  } else {
+    /* 静止吸附：格心对齐（BFS 边=格心+击法→静止格；吸附后重放逐位一致，par 按构造可达成） */
+    var sp2 = snapPos(S.ball.x, S.ball.y, LVLS[S.lv - 1]);
+    S.ball = { x: sp2[0], y: sp2[1], vx: 0, vy: 0 };
+    S.phase = 'aim'; S.trail = [];
+    checkCap();
+  }
+}
+/* 同步整杆解算（dev/bot 用；与人玩逐步推进同一子步序列→逐位一致） */
+function resolveStrokeSync() {
+  var n = 0, code = 0;
+  while (n < NSUB) { code = stepSub(); n++; if (code) break; }
+  if (!code) code = 3;   /* MAXT 到 → 按静止收 */
+  S.subN = 0; S.acc = 0;
+  applyOutcome(code, true);
+  return code;
+}
+function stroke(vx, vy) {   /* 校验+起杆（计杆+击球点快照） */
+  if (S.phase !== 'aim') throw new Error('stroke illegal: phase=' + S.phase);
+  var sp = Math.sqrt(vx * vx + vy * vy);
+  if (sp > VMAX + 0.05) throw new Error('stroke illegal: speed=' + sp);   /* 0.05 容差=DIRS 字面量舍入（对角满力 hypot≤560.015） */
+  S.strokeXY = [S.ball.x, S.ball.y];
+  S.ball.vx = vx; S.ball.vy = vy;
+  S.strokes++; updHud();
+  S.subN = 0; S.acc = 0; S.trail = []; S._wasSand = false; S._knock = 0;
+  sndHit(Math.min(1, sp / VMAX));
+}
+
+/* ===== HUD/选关带 ===== */
+function updHud() {
+  document.getElementById('hstar').textContent = '★ ' + totalStars() + '/72';
+  var tier = TIER_NAMES[Math.floor((S.lv - 1) / 6)];
+  document.getElementById('hname').textContent = S.lv > 0 ? ('第' + S.lv + '关 · ' + tier) : '捶 丸';
+  document.getElementById('hstrokes').textContent = S.lv > 0 ? ('杆 ' + S.strokes + '（par ' + parOf(S.lv) + '）') : '园 圃';
+}
+function unlocked(n) { return n === 1 || !!(BEST[n - 1] && BEST[n - 1].stars >= 1); }
+function buildBar() {
+  var bar = document.getElementById('lvbar');
+  bar.innerHTML = '';
+  for (var n = 1; n <= 24; n++) {
+    (function (n) {
+      var d = document.createElement('div');
+      d.className = 'lvc' + (unlocked(n) ? '' : ' lock') + (n === S.lv ? ' cur' : '');
+      var st = BEST[n] ? BEST[n].stars : 0;
+      d.innerHTML = '<div class="num">' + n + '</div><div class="st">' + (unlocked(n) ? ('★★★'.slice(0, st) || '·') : '锁') + '</div>';
+      if (unlocked(n)) d.onclick = function () { if (S.phase === 'aim' || S.phase === 'menu') { enterLv(n); } };
+      bar.appendChild(d);
+    })(n);
+  }
+  var cur = bar.querySelector('.cur');
+  if (cur) cur.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'instant' });
+}
+function enterLv(n) {
+  loadLv(n);
+  document.getElementById('menu').classList.add('hide');
+  document.getElementById('winlay').classList.add('hide');
+  document.getElementById('pauseLay').classList.add('hide');
+  document.getElementById('lvbar').classList.remove('open');   /* 进关收带（玩时全场可见） */
+  buildBar(); updHud();
+}
+
+/* ===== 渲染 ===== */
+var cv = document.getElementById('cv'), c = cv.getContext('2d');
+function rr(x, y, w, h, r) {
+  c.beginPath();
+  c.moveTo(x + r, y);
+  c.arcTo(x + w, y, x + w, y + h, r);
+  c.arcTo(x + w, y + h, x, y + h, r);
+  c.arcTo(x, y + h, x, y, r);
+  c.arcTo(x, y, x + w, y, r);
+  c.closePath();
+}
+function drawWood(x, y, w, h) {   /* 挡墙木纹 */
+  c.fillStyle = 'rgba(0,0,0,.3)'; rr(x + 2, y + 4, w, h, 4); c.fill();
+  c.fillStyle = '#6a4e34'; rr(x, y, w, h, 4); c.fill();
+  c.strokeStyle = '#4a3524'; c.lineWidth = 2; rr(x, y, w, h, 4); c.stroke();
+  c.strokeStyle = 'rgba(58,42,26,.55)'; c.lineWidth = 1;
+  var step = 14, off = ((x * 7 + y * 3) % step);
+  for (var gx = x + off; gx < x + w - 3; gx += step) { c.beginPath(); c.moveTo(gx, y + 3); c.lineTo(gx, y + h - 3); c.stroke(); }
+  c.fillStyle = 'rgba(255,240,200,.12)'; rr(x + 2, y + 2, w - 4, Math.max(2, h * .3), 3); c.fill();
+}
+function draw(t) {
+  /* 外底 */
+  c.fillStyle = '#26301f'; c.fillRect(0, 0, 390, 780);
+  /* 草地 */
+  c.fillStyle = '#3d5238'; c.fillRect(FX, FY, FW, FH);
+  c.save();
+  c.beginPath(); c.rect(FX + T, FY + T, FW - 2 * T, FH - 2 * T); c.clip();
+  c.strokeStyle = '#354730'; c.lineWidth = 1;
+  for (var gx = FX + T + 26; gx < FX + FW - T; gx += 26) { c.beginPath(); c.moveTo(gx, FY + T); c.lineTo(gx, FY + FH - T); c.stroke(); }
+  for (var gy = FY + T + 26; gy < FY + FH - T; gy += 26) { c.beginPath(); c.moveTo(FX + T, gy); c.lineTo(FX + FW - T, gy); c.stroke(); }
+  /* 沙坑（点纹） */
+  for (var si = 0; si < S.sands.length; si++) {
+    var sd = S.sands[si];
+    c.fillStyle = '#c9b088'; rr(sd[0], sd[1], sd[2], sd[3], 7); c.fill();
+    c.strokeStyle = '#a8906a'; c.lineWidth = 2; rr(sd[0], sd[1], sd[2], sd[3], 7); c.stroke();
+    c.fillStyle = 'rgba(120,96,60,.4)';
+    for (var dx = sd[0] + 8; dx < sd[0] + sd[2] - 4; dx += 11) {
+      for (var dy = sd[1] + 8; dy < sd[1] + sd[3] - 4; dy += 11) {
+        c.beginPath(); c.arc(dx + ((dy / 11) % 2) * 5, dy, 1.2, 0, 7); c.fill();
+      }
+    }
+  }
+  /* 水塘（波纹线） */
+  for (var wi = 0; wi < S.waters.length; wi++) {
+    var wt = S.waters[wi];
+    c.fillStyle = '#3e5a68'; rr(wt[0], wt[1], wt[2], wt[3], 7); c.fill();
+    c.strokeStyle = '#2c4450'; c.lineWidth = 2; rr(wt[0], wt[1], wt[2], wt[3], 7); c.stroke();
+    c.strokeStyle = '#4a6a78'; c.lineWidth = 1.5;
+    for (var wy = wt[1] + 10; wy < wt[1] + wt[3] - 4; wy += 12) {
+      c.beginPath();
+      var ph = Math.sin((t / 640) + wy);
+      for (var wx = wt[0] + 5; wx < wt[0] + wt[2] - 5; wx += 4) {
+        var yy = wy + Math.sin((wx + t / 500)) * 1.6 * ph;
+        if (wx === wt[0] + 5) c.moveTo(wx, yy); else c.lineTo(wx, yy);
+      }
+      c.stroke();
+    }
+  }
+  c.restore();
+  /* 洞+旗（旗面微摆） */
+  var hx = S.hole[0], hy = S.hole[1];
+  c.fillStyle = '#1a140f'; c.beginPath(); c.arc(hx, hy, HR, 0, 7); c.fill();
+  c.strokeStyle = '#120d09'; c.lineWidth = 2; c.beginPath(); c.arc(hx, hy, HR, 0, 7); c.stroke();
+  c.strokeStyle = 'rgba(200,190,160,.18)'; c.lineWidth = 1.5; c.beginPath(); c.arc(hx, hy, HR - 2.5, 0, 7); c.stroke();
+  var wav = Math.sin(t / 380) * 2;
+  c.strokeStyle = '#d8c96a'; c.lineWidth = 2;
+  c.beginPath(); c.moveTo(hx, hy - 2); c.lineTo(hx, hy - 32); c.stroke();
+  c.fillStyle = '#b03a28';
+  c.beginPath(); c.moveTo(hx + 1, hy - 32); c.lineTo(hx + 18 + wav, hy - 26 + wav * .5); c.lineTo(hx + 1, hy - 21); c.closePath(); c.fill();
+  c.fillStyle = '#e8c96a'; c.beginPath(); c.arc(hx, hy - 33, 2.2, 0, 7); c.fill();
+  /* 关卡挡墙 */
+  var L = LVLS[S.lv - 1];
+  if (L) for (var ci = 0; ci < (L.walls || []).length; ci++) drawWood(L.walls[ci][0], L.walls[ci][1], L.walls[ci][2], L.walls[ci][3]);
+  /* 围墙（边界四段，最后画压边） */
+  drawWood(FX, FY, FW, T); drawWood(FX, FY + FH - T, FW, T);
+  drawWood(FX, FY, T, FH); drawWood(FX + FW - T, FY, T, FH);
+  /* 拖尾 */
+  for (var ti = 0; ti < S.trail.length; ti++) {
+    var tr = S.trail[ti], a = (ti + 1) / S.trail.length * 0.3;
+    c.fillStyle = 'rgba(232,226,208,' + a.toFixed(3) + ')';
+    c.beginPath(); c.arc(tr[0], tr[1], R * 0.55 * (0.4 + 0.6 * (ti + 1) / S.trail.length), 0, 7); c.fill();
+  }
+  /* 球（holeT 缩入演出） */
+  var bx = S.ball.x, by = S.ball.y, br = R;
+  if (S.phase === 'holeT' && S.sinkXY) {
+    var k = Math.max(0, S.winT / 0.9);
+    bx = S.sinkXY[0]; by = S.sinkXY[1] + (1 - k) * 4; br = R * k;
+  }
+  if (S.phase !== 'holeT' || br > 0.5) {
+    c.fillStyle = 'rgba(0,0,0,.28)';
+    c.beginPath(); c.ellipse(bx + 2, by + 5, br * 0.9, br * 0.45, 0, 0, 7); c.fill();
+    c.fillStyle = '#e8e2d0'; c.beginPath(); c.arc(bx, by, br, 0, 7); c.fill();
+    c.strokeStyle = '#b8b09a'; c.lineWidth = 1.5; c.beginPath(); c.arc(bx, by, br, 0, 7); c.stroke();
+    if (br > 4) { c.fillStyle = 'rgba(255,255,250,.5)'; c.beginPath(); c.arc(bx - br * .32, by - br * .34, br * .24, 0, 7); c.fill(); }
+  }
+  /* 瞄准：反向虚线+力度弧 */
+  if (S.phase === 'aim' && S.downXY && S.curXY) {
+    var ddx = S.downXY[0] - S.curXY[0], ddy = S.downXY[1] - S.curXY[1];
+    var dist = Math.sqrt(ddx * ddx + ddy * ddy);
+    if (dist >= 12) {
+      var v0 = Math.min(dist * PULL_K, VMAX), frac = v0 / VMAX;
+      var ux = ddx / dist, uy = ddy / dist, Ln = v0 * 0.55;
+      c.strokeStyle = 'rgba(232,226,200,.75)'; c.lineWidth = 2; c.setLineDash([7, 7]);
+      c.beginPath(); c.moveTo(S.ball.x + ux * 14, S.ball.y + uy * 14);
+      c.lineTo(S.ball.x + ux * Ln, S.ball.y + uy * Ln); c.stroke(); c.setLineDash([]);
+      var tx = S.ball.x + ux * Ln, ty = S.ball.y + uy * Ln;
+      c.fillStyle = 'rgba(232,226,200,.85)';
+      c.beginPath(); c.moveTo(tx + ux * 8, ty + uy * 8);
+      c.lineTo(tx - uy * 5, ty + ux * 5); c.lineTo(tx + uy * 5, ty - ux * 5); c.closePath(); c.fill();
+      var col = frac < 0.5 ? '#8aa852' : (frac < 0.85 ? '#c9a34e' : '#c25a3a');
+      c.strokeStyle = col; c.lineWidth = 3.5;
+      c.beginPath(); c.arc(S.ball.x, S.ball.y, 15, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2); c.stroke();
+    }
+  }
+  /* 落水演出：涟漪 */
+  if (S.phase === 'splash' && S.splashXY) {
+    var k2 = 1 - S.spT / 0.35;
+    c.strokeStyle = 'rgba(160,200,215,' + (0.7 * (1 - k2)).toFixed(3) + ')'; c.lineWidth = 2.5;
+    c.beginPath(); c.arc(S.splashXY[0], S.splashXY[1], 6 + k2 * 26, 0, 7); c.stroke();
+    c.strokeStyle = 'rgba(160,200,215,' + (0.45 * (1 - k2)).toFixed(3) + ')';
+    c.beginPath(); c.arc(S.splashXY[0], S.splashXY[1], 3 + k2 * 15, 0, 7); c.stroke();
+  }
+}
+
+/* ===== 主循环（物理按累积定步长 1/240；rAF 只送 dt） ===== */
+var lastT = 0;
+function loop(t) {
+  var dt = Math.min(0.05, (t - lastT) / 1000 || 0.016); lastT = t;
+  if (S.phase === 'roll') {
+    S.acc += dt;
+    var guard = 0;
+    while (S.acc >= HSTEP && S.phase === 'roll' && guard < 1200) {
+      S.acc -= HSTEP; guard++;
+      var code = stepSub(); S.subN++;
+      if (S.trail.length === 0 || (S.subN % 4 === 0)) {
+        S.trail.push([S.ball.x, S.ball.y]);
+        if (S.trail.length > 16) S.trail.shift();
+      }
+      if (t - S._rollT > 90) {   /* 滚动低噪（节流） */
+        var sp = Math.sqrt(S.ball.vx * S.ball.vx + S.ball.vy * S.ball.vy);
+        if (sp > 60) { tone(90 + sp * 0.06, 0.05, 'sawtooth', 0.018); }
+        S._rollT = t;
+      }
+      if (S._knock > 40 && t - S._knockT > 90) { sndKnock(S._knock); S._knockT = t; S._knock = 0; }
+      if (code) { applyOutcome(code, false); break; }
+      if (S.subN >= NSUB) { applyOutcome(3, false); break; }
+    }
+  } else if (S.phase === 'splash') {
+    S.spT -= dt;
+    if (S.spT <= 0) {
+      S.ball = { x: S.strokeXY[0], y: S.strokeXY[1], vx: 0, vy: 0 };
+      S.phase = 'aim'; S.trail = [];
+      checkCap();
+    }
+  } else if (S.phase === 'holeT') {
+    S.winT -= dt;
+    if (S.winT <= 0) finishWin(false);
+  }
+  draw(t);
+  requestAnimationFrame(loop);
+}
+function finishWin(capped) {
+  S.phase = 'win';
+  var par = parOf(S.lv), st = starsOf(S.strokes, par);
+  S.wonLv = S.lv; S.wonStars = st; S.wonStrokes = S.strokes; S.capped = capped;
+  var old = BEST[S.lv];
+  if (!old || S.strokes < old.strokes || st > old.stars) {
+    BEST[S.lv] = { strokes: Math.min(S.strokes, old ? old.strokes : 999), stars: Math.max(st, old ? old.stars : 0) };
+    saveBest();
+  }
+  var lay = document.getElementById('winlay');
+  document.getElementById('winStars').innerHTML =
+    '<span class="' + (st >= 1 ? '' : 'off') + '" style="animation-delay:.05s">★</span><span class="' + (st >= 2 ? '' : 'off') + '" style="animation-delay:.35s">★</span><span class="' + (st >= 3 ? '' : 'off') + '" style="animation-delay:.65s">★</span>';
+  document.getElementById('winTitle').textContent = '出 窝';
+  document.getElementById('winVerdict').textContent = st === 3 ? '巧' : (st === 2 ? '稳' : '过');
+  document.getElementById('winStat').textContent = '第' + S.lv + '关 · ' + S.strokes + ' 杆（par ' + par + '）' + (capped ? ' · 杆数尽' : '');
+  if (capped) { document.getElementById('winTitle').textContent = '收 杆'; }
+  if (S.lv >= 24) {   /* 终局彩蛋「丸圣」：24 关全 3★（BEST 已含本关，先判后写文案） */
+    var all3 = true;
+    for (var n2 = 1; n2 <= 24; n2++) { if (!BEST[n2] || BEST[n2].stars < 3) { all3 = false; break; } }
+    if (all3) {
+      document.getElementById('winTitle').textContent = '丸 圣';
+      document.getElementById('winVerdict').textContent = '二十四关全三星';
+      document.getElementById('winStat').textContent = '园圃尽头的传说 · 击丸而归';
+    }
+  }
+  document.getElementById('nextBtn').textContent = S.lv >= 24 ? '通 园 啦' : '下 一 关';
+  lay.classList.remove('hide');
+  updHud(); buildBar();
+  sndWin(); if (st === 3) setTimeout(sndStars3, 450);
+}
+
+/* ===== 输入（aim：任意处按下→拖拽→松手击球；首指针锁定） ===== */
+function evXY(e) { var r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+cv.addEventListener('pointerdown', function (e) {
+  document.getElementById('lvbar').classList.remove('open');   /* 落杆收带 */
+  if (S.phase !== 'aim' || S.pid !== null) return;
+  S.pid = e.pointerId; S.downXY = evXY(e); S.curXY = S.downXY;
+  sndAim();
+  e.preventDefault();
+});
+cv.addEventListener('pointermove', function (e) {
+  if (e.pointerId !== S.pid || S.phase !== 'aim' || !S.downXY) return;
+  S.curXY = evXY(e);
+  e.preventDefault();
+});
+function endAim(e, cancel) {
+  if (e.pointerId !== S.pid) return;
+  var d = S.downXY && S.curXY ? [S.downXY[0] - S.curXY[0], S.downXY[1] - S.curXY[1]] : [0, 0];
+  S.pid = null; S.downXY = null; S.curXY = null;
+  if (cancel) return;   /* 系统打断（来电/手势）只清拖拽态，不击球不计杆 */
+  if (S.phase !== 'aim') return;
+  var dist = Math.sqrt(d[0] * d[0] + d[1] * d[1]);
+  if (dist < 12) return;   /* 微拖=取消 */
+  var v0 = Math.min(dist * PULL_K, VMAX);
+  stroke(d[0] / dist * v0, d[1] / dist * v0);
+  S.phase = 'roll';
+}
+cv.addEventListener('pointerup', function (e) { endAim(e, false); });
+cv.addEventListener('pointercancel', function (e) { endAim(e, true); });
+window.addEventListener('blur', function () { S.pid = null; S.downXY = null; S.curXY = null; });
+
+/* ===== 按钮 ===== */
+document.getElementById('lvTab').onclick = function () {   /* 收纳式选关带：点钮唤出/收起 */
+  var b = document.getElementById('lvbar');
+  if (b.classList.contains('open')) b.classList.remove('open');
+  else { buildBar(); b.classList.add('open'); }
+};
+document.getElementById('startBtn').onclick = function () {
+  wake();
+  var next = 1;
+  for (var n = 24; n >= 1; n--) { if (BEST[n] && BEST[n].stars >= 1) { next = Math.min(24, n + 1); break; } }
+  enterLv(next);
+};
+document.getElementById('pauseBtn').onclick = function () {
+  if (S.phase === 'aim' || S.phase === 'roll') {
+    S.phase = 'pause'; S._pausedFrom = (S.ball.vx || S.ball.vy) ? 'roll' : 'aim';
+    S.pid = null; S.downXY = null; S.curXY = null;
+    document.getElementById('pauseLay').classList.remove('hide');
+  }
+};
+document.getElementById('resumeBtn').onclick = function () {
+  if (S.phase === 'pause') {
+    S.phase = S._pausedFrom === 'roll' ? 'roll' : 'aim';
+    document.getElementById('pauseLay').classList.add('hide');
+  }
+};
+document.getElementById('restartBtn').onclick = function () { enterLv(S.lv); };
+document.getElementById('homeBtn').onclick = homeFn;
+document.getElementById('homeBtn2').onclick = homeFn;
+function homeFn() {
+  S.phase = 'menu'; S.lv = 0;
+  document.getElementById('pauseLay').classList.add('hide');
+  document.getElementById('winlay').classList.add('hide');
+  document.getElementById('menu').classList.remove('hide');
+  document.getElementById('menuStar').textContent = '已攒 ★ ' + totalStars() + '/72';
+  updHud();
+}
+document.getElementById('nextBtn').onclick = function () {
+  if (S.lv >= 24) { homeFn(); return; }
+  enterLv(S.lv + 1);
+};
+document.getElementById('retryBtn').onclick = function () { enterLv(S.lv); };
+document.getElementById('muteBtn').onclick = function () {
+  muted = !muted;
+  try { localStorage.setItem(K_MUTE, muted ? '1' : '0'); } catch (e) {}
+  document.getElementById('muteBtn').textContent = muted ? '⊘' : '♪';
+};
+document.addEventListener('visibilitychange', function () {
+  if (document.hidden && (S.phase === 'aim' || S.phase === 'roll')) {
+    S.phase = 'pause'; S._pausedFrom = (S.ball.vx || S.ball.vy) ? 'roll' : 'aim';
+    S.pid = null; S.downXY = null; S.curXY = null;
+    document.getElementById('pauseLay').classList.remove('hide');
+  }
+});
+
+/* ===== dev 钩子（build 剥离） ===== */
+
+
+/* ===== boot ===== */
+(function () {
+  try { muted = localStorage.getItem(K_MUTE) === '1'; } catch (e) {}
+  document.getElementById('muteBtn').textContent = muted ? '⊘' : '♪';
+  loadBest();
+  document.getElementById('menuStar').textContent = '已攒 ★ ' + totalStars() + '/72';
+  S.hole = [0, 0]; S.walls = []; S.sands = []; S.waters = [];   /* 菜单期空场 */
+  buildBar();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
