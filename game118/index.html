@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>编钟乐师</title>
+<style>
+  html,body{margin:0;padding:0;background:#1a1512;overflow:hidden;height:100%;
+    font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    -webkit-user-select:none;user-select:none;touch-action:none}
+  #wrap{position:relative;width:390px;height:844px;margin:0 auto;overflow:hidden}
+  canvas{display:block}
+  #hud{position:absolute;left:0;top:0;width:390px;height:64px;pointer-events:none;
+    display:flex;align-items:center;justify-content:space-between;padding:0 14px;box-sizing:border-box;
+    background:linear-gradient(180deg,rgba(26,21,18,.97),rgba(26,21,18,.72) 80%,transparent)}
+  .hgroup{display:flex;align-items:baseline;gap:6px}
+  .hicon{font-size:14px}
+  .hval{font-size:19px;font-weight:800;color:#d8c48a}
+  .hwave{font-size:12px;color:#a89a7c;letter-spacing:2px}
+  .cbtn{position:absolute;top:10px;width:36px;height:36px;border-radius:10px;border:1px solid rgba(216,196,138,.25);
+    background:rgba(40,32,24,.8);color:#cbb98a;font-size:15px;line-height:34px;text-align:center;
+    pointer-events:auto;cursor:pointer}
+  #pauseBtn{right:52px}#muteBtn{right:10px}
+  .lay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:rgba(18,14,11,.97);z-index:5}
+  .ov{font-size:42px;font-weight:900;color:#d8c48a;letter-spacing:12px;text-shadow:0 0 22px rgba(216,196,138,.3)}
+  .ovsub{margin-top:14px;font-size:14px;color:#a89a7c;letter-spacing:2px;line-height:2}
+  .bigbtn{margin-top:30px;padding:13px 52px;font-size:19px;letter-spacing:8px;color:#241a10;
+    background:linear-gradient(90deg,#d8b45f,#b9853f);border:none;border-radius:12px;cursor:pointer;
+    box-shadow:0 3px 0 #8a5f36;font-family:inherit}
+  .bigbtn:active{transform:translateY(3px);box-shadow:0 1px 0 #8a5f36}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="cv" width="390" height="844"></canvas>
+  <div id="hud">
+    <div class="hgroup"><span class="hicon">🎵</span><span class="hval" id="hsc">0</span></div>
+    <div class="hgroup"><span class="hwave" id="hlv">第一曲 · 鹿鸣</span></div>
+    <div class="hgroup"><span class="hicon">🥁</span><span class="hval" id="hli">●●●</span></div>
+  </div>
+  <div class="cbtn" id="pauseBtn">Ⅱ</div>
+  <div class="cbtn" id="muteBtn">♪</div>
+  <div class="lay" id="overLay" style="display:none">
+    <div class="ov" id="ovt">曲 终</div>
+    <div class="ovsub" id="ovtxt"></div>
+    <button class="bigbtn" id="bre">再 奏 一 曲</button>
+    <div class="ovsub" style="margin-top:18px;font-size:13px;color:#d8c48a;letter-spacing:3px;opacity:.92">磬球击钟 · 十曲合乐</div>
+  </div>
+</div>
+<script>
+'use strict';
+/* ===== 常量（SPEC v1.0 冻结——与 sim118.py 同构） ===== */
+var R=7,V0=300,VCAP=1.60,VSTEP=0.03;
+var PW=64,PH=12,PY=756;
+var LAUNCH=72;                /* 发射角：自 +x 轴逆时针（cos72°=+0.309 → 向上偏右 18°） */
+var PBOUNCE_MAX=55;           /* 板反弹最大偏角 */
+var TOP=64,BOTTOM=780;
+var LIVES0=3;
+var CW=34,CH=20,GX0=15,GY0=84,DXC=36,DYC=26;
+var CLEAR_BASE=200,CLEAR_PER=50;
+var COMBO_CAP=4;
+var LOST_T=0.9,WIN_T=1.6;
+var SUB=1/240;
+/* 21 档板反弹方向表（gentab118.py 生成，与 sim118.py 字面量同源——跨语言逐位对拍前提；DIRS[i]: hit=(i-10)/10 档 → [cosθ,sinθ], θ=90-hit×55°） */
+var DIRS=[
+[-0.8191520442889919,0.5735764363510459],
+[-0.7604059656000309,0.6494480483301838],
+[-0.6946583704589974,0.7193398003386511],
+[-0.6225146366376194,0.782608156852414],
+[-0.5446390350150271,0.838670567945424],
+[-0.4617486132350338,0.8870108331782218],
+[-0.37460659341591207,0.9271838545667874],
+[-0.28401534470392265,0.958819734868193],
+[-0.1908089953765448,0.981627183447664],
+[-0.09584575252022395,0.9953961983671789],
+[6e-17,1.0],
+[0.09584575252022406,0.9953961983671787],
+[0.19080899537654492,0.981627183447664],
+[0.28401534470392276,0.958819734868193],
+[0.37460659341591196,0.9271838545667874],
+[0.46174861323503386,0.8870108331782217],
+[0.5446390350150271,0.838670567945424],
+[0.6225146366376195,0.7826081568524139],
+[0.6946583704589973,0.7193398003386512],
+[0.7604059656000309,0.6494480483301837],
+[0.8191520442889918,0.573576436351046]];
+var LDIR=[0.30901699437494745,0.9510565162951535];   /* 发射 72° 方向 */
+var K_BEST='g118_best',K_MUTE='g118_mute';
+var LNAME=['鹿鸣','关雎','阳春','白雪','幽兰','高山','流水','渔樵','梅花','广陵'];
+var CNUM=['零','一','二','三','四','五','六','七','八','九','十'];
+var VAL={s:50,m:80,L:120,l:120};
+var HPI={s:1,m:1,L:2,l:1};
+var LEVELS=[
+['##########','###ssss###','##ssssss##','#ss#ss#ss#','###s##s###','####s#####','##########','##########'],
+['####ss####','###ssss###','###ssss###','##ssssss##','###ssss###','####mm####','##########','##########'],
+['##ssssss##','#mmmmmmmm#','##ssssss##','##########','#mm#mm#mm#','###ssss###','##########','##########'],
+['#LL####LL#','#LL#ss#LL#','##LLssLL##','###ssss###','##ss##ss##','###mmmm###','##########','##########'],
+['#m#m#m#m#m','#m#m#m#m#m','#s#s#s#s#s','##########','#s#s#s#s#s','#m#m#m#m#m','##########','##########'],
+['####LL####','###LLLL###','##LLLLLL##','#LLLLLLLL#','##########','##mmmmmm##','###ssss###','##########'],
+['ssssss####','####sssss#','#####ssss#','sssssss###','###ssss###','#ssss#####','##mmmmmm##','###LLLL###'],
+['#LLmmmmLL#','#LLmssmLL#','#mmssssmm#','#msLssLsm#','##ssssss##','###mmmm###','##########','##########'],
+['#mm####mm#','#mm#LL#mm#','##LLLLLL##','#mm#LL#mm#','#mm####mm#','##ssssss##','###ssss###','##########'],
+['#LLLLLLLL#','#LmmmmmmL#','#mmssssmm#','#msLssLsm#','##mmmmmm##','###ssss###','##########','##########']];
+
+/* ===== 状态 ===== */
+var S={phase:'play',lv:0,score:0,lives:LIVES0,combo:0,px:195,
+  bx:195,by:PY-R-1,vx:0,vy:0,serve:true,lostT:0,winT:0,over:false,won:false,
+  broken:0,acc:0,flip:0,best:0,muted:false,parts:[],floats:[]};
+
+function loadLv(){
+  S.grid=[];
+  for(var r=0;r<8;r++){S.grid.push(LEVELS[S.lv][r].split(''));}
+}
+function bells(){
+  var out=[];
+  for(var r=0;r<8;r++)for(var c=0;c<10;c++){
+    if(S.grid[r][c]!=='#')out.push([r,c,S.grid[r][c]]);
+  }
+  return out;
+}
+function speed(){return V0*Math.min(VCAP,1+VSTEP*S.broken);}
+function clampN(x,a,b){return x<a?a:(x>b?b:x);}
+function drag(x){S.px=clampN(x,PW/2+8,390-PW/2-8);}
+function launch(){
+  if(!S.serve||S.over)return false;
+  S.serve=false;
+  var v=speed();
+  S.vx=v*LDIR[0];S.vy=-v*LDIR[1];
+  snd('launch');
+  return true;
+}
+function newGame(){
+  S.phase='play';S.lv=0;S.score=0;S.lives=LIVES0;S.combo=0;S.px=195;
+  S.serve=true;S.lostT=0;S.winT=0;S.over=false;S.won=false;
+  S.broken=0;S.acc=0;S.flip=0;S.parts=[];S.floats=[];
+  loadLv();
+  S.bx=S.px;S.by=PY-R-1;S.vx=0;S.vy=0;
+  document.getElementById('overLay').style.display='none';
+  document.getElementById('hud').style.opacity='1';
+  document.getElementById('pauseBtn').style.display='block';
+  document.getElementById('muteBtn').style.display='block';
+  snd('start');
+  updHUD();
+}
+
+/* ===== tick（SPEC §3：演出锁→累积器子步→结算） ===== */
+function tick(dt,raw){
+  if(!raw&&dt>1/30)dt=1/30;
+  if(S.phase!=='play'||S.over)return;
+  if(S.lostT>0){
+    S.lostT-=dt;stepFx(dt);
+    if(S.lostT<=0){S.serve=true;S.bx=S.px;S.by=PY-R-1;S.vx=0;S.vy=0;updHUD();}
+    return;
+  }
+  if(S.winT>0){
+    S.winT-=dt;stepFx(dt);
+    if(S.winT<=0){
+      S.lv++;
+      if(S.lv>=LEVELS.length){S.over=true;S.won=true;gameOver(true);}
+      else{loadLv();S.serve=true;S.bx=S.px;S.by=PY-R-1;S.vx=0;S.vy=0;snd('swap');updHUD();}
+    }
+    return;
+  }
+  if(S.serve){S.bx=S.px;S.by=PY-R-1;stepFx(dt);return;}
+  S.acc+=dt;
+  while(S.acc>=SUB){
+    S.acc-=SUB;
+    if(!substep())return;
+  }
+}
+function substep(){
+  S.bx+=S.vx*SUB;S.by+=S.vy*SUB;
+  /* 墙 */
+  if(S.bx-R<0){S.bx=R;S.vx=Math.abs(S.vx);}
+  else if(S.bx+R>390){S.bx=390-R;S.vx=-Math.abs(S.vx);}
+  if(S.by-R<TOP){S.by=TOP+R;S.vy=Math.abs(S.vy);}
+  /* 板（板顶命中才反弹，且下行）——hit 量化 21 档查 DIRS 表（跨语言逐位对拍前提） */
+  if(S.vy>0&&PY-R<=S.by&&S.by<=PY+PH&&Math.abs(S.bx-S.px)<=PW/2+R){
+    var hit=clampN((S.bx-S.px)/(PW/2),-1,1);
+    var q=Math.floor(hit*10+0.5);              /* 半上取整（跨语言一致，弃 round 的 banker's 差异） */
+    if(q<-10)q=-10;else if(q>10)q=10;
+    if(q===0){                                  /* 防竖直锁死（SPEC §2） */
+      var s;
+      if(S.vx>1e-9)s=1;
+      else if(S.vx<-1e-9)s=-1;
+      else{S.flip^=1;s=S.flip?1:-1;}
+      q=s;
+    }
+    var v=Math.sqrt(S.vx*S.vx+S.vy*S.vy);
+    S.vx=v*DIRS[q+10][0];S.vy=-v*DIRS[q+10][1];
+    S.by=PY-R;
+    S.combo=0;
+    snd('paddle');
+  }
+  /* 钟（每子步至多 1 个：穿透最深） */
+  var best=null,bl=bells();
+  for(var i=0;i<bl.length;i++){
+    var r=bl[i][0],c=bl[i][1];
+    var x0=GX0+c*DXC,y0=GY0+r*DYC,x1=x0+CW,y1=y0+CH;
+    if(S.bx+R>x0&&S.bx-R<x1&&S.by+R>y0&&S.by-R<y1){
+      var penx=Math.min(S.bx+R-x0,x1-(S.bx-R));
+      var peny=Math.min(S.by+R-y0,y1-(S.by-R));
+      var dep=Math.min(penx,peny);
+      if(!best||dep>best[0])best=[dep,r,c,penx,peny];
+    }
+  }
+  if(best){
+    if(best[3]<best[4])S.vx=-S.vx;
+    else S.vy=-S.vy;
+    hitBell(best[1],best[2]);
+  }
+  /* 落底 */
+  if(S.by-R>BOTTOM){
+    S.lives--;S.combo=0;
+    burst(S.bx,BOTTOM-6,'#c8452f',7);
+    updHUD();
+    if(S.lives<=0){gameOver(false);return false;}
+    S.lostT=LOST_T;S.vx=0;S.vy=0;
+    snd('lost');
+    return false;
+  }
+  return true;
+}
+function hitBell(r,c){
+  var ch=S.grid[r][c];
+  var cx=GX0+c*DXC+CW/2,cy=GY0+r*DYC+CH/2;
+  if(HPI[ch]-1<=0){
+    S.grid[r][c]='#';
+    S.combo=Math.min(S.combo+1,COMBO_CAP);
+    var gain=VAL[ch]*Math.max(1,S.combo);
+    S.score+=gain;
+    S.broken++;
+    var v=Math.sqrt(S.vx*S.vx+S.vy*S.vy);
+    var nv=speed();
+    if(v>0){S.vx*=nv/v;S.vy*=nv/v;}
+    burst(cx,cy,ch==='s'?'#b8a86a':'#7a9a86',5);
+    addFloat(cx,cy-10,'+'+gain);
+    snd('bell',ch,c);
+    if(bells().length===0){
+      var bonus=CLEAR_BASE+CLEAR_PER*(S.lv+1);
+      S.score+=bonus;
+      addFloat(195,320,'+'+bonus+' 一曲奏毕');
+      S.winT=WIN_T;
+      snd('clear');
+    }
+  }else{
+    S.grid[r][c]='l';
+    S.score+=40;
+    addFloat(cx,cy-10,'+40');
+    snd('bell','L',c);
+  }
+  updHUD();
+}
+function stepFx(dt){
+  for(var i=S.parts.length-1;i>=0;i--){
+    var p=S.parts[i];
+    p.t-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=560*dt;
+    if(p.t<=0)S.parts.splice(i,1);
+  }
+  for(var j=S.floats.length-1;j>=0;j--){
+    S.floats[j].t-=dt;S.floats[j].y-=20*dt;
+    if(S.floats[j].t<=0)S.floats.splice(j,1);
+  }
+}
+function burst(x,y,col,n){
+  for(var i=0;i<n;i++){
+    var a=(i*137+((x*7)|0))%360*Math.PI/180;
+    S.parts.push({x:x,y:y,vx:Math.cos(a)*60+((i*53)%41)-20,vy:Math.sin(a)*60-70,t:0.5,c:col});
+  }
+}
+function addFloat(x,y,txt){S.floats.push({x:x,y:y,t:1.0,txt:txt});}
+
+/* ===== HUD ===== */
+function updHUD(){
+  document.getElementById('hsc').textContent=S.score;
+  document.getElementById('hlv').textContent=(S.lv>=LEVELS.length?'合乐 · 十曲奏毕':'第'+CNUM[S.lv+1]+'曲 · '+LNAME[S.lv]);
+  var li='';
+  for(var i=0;i<Math.max(0,S.lives);i++)li+='●';
+  document.getElementById('hli').textContent=li||'—';
+}
+function gameOver(won){
+  S.phase='over';S.over=true;S.won=won;
+  if(S.score>S.best){S.best=S.score;try{localStorage.setItem(K_BEST,String(S.best));}catch(e){}}
+  document.getElementById('ovt').textContent=won?'合 乐':'曲 终';
+  document.getElementById('ovtxt').textContent=(won?'十曲连奏一气呵成':'奏到第 '+(S.lv+1)+' 曲「'+(LNAME[S.lv]||'')+'」')+' · '+S.score+' 分 · 最佳 '+S.best+' 分';
+  document.getElementById('overLay').style.display='flex';
+  document.getElementById('hud').style.opacity='0';
+  document.getElementById('pauseBtn').style.display='none';
+  document.getElementById('muteBtn').style.display='none';
+  snd(won?'win':'over');
+  updHUD();
+}
+
+/* ===== 音效 ===== */
+var AC=null;
+function ac(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}if(AC&&AC.state==='suspended'){try{var p=AC.resume();if(p&&p.catch)p.catch(function(){});}catch(e){}}return AC;}
+function tone(f,d1,vol,dur,type){
+  var c=ac();if(!c||S.muted)return;
+  var o=c.createOscillator(),gn=c.createGain();
+  o.type=type||'sine';o.frequency.setValueAtTime(f,c.currentTime);
+  o.frequency.exponentialRampToValueAtTime(Math.max(30,d1),c.currentTime+dur);
+  gn.gain.setValueAtTime(vol,c.currentTime);
+  gn.gain.exponentialRampToValueAtTime(0.001,c.currentTime+dur);
+  o.connect(gn);gn.connect(c.destination);o.start();o.stop(c.currentTime+dur+0.02);
+}
+function bellFreq(ch,c){
+  if(ch==='s')return c<4?1046:(c<7?1175:1318);
+  if(ch==='m')return c<5?659:784;
+  return c<5?330:392;
+}
+function snd(k,ch,col){
+  if(k==='bell'){tone(bellFreq(ch,col),bellFreq(ch,col)*0.97,0.10,0.35);}         /* 钟 */
+  else if(k==='paddle'){tone(200,170,0.08,0.07,'square');}                        /* 木鱼 */
+  else if(k==='launch'){tone(392,523,0.06,0.12,'triangle');}
+  else if(k==='lost'){tone(165,82,0.14,1.0,'triangle');}                          /* 低钟 */
+  else if(k==='clear'){tone(523,659,0.09,0.15);setTimeout(function(){tone(659,784,0.08,0.2);},140);setTimeout(function(){tone(784,1046,0.07,0.4);},300);}
+  else if(k==='swap'){tone(300,420,0.05,0.12,'triangle');}
+  else if(k==='start'){tone(392,392,0.07,0.2,'triangle');}
+  else if(k==='win'){tone(523,659,0.09,0.25);setTimeout(function(){tone(659,784,0.08,0.25);},180);setTimeout(function(){tone(784,1046,0.08,0.3);},380);setTimeout(function(){tone(1046,1318,0.07,0.6);},600);}
+  else if(k==='over'){tone(220,110,0.14,0.9,'triangle');}
+}
+
+/* ===== 绘制 ===== */
+var cv=document.getElementById('cv'),g=cv.getContext('2d');
+function rr(x,y,w,h,r){
+  g.beginPath();
+  g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);
+  g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath();
+}
+function drawBell(r,c,ch){
+  var x=GX0+c*DXC,y=GY0+r*DYC;
+  var cx=x+CW/2;
+  g.lineWidth=1.4;g.strokeStyle='#2e2822';
+  if(ch==='s'){
+    g.fillStyle='#b8a86a';rr(x+4,y+5,CW-8,CH-8,4);g.fill();g.stroke();
+    g.fillStyle='#d8cc96';g.fillRect(cx-1.5,y+2,3,4);
+  }else if(ch==='m'){
+    g.fillStyle='#7a9a86';rr(x+2,y+5,CW-4,CH-7,4);g.fill();g.stroke();
+    g.fillStyle='#5a7a66';g.fillRect(cx-2.5,y+1,5,5);g.strokeRect(cx-2.5,y+1,5,5);
+    g.fillStyle='#a8c4b2';
+    g.beginPath();g.arc(cx-6,y+11,1.4,0,7);g.fill();
+    g.beginPath();g.arc(cx+6,y+11,1.4,0,7);g.fill();
+  }else{
+    /* 大钟 L / 裂纹 l */
+    g.fillStyle=ch==='L'?'#8a744e':'#9a845e';
+    rr(x+1,y+4,CW-2,CH-6,5);g.fill();g.stroke();
+    g.strokeStyle='#6e5138';
+    g.lineWidth=1;g.strokeRect(x+4,y+7,CW-8,CH-12);
+    g.lineWidth=1.4;g.strokeStyle='#2e2822';
+    g.fillStyle='#6e5a3c';g.fillRect(cx-3,y,6,5);g.strokeRect(cx-3,y,6,5);
+    if(ch==='l'){
+      g.strokeStyle='#e8d8a0';g.lineWidth=1.2;
+      g.beginPath();g.moveTo(cx-8,y+5);g.lineTo(cx-3,y+10);g.lineTo(cx-6,y+15);g.stroke();
+      g.beginPath();g.moveTo(cx+7,y+6);g.lineTo(cx+3,y+12);g.stroke();
+    }
+  }
+}
+function draw(){
+  /* 坊底 */
+  g.fillStyle='#1a1512';g.fillRect(0,0,390,844);
+  /* 钟架：双层横梁+立柱 */
+  g.strokeStyle='#3a4432';g.lineWidth=5;
+  g.beginPath();g.moveTo(8,80);g.lineTo(382,80);g.stroke();
+  g.beginPath();g.moveTo(8,308);g.lineTo(382,308);g.stroke();
+  g.lineWidth=7;g.strokeStyle='#46543c';
+  g.beginPath();g.moveTo(10,64);g.lineTo(10,320);g.stroke();
+  g.beginPath();g.moveTo(380,64);g.lineTo(380,320);g.stroke();
+  g.strokeStyle='rgba(111,125,90,.5)';g.lineWidth=1;
+  g.strokeRect(8,64,374,256);
+  /* 钟阵 */
+  for(var r=0;r<8;r++)for(var c=0;c<10;c++){
+    if(S.grid&&S.grid[r]&&S.grid[r][c]!=='#')drawBell(r,c,S.grid[r][c]);
+  }
+  /* 飞行区微光带（底线上方警示） */
+  g.fillStyle='rgba(200,69,47,.18)';g.fillRect(0,BOTTOM,390,4);
+  /* 粒子 */
+  for(var i=0;i<S.parts.length;i++){
+    var p=S.parts[i];
+    g.globalAlpha=Math.min(1,p.t*2.5);
+    g.fillStyle=p.c;g.fillRect(p.x-2,p.y-2,4,4);
+  }
+  g.globalAlpha=1;
+  /* 飘字 */
+  g.textAlign='center';g.font='bold 13px system-ui';
+  for(var j=0;j<S.floats.length;j++){
+    var fl=S.floats[j];
+    g.globalAlpha=Math.min(1,fl.t*2);
+    g.lineWidth=3;g.strokeStyle='rgba(26,21,18,.7)';g.strokeText(fl.txt,fl.x,fl.y);
+    g.fillStyle='#d8c48a';g.fillText(fl.txt,fl.x,fl.y);
+  }
+  g.globalAlpha=1;
+  /* 柷板 */
+  g.fillStyle='#b0583e';rr(S.px-PW/2,PY,PW,PH,5);g.fill();
+  g.strokeStyle='#7a3a28';g.lineWidth=1.5;g.stroke();
+  g.fillStyle='#d8c48a';
+  for(var d=0;d<4;d++){g.beginPath();g.arc(S.px-PW/2+10+d*(PW-20)/3,PY+PH/2,1.8,0,7);g.fill();}
+  /* 磬球 */
+  if(!S.over){
+    g.fillStyle='#ece4d0';
+    g.beginPath();g.arc(S.bx,S.by,R,0,7);g.fill();
+    g.strokeStyle='#b8ac8e';g.lineWidth=1.2;g.stroke();
+    g.fillStyle='#43392c';g.beginPath();g.arc(S.bx+2,S.by-2,1.6,0,7);g.fill();
+  }
+  /* serve 提示 */
+  if(S.serve&&!S.over&&S.phase==='play'&&S.lostT<=0&&S.winT<=0){
+    g.fillStyle='rgba(216,196,138,'+(0.55+0.35*Math.sin(Date.now()/300))+')';
+    g.font='13px system-ui';g.textAlign='center';
+    g.fillText('点 屏 发 球',195,726);
+  }
+  /* 失球演出 */
+  if(S.lostT>0){
+    g.fillStyle='rgba(200,69,47,'+(0.25*S.lostT/LOST_T)+')';
+    g.fillRect(0,64,390,716);
+    g.fillStyle='#c8452f';g.font='900 22px system-ui';g.textAlign='center';
+    g.fillText('磬球坠地 · 余 '+S.lives+' 奏',195,420);
+  }
+  /* 清曲横披 */
+  if(S.winT>0){
+    g.fillStyle='rgba(23,19,16,.75)';g.fillRect(0,380,390,64);
+    g.fillStyle='#d8c48a';g.font='900 22px system-ui';g.textAlign='center';
+    g.fillText('一曲奏毕 · '+LNAME[S.lv],195,412);
+    g.font='12px system-ui';g.fillStyle='#a89a7c';
+    g.fillText('下曲 '+(S.lv+2<=10?LNAME[S.lv+1]:'')+' 将至',195,432);
+  }
+  /* 暂停徽 */
+  if(S.phase==='pause'){
+    g.fillStyle='rgba(18,14,11,.6)';g.fillRect(0,64,390,716);
+    g.fillStyle='#d8c48a';g.font='900 26px system-ui';g.textAlign='center';
+    g.fillText('乐师小憩',195,400);
+    g.font='12px system-ui';g.fillStyle='#a89a7c';
+    g.fillText('点 ▶ 继续',195,424);
+  }
+  updHUD();
+}
+
+/* ===== 主循环 ===== */
+var lastT=0;
+function loop(ts){
+  var dt=lastT?(ts-lastT)/1000:0.016;lastT=ts;
+  if(S.phase==='play')tick(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+/* ===== 输入 ===== */
+(function(){
+  function pos(e){
+    var r=cv.getBoundingClientRect();
+    return e.clientX-r.left;
+  }
+  cv.addEventListener('pointerdown',function(e){
+    e.preventDefault();ac();
+    if(S.phase!=='play')return;
+    if(S.lostT>0||S.winT>0)return;          /* 演出锁（含板冻结） */
+    drag(pos(e));
+    if(S.serve)launch();
+  });
+  cv.addEventListener('pointermove',function(e){
+    e.preventDefault();
+    if(S.phase!=='play')return;
+    if(S.lostT>0||S.winT>0)return;
+    if(e.buttons||e.pointerType==='touch')drag(pos(e));
+  });
+})();
+document.getElementById('bre').addEventListener('click',function(){ac();newGame();});
+document.getElementById('pauseBtn').addEventListener('click',function(){
+  if(S.phase==='play'&&S.lostT<=0&&S.winT<=0){S.phase='pause';this.textContent='▶';}   /* 演出期（lostT/winT）拒暂停：g111 全通道锁教训 */
+  else if(S.phase==='pause'){S.phase='play';this.textContent='Ⅱ';}
+});
+document.getElementById('muteBtn').addEventListener('click',function(){
+  S.muted=!S.muted;this.textContent=S.muted?'✕':'♪';
+  try{localStorage.setItem(K_MUTE,S.muted?'1':'0');}catch(e){}
+});
+document.addEventListener('visibilitychange',function(){
+  if(document.hidden&&S.phase==='play'){S.phase='pause';document.getElementById('pauseBtn').textContent='▶';}
+});
+
+/* ===== boot ===== */
+(function(){
+  try{
+    var b=localStorage.getItem(K_BEST);if(b)S.best=parseInt(b,10)||0;
+    var m=localStorage.getItem(K_MUTE);if(m==='1'){S.muted=true;document.getElementById('muteBtn').textContent='✕';}
+  }catch(e){}
+  newGame();
+  requestAnimationFrame(loop);
+})();
+
+
+
+</script>
+</body>
+</html>
