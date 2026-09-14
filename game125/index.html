@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
+<title>墨蛇食字</title>
+<style>
+  html,body{margin:0;padding:0;background:#e8dfc8;height:100%;overflow:hidden;
+    font-family:"Kaiti SC","KaiTi","STKaiti",serif;-webkit-user-select:none;user-select:none;touch-action:none}
+  #app{position:relative;width:390px;height:844px;margin:0 auto;background:#f4ecd8;overflow:hidden}
+  #hud{position:absolute;top:0;left:0;width:390px;height:64px;background:#efe5cd;
+    border-bottom:2px solid #d8c9a8;display:flex;align-items:center;padding:0 12px;box-sizing:border-box;z-index:5}
+  #hud .hs{flex:1;text-align:center;color:#5a4a30;font-size:15px;letter-spacing:1px}
+  #hud button{background:none;border:1px solid #c9b98f;color:#7a6a45;border-radius:6px;
+    width:34px;height:30px;font-size:15px;cursor:pointer;margin-left:6px;font-family:inherit}
+  #cv{position:absolute;top:64px;left:0}
+  #dpad{position:absolute;left:50%;transform:translateX(-50%);bottom:10px;z-index:6;
+    display:grid;grid-template-columns:44px 44px 44px;grid-template-rows:38px 38px;gap:3px}
+  #dpad button{background:rgba(239,229,205,.92);border:1px solid #c9b98f;border-radius:8px;
+    color:#7a6a45;font-size:17px;cursor:pointer;font-family:inherit}
+  #dpad button:active{background:#e2d5b0}
+  .lay{position:absolute;inset:0;z-index:9;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;background:rgba(244,236,216,.94)}
+  .hide{display:none}
+  .lay h1{color:#3a3530;font-size:40px;margin:0 0 8px;letter-spacing:6px;font-weight:normal}
+  .lay .sub{color:#8a7a55;font-size:14px;margin-bottom:26px;letter-spacing:2px}
+  .lay button{background:#5a4a30;color:#f4ecd8;border:none;border-radius:8px;padding:12px 34px;
+    font-size:18px;margin:7px;cursor:pointer;font-family:inherit;letter-spacing:3px}
+  .lay button.alt{background:none;color:#5a4a30;border:1px solid #a89870}
+  .lay .bst{color:#7a6a45;font-size:13px;margin-top:18px;line-height:1.9}
+  #over .scr{color:#3a3530;font-size:26px;margin:4px 0}
+  #over .det{color:#8a7a55;font-size:15px;margin-bottom:14px;line-height:1.8}
+  .gold{color:#a8823e}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <span class="hs" id="hsc">分 0</span>
+    <span class="hs" id="hsn">第 1 句</span>
+    <span class="hs" id="hln">长 4</span>
+    <button id="pauseBtn">Ⅱ</button><button id="muteBtn">♪</button>
+  </div>
+  <canvas id="cv" width="390" height="780"></canvas>
+  <div id="dpad">
+    <span></span><button id="dU">▲</button><span></span>
+    <button id="dL">◀</button><button id="dD">▼</button><button id="dR">▶</button>
+  </div>
+  <div id="menu" class="lay">
+    <h1>墨蛇食字</h1>
+    <div class="sub">草虫长卷 · 吞字成句</div>
+    <button id="startBtn">研卷开食</button>
+    <div class="bst" id="menuBst"></div>
+  </div>
+  <div id="pause" class="lay hide">
+    <h1 style="font-size:30px">暂 停</h1>
+    <button id="resumeBtn">续食</button>
+    <button id="restartBtn" class="alt">重开一卷</button>
+    <button id="homeBtn" class="alt">回书匣</button>
+  </div>
+  <div id="over" class="lay hide">
+    <h1 style="font-size:32px" id="ovT">墨 尽</h1>
+    <div class="scr" id="ovSc"></div>
+    <div class="det" id="ovDet"></div>
+    <button id="againBtn">再研一卷</button>
+    <button id="homeBtn2" class="alt">回书匣</button>
+  </div>
+</div>
+<script>
+'use strict';
+/* ============ 常量（SPEC v1.0 冻结） ============ */
+var COLS=12, ROWS=24, CELL=28, OX=27, OY=60;      /* 网格 12×24，格 28px，绘区 336×672 */
+var POEMS=['春色满园关不住','乱花渐欲迷人眼','暗香浮动月黄昏','山色空蒙雨亦奇','竹外桃花三两枝','春江水暖鸭先知',
+'停车坐爱枫林晚','霜叶红于二月花','小荷才露尖尖角','早有蜻蜓立上头','接天莲叶无穷碧','映日荷花别样红',
+'不识庐山真面目','只缘身在此山中','欲把西湖比西子','淡妆浓抹总相宜',
+'明月几时有','把酒问青天','但愿人长久','千里共婵娟','明月松间照','清泉石上流','大漠孤烟直','长河落日圆'];
+var TOTAL=0, ENDS={};                               /* 字流总长+句末全局索引 */
+(function(){var acc=0;for(var i=0;i<POEMS.length;i++){acc+=POEMS[i].length;TOTAL=acc;ENDS[acc-1]=POEMS[i].length;}})();
+var PAPER='#f4ecd8', INKC='#2b2b30', HEADC='#1a1a1e', ZHUC='#b03a2a';
+var FONT='20px "Kaiti SC","KaiTi","STKaiti",serif';
+
+/* ============ 状态 ============ */
+var S={phase:'menu',snake:[],dir:[1,0],dirQ:[],eaten:0,foodIdx:0,food:null,isZhu:false,
+  score:0,sent:0,ch:0,t:0,sentT:0,deadT:0,deadCell:null,zhuGlow:0,
+  best:0,blen:4,bsent:0,mute:false,lgx:1};
+var K='gp125';
+
+/* ============ LCG 48271（家族标准） ============ */
+function lcgNext(){S.lgx=48271*S.lgx%2147483647;return S.lgx/2147483647;}
+
+/* ============ 存档 ============ */
+function loadAll(){
+  try{
+    var d=JSON.parse(localStorage.getItem(K)||'null');
+    if(d&&typeof d==='object'){
+      ['best','blen','bsent'].forEach(function(k){
+        var v=d[k];
+        if(typeof v==='number'&&isFinite(v)&&v>=0&&v%1===0)S[k]=v;  /* 坏值拒收留默认 */
+      });
+      if(d.mute===true)S.mute=true;
+    }
+  }catch(e){}
+}
+function saveAll(){
+  try{localStorage.setItem(K,JSON.stringify({best:S.best,blen:S.blen,bsent:S.bsent,mute:S.mute}));}catch(e){}
+}
+function bumpBest(){
+  if(S.score>S.best)S.best=S.score;
+  if(S.snake.length>S.blen)S.blen=S.snake.length;
+  if(S.sent>S.bsent)S.bsent=S.sent;
+}
+
+/* ============ 音效（WebAudio 家族范式） ============ */
+var AC=null;
+function ensureAC(){ if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}
+  if(AC&&AC.state==='suspended')AC.resume(); }
+function beep(f,dur,vol){
+  if(S.mute||!AC)return;
+  var o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime;
+  o.frequency.value=f;o.type='sine';
+  g.gain.setValueAtTime(vol||.12,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);
+  o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+dur);
+}
+var SCALE=[262,294,330,349,392];
+function sentTune(n){ if(S.mute||!AC)return;
+  for(var i=0;i<n&&i<5;i++)(function(i){setTimeout(function(){beep(SCALE[i],.09,.14);},i*95);})(i); }
+
+/* ============ 食物 ============ */
+function charInfo(){ /* 当前字流位（不含朱印） */
+  var i=S.ch%TOTAL, k=0, acc=0;
+  for(var p=0;p<POEMS.length;p++){
+    acc+=POEMS[p].length;
+    if(i<acc){k=POEMS[p].length;break;}
+  }
+  return {c:POEMS.join('')[i], end:(ENDS[i]!==undefined), slen:k, idx:i};
+}
+function genFood(){
+  var body={}; S.snake.forEach(function(c){body[c[0]+','+c[1]]=1;});
+  if(S.food)body[S.food[0]+','+S.food[1]]=1;
+  var empt=[];
+  for(var r=0;r<ROWS;r++)for(var c=0;c<COLS;c++)if(!body[c+','+r])empt.push([c,r]); /* 行主序=python 同构 */
+  S.food=empt[Math.floor(lcgNext()*empt.length)];
+  S.foodIdx++;
+  S.isZhu=(S.foodIdx%5===0);
+  if(!S.isZhu)S.curChar=charInfo();
+}
+
+/* ============ 主步进（SPEC §10 判定序） ============ */
+function step(){
+  if(S.zhuGlow>0)S.zhuGlow--;               /* 朱印泛红 3 tick 计 */
+  if(S.dirQ.length){                      /* ① 消费方向队列（校验反向禁 vs 当前 dir） */
+    var nd=S.dirQ.shift();
+    if(!(nd[0]===-S.dir[0]&&nd[1]===-S.dir[1]))S.dir=nd;
+  }
+  var h=S.snake[0], nc=h[0]+S.dir[0], nr=h[1]+S.dir[1];
+  if(nc<0||nc>=COLS||nr<0||nr>=ROWS)return die([nc,nr]);            /* ② 判界 */
+  for(var i=0;i<S.snake.length;i++)if(S.snake[i][0]===nc&&S.snake[i][1]===nr)return die([nc,nr]); /* ③ 自撞（完整身集含将缩尾） */
+  S.snake.unshift([nc,nr]);
+  if(S.food&&nc===S.food[0]&&nr===S.food[1]){                        /* ④ 判食物 */
+    S.eaten++;
+    if(S.isZhu){ S.score+=50; S.zhuGlow=3; beep(330,.09); }
+    else{
+      var ci=S.curChar;
+      S.score+=10; S.ch++;
+      if(ci.end){ S.score+=40+5*ci.slen; S.sent++;
+        S.sentT=.8; sentTune(Math.min(ci.slen,5)); }
+      else beep(262,.06);
+    }
+    genFood();
+  }else S.snake.pop();                                               /* ⑤ 尾缩 */
+}
+function die(cell){
+  S.phase='over'; S.deadCell=cell; S.deadT=1.2; bumpBest(); saveAll();
+  updHUD(); beep(110,.3,.18);
+  setTimeout(function(){
+    $('ovSc').textContent='本卷 '+S.score+' 分';
+    $('ovDet').innerHTML='集句 '+S.sent+' 句 · 蛇长 '+S.snake.length+' 节<br>'+
+      '最佳 <span class="gold">'+S.best+'</span> 分 · '+S.bsent+' 句 · '+S.blen+' 节';
+    $('over').classList.remove('hide');
+  },900);
+}
+
+/* ============ 输入 ============ */
+function pushDir(dc,dr){
+  if(S.phase!=='play'||S.sentT>0||S.deadT>0)return;
+  if(S.dirQ.length>=2)return;
+  var last=S.dirQ.length?S.dirQ[S.dirQ.length-1]:S.dir;
+  if(dc===-last[0]&&dr===-last[1])return;   /* 与队尾（或当前）反向拒入 */
+  if(dc===last[0]&&dr===last[1])return;     /* 同向去重 */
+  S.dirQ.push([dc,dr]);
+}
+var pd=null;
+function onDown(e){ ensureAC(); pd=[e.clientX,e.clientY]; }
+function onUp(e){
+  if(!pd)return;
+  var dx=e.clientX-pd[0], dy=e.clientY-pd[1]; pd=null;
+  if(Math.abs(dx)<24&&Math.abs(dy)<24)return;      /* tap 忽略 */
+  if(Math.abs(dx)>Math.abs(dy))pushDir(dx>0?1:-1,0); else pushDir(0,dy>0?1:-1);
+}
+window.addEventListener('keydown',function(e){
+  var m={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1],
+         a:[-1,0],d:[1,0],w:[0,-1],s:[0,1]};
+  if(m[e.key]){e.preventDefault();pushDir(m[e.key][0],m[e.key][1]);}
+});
+
+/* ============ 局面 ============ */
+function newGame(){
+  S.phase='play'; S.snake=[[6,12],[5,12],[4,12],[3,12]]; S.dir=[1,0]; S.dirQ=[];
+  S.eaten=0; S.foodIdx=0; S.food=null; S.isZhu=false; S.score=0; S.sent=0; S.ch=0;
+  S.t=0; S.sentT=0; S.deadT=0; S.zhuGlow=0;
+  S.lgx=(typeof S.testSeed==='number'&&S.testSeed>0)?S.testSeed:(Date.now()%2147483647||1);
+  genFood();
+  $('menu').classList.add('hide');$('over').classList.add('hide');$('pause').classList.add('hide');
+  updHUD();
+}
+function intOf(){ return Math.max(.17-.0022*S.eaten,.095); }
+
+/* ============ 主循环 ============ */
+var lastT=0;
+function loop(ts){
+  var dt=Math.min((ts-lastT)/1000,.1)||0; lastT=ts;
+  if(S.phase==='play'){
+    if(S.sentT>0){ S.sentT-=dt; }
+    else if(S.deadT<=0){
+      S.t+=dt;
+      if(S.t>=intOf()){ S.t=0; step(); }
+    }
+  }
+  if(S.deadT>0)S.deadT-=dt;
+  draw(); updHUD();
+  requestAnimationFrame(loop);
+}
+
+/* ============ 绘制 ============ */
+var cv,ctx;
+function cx(c){return OX+c*CELL+14;} function cy(r){return OY+r*CELL+14;}
+function draw(){
+  ctx.fillStyle=PAPER; ctx.fillRect(0,0,390,780);
+  /* 帘纹 */
+  ctx.strokeStyle='rgba(120,100,70,.05)'; ctx.lineWidth=1;
+  for(var y=OY+14;y<OY+672;y+=28){ctx.beginPath();ctx.moveTo(10,y);ctx.lineTo(380,y);ctx.stroke();}
+  /* 句带 */
+  drawSentBand();
+  /* 卷框 */
+  ctx.strokeStyle='#8a6a4a'; ctx.lineWidth=3;
+  ctx.strokeRect(OX-4,OY-4,336+8,672+8);
+  ctx.strokeStyle='rgba(138,106,74,.5)'; ctx.lineWidth=1;
+  ctx.strokeRect(OX-8,OY-8,336+16,672+16);
+  /* 食物 */
+  if(S.food&&S.phase!=='menu'){
+    var fx=cx(S.food[0]), fy=cy(S.food[1]);
+    if(S.isZhu){
+      ctx.fillStyle=ZHUC; ctx.fillRect(fx-9,fy-9,18,18);
+      ctx.fillStyle='rgba(244,236,216,.85)'; ctx.font='11px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('印',fx,fy+1);
+    }else{
+      ctx.fillStyle='rgba(60,50,40,.06)';
+      ctx.fillRect(fx-12,fy-12,24,24);
+      ctx.fillStyle='#3a3530'; ctx.font=FONT; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(S.curChar?S.curChar.c:'',fx,fy+1);
+    }
+  }
+  /* 蛇 */
+  for(var i=S.snake.length-1;i>=0;i--){
+    var s=S.snake[i], x=cx(s[0]), y=cy(s[1]);
+    if(i===0){
+      ctx.fillStyle=HEADC;
+      ctx.beginPath();ctx.arc(x,y,12.5,0,7);ctx.fill();
+      ctx.fillStyle=PAPER;                          /* 眼点随朝向偏移 */
+      var ex=S.dir[0]*4, ey=S.dir[1]*4, px=S.dir[1]*4, py=S.dir[0]*4;
+      ctx.beginPath();ctx.arc(x+ex+px-1.5,y+ey+py-1.5,2,0,7);ctx.fill();
+      ctx.beginPath();ctx.arc(x+ex-px-1.5,y+ey-py-1.5,2,0,7);ctx.fill();
+    }else{
+      ctx.fillStyle=S.zhuGlow>0?'#7a3030':INKC;
+      ctx.fillRect(x-12.5,y-12.5,25,25);
+      if(S.zhuGlow>0){ctx.strokeStyle=ZHUC;ctx.lineWidth=1.5;ctx.strokeRect(x-12.5,y-12.5,25,25);}
+    }
+  }
+  /* 死亡墨晕 */
+  if(S.deadT>0&&S.deadCell){
+    var p=1-S.deadT/1.2, dx2=S.deadCell[0]===-1||S.deadCell[0]===COLS?cx(clampC(S.deadCell[0])):cx(S.deadCell[0]);
+    var dy2=S.deadCell[1]===-1||S.deadCell[1]===ROWS?cy(clampR(S.deadCell[1])):cy(S.deadCell[1]);
+    [[.35,58],[.2,86],[.1,118]].forEach(function(w){
+      ctx.fillStyle='rgba(40,40,45,'+w[0]*(1-p*.5)+')';
+      ctx.beginPath();ctx.arc(dx2,dy2,w[1]*p+6,0,7);ctx.fill();
+    });
+  }
+  /* 底部提示（dpad 上缘以上） */
+  ctx.fillStyle='#a89870'; ctx.font='12px "Kaiti SC","KaiTi",serif'; ctx.textAlign='center';
+  ctx.fillText('滑屏或十字键转向 · 吞字成句',195,745);
+}
+function clampC(c){return Math.max(0,Math.min(COLS-1,c));}
+function clampR(r){return Math.max(0,Math.min(ROWS-1,r));}
+function drawSentBand(){
+  var cnt=S.ch%TOTAL;   /* 库尽循环回句 1；成句锁期 ch 刚 +1，当前句恰全实 */
+  if(cnt===0&&S.sentT>0)cnt=TOTAL;   /* 恰在句末成句（ch=152 边角）：锁期仍显示整句 */
+  var pi=0, acc=0;
+  for(var p2=0;p2<POEMS.length;p2++){acc+=POEMS[p2].length;if((cnt-1<0?0:cnt-1)<acc){pi=p2;break;}}
+  var poem=POEMS[pi], start=acc-poem.length, inSent=Math.max(0,cnt-start);
+  var all=POEMS.join(''), x=44;
+  ctx.font='22px "Kaiti SC","KaiTi",serif'; ctx.textAlign='left'; ctx.textBaseline='middle';
+  for(var i=0;i<poem.length;i++){
+    if(i<inSent){ ctx.fillStyle='#3a3530'; ctx.fillText(all[start+i],x,30); }
+    else{ ctx.fillStyle='#c9c0ad'; ctx.fillText('○',x,30); }
+    x+=poem.length>6?38:42;
+  }
+  if(S.sentT>0){ ctx.strokeStyle='#c9a15a'; ctx.lineWidth=2;
+    ctx.strokeRect(36,8,poem.length*(poem.length>6?38:42)+10,44); }
+  ctx.fillStyle='#a89870'; ctx.font='13px "Kaiti SC","KaiTi",serif'; ctx.textAlign='right';
+  ctx.fillText('第 '+((S.sent%24)+1)+' 句',352,30);
+}
+
+/* ============ HUD ============ */
+function $(id){return document.getElementById(id);}
+function updHUD(){
+  $('hsc').textContent='分 '+S.score;
+  $('hsn').textContent='句 '+((S.sent%24)+1)+'/24';
+  $('hln').textContent='长 '+S.snake.length;
+  $('pauseBtn').disabled=(S.phase!=='play');
+}
+
+/* ============ 接线 ============ */
+function init(){
+  cv=$('cv'); ctx=cv.getContext('2d');
+  loadAll();
+  $('muteBtn').textContent=S.mute?'✕':'♪';
+  $('menuBst').innerHTML=S.best>0?
+    '最佳 <span class="gold">'+S.best+'</span> 分 · 集句 '+S.bsent+' · 蛇长 '+S.blen:'尚无成绩';
+  cv.addEventListener('pointerdown',onDown);
+  window.addEventListener('pointerup',onUp);
+  window.addEventListener('pointercancel',function(){pd=null;});
+  window.addEventListener('blur',function(){pd=null;if(S.phase==='play')doPause();});
+  document.addEventListener('visibilitychange',function(){
+    if(document.hidden){if(S.phase==='play')doPause();bumpBest();saveAll();}
+  });
+  $('startBtn').addEventListener('pointerdown',function(e){e.stopPropagation();ensureAC();newGame();});
+  $('againBtn').addEventListener('pointerdown',function(e){e.stopPropagation();ensureAC();newGame();});
+  $('pauseBtn').addEventListener('pointerdown',function(e){e.stopPropagation();doPause();});
+  $('resumeBtn').addEventListener('pointerdown',function(e){e.stopPropagation();resume();});
+  $('restartBtn').addEventListener('pointerdown',function(e){e.stopPropagation();newGame();});
+  $('homeBtn').addEventListener('pointerdown',goHome);
+  $('homeBtn2').addEventListener('pointerdown',goHome);
+  $('muteBtn').addEventListener('pointerdown',function(e){e.stopPropagation();
+    S.mute=!S.mute;$('muteBtn').textContent=S.mute?'✕':'♪';saveAll();});
+  $('dU').addEventListener('pointerdown',function(e){e.stopPropagation();pushDir(0,-1);});
+  $('dD').addEventListener('pointerdown',function(e){e.stopPropagation();pushDir(0,1);});
+  $('dL').addEventListener('pointerdown',function(e){e.stopPropagation();pushDir(-1,0);});
+  $('dR').addEventListener('pointerdown',function(e){e.stopPropagation();pushDir(1,0);});
+  S.snake=[[6,12],[5,12],[4,12],[3,12]]; genFood();
+  requestAnimationFrame(loop);
+}
+function doPause(){ if(S.phase!=='play')return; S.phase='pause'; $('pause').classList.remove('hide'); }
+function resume(){ if(S.phase!=='pause')return; S.phase='play'; $('pause').classList.add('hide'); lastT=0; S.t=0; }
+function goHome(){ S.phase='menu'; bumpBest(); saveAll();
+  $('pause').classList.add('hide');$('over').classList.add('hide');$('menu').classList.remove('hide');
+  $('menuBst').innerHTML=S.best>0?
+    '最佳 <span class="gold">'+S.best+'</span> 分 · 集句 '+S.bsent+' · 蛇长 '+S.blen:'尚无成绩';
+}
+init();
+
+
+</script>
+</body>
+</html>
