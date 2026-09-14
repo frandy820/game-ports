@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>乞巧板</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #2b2840; overflow: hidden;
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; }
+  #app { position: relative; width: 390px; height: 844px; margin: 0 auto; background: #262338; overflow: hidden; }
+  canvas { position: absolute; left: 0; top: 64px; touch-action: none; }
+  #hud { position: absolute; left: 0; top: 0; width: 390px; height: 64px; z-index: 5;
+    display: flex; align-items: center; justify-content: space-between; padding: 0 12px; box-sizing: border-box;
+    background: linear-gradient(180deg, #322e4d, #2b2840); color: #d8d4e8; font-size: 15px; }
+  #hud .l { display: flex; align-items: center; gap: 8px; }
+  #hstar { color: #e8c96a; }
+  #hname { letter-spacing: 1px; }
+  #hbtns { display: flex; gap: 8px; }
+  #hbtns button { width: 34px; height: 30px; border-radius: 8px; border: 1px solid #4a4568;
+    background: rgba(50,46,77,.9); color: #b8b2d0; font-size: 14px; cursor: pointer; }
+  #hintBtn { height: 30px; padding: 0 10px; border-radius: 8px; border: 1px solid #6e628a;
+    background: rgba(110,98,138,.35); color: #d8cfa8; font-size: 13px; margin-right: 8px; cursor: pointer; }
+  #hintBtn:disabled { opacity: .35; }
+  .lay { position: absolute; left: 0; width: 390px; background: rgba(22,20,36,.88); z-index: 9;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
+  #menu { top: 64px; height: 780px; }
+  #winlay { top: 64px; height: 780px; display: none; }
+  #pauselay { top: 64px; height: 780px; display: none; }
+  .title { font-size: 44px; letter-spacing: 10px; color: #e8e6ef; text-indent: 10px; }
+  .sub { font-size: 14px; color: #8a84a8; letter-spacing: 3px; }
+  .bigbtn { min-width: 170px; padding: 12px 26px; border-radius: 14px; border: 1px solid #6e628a;
+    background: linear-gradient(180deg, #4a4470, #3a3556); color: #ece7f0; font-size: 18px; letter-spacing: 6px; cursor: pointer; }
+  .row { display: flex; gap: 12px; }
+  #winStars { font-size: 40px; letter-spacing: 8px; color: #e8c96a; text-indent: 8px; }
+  #winStars .off { color: #4a4568; }
+  #winTitle { font-size: 26px; letter-spacing: 8px; color: #ece7f0; text-indent: 8px; }
+  #winSub { font-size: 13px; color: #8a84a8; }
+  .starpop { display: inline-block; animation: starpop .5s ease both; }
+  @keyframes starpop { 0% { transform: scale(.2); opacity: 0; } 70% { transform: scale(1.25); } 100% { transform: scale(1); opacity: 1; } }
+  #rotBtn, #flipBtn { position: absolute; z-index: 6; width: 42px; height: 42px; border-radius: 12px;
+    border: 1px solid #c9a34e; background: rgba(60,54,92,.95); color: #e8c96a; font-size: 19px; display: none;
+    align-items: center; justify-content: center; cursor: pointer; user-select: none; -webkit-user-select: none; }
+  #flipBtn.off { opacity: .35; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div class="l"><span id="hstar">★ 0/72</span><span id="hname">乞巧板</span></div>
+    <div class="l">
+      <button id="hintBtn">针引</button>
+      <div id="hbtns"><button id="pauseBtn">Ⅱ</button><button id="muteBtn">♪</button></div>
+    </div>
+  </div>
+  <canvas id="cv" width="390" height="780"></canvas>
+  <div id="rotBtn">⟳</div>
+  <div id="flipBtn">⇄</div>
+  <div id="menu" class="lay">
+    <div class="title">乞巧板</div>
+    <div class="sub">七夕月下 · 七板拼巧</div>
+    <button id="startBtn" class="bigbtn">开 巧</button>
+    <div class="sub" id="menuStars">已攒 ★0/72</div>
+  </div>
+  <div id="winlay" class="lay">
+    <div id="winStars"></div>
+    <div id="winTitle"></div>
+    <div id="winSub"></div>
+    <div class="row">
+      <button id="nextBtn" class="bigbtn">下一关</button>
+      <button id="replayBtn" class="bigbtn">再拼一次</button>
+    </div>
+    <button id="homeBtn" class="bigbtn">回庭院</button>
+  </div>
+  <div id="pauselay" class="lay">
+    <div class="title" style="font-size:30px;">小 憩</div>
+    <button id="resumeBtn" class="bigbtn">续 拼</button>
+    <button id="restartBtn" class="bigbtn">重拼本关</button>
+    <button id="quitBtn" class="bigbtn">回庭院</button>
+  </div>
+</div>
+<script>
+'use strict';
+/* ==== 常量（SPEC §2 冻结） ==== */
+var K_BEST = 'g122_best', K_MUTE = 'g122_mute';
+var U = 36;                 // 半格 px
+var QPX = U / 2;            // 1q = 18px
+var FX = 15, FY = 10;       // 场地原点（canvas 内，px）——场地 360×360 居中
+var FIELD_Q = 20;           // 20q = 10 半格 = 5 粗格
+var COLORS = ['#e8e6ef', '#c9a8c9', '#e2d49a', '#a8c9a0', '#d9a0a8', '#d9c27a', '#8a9ac0'];
+var BLOCKS = [
+  [[0, 0], [16, 0], [8, 8]], [[0, 0], [16, 0], [8, 8]],
+  [[0, 0], [8, 0], [0, 8]], [[0, 0], [8, 0], [4, 4]], [[0, 0], [8, 0], [4, 4]],
+  [[4, -4], [8, 0], [4, 4], [0, 0]], [[0, 0], [8, 0], [12, 4], [4, 4]]
+];
+/* LVLS：24 关终表（lvls122.json——先拼后形 v3 面积矩阵口径：自由拼合→area_ok 过滤→
+   outline_of 轮廓环；area=5×5 面积矩阵（满格 128，斜边 64 半值格合法），rings=外轮廓环
+   （q 坐标顶点，含洞环），solve=[bi,ox,oy,rot,flip]×7（归一场坐标），按轮廓边数升序=难度） */
+var LVLS = [{"area":[[64,128,128,0,0],[128,128,128,64,64],[128,128,128,128,64],[128,128,128,128,64],[64,0,0,0,0]],"rings":[[[0,4],[0,20],[4,16],[20,16],[16,12],[20,8],[16,4],[12,8],[12,0],[4,0]]],"solve":[[0,20,16,2,0],[1,0,4,1,1],[2,12,8,2,0],[3,12,8,0,1],[4,8,4,0,1],[5,16,12,3,1],[6,12,0,0,1]]},{"area":[[64,128,128,128,128],[64,128,128,128,128],[0,128,64,128,128],[0,64,0,128,64],[0,0,64,128,0]],"rings":[[[4,8],[4,16],[12,8],[12,16],[8,20],[16,20],[16,12],[20,16],[20,0],[4,0],[0,4]]],"solve":[[0,20,16,3,1],[1,4,0,0,0],[2,16,20,3,1],[3,8,12,1,0],[4,12,8,1,1],[5,4,0,3,0],[6,8,4,3,0]]},{"area":[[128,128,128,128,64],[128,128,128,64,64],[128,128,128,128,128],[64,64,64,64,64],[0,0,0,0,0]],"rings":[[[16,0],[0,0],[0,16],[4,12],[8,16],[12,12],[16,16],[20,12],[20,4]],[[16,8],[12,4],[20,4]]],"solve":[[0,16,8,2,0],[1,0,8,0,0],[2,0,0,1,1],[3,20,4,3,0],[4,0,8,1,1],[5,12,12,0,0],[6,8,0,0,0]]},{"area":[[64,128,128,64,0],[128,128,128,128,0],[128,64,64,64,0],[128,128,128,0,0],[128,128,128,64,0]],"rings":[[[12,0],[4,0],[0,4],[0,20],[16,20],[12,16],[12,8],[16,12],[16,4]],[[8,12],[4,8],[12,8]]],"solve":[[0,0,20,2,1],[1,0,4,1,1],[2,16,4,0,1],[3,4,8,2,1],[4,12,8,3,0],[5,8,4,2,0],[6,16,4,2,0]]},{"area":[[64,64,0,64,0],[128,128,64,128,0],[128,128,128,128,0],[128,64,64,128,0],[64,128,128,128,64]],"rings":[[[8,0],[4,4],[0,0],[0,16],[4,20],[20,20],[16,16],[16,0],[8,8]],[[4,12],[12,12],[8,16]]],"solve":[[0,16,0,3,0],[1,4,20,2,1],[2,8,8,2,0],[3,0,8,1,1],[4,0,0,1,1],[5,8,16,2,0],[6,0,8,0,0]]},{"area":[[128,64,0,0,0],[64,64,128,64,64],[64,128,128,128,128],[0,64,128,128,128],[0,64,128,128,128]],"rings":[[[0,8],[8,0],[0,0]],[[4,4],[8,8],[0,8],[8,16],[4,20],[20,20],[20,4],[16,8],[12,4]]],"solve":[[0,20,4,3,0],[1,4,20,2,1],[2,0,0,1,1],[3,8,8,0,0],[4,0,8,0,0],[5,8,16,3,1],[6,4,4,0,0]]},{"area":[[64,128,128,64,0],[64,128,64,0,64],[64,128,128,128,128],[0,128,128,128,128],[0,64,0,64,128]],"rings":[[[0,0],[4,4],[0,8],[4,12],[4,20],[8,16],[16,16],[12,20],[20,20],[20,4],[16,8],[8,8],[16,0]]],"solve":[[0,20,4,3,0],[1,0,0,0,0],[2,4,12,0,0],[3,12,20,2,1],[4,8,16,2,1],[5,4,12,1,0],[6,16,8,0,1]]},{"area":[[64,64,0,64,64],[0,128,128,128,128],[0,128,64,64,128],[0,128,128,128,128],[0,64,64,128,128]],"rings":[[[16,0],[12,4],[8,4],[4,0],[0,4],[4,4],[4,20],[8,16],[12,20],[20,20],[20,4]],[[16,8],[12,12],[8,8]]],"solve":[[0,4,4,1,1],[1,20,20,3,1],[2,12,20,1,0],[3,0,4,2,1],[4,12,12,3,0],[5,12,4,2,1],[6,16,8,2,0]]},{"area":[[64,128,128,64,0],[0,0,64,64,0],[0,64,128,128,64],[128,128,128,128,64],[128,128,128,128,64]],"rings":[[[12,8],[16,4],[12,0],[4,0],[0,4],[8,4]],[[20,8],[4,8],[8,12],[0,12],[0,20],[16,20],[20,16],[16,12]]],"solve":[[0,4,8,0,0],[1,16,20,2,0],[2,0,12,0,0],[3,8,4,2,1],[4,16,4,0,1],[5,16,12,1,1],[6,0,4,2,1]]},{"area":[[64,16,16,128,128],[128,112,96,128,128],[128,112,80,128,128],[64,80,128,128,128],[0,0,0,0,0]],"rings":[[[0,4],[0,12],[4,16],[4,14],[12,6],[8,2],[4,6],[4,0]],[[12,0],[12,6],[12,8],[4,16],[20,16],[20,0]]],"solve":[[0,4,16,2,1],[1,20,16,3,1],[2,12,0,1,1],[3,4,14,1,0],[4,4,0,3,0],[5,8,2,3,0],[6,0,4,1,1]]},{"area":[[64,64,0,0,0],[64,80,64,128,128],[0,112,128,128,128],[0,112,128,128,128],[0,80,128,128,128]],"rings":[[[4,8],[8,4],[4,0],[0,4]],[[12,4],[8,8],[8,6],[4,10],[4,18],[8,14],[8,16],[4,20],[20,20],[20,4]]],"solve":[[0,4,20,2,1],[1,20,4,3,0],[2,12,4,1,1],[3,12,4,3,0],[4,8,8,1,1],[5,8,4,0,1],[6,8,6,3,0]]},{"area":[[64,64,0,0,0],[64,128,64,0,64],[128,128,128,128,128],[64,64,128,128,128],[0,64,128,128,128]],"rings":[[[0,4],[4,4],[0,8],[0,16],[4,12],[8,16],[4,20],[20,20],[20,4],[16,8],[8,8],[12,4],[8,4],[4,0]]],"solve":[[0,20,20,3,1],[1,4,20,2,1],[2,0,8,0,0],[3,8,4,2,0],[4,16,8,0,1],[5,4,12,0,0],[6,12,4,0,1]]},{"area":[[64,128,128,128,64],[64,128,128,128,0],[64,128,128,128,0],[0,64,128,128,0],[64,128,64,64,0]],"rings":[[[4,8],[0,12],[8,12],[4,16],[0,16],[4,20],[12,20],[8,16],[12,16],[16,20],[16,4],[20,0],[4,0],[0,4]]],"solve":[[0,20,0,0,1],[1,16,4,3,0],[2,8,12,3,1],[3,4,16,2,1],[4,8,12,1,0],[5,8,4,0,1],[6,12,20,2,0]]},{"area":[[64,64,0,0,0],[64,64,128,64,0],[128,64,0,128,128],[128,128,64,128,128],[128,128,128,128,64]],"rings":[[[8,0],[0,0],[4,4]],[[8,4],[4,8],[12,8],[16,4]],[[12,16],[0,4],[0,20],[16,20],[20,16],[20,8],[12,8]]],"solve":[[0,0,20,2,1],[1,0,4,1,1],[2,12,8,0,0],[3,0,0,0,0],[4,20,8,3,0],[5,20,16,2,0],[6,4,8,2,1]]},{"area":[[128,128,64,64,0],[128,128,64,128,64],[128,128,64,128,64],[128,128,64,128,0],[0,0,64,128,0]],"rings":[[[0,0],[0,16],[8,16],[12,12],[8,8],[12,4],[8,0]],[[8,20],[16,20],[16,12],[20,8],[12,0],[12,4],[12,12],[12,16]]],"solve":[[0,0,16,1,0],[1,12,0,1,1],[2,16,20,3,1],[3,0,16,2,1],[4,4,4,0,0],[5,4,12,0,0],[6,0,0,0,0]]},{"area":[[128,64,0,0,0],[128,80,112,112,16],[128,64,128,128,64],[64,0,128,128,128],[0,64,128,128,128]],"rings":[[[0,0],[0,16],[8,8],[4,4],[8,0]],[[14,4],[6,4],[10,8],[8,8],[8,16],[4,20],[20,20],[20,12],[16,8],[18,8]]],"solve":[[0,0,0,1,1],[1,20,20,2,0],[2,8,8,1,1],[3,0,0,0,0],[4,20,20,3,1],[5,16,16,3,1],[6,6,4,0,0]]},{"area":[[64,64,64,0,0],[128,128,128,128,128],[64,64,128,128,128],[128,64,128,128,128],[64,0,0,0,64]],"rings":[[[4,4],[0,0],[0,8],[8,8],[4,12],[8,16],[16,16],[20,20],[20,4],[12,4],[8,0]],[[0,16],[4,20],[4,12],[0,8]]],"solve":[[0,20,4,0,1],[1,20,4,3,0],[2,0,8,2,1],[3,16,16,2,0],[4,4,4,2,1],[5,4,12,2,1],[6,4,20,3,1]]},{"area":[[64,0,64,128,0],[64,128,128,128,64],[0,128,64,128,128],[0,64,64,128,128],[0,64,128,128,128]],"rings":[[[0,8],[4,4],[0,0]],[[8,0],[12,4],[4,4],[4,12],[8,16],[4,20],[20,20],[20,4],[16,8],[16,0]],[[8,8],[12,12],[8,16]]],"solve":[[0,20,4,3,0],[1,4,20,2,1],[2,16,0,3,0],[3,4,4,0,0],[4,0,8,1,0],[5,8,8,0,0],[6,4,4,1,1]]},{"area":[[64,80,0,0,0],[64,64,64,0,64],[128,80,128,96,128],[96,128,128,128,128],[0,96,128,128,128]],"rings":[[[4,4],[6,2],[8,0],[0,0]],[[6,10],[4,12],[4,4],[0,8],[0,16],[2,14],[6,18],[4,20],[20,20],[20,4],[14,10],[6,2]]],"solve":[[0,20,20,2,0],[1,20,20,3,1],[2,6,10,2,1],[3,6,10,0,0],[4,8,0,0,1],[5,10,14,0,1],[6,4,4,3,0]]},{"area":[[64,128,64,0,0],[128,128,64,0,0],[128,128,64,128,128],[128,128,64,64,64],[128,128,128,64,0]],"rings":[[[8,0],[0,0],[4,4],[0,4],[0,20],[16,20],[12,16],[8,12],[12,8],[8,4],[12,4]],[[20,16],[20,8],[12,8],[12,16],[16,12]]],"solve":[[0,16,20,2,0],[1,0,20,1,0],[2,12,8,1,1],[3,20,16,3,1],[4,0,4,0,0],[5,8,12,1,0],[6,12,4,2,0]]},{"area":[[64,128,128,128,64],[64,64,128,96,0],[128,128,80,64,80],[128,128,128,128,128],[64,0,0,0,0]],"rings":[[[0,20],[4,16],[20,16],[20,8],[18,10],[14,6],[20,0],[4,0],[0,4]],[[8,4],[4,8],[0,4]],[[16,12],[8,12],[10,10],[18,10]]],"solve":[[0,4,0,0,0],[1,0,20,1,0],[2,20,16,3,1],[3,8,4,2,0],[4,10,10,2,1],[5,4,8,2,1],[6,16,12,0,1]]},{"area":[[64,128,64,96,128],[0,128,96,128,96],[0,128,64,96,0],[0,128,128,128,0],[0,128,128,128,64]],"rings":[[[0,0],[4,4],[4,20],[20,20],[16,16],[16,8],[18,6],[20,8],[20,0],[12,0],[14,2],[12,4],[8,0]],[[10,6],[14,10],[12,12],[8,8]]],"solve":[[0,4,20,2,1],[1,4,4,1,1],[2,20,0,3,0],[3,16,8,3,0],[4,12,4,0,1],[5,14,10,1,0],[6,12,4,2,0]]},{"area":[[128,128,64,64,64],[128,64,128,128,128],[64,64,128,128,128],[0,64,128,128,128],[0,0,64,0,0]],"rings":[[[0,8],[4,12],[4,16],[8,12],[8,20],[12,16],[20,16],[20,0],[16,4],[12,0],[8,4],[8,0],[0,0]],[[4,8],[4,4],[8,8],[8,12]]],"solve":[[0,8,4,1,1],[1,20,0,3,0],[2,8,0,0,1],[3,12,16,2,1],[4,4,8,1,1],[5,12,0,1,1],[6,4,12,3,1]]},{"area":[[64,64,128,128,128],[128,64,128,128,128],[128,128,64,64,0],[128,128,64,128,0],[64,0,0,64,0]],"rings":[[[0,4],[0,20],[4,16],[12,16],[8,12],[12,8],[16,8],[20,8],[20,0],[4,0]],[[8,4],[4,8],[4,0]],[[16,8],[12,12],[12,16],[12,20],[16,16]]],"solve":[[0,4,0,0,0],[1,0,4,1,1],[2,20,8,2,0],[3,12,16,2,0],[4,4,8,3,1],[5,4,8,2,1],[6,12,20,1,0]]}];
+
+/* ==== 几何核（与 phys122.js / gentab122.py 逐行同构） ==== */
+function xform(poly, rot, flip, ox, oy) {
+  var pts = [], i, j, x, y;
+  for (i = 0; i < poly.length; i++) {
+    x = poly[i][0]; y = poly[i][1];
+    if (flip) x = -x;
+    for (j = 0; j < (rot % 4); j++) { var t = x; x = y; y = -t; }
+    pts.push([x + ox, y + oy]);
+  }
+  return pts;
+}
+function shoelace2(poly) {
+  var s = 0;
+  for (var i = 0; i < poly.length; i++) { var a = poly[i], b = poly[(i + 1) % poly.length]; s += a[0] * b[1] - b[0] * a[1]; }
+  return s;
+}
+function clipHP(poly, a, b, c) {
+  var out = [];
+  for (var i = 0; i < poly.length; i++) {
+    var A = poly[i], B = poly[(i + 1) % poly.length];
+    var va = a * A[0] + b * A[1] - c, vb = a * B[0] + b * B[1] - c;
+    if (va <= 0) {
+      out.push(A);
+      if (vb > 0) { var t = va / (va - vb); out.push([A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t]); }
+    } else if (vb <= 0) { var t2 = va / (va - vb); out.push([A[0] + (B[0] - A[0]) * t2, A[1] + (B[1] - A[1]) * t2]); }
+  }
+  return out;
+}
+function cellArea2(poly, ci, cj) {
+  var p = poly;
+  p = clipHP(p, 1, 0, 4 * ci + 4); if (!p.length) return 0;
+  p = clipHP(p, -1, 0, -4 * ci);   if (!p.length) return 0;
+  p = clipHP(p, 0, 1, 4 * cj + 4); if (!p.length) return 0;
+  p = clipHP(p, 0, -1, -4 * cj);   if (!p.length) return 0;
+  var p2 = [], i;
+  for (i = 0; i < p.length; i++) p2.push([Math.round(p[i][0] * 2), Math.round(p[i][1] * 2)]);
+  return Math.abs(shoelace2(p2));
+}
+var _TPL = {};
+function placeMatrix(bi, rot, flip, ox, oy) {
+  var px = ((ox % 4) + 4) % 4, py = ((oy % 4) + 4) % 4;
+  var key = bi + ',' + (rot % 4) + ',' + flip + ',' + px + ',' + py;
+  var t = _TPL[key];
+  if (!t) {
+    var poly = xform(BLOCKS[bi], rot % 4, flip, px, py);
+    var xs = [], ys = [], rel = {}, i, j;
+    for (i = 0; i < poly.length; i++) { xs.push(poly[i][0]); ys.push(poly[i][1]); }
+    var mnX = Math.min.apply(null, xs), mxX = Math.max.apply(null, xs);
+    var mnY = Math.min.apply(null, ys), mxY = Math.max.apply(null, ys);
+    for (j = Math.floor(mnY / 4); j <= Math.floor(mxY / 4); j++)
+      for (i = Math.floor(mnX / 4); i <= Math.floor(mxX / 4); i++) {
+        var ar = cellArea2(poly, i, j);
+        if (ar) rel[i + ',' + j] = ar;
+      }
+    t = { base: [px, py], rel: rel };
+    _TPL[key] = t;
+  }
+  var dx = Math.floor((ox - t.base[0]) / 4), dy = Math.floor((oy - t.base[1]) / 4);
+  var m = [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]];
+  for (var k in t.rel) {
+    var g = k.split(',');
+    var x = +g[0] + dx, y = +g[1] + dy;
+    if (x >= 0 && x < 5 && y >= 0 && y < 5) m[y][x] = t.rel[k];
+  }
+  return m;
+}
+function blockPoly(bi, rot, flip, ox, oy) { return xform(BLOCKS[bi], rot, flip, ox, oy); }
+/* SAT 分离轴：两凸多边形面积交>0（贴合/点接触=分离=合法）。G3 审查升级：
+   格和≤128 无法发现「格内重叠+缺口对冲」（两块同格各 8q² 交叠 4q² 缺口 4q²，格值 64+64=128
+   恰好对冲）——物理无交才是真拼合 */
+function satOverlap(pa, pb) {
+  var axes = [];
+  function addAxes(p) {
+    for (var i = 0; i < p.length; i++) {
+      var ex = p[(i + 1) % p.length][0] - p[i][0], ey = p[(i + 1) % p.length][1] - p[i][1];
+      axes.push([-ey, ex]);
+    }
+  }
+  addAxes(pa); addAxes(pb);
+  for (var k = 0; k < axes.length; k++) {
+    var nx = axes[k][0], ny = axes[k][1], a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity;
+    for (var i = 0; i < pa.length; i++) { var d = nx * pa[i][0] + ny * pa[i][1]; if (d < a0) a0 = d; if (d > a1) a1 = d; }
+    for (var j = 0; j < pb.length; j++) { var d2 = nx * pb[j][0] + ny * pb[j][1]; if (d2 < b0) b0 = d2; if (d2 > b1) b1 = d2; }
+    if (a1 <= b0 || b1 <= a0) return false;   // 分离轴（含贴合=零面积交）
+  }
+  return true;
+}
+function bboxOf(bi, rot, flip) {
+  var p = xform(BLOCKS[bi], rot, flip, 0, 0), xs = [], ys = [];
+  for (var k = 0; k < p.length; k++) { xs.push(p[k][0]); ys.push(p[k][1]); }
+  return [Math.min.apply(null, xs), Math.min.apply(null, ys), Math.max.apply(null, xs), Math.max.apply(null, ys)];
+}
+/* 托盘：原尺寸装不下 390px 屏（大三角 288px）——托盘中缩放 SC 渲染，拾起还原全尺寸 */
+var SC = 0.4;
+var TRAYC = [[78, 524], [214, 524], [322, 524], [240, 636], [296, 636], [56, 636], [150, 636]];  // 行1=L1,L2,M；行2=S1,S2,Q,P（命中框零重叠）
+
+/* ==== 状态 ==== */
+var S = { phase: 'menu', lv: 1, placed: new Array(7).fill(null), sel: -1,
+  drag: null, hints: 0, hintT: 0, hintBlk: -1, used: null, target: null, rings: null, winT: 0, wonStars: 0,
+  pid: null, rejectT: 0, rejectXY: null, muted: false, paused: false,
+  trayPose: new Array(7).fill(null) };   // 托盘块待定姿态 [rot,flip]（M2：托盘内可先旋转/翻面再拖）
+var BEST = {};
+try { BEST = JSON.parse(localStorage.getItem(K_BEST) || '{}') || {}; } catch (e) { BEST = {}; }
+S.muted = localStorage.getItem(K_MUTE) === '1';
+
+function totalStars() { var s = 0; for (var k in BEST) s += (BEST[k].stars || 0); return s; }
+function starsOf(h) { return h <= 0 ? 3 : (h === 1 ? 2 : 1); }
+
+/* ==== 关卡加载 ==== */
+function loadLv(n) {
+  S.lv = n;
+  S.placed = new Array(7).fill(null);
+  S.sel = -1; S.drag = null; S.hints = 0; S.hintT = 0; S.hintBlk = -1;
+  S.rejectT = 0; S.rejectXY = null;   // 清上一关红闪残留（VLM 目验抓出）
+  S.trayPose = new Array(7).fill(null);
+  S.used = [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]];
+  var L = LVLS[n - 1];
+  S.target = L.area.map(function (r) { return r.slice(); });   // 面积矩阵（0/64/96/128…斜边半值合法）
+  S.rings = L.rings;                                            // 外轮廓环（q 顶点，含洞环）
+  /* 块影递减（SPEC §1 四档）：入门 1-6 全 7 块解位底影；进阶 7-12 三块影（确定性取大块 L1/L2/M）；
+     高手 13-18 仅轮廓；大师 19-24 仅轮廓+图案最小外接虚线框 */
+  S.shadow = n <= 6 ? [0, 1, 2, 3, 4, 5, 6] : (n <= 12 ? [0, 1, 2] : null);
+  S.showBox = n >= 19;
+  S.phase = 'play';
+  S.pid = null;
+  hideLay('winlay'); hideLay('pauselay');
+  updHud();
+}
+/* 块位置（q 系）→ 命中框：已放置=多边形 bbox；托盘=缩放包围盒+padding */
+function blockRectPx(i) {
+  if (S.placed[i]) {
+    var p = S.placed[i];
+    var bb = bboxOf(i, p[2], p[3]);
+    return [FX + (bb[0] + p[0]) * QPX, FY + (bb[1] + p[1]) * QPX,
+            FX + (bb[2] + p[0]) * QPX, FY + (bb[3] + p[1]) * QPX];
+  }
+  var pose3 = S.trayPose[i] || [0, 0];
+  var bb3 = bboxOf(i, pose3[0], pose3[1]), c = TRAYC[i], pad = 10;   // m-C：命中框随托盘姿态（旋转后 bbox 宽高互换）
+  var w = (bb3[2] - bb3[0]) * QPX * SC / 2, h = (bb3[3] - bb3[1]) * QPX * SC / 2;
+  return [c[0] - w - pad, c[1] - h - pad, c[0] + w + pad, c[1] + h + pad];
+}
+function hitBlock(cx, cy) {   // canvas px 坐标
+  for (var i = 6; i >= 0; i--) {
+    if (S.drag && S.drag.bi === i) continue;
+    var r = blockRectPx(i);
+    if (cx >= r[0] - 8 && cx <= r[2] + 8 && cy >= r[1] - 8 && cy <= r[3] + 8) return i;
+  }
+  return -1;
+}
+
+/* ==== 放置与判定 ==== */
+function tryPlace(bi, ox, oy, rot, flip) {
+  var m = placeMatrix(bi, rot, flip, ox, oy);
+  var old = S.placed[bi] ? placeMatrix(bi, S.placed[bi][2], S.placed[bi][3], S.placed[bi][0], S.placed[bi][1]) : null;
+  var i, j;
+  var used2 = S.used.map(function (r) { return r.slice(); });
+  if (old) for (j = 0; j < 5; j++) for (i = 0; i < 5; i++) used2[j][i] -= old[j][i];
+  for (j = 0; j < 5; j++) for (i = 0; i < 5; i++) {
+    used2[j][i] += m[j][i];
+    if (used2[j][i] > 128) return false;              // 重叠
+  }
+  // 越界：块任一顶点出 20q 场地
+  var poly = blockPoly(bi, rot, flip, ox, oy);
+  for (var k = 0; k < poly.length; k++)
+    if (poly[k][0] < 0 || poly[k][0] > 20 || poly[k][1] < 0 || poly[k][1] > 20) return false;
+  // 物理无交（SAT）：格和对冲漏洞修复——与已放块两两面积交>0 拒（贴合/点接触合法）
+  for (var b2 = 0; b2 < 7; b2++) {
+    if (b2 === bi || !S.placed[b2]) continue;
+    var p2 = S.placed[b2];
+    if (satOverlap(poly, blockPoly(b2, p2[2], p2[3], p2[0], p2[1]))) return false;
+  }
+  S.used = used2;
+  S.placed[bi] = [ox, oy, rot, flip];
+  checkWin();
+  return true;
+}
+function unplace(bi) {
+  if (!S.placed[bi]) return;
+  var m = placeMatrix(bi, S.placed[bi][2], S.placed[bi][3], S.placed[bi][0], S.placed[bi][1]);
+  for (var j = 0; j < 5; j++) for (var i = 0; i < 5; i++) S.used[j][i] -= m[j][i];
+  S.placed[bi] = null;
+}
+function coverMatrix() { return S.used; }
+function checkWin() {
+  if (S.phase !== 'play') return;
+  for (var j = 0; j < 5; j++) for (var i = 0; i < 5; i++)
+    if (S.used[j][i] !== S.target[j][i]) return;   // 面积矩阵逐格全等（斜边半值格同样精确匹配）
+  for (var b = 0; b < 7; b++) if (!S.placed[b]) return;
+  finishWin();
+}
+function finishWin() {
+  var st = starsOf(S.hints);
+  S.wonStars = st;
+  S.phase = 'winT'; S.winT = 0;
+  var bk = BEST[S.lv] || { stars: 0, hints: 9 };
+  if (st > bk.stars || (st === bk.stars && S.hints < bk.hints)) {
+    BEST[S.lv] = { stars: st, hints: S.hints };
+    try { localStorage.setItem(K_BEST, JSON.stringify(BEST)); } catch (e) {}
+  }
+  sndWin(st);
+}
+
+/* ==== 提示（针引）==== */
+function doHint() {
+  if (S.phase !== 'play' || S.paused || S.hints >= 3) return;   // 暂停期拒绝（M3：影子被暂停层遮挡却烧提示降星）
+  var unplaced = [];
+  for (var b = 0; b < 7; b++) if (!S.placed[b]) unplaced.push(b);
+  if (!unplaced.length) return;   // 全放好=无块可提示
+  S.hints++;
+  /* 提示未放置块中第 (lv+hints) 个（原 (lv*7+hints)%7 因 lv*7≡0 mod 7 数学退化为
+     全关同序 1,2,3——verify E2b 抓出；此式各关起点散布且只提示未放块） */
+  S.hintBlk = unplaced[(S.lv + S.hints) % unplaced.length];
+  S.hintT = 3.0;
+  sndHint();
+  updHud();
+}
+
+/* ==== HUD ==== */
+var els = {};
+function el(id) { return els[id] || (els[id] = document.getElementById(id)); }
+function updHud() {
+  el('hstar').textContent = '★ ' + totalStars() + '/72';
+  el('hname').textContent = S.phase === 'menu' ? '乞巧板' : ('第' + S.lv + '关 · ' + tierName(S.lv));
+  el('hintBtn').disabled = (S.phase !== 'play' || S.paused || S.hints >= 3);
+  el('menuStars').textContent = '已攒 ★' + totalStars() + '/72';
+}
+function tierName(n) { return n <= 6 ? '入门' : n <= 12 ? '进阶' : n <= 18 ? '高手' : '大师'; }
+function showLay(id) { el(id).style.display = 'flex'; }
+function hideLay(id) { el(id).style.display = 'none'; }
+
+/* ==== 渲染 ==== */
+var cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+function qp(v) { return v * QPX; }   // q → canvas px（不含场地原点）
+function draw(t) {
+  ctx.clearRect(0, 0, 390, 780);
+  // 夜空底
+  var g = ctx.createLinearGradient(0, 0, 0, 780);
+  g.addColorStop(0, '#2b2840'); g.addColorStop(1, '#1f1d33');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 390, 780);
+  // 星点（确定性：固定表）
+  ctx.fillStyle = 'rgba(232,230,240,.5)';
+  for (var si = 0; si < 26; si++) {
+    var sx = (si * 137 + 21) % 390, sy = (si * 89 + 13) % 440;
+    ctx.fillRect(sx, sy, 1.6, 1.6);
+  }
+  // 月
+  ctx.fillStyle = '#e8e6d0';
+  ctx.beginPath(); ctx.arc(330, 30, 13, 0, 6.2832); ctx.fill();
+  ctx.fillStyle = '#2b2840';
+  ctx.beginPath(); ctx.arc(335, 26, 11, 0, 6.2832); ctx.fill();
+  // 场地底（月白绢面）
+  ctx.fillStyle = '#3a3654';
+  ctx.fillRect(FX - 6, FY - 6, 372, 372);
+  ctx.fillStyle = '#ece7f0';
+  ctx.fillRect(FX, FY, 360, 360);
+  // 粗格纹（淡线）+半格淡线更浅
+  ctx.strokeStyle = 'rgba(58,54,84,.10)'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (var i = 0; i <= 20; i += 2) {
+    ctx.moveTo(FX + qp(i), FY); ctx.lineTo(FX + qp(i), FY + 360);
+    ctx.moveTo(FX, FY + qp(i)); ctx.lineTo(FX + 360, FY + qp(i));
+  }
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(58,54,84,.22)';
+  ctx.beginPath();
+  for (var i2 = 0; i2 <= 20; i2 += 4) {
+    ctx.moveTo(FX + qp(i2), FY); ctx.lineTo(FX + qp(i2), FY + 360);
+    ctx.moveTo(FX, FY + qp(i2)); ctx.lineTo(FX + 360, FY + qp(i2));
+  }
+  ctx.stroke();
+  // 目标剪影（外轮廓环银线+淡影；evenodd 兼洞环；退化零面积环跳过——m2：其 stroke 会在实心区画多余银线）
+  if (S.rings) {
+    ctx.beginPath();
+    var drewAny = false;
+    for (var r = 0; r < S.rings.length; r++) {
+      var ring = S.rings[r];
+      if (Math.abs(shoelace2(ring)) === 0) continue;   // 共线退化环（如 L6 ring0）
+      drewAny = true;
+      for (var k = 0; k < ring.length; k++) {
+        var x = FX + qp(ring[k][0]), y = FY + qp(ring[k][1]);
+        if (k === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+    }
+    if (drewAny) {
+      ctx.fillStyle = 'rgba(232,230,240,.13)';
+      ctx.fill('evenodd');
+      ctx.strokeStyle = '#96a2c8'; ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }
+  // 块影递减（SPEC §1：入门全影→进阶三影→高手/大师仅轮廓；常驻极淡，与金框提示影区分）
+  if (S.shadow && S.phase === 'play') {
+    var Ls = LVLS[S.lv - 1];
+    for (var sb = 0; sb < S.shadow.length; sb++) {
+      if (S.placed[S.shadow[sb]]) continue;   // 已放好的块不再显示影
+      for (var ss = 0; ss < Ls.solve.length; ss++) {
+        if (Ls.solve[ss][0] !== S.shadow[sb]) continue;
+        var sp = blockPoly(Ls.solve[ss][0], Ls.solve[ss][3], Ls.solve[ss][4], Ls.solve[ss][1], Ls.solve[ss][2]);
+        drawPoly(sp, 'rgba(168,178,208,.13)', 'rgba(168,178,208,.22)', false, FX, FY, 1);
+      }
+    }
+  }
+  // 大师档最小外接框（19-24 关：图案 bbox 虚线银框）
+  if (S.showBox && S.phase === 'play') {
+    var bx0 = 9, by0 = 9, bx1 = -9, by1 = -9;
+    for (var bj = 0; bj < 5; bj++) for (var bi = 0; bi < 5; bi++) if (S.target[bj][bi]) {
+      if (bi < bx0) bx0 = bi; if (bi > bx1) bx1 = bi;
+      if (bj < by0) by0 = bj; if (bj > by1) by1 = bj;
+    }
+    ctx.setLineDash([3, 3]);
+    ctx.strokeStyle = 'rgba(184,192,216,.4)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(FX + qp(bx0 * 4) - 2, FY + qp(by0 * 4) - 2, qp((bx1 - bx0 + 1) * 4) + 4, qp((by1 - by0 + 1) * 4) + 4);
+    ctx.setLineDash([]);
+  }
+  // 提示影子（虚线金框 3s 渐隐）
+  if (S.hintT > 0 && S.hintBlk >= 0 && S.phase === 'play') {
+    var L = LVLS[S.lv - 1], sol = null;
+    for (var s2 = 0; s2 < L.solve.length; s2++) if (L.solve[s2][0] === S.hintBlk) sol = L.solve[s2];
+    if (sol) {   // solve 条目=[bi,ox,oy,rot,flip]（图案归一相对坐标）
+      var hp = blockPoly(sol[0], sol[3], sol[4], sol[1], sol[2]);
+      drawPoly(hp, 'rgba(232,201,106,' + (0.30 * Math.min(1, S.hintT) + 0.08) + ')', 'rgba(232,201,106,.85)', true, FX, FY, 1);
+    }
+  }
+  // 拒绝红闪
+  if (S.rejectT > 0 && S.rejectXY) {
+    ctx.strokeStyle = 'rgba(216,74,52,' + S.rejectT.toFixed(2) + ')';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(S.rejectXY[0] - 20, S.rejectXY[1] - 20, 40, 40);
+  }
+  // 托盘底
+  ctx.fillStyle = 'rgba(46,42,70,.6)';
+  ctx.fillRect(8, 460, 374, 306);
+  ctx.strokeStyle = 'rgba(110,98,138,.4)'; ctx.lineWidth = 1;
+  ctx.strokeRect(8, 460, 374, 306);
+  // 块
+  for (var b = 0; b < 7; b++) {
+    if (S.drag && S.drag.bi === b) continue;   // 拖拽中的块最后画
+    drawBlock(b, t, false);
+  }
+  if (S.drag) drawBlock(S.drag.bi, t, true);
+  // 旋转/翻面钮定位
+  updToolBtns();
+}
+function drawPoly(poly, fill, stroke, dash, orgX, orgY, sc) {
+  ctx.beginPath();
+  for (var k = 0; k < poly.length; k++) {
+    var x = (orgX || FX) + poly[k][0] * QPX * (sc || 1), y = (orgY || FY) + poly[k][1] * QPX * (sc || 1);
+    if (k === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  if (dash) ctx.setLineDash([5, 4]); else ctx.setLineDash([]);
+  ctx.fillStyle = fill; ctx.fill();
+  ctx.strokeStyle = stroke; ctx.lineWidth = dash ? 2 : 1.5;
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+function drawBlock(b, t, dragging) {
+  var rot, flip, ox, oy;
+  if (dragging) { rot = S.drag.rot; flip = S.drag.flip; ox = S.drag.ox; oy = S.drag.oy; }
+  else if (S.placed[b]) { rot = S.placed[b][2]; flip = S.placed[b][3]; ox = S.placed[b][0]; oy = S.placed[b][1]; }
+  else {   // 托盘：缩放 SC、以块 bbox 中心对齐 TRAYC[b]；姿态=托盘待定姿态（M2：先转好再拖）
+    var pose = S.trayPose[b] || [0, 0];
+    var bb = bboxOf(b, pose[0], pose[1]), c = TRAYC[b];
+    var cbx = (bb[0] + bb[2]) / 2, cby = (bb[1] + bb[3]) / 2;
+    var poly0 = xform(BLOCKS[b], pose[0], pose[1], -cbx, -cby);
+    var sel0 = (S.sel === b);
+    ctx.save();
+    if (sel0) { ctx.shadowColor = 'rgba(0,0,0,.45)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 2; }
+    drawPoly(poly0, COLORS[b], sel0 ? '#e8c96a' : 'rgba(30,28,50,.55)', false, c[0], c[1], SC);
+    ctx.restore();
+    return;
+  }
+  var poly = blockPoly(b, rot, flip, ox, oy);
+  var sel = (S.sel === b && !dragging);
+  ctx.save();
+  if (sel || dragging) { ctx.shadowColor = 'rgba(0,0,0,.45)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 3; }
+  drawPoly(poly, COLORS[b], sel ? '#e8c96a' : 'rgba(30,28,50,.55)', false, FX, FY, 1);
+  ctx.restore();
+}
+function updToolBtns() {
+  var show = (S.phase === 'play' && S.sel >= 0 && !S.drag);
+  el('rotBtn').style.display = show ? 'flex' : 'none';
+  el('flipBtn').style.display = show ? 'flex' : 'none';
+  if (show) {
+    var r = blockRectPx(S.sel);
+    /* M-A 修复：blockRectPx 为 canvas 系，#rotBtn 挂 #app 为 page 系——canvas→page 需 +64；
+       旧代码 +64 后又 -64 抵消=恒偏上 64px（复审抓出）。top 直接用 page 系值 */
+    var y = Math.max(70, Math.min(779, (r[1] + r[3]) / 2 + 64 - 21));
+    var bx = (r[2] + r[0]) / 2;
+    el('rotBtn').style.left = (bx - 52) + 'px'; el('rotBtn').style.top = y + 'px';
+    el('flipBtn').style.left = (bx + 10) + 'px'; el('flipBtn').style.top = y + 'px';
+    var mirrorable = (S.sel === 6);   // 仅 P 平行四边形镜像≠旋转态；等腰三角形镜像=自身、M/S/Q 镜像=旋转态
+    el('flipBtn').classList.toggle('off', !mirrorable);
+  }
+}
+
+/* ==== 主循环 ==== */
+var lastT = 0;
+function loop(ts) {
+  var dt = Math.min(0.05, (ts - lastT) / 1000 || 0.016);
+  lastT = ts;
+  if (S.hintT > 0) S.hintT = Math.max(0, S.hintT - dt);
+  if (S.rejectT > 0) S.rejectT = Math.max(0, S.rejectT - dt * 2);
+  if (S.phase === 'winT') {
+    S.winT += dt;
+    if (S.winT >= 1.2) showWin();
+  }
+  draw(ts / 1000);
+  requestAnimationFrame(loop);
+}
+function showWin() {
+  S.phase = 'win';
+  var st = S.wonStars;
+  var names = ['初窥门径', '得巧', '巧夺天工'];
+  var ws = el('winStars');
+  ws.innerHTML = '';
+  for (var i = 0; i < 3; i++) {
+    var sp = document.createElement('span');
+    sp.textContent = '★';
+    if (i < st) { sp.className = 'starpop'; sp.style.animationDelay = (0.05 + i * 0.3) + 's'; }
+    else sp.className = 'off';
+    ws.appendChild(sp);
+  }
+  var allBest = true;
+  for (var l = 1; l <= 24; l++) if (!(BEST[l] && BEST[l].stars === 3)) { allBest = false; break; }
+  el('winTitle').textContent = allBest ? '巧 圣' : names[st - 1];
+  el('winSub').textContent = '第' + S.lv + '关 · 针引 ' + S.hints + ' 次' + (S.lv < 24 ? '' : ' · 全卷终');
+  el('nextBtn').style.display = S.lv < 24 ? 'block' : 'none';
+  showLay('winlay');
+  updHud();
+}
+
+/* ==== 输入 ==== */
+function evXY(e) { var r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+function qFromPx(px, py) { return [(px - FX) / QPX, (py - FY) / QPX]; }   // 浮点 q（吸附用）
+function snapHalf(v) { return Math.round(v / 2) * 2; }                    // 半格吸附（块原点基准）
+cv.addEventListener('pointerdown', function (e) {
+  if (S.phase === 'winT' || S.phase === 'win' || S.phase === 'menu' || S.paused) return;
+  if (S.pid !== null) return;
+  var xy = evXY(e);
+  S.pid = e.pointerId;
+  var b = hitBlock(xy[0], xy[1]);
+  if (b < 0) { S.pid = null; return; }
+  S.sel = b;
+  var wasPlaced = !!S.placed[b];
+  var cur = wasPlaced ? [S.placed[b][0], S.placed[b][1], S.placed[b][2], S.placed[b][3]]
+                      : [0, 0, (S.trayPose[b] || [0, 0])[0], (S.trayPose[b] || [0, 0])[1]];
+  unplace(b);
+  var q = qFromPx(xy[0], xy[1]);
+  var bb = bboxOf(b, cur[2], cur[3]);
+  var cxq = (bb[0] + bb[2]) / 2, cyq = (bb[1] + bb[3]) / 2;   // 拾起=块中心对齐手指（托盘缩放→全尺寸的自然过渡）
+  var nx = snapHalf(q[0] - cxq), ny = snapHalf(q[1] - cyq);
+  S.drag = { bi: b, ox: nx, oy: ny, rot: cur[2], flip: cur[3], grabDx: nx - q[0], grabDy: ny - q[1],
+    px0: xy[0], py0: xy[1], wasPlaced: wasPlaced, was: [cur[0], cur[1], cur[2], cur[3]] };
+  if (cv.setPointerCapture) { try { cv.setPointerCapture(e.pointerId); } catch (err) {} }   // M1：出 canvas 松手不软锁
+  sndPick();
+  e.preventDefault();
+});
+cv.addEventListener('pointermove', function (e) {
+  if (e.pointerId !== S.pid || !S.drag) return;
+  var xy = evXY(e);
+  var q = qFromPx(xy[0], xy[1]);
+  S.drag.ox = snapHalf(q[0] + S.drag.grabDx);   // 块与手指相对位移不变，原点半格吸附
+  S.drag.oy = snapHalf(q[1] + S.drag.grabDy);
+  e.preventDefault();
+});
+function endDrag(e) {
+  if (e.pointerId !== S.pid || !S.drag) return;
+  var d = S.drag, bi = d.bi;
+  S.drag = null; S.pid = null;
+  if (S.phase !== 'play' || S.paused) return;
+  var xy = evXY(e);
+  var moved = Math.abs(xy[0] - d.px0) + Math.abs(xy[1] - d.py0);
+  if (moved < 6) {   // M2：tap=只选中不放置——已放置块原位放回，托盘块记姿态（原实现 tap 也走 tryPlace→必越界红闪+拒绝音）
+    if (d.wasPlaced) { if (!tryPlace(bi, d.was[0], d.was[1], d.was[2], d.was[3])) S.trayPose[bi] = [d.was[2], d.was[3]]; }   // m-E：回放失败兜底带回托盘
+    else S.trayPose[bi] = [d.rot, d.flip];
+    return;
+  }
+  var ok = tryPlace(bi, d.ox, d.oy, d.rot, d.flip);
+  if (!ok) {
+    S.rejectT = 1; S.rejectXY = xy;
+    S.trayPose[bi] = [d.rot, d.flip];   // 回托盘保留当前姿态
+    sndReject();
+    updHud();
+  } else sndDrop();
+}
+cv.addEventListener('pointerup', endDrag);
+window.addEventListener('pointerup', endDrag);   // M1 兜底：无 pointer capture 的环境 up 落 canvas 外也能终结
+cv.addEventListener('pointercancel', function (e) {
+  if (e.pointerId !== S.pid) return;
+  if (S.drag) S.trayPose[S.drag.bi] = [S.drag.rot, S.drag.flip];   /* 姿态带回托盘 */
+  S.drag = null; S.pid = null;   /* 系统打断只清态不放置（g121 教训） */
+});
+window.addEventListener('blur', function () {
+  if (S.drag) S.trayPose[S.drag.bi] = [S.drag.rot, S.drag.flip];
+  S.drag = null; S.pid = null;
+});
+el('rotBtn').addEventListener('pointerdown', function (e) {
+  e.stopPropagation();
+  if (S.phase !== 'play' || S.sel < 0 || S.drag) return;   // m-D：拖拽中钮拒（防 ≤16ms 显示窗口内第二指写 trayPose）
+  var p = S.placed[S.sel];
+  if (p) { var ox = p[0], oy = p[1], or = p[2]; unplace(S.sel); p[2] = (p[2] + 1) % 4; if (!tryPlace(S.sel, p[0], p[1], p[2], p[3])) { p[2] = or; tryPlace(S.sel, ox, oy, or, p[3]); } }
+  else {   // M2：托盘待定姿态原地旋转（无越界约束，先转好再拖）
+    var tp = S.trayPose[S.sel] || [0, 0];
+    S.trayPose[S.sel] = [(tp[0] + 1) % 4, tp[1]];
+  }
+  sndRot();
+});
+el('flipBtn').addEventListener('pointerdown', function (e) {
+  e.stopPropagation();
+  if (S.phase !== 'play' || S.sel < 0 || S.drag) return;   // m-D 同上
+  var p = S.placed[S.sel];
+  if (p && S.sel === 6) {
+    var ox = p[0], oy = p[1], or = p[2];
+    unplace(S.sel);
+    p[3] = 1 - p[3];
+    if (!tryPlace(S.sel, p[0], p[1], p[2], p[3])) { p[3] = 1 - p[3]; tryPlace(S.sel, ox, oy, or, p[3]); }
+  } else if (!p && S.sel === 6) {   // M2：托盘 P 待定翻面
+    var tp2 = S.trayPose[S.sel] || [0, 0];
+    S.trayPose[S.sel] = [tp2[0], 1 - tp2[1]];
+  }
+  sndRot();
+});
+
+/* ==== 按钮 ==== */
+el('startBtn').onclick = function () { wake(); hideLay('menu'); loadLv(1); };
+el('nextBtn').onclick = function () { if (S.lv < 24) { hideLay('winlay'); loadLv(S.lv + 1); } };
+el('replayBtn').onclick = function () { hideLay('winlay'); loadLv(S.lv); };
+el('homeBtn').onclick = function () { hideLay('winlay'); S.phase = 'menu'; showLay('menu'); updHud(); };
+el('pauseBtn').onclick = function () {
+  if (S.phase === 'play') { S.paused = true; S.drag = null; S.pid = null; showLay('pauselay'); updHud(); }
+};
+el('resumeBtn').onclick = function () { S.paused = false; hideLay('pauselay'); updHud(); };
+el('restartBtn').onclick = function () { S.paused = false; hideLay('pauselay'); loadLv(S.lv); };
+el('quitBtn').onclick = function () { S.paused = false; hideLay('pauselay'); S.phase = 'menu'; showLay('menu'); updHud(); };
+el('hintBtn').onclick = doHint;
+el('muteBtn').onclick = function () {
+  S.muted = !S.muted;
+  localStorage.setItem(K_MUTE, S.muted ? '1' : '0');
+  el('muteBtn').style.opacity = S.muted ? .4 : 1;
+};
+document.addEventListener('visibilitychange', function () {
+  if (document.hidden && S.phase === 'play' && !S.paused) {
+    S.paused = true;
+    if (S.drag) S.trayPose[S.drag.bi] = [S.drag.rot, S.drag.flip];   /* m-B：与 blur 行为一致（姿态带回+HUD 同步） */
+    S.drag = null; S.pid = null;   /* 拖拽残留会使该块 hitBlock 永久跳过 */
+    showLay('pauselay'); updHud();
+  }
+});
+
+/* ==== 音效（WebAudio 短合成；手势内建+resume） ==== */
+var AC = null;
+function wake() {
+  try {
+    if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+    if (AC.state === 'suspended') AC.resume();
+  } catch (e) {}
+}
+document.addEventListener('pointerdown', function once() { wake(); document.removeEventListener('pointerdown', once); }, { once: true });
+function tone(f, dur, type, vol, slide) {
+  if (S.muted || !AC) return;
+  try {
+    var o = AC.createOscillator(), gn = AC.createGain(), t0 = AC.currentTime;
+    o.type = type || 'sine'; o.frequency.setValueAtTime(f, t0);
+    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, f + slide), t0 + dur);
+    gn.gain.setValueAtTime(vol || 0.06, t0);
+    gn.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+    o.connect(gn); gn.connect(AC.destination);
+    o.start(t0); o.stop(t0 + dur + 0.02);
+  } catch (e) {}
+}
+function sndPick() { tone(240, 0.07, 'triangle', 0.05); }
+function sndDrop() { tone(660, 0.1, 'sine', 0.06); tone(990, 0.08, 'sine', 0.03); }
+function sndReject() { tone(160, 0.1, 'square', 0.04); tone(140, 0.12, 'square', 0.04); }
+function sndRot() { tone(380, 0.05, 'triangle', 0.05); }
+function sndHint() { tone(880, 0.12, 'sine', 0.05); tone(1320, 0.18, 'sine', 0.04); }
+function sndWin(st) {
+  var grand = true;   // 巧圣=七音（m3：finishWin 已先更新 BEST，此处可判全 3★）
+  for (var g = 1; g <= 24; g++) if (!(BEST[g] && BEST[g].stars === 3)) { grand = false; break; }
+  var seq = grand ? [523, 587, 659, 784, 880, 1046, 1318] : [523, 587, 659, 784, 880];
+  var n = grand ? 7 : 2 + st;
+  for (var i = 0; i < n; i++) setTimeout(function (f) { return function () { tone(f, 0.22, 'sine', 0.07); }; }(seq[i % seq.length]), i * 130);
+}
+
+/* ==== boot ==== */
+el('muteBtn').style.opacity = S.muted ? .4 : 1;
+updHud();
+requestAnimationFrame(loop);
+
+</script>
+</body>
+</html>
