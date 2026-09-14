@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>窑变</title>
+<style>
+html,body{margin:0;padding:0;background:#241a14;overflow:hidden;font-family:"PingFang SC","Microsoft YaHei",sans-serif;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+#app{position:relative;width:390px;height:844px;margin:0 auto;background:#241a14;overflow:hidden}
+#cv{position:absolute;left:0;top:0;width:390px;height:844px;display:block;touch-action:none}
+#colorRow{position:absolute;left:8px;right:8px;top:494px;height:66px;display:flex;justify-content:center;align-items:flex-start;touch-action:none}
+.cbtn{width:44px;height:44px;border-radius:50%;border:2px solid rgba(232,201,106,.25);margin:0;padding:0;cursor:pointer;transition:transform .12s ease,opacity .12s ease;position:relative;touch-action:none}
+.cbtn:active{transform:scale(.9)}
+.cbtn.cur{opacity:.32;border:2px dashed rgba(232,201,106,.9)}
+.cwrap{display:flex;flex-direction:column;align-items:center;width:56px}
+.cname{font-size:10px;color:#b5a37b;margin-top:5px;letter-spacing:1px}
+#actRow{position:absolute;left:12px;right:12px;top:572px;height:48px;display:flex;gap:10px}
+.abtn{flex:1;height:44px;border-radius:22px;border:1px solid rgba(232,201,106,.35);background:rgba(58,44,34,.9);color:#e8dcc8;font-size:15px;letter-spacing:2px;cursor:pointer;font-family:inherit}
+.abtn:active{background:rgba(90,68,50,.95)}
+.abtn[disabled]{opacity:.4}
+.lay{position:absolute;left:0;top:0;right:0;bottom:0;background:rgba(20,12,8,.82);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9}
+.hide{display:none!important}
+.ltitle{font-size:26px;color:#e8c96a;letter-spacing:6px;margin:0 0 8px}
+.lsub{font-size:14px;color:#c9b8a0;letter-spacing:2px;margin:0 0 18px}
+.lstars{font-size:34px;color:#e8c96a;letter-spacing:8px;margin:0 0 10px}
+.lstars .off{color:#5a4a38}
+.lrow{display:flex;gap:14px;margin-top:18px}
+.lbtn{min-width:120px;height:44px;border-radius:22px;border:1px solid #e8c96a;background:rgba(58,44,34,.95);color:#e8c96a;font-size:16px;letter-spacing:3px;cursor:pointer;font-family:inherit}
+.lbtn.plain{border-color:#8a7a64;color:#c9b8a0}
+#lvgrid{display:grid;grid-template-columns:repeat(6,52px);gap:10px;margin-top:8px}
+.lvcell{width:52px;height:44px;border-radius:8px;border:1px solid rgba(232,201,106,.35);background:rgba(58,44,34,.9);color:#e8dcc8;font-size:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;font-family:inherit;padding:0}
+.lvcell .st{font-size:9px;color:#e8c96a;letter-spacing:1px;margin-top:2px}
+.lvcell.lock{opacity:.28;cursor:default}
+.lvcell.done{border-color:#e8c96a}
+</style>
+</head>
+<body>
+<div id="app">
+<canvas id="cv" width="390" height="844"></canvas>
+<div id="colorRow"></div>
+<div id="actRow">
+  <button class="abtn" id="hintBtn">看火</button>
+  <button class="abtn" id="restartBtn">重烧</button>
+  <button class="abtn" id="lvBtn">选窑</button>
+</div>
+<div class="lay hide" id="winlay">
+  <p class="ltitle">开窑 · 满釉</p>
+  <p class="lstars" id="winStars"></p>
+  <p class="lsub" id="winSub"></p>
+  <div class="lrow">
+    <button class="lbtn" id="nextBtn">下一窑</button>
+    <button class="lbtn plain" id="againBtn">重烧</button>
+  </div>
+</div>
+<div class="lay hide" id="faillay">
+  <p class="ltitle" style="color:#c9705a">窑 裂</p>
+  <p class="lsub">火候用尽，釉未满窑</p>
+  <div class="lrow">
+    <button class="lbtn" id="fRetryBtn">重烧</button>
+    <button class="lbtn plain" id="fLvBtn">选窑</button>
+  </div>
+</div>
+<div class="lay hide" id="lvlay">
+  <p class="ltitle" style="font-size:20px">选 窑</p>
+  <div id="lvgrid"></div>
+  <div class="lrow"><button class="lbtn plain" id="lvCloseBtn">合上</button></div>
+</div>
+</div>
+<script>
+'use strict';
+/* ===== 窑变 · Flood-it 色蔓延（SPEC v1.0）===== */
+var GLAZE = [
+  {name:'青瓷',   base:'#7fb3a8', bright:'#a8d8cc'},
+  {name:'霁蓝',   base:'#5d7fa3', bright:'#8fb3d1'},
+  {name:'豇豆红', base:'#b5654f', bright:'#dd937c'},
+  {name:'茶叶末', base:'#a3a05c', bright:'#cfc98a'},
+  {name:'月白',   base:'#d9d3c0', bright:'#f2eee0'},
+  {name:'紫金',   base:'#9a7f9e', bright:'#c3aad1'}
+];
+var LVLS = /*__LVLS__*/[{"lv":1,"n":8,"k":4,"seed":1999333,"grid":[0,0,1,0,0,2,3,0,1,2,3,3,1,2,3,1,2,0,3,1,0,2,3,3,3,2,0,2,1,0,3,3,3,3,0,1,1,1,1,2,2,1,0,1,1,0,3,0,2,1,1,1,0,2,0,0,1,1,3,0,2,3,0,2],"par":9},{"lv":2,"n":8,"k":4,"seed":2998663,"grid":[1,3,1,3,1,3,0,0,1,2,2,0,0,0,0,3,0,1,2,2,0,2,0,3,0,0,1,2,2,0,2,0,1,2,3,1,0,1,1,0,0,1,3,1,2,0,0,1,3,3,2,2,2,0,3,1,0,2,2,0,2,0,2,2],"par":8},{"lv":3,"n":8,"k":4,"seed":3997993,"grid":[1,2,3,3,1,2,1,3,1,3,3,3,3,0,3,0,3,2,1,1,0,1,3,1,1,2,3,1,2,2,3,2,1,1,2,2,2,2,3,3,1,3,3,0,0,1,2,3,0,0,3,3,1,3,0,2,2,0,2,0,0,0,0,0],"par":8},{"lv":4,"n":8,"k":4,"seed":4997327,"grid":[0,3,0,0,0,0,1,2,0,3,0,3,2,0,1,0,3,1,3,0,3,1,0,2,0,0,2,1,0,2,3,3,0,1,1,0,2,0,2,0,1,0,0,1,0,0,3,1,1,1,3,2,0,2,1,1,0,1,2,2,0,2,3,0],"par":10},{"lv":5,"n":8,"k":4,"seed":5996662,"grid":[2,0,3,2,1,1,2,3,2,3,1,0,2,3,3,3,2,0,1,2,3,2,0,3,2,2,3,3,1,1,1,1,3,3,3,1,2,3,0,3,3,0,1,1,3,0,0,2,3,1,1,2,2,2,0,2,2,0,2,0,3,1,2,3],"par":8},{"lv":6,"n":8,"k":4,"seed":6995991,"grid":[3,3,0,2,3,0,0,0,0,1,1,1,1,0,0,0,0,3,0,2,0,3,2,2,1,0,3,2,2,2,0,3,1,3,1,1,2,0,3,1,2,2,1,0,2,3,1,0,1,0,2,1,1,1,1,3,0,0,1,2,0,2,2,1],"par":9},{"lv":7,"n":8,"k":4,"seed":7995318,"grid":[1,1,3,2,3,0,0,3,1,1,1,1,1,3,1,3,3,2,1,1,2,2,1,1,0,1,0,1,1,0,2,2,0,2,1,1,3,3,1,3,3,1,3,2,2,1,3,0,2,1,0,3,2,3,1,2,2,0,1,1,1,0,3,3],"par":7},{"lv":8,"n":8,"k":4,"seed":8994652,"grid":[2,0,2,0,3,3,0,2,2,3,3,0,0,3,2,0,3,0,3,3,1,1,2,3,1,0,3,2,1,3,2,2,2,1,2,0,1,1,0,2,0,3,0,0,3,3,0,3,0,0,1,0,2,1,0,0,1,1,1,2,3,2,2,0],"par":9},{"lv":9,"n":10,"k":5,"seed":9993979,"grid":[4,0,1,3,3,0,1,2,0,3,4,0,4,1,1,3,0,0,0,1,3,3,1,3,4,4,4,0,4,1,4,3,3,4,4,0,4,1,4,2,2,1,2,1,1,4,4,2,4,4,2,3,0,3,2,4,1,2,4,3,3,0,3,1,3,4,1,2,2,4,0,0,0,3,3,0,2,4,4,4,1,1,2,2,0,2,0,0,3,0,2,0,2,3,0,0,1,1,1,0],"par":12},{"lv":10,"n":10,"k":5,"seed":10993430,"grid":[0,0,1,3,4,1,4,2,2,2,1,1,4,3,4,4,3,4,0,1,3,3,1,3,1,2,4,0,0,1,1,3,2,3,3,4,2,3,0,3,4,3,4,0,3,3,0,1,4,3,0,0,3,2,0,0,0,1,1,0,1,4,0,0,4,2,0,3,3,1,0,4,1,1,1,1,4,1,3,3,3,3,0,4,1,0,0,0,0,1,1,3,2,1,4,2,4,0,4,3],"par":12},{"lv":11,"n":10,"k":5,"seed":11992654,"grid":[0,3,1,1,2,4,0,1,4,2,0,3,3,3,2,2,2,4,2,1,4,2,2,1,0,4,0,3,2,0,4,4,4,2,2,2,3,0,0,4,2,1,4,4,0,0,4,2,4,3,4,1,0,3,3,3,3,3,4,0,3,1,1,2,3,3,4,1,2,2,4,2,2,3,1,4,1,1,3,4,3,4,2,2,0,4,4,1,3,0,4,3,4,4,3,3,1,2,0,0],"par":12},{"lv":12,"n":10,"k":5,"seed":12991975,"grid":[3,3,1,4,1,4,3,2,2,4,1,2,3,3,0,4,1,0,2,0,0,0,0,3,4,2,4,0,2,4,3,4,3,3,2,4,4,2,2,1,3,2,2,3,3,3,0,2,2,3,4,3,0,0,1,3,2,4,2,4,0,4,2,2,2,0,2,4,0,3,4,4,2,3,0,1,2,1,1,3,3,3,4,4,3,1,2,4,3,3,1,0,3,2,1,2,0,0,1,1],"par":10},{"lv":13,"n":10,"k":5,"seed":13991314,"grid":[0,0,4,0,1,1,2,1,0,0,4,3,4,2,2,2,1,1,2,2,2,3,4,1,3,3,2,1,4,0,4,3,4,0,0,4,2,4,0,0,1,1,1,1,2,4,3,1,4,4,0,4,4,1,1,1,4,1,2,2,2,2,4,4,4,1,1,3,4,3,4,2,4,2,2,2,1,4,3,2,3,3,4,2,2,1,0,1,0,0,1,0,0,1,2,4,2,1,2,1],"par":12},{"lv":14,"n":10,"k":5,"seed":14990708,"grid":[1,1,0,2,4,0,4,2,2,3,1,1,0,0,2,1,3,1,2,1,2,1,1,2,3,3,0,2,1,2,3,1,4,3,2,3,3,3,0,2,2,1,2,4,3,3,0,1,4,4,1,3,0,0,1,4,0,1,2,4,4,4,0,2,0,3,0,3,3,1,3,4,2,1,2,3,0,0,3,4,4,3,4,1,3,3,4,3,0,1,3,4,4,0,4,2,1,3,1,0],"par":11},{"lv":15,"n":10,"k":5,"seed":15990003,"grid":[4,4,2,0,4,4,1,1,0,0,0,2,3,4,1,2,3,0,4,0,2,0,1,2,4,0,0,0,3,3,4,2,2,2,2,4,0,1,1,2,1,4,2,4,4,1,0,0,4,1,0,1,4,2,4,0,3,3,2,4,4,1,4,3,0,0,0,1,2,3,2,1,1,4,2,4,0,1,3,1,3,3,2,0,2,3,1,0,3,1,3,1,4,3,1,0,3,1,4,1],"par":12},{"lv":16,"n":10,"k":5,"seed":16989307,"grid":[0,4,1,3,1,2,0,3,4,4,0,0,1,2,0,4,1,4,2,1,2,4,1,4,4,4,3,0,1,3,2,0,2,1,4,0,1,3,0,4,4,1,1,3,4,4,4,3,1,4,0,4,0,0,0,3,0,2,4,1,2,3,2,3,4,0,4,0,4,1,4,4,4,3,2,3,4,4,1,1,4,2,1,3,1,4,1,0,3,1,1,3,3,0,4,2,0,3,3,3],"par":11},{"lv":17,"n":12,"k":6,"seed":17995261,"grid":[0,0,0,3,4,5,5,4,4,3,1,1,4,0,0,0,1,2,2,0,2,1,0,0,3,0,0,5,1,1,5,4,1,2,2,2,2,1,2,0,4,5,5,1,4,1,1,0,0,5,5,5,0,0,4,5,2,0,1,5,2,1,4,2,1,5,4,4,4,0,3,0,0,0,4,4,3,4,3,3,5,1,3,3,0,1,2,2,2,2,1,3,3,3,5,0,0,1,1,1,3,3,4,3,2,2,5,5,4,2,1,3,3,3,2,4,0,2,2,0,0,4,2,5,1,4,4,5,5,5,0,1,0,2,3,3,1,4,4,1,1,5,3,1],"par":13},{"lv":18,"n":12,"k":6,"seed":19001332,"grid":[0,0,0,3,2,3,4,3,0,3,4,1,1,1,2,0,1,3,0,2,3,4,1,2,2,0,2,2,0,0,4,1,5,5,5,1,5,5,3,3,0,3,1,4,5,5,0,0,5,2,4,4,1,3,3,3,5,3,0,2,1,0,5,4,1,3,4,3,5,3,2,5,2,0,3,1,1,2,4,0,0,3,1,0,4,0,0,0,2,1,3,3,5,3,0,0,0,1,0,3,0,3,4,1,5,1,3,3,3,0,0,1,4,2,5,2,5,5,5,5,5,3,5,5,3,4,5,0,5,5,0,5,5,2,1,4,3,3,0,4,5,0,3,5],"par":14},{"lv":19,"n":12,"k":6,"seed":19993842,"grid":[2,3,5,2,2,0,1,3,1,5,0,3,2,2,5,2,3,3,0,0,5,1,2,2,0,1,1,3,0,4,2,2,5,1,0,2,1,4,1,1,4,1,4,4,5,3,1,3,2,3,1,3,5,5,0,3,5,4,5,5,5,3,0,3,3,3,1,3,4,3,2,4,1,5,2,4,3,3,3,3,5,5,1,5,1,1,4,5,5,4,0,4,2,5,3,2,4,0,3,4,5,0,0,4,5,4,3,0,4,4,5,2,1,4,4,3,0,2,0,0,1,4,2,1,2,0,2,3,5,3,4,5,3,4,4,2,0,3,2,4,1,4,3,5],"par":13},{"lv":20,"n":12,"k":6,"seed":21005033,"grid":[1,1,5,2,5,2,1,2,3,1,3,3,1,5,3,0,0,1,1,5,4,5,3,4,1,5,2,3,0,2,0,5,5,3,3,2,4,5,2,2,3,0,1,1,3,3,5,1,5,2,1,2,1,1,2,5,3,4,5,2,4,1,3,1,0,1,2,0,5,1,2,2,5,3,5,1,3,0,5,2,0,0,1,1,5,4,1,0,5,0,5,4,1,1,4,0,5,3,5,1,0,3,2,1,3,4,5,1,2,2,5,4,3,5,2,2,2,5,5,3,3,5,5,2,1,3,0,5,5,4,5,2,0,5,5,3,0,3,2,0,2,3,3,2],"par":14},{"lv":21,"n":12,"k":6,"seed":22002811,"grid":[2,2,2,1,0,4,2,5,5,2,4,3,5,5,2,2,2,2,4,4,2,2,3,3,5,1,3,4,1,3,5,5,3,3,2,4,4,3,0,4,4,0,0,4,3,5,5,2,4,4,1,2,4,5,5,0,2,0,3,1,3,5,4,5,4,1,4,4,5,1,0,1,1,3,0,5,3,5,1,3,1,1,5,1,0,4,1,2,4,1,5,3,1,1,5,1,4,0,4,2,5,0,0,0,3,5,0,4,1,3,2,0,5,3,4,5,5,5,5,5,1,0,3,0,5,2,4,0,2,5,0,2,2,2,3,2,3,3,2,4,5,0,3,1],"par":14},{"lv":22,"n":12,"k":6,"seed":23021929,"grid":[1,3,0,5,3,3,2,0,3,0,0,5,1,2,1,3,1,3,2,1,0,0,1,2,0,4,0,2,2,3,5,4,4,0,2,1,3,3,4,5,0,2,1,2,0,2,2,4,3,3,1,3,3,5,5,3,3,3,0,0,0,3,3,1,3,1,1,5,5,2,3,5,2,3,1,3,3,5,4,1,4,4,5,5,3,2,4,5,3,1,4,2,1,3,1,0,3,5,1,2,5,0,5,4,5,2,4,4,4,5,2,5,5,2,5,2,3,5,2,3,1,1,2,1,3,2,2,2,2,3,2,2,3,5,1,3,2,4,4,4,0,3,2,1],"par":14},{"lv":23,"n":12,"k":6,"seed":23999811,"grid":[1,2,2,2,2,2,2,2,0,5,1,1,1,5,2,2,5,2,1,2,1,5,1,2,4,5,5,2,0,3,1,1,0,5,2,4,5,2,4,4,3,5,2,4,1,1,1,1,5,3,2,4,3,2,2,4,3,5,0,1,3,3,0,4,2,4,1,0,5,0,4,2,2,4,0,4,4,3,5,5,4,1,0,2,4,3,0,1,3,2,3,0,1,3,0,4,4,5,1,3,3,2,3,3,5,4,5,3,1,1,4,2,4,5,4,3,2,1,5,2,2,1,4,1,3,4,1,1,3,5,5,4,2,3,2,4,5,5,4,3,4,3,3,3],"par":14},{"lv":24,"n":12,"k":6,"seed":25018501,"grid":[3,2,4,1,0,0,4,4,3,0,5,4,3,2,1,1,5,4,5,5,5,0,1,5,0,3,3,4,1,4,0,3,5,5,2,1,0,2,0,1,4,0,1,5,3,4,2,1,2,2,5,5,0,0,2,5,2,1,5,2,3,1,1,3,1,3,0,4,3,2,5,4,4,5,0,3,3,3,3,3,4,3,2,4,5,4,0,3,5,4,3,3,3,3,4,0,2,1,4,2,2,0,4,0,5,0,5,4,5,0,4,2,1,0,5,3,1,4,5,1,4,5,5,4,0,5,3,5,5,3,5,1,0,0,5,2,3,5,3,2,2,0,3,3],"par":14}];
+var KSAVE = 'g123_save';
+var cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+var $ = function(id){ return document.getElementById(id); };
+
+var S = {lv:1, grid:[], steps:0, hints:0, unlocked:1, best:[], snd:1,
+         win:0, winT:0, fail:0, failT:0, flash:null, t:0, sparks:[]};
+
+function L(){ return LVLS[S.lv-1]; }
+function capOf(){ return L().par + 10; }
+function N_(){ return L().n; }
+
+/* ---- 核心：连通/贪心（与 gentab123.py / SPEC §8 同构）---- */
+function floodInfo(g, N){
+  var c0 = g[0], M = new Uint8Array(N*N), st = [0], cnt = 1;
+  M[0] = 1;
+  while(st.length){
+    var p = st.pop(), r = (p/N)|0, c = p%N;
+    if(r>0 && !M[p-N] && g[p-N]===c0){ M[p-N]=1; cnt++; st.push(p-N); }
+    if(r<N-1 && !M[p+N] && g[p+N]===c0){ M[p+N]=1; cnt++; st.push(p+N); }
+    if(c>0 && !M[p-1] && g[p-1]===c0){ M[p-1]=1; cnt++; st.push(p-1); }
+    if(c<N-1 && !M[p+1] && g[p+1]===c0){ M[p+1]=1; cnt++; st.push(p+1); }
+  }
+  return {m:M, col:c0, cnt:cnt};
+}
+function mainInfo(){ return floodInfo(S.grid, N_()); }
+function tryGain(c){
+  var N = N_(), M0 = mainInfo(), g2 = S.grid.slice(), i;
+  for(i=0;i<N*N;i++) if(M0.m[i]) g2[i] = c;
+  return floodInfo(g2, N).cnt - M0.cnt;
+}
+function greedyNext(){
+  var K = L().k, c, best = -1, bestc = -1;
+  var c0 = S.grid[0];
+  var M0 = mainInfo();
+  if(M0.cnt === N_()*N_()) return -1;
+  for(c=0;c<K;c++){
+    if(c === c0) continue;
+    var g = tryGain(c);
+    if(g > best){ best = g; bestc = c; }
+  }
+  return bestc;
+}
+function starCalc(steps, hints, par){
+  var ss = steps<=par ? 3 : (steps<=par+3 ? 2 : 1);
+  var hs = hints===0 ? 3 : (hints===1 ? 2 : 1);
+  return Math.min(ss, hs);
+}
+
+/* ---- 规则动作 ---- */
+function pick(c){
+  if(S.win || S.fail) return false;
+  var Lv = L(), N = Lv.n, i;
+  if(c<0 || c>=Lv.k || c===S.grid[0]) return false;
+  var M0 = mainInfo(), oldM = M0.m, oldCnt = M0.cnt;
+  for(i=0;i<N*N;i++) if(oldM[i]) S.grid[i] = c;
+  var M1 = mainInfo();
+  S.steps++;
+  var cells = [];
+  for(i=0;i<N*N;i++) if(M1.m[i] && !oldM[i]) cells.push(i);
+  S.flash = {cells:cells, t:0};
+  if(M1.cnt === N*N){
+    winNow();          /* winNow 内落盘 */
+  } else if(S.steps >= capOf()){
+    failNow();         /* 窑裂当步不落盘（SPEC §10.4：恢复后 steps<cap 恒成立）*/
+  } else {
+    save();
+  }
+  if(cells.length>0) snd('tick');
+  updBtns(); updHud();
+  return true;
+}
+function hint(){
+  if(S.win || S.fail) return false;
+  var c = greedyNext();
+  if(c < 0) return false;
+  S.hints++;
+  return pick(c);
+}
+function winNow(){
+  var st = starCalc(S.steps, S.hints, L().par);
+  if(st > (S.best[S.lv-1]||0)) S.best[S.lv-1] = st;
+  if(S.lv >= S.unlocked && S.lv < 24) S.unlocked = S.lv + 1;
+  S.win = 1; S.winT = 0;
+  save();
+  snd('win');
+  $('winStars').innerHTML = stars3(st);
+  $('winSub').textContent = '第' + S.lv + '窑 · ' + S.steps + ' 步烧成（par ' + L().par + '）';
+  $('nextBtn').style.display = S.lv < 24 ? '' : 'none';
+}
+function failNow(){
+  S.fail = 1; S.failT = 0;
+  snd('crack');
+}
+function loadLv(lv){
+  if(lv<1 || lv>24 || lv>S.unlocked) return false;
+  S.lv = lv;
+  S.grid = LVLS[lv-1].grid.slice();
+  S.steps = 0; S.hints = 0; S.win = 0; S.fail = 0; S.flash = null;
+  closeLays();
+  buildColorRow();
+  save();
+  updBtns(); updHud();
+  return true;
+}
+function restart(){ loadLv(S.lv); }
+
+/* ---- 存档 ---- */
+function save(){
+  try{
+    localStorage.setItem(KSAVE, JSON.stringify({v:1, lv:S.lv, grid:S.grid, steps:S.steps,
+      hints:S.hints, unlocked:S.unlocked, best:S.best, snd:S.snd}));
+  }catch(e){}
+}
+function loadSave(){
+  var d = null;
+  try{ d = JSON.parse(localStorage.getItem(KSAVE) || 'null'); }catch(e){}
+  if(!d || d.v !== 1) return false;
+  if(typeof d.lv !== 'number' || d.lv<1 || d.lv>24 || !LVLS[d.lv-1]) return false;
+  var Lv = LVLS[d.lv-1], N = Lv.n;
+  if(!Array.isArray(d.grid) || d.grid.length !== N*N) return false;
+  for(var i=0;i<N*N;i++) if(typeof d.grid[i]!=='number' || d.grid[i]<0 || d.grid[i]>=Lv.k) return false;
+  if(typeof d.steps!=='number' || typeof d.hints!=='number' || d.steps<0 || d.hints<0) return false;
+  if((d.steps|0)!==d.steps || (d.hints|0)!==d.hints) return false;
+  if(d.lv > d.unlocked) return false;         /* 手工档不得跳锁关 */
+  if(d.steps >= Lv.par+10){
+    /* §10.4 唯一例外：恰在 cap 步满窑的胜利档（满釉盘）——放行，boot 满釉分支接管进 win 态 */
+    var full = true, j;
+    for(j=1;j<N*N;j++) if(d.grid[j] !== d.grid[0]){ full = false; break; }
+    if(!full) return false;
+  }
+  if(!Array.isArray(d.best) || d.best.length!==24) return false;
+  for(i=0;i<24;i++) if(typeof d.best[i]!=='number' || d.best[i]<0 || d.best[i]>3) return false;
+  if(typeof d.unlocked!=='number' || d.unlocked<1 || d.unlocked>24) return false;
+  S.lv = d.lv; S.grid = d.grid.slice(); S.steps = d.steps; S.hints = d.hints;
+  S.unlocked = d.unlocked; S.best = d.best.slice(); if(typeof d.snd==='number') S.snd = d.snd;
+  return true;
+}
+
+/* ---- UI ---- */
+function buildColorRow(){
+  var K = L().k, row = $('colorRow'), i;
+  row.innerHTML = '';
+  row.style.gap = Math.min(24, ((374 - K*56)/(K-1))|0) + 'px';
+  for(i=0;i<K;i++){
+    var w = document.createElement('div'); w.className = 'cwrap';
+    var b = document.createElement('button'); b.className = 'cbtn'; b.dataset.c = i;
+    b.style.background = GLAZE[i].base;
+    b.addEventListener('pointerdown', onColor);
+    var nm = document.createElement('div'); nm.className = 'cname'; nm.textContent = GLAZE[i].name;
+    w.appendChild(b); w.appendChild(nm); row.appendChild(w);
+  }
+}
+function onColor(e){
+  if(S.win || S.fail) return;
+  wake();
+  pick(+e.currentTarget.dataset.c);
+}
+function updBtns(){
+  var cur = S.grid[0], btns = document.querySelectorAll('.cbtn'), i;
+  for(i=0;i<btns.length;i++) btns[i].classList.toggle('cur', +btns[i].dataset.c === cur);
+  $('hintBtn').disabled = !!(S.win || S.fail);
+}
+function updHud(){ /* HUD 画在 canvas，驱动重绘即可 */ }
+function stars3(n){
+  var s = '', i;
+  for(i=0;i<3;i++) s += i<n ? '★' : '<span class="off">★</span>';
+  return s;
+}
+function closeLays(){
+  $('winlay').classList.add('hide');
+  $('faillay').classList.add('hide');
+  $('lvlay').classList.add('hide');
+}
+function openLay(id){ closeLays(); $(id).classList.remove('hide'); }
+function buildLvGrid(){
+  var g = $('lvgrid'), i;
+  g.innerHTML = '';
+  for(i=1;i<=24;i++){
+    var b = document.createElement('button'); b.className = 'lvcell';
+    if(i <= S.unlocked){
+      b.innerHTML = i + '<span class="st">' + (S.best[i-1] ? '★'.repeat(S.best[i-1]) : '···') + '</span>';
+      if(S.best[i-1] >= 3) b.classList.add('done');
+      (function(lv){ b.addEventListener('pointerdown', function(){ if(loadLv(lv)) closeLays(); }); })(i);
+    } else {
+      b.innerHTML = i + '<span class="st">锁</span>'; b.classList.add('lock');
+    }
+    g.appendChild(b);
+  }
+}
+
+/* ---- 音效（AC 手势内建立 + J2 恢复唤醒）---- */
+var AC = null;
+function ensureAC(){
+  if(AC) return AC;
+  try{ AC = new (window.AudioContext || window.webkitAudioContext)(); }catch(e){}
+  return AC;
+}
+function wake(){
+  var a = ensureAC();
+  if(a && a.state === 'suspended'){ a.resume(); }
+}
+document.addEventListener('pointerdown', wake, {once:false});
+function snd(kind){
+  if(!S.snd) return;
+  var a = ensureAC(); if(!a || a.state !== 'running') return;
+  var t0 = a.currentTime, o, g2;
+  if(kind === 'tick'){
+    o = a.createOscillator(); g2 = a.createGain();
+    o.type = 'triangle'; o.frequency.value = 660;
+    g2.gain.setValueAtTime(.12, t0); g2.gain.exponentialRampToValueAtTime(.001, t0+.05);
+    o.connect(g2); g2.connect(a.destination); o.start(t0); o.stop(t0+.06);
+  } else if(kind === 'bell'){
+    o = a.createOscillator(); g2 = a.createGain();
+    o.type = 'sine'; o.frequency.value = 880;
+    g2.gain.setValueAtTime(.14, t0); g2.gain.exponentialRampToValueAtTime(.001, t0+.08);
+    o.connect(g2); g2.connect(a.destination); o.start(t0); o.stop(t0+.09);
+  } else if(kind === 'win'){
+    [523,659,784,1046].forEach(function(f,i){
+      var o2 = a.createOscillator(), g3 = a.createGain();
+      o2.type = 'sine'; o2.frequency.value = f;
+      g3.gain.setValueAtTime(.0001, t0+i*.09);
+      g3.gain.exponentialRampToValueAtTime(.13, t0+i*.09+.02);
+      g3.gain.exponentialRampToValueAtTime(.001, t0+i*.09+.55);
+      o2.connect(g3); g3.connect(a.destination); o2.start(t0+i*.09); o2.stop(t0+i*.09+.6);
+    });
+  } else if(kind === 'crack'){
+    o = a.createOscillator(); g2 = a.createGain();
+    o.type = 'sawtooth'; o.frequency.setValueAtTime(196, t0);
+    o.frequency.exponentialRampToValueAtTime(70, t0+.4);
+    g2.gain.setValueAtTime(.16, t0); g2.gain.exponentialRampToValueAtTime(.001, t0+.42);
+    o.connect(g2); g2.connect(a.destination); o.start(t0); o.stop(t0+.45);
+    /* 噪声短簇（§9：碎裂噼啪） */
+    try{
+      var nb = a.createBuffer(1, 2205, 22050), ch = nb.getChannelData(0), k;
+      for(k=0;k<2205;k++) ch[k] = (Math.random()*2-1)*.5*(1-k/2205);
+      var ns = a.createBufferSource(); ns.buffer = nb;
+      var ng = a.createGain(); ng.gain.value = .22;
+      ns.connect(ng); ng.connect(a.destination); ns.start(t0);
+    }catch(e){}
+  }
+}
+
+/* ---- 绘制 ---- */
+function hexRGB(h){ return [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)]; }
+function jit(i){ return (((i*2654435761)>>>0)%13) - 6; }  /* 纹理抖动 ±6，确定性 */
+function boardGeom(){
+  var N = N_(), cell = Math.floor(366/N), bw = cell*N;
+  return {N:N, cell:cell, ox:((390-bw)/2)|0, oy:64+(((366-bw)/2)|0)};
+}
+function draw(){
+  var W = 390, H = 844, i, r2, c2;
+  /* 底 */
+  var bg = ctx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,'#241a14'); bg.addColorStop(1,'#2a1f1a');
+  ctx.fillStyle = bg; ctx.fillRect(0,0,W,H);
+  /* 窑火底光 */
+  var gl = ctx.createRadialGradient(195,810,10,195,810,260);
+  gl.addColorStop(0,'rgba(216,132,90,.20)'); gl.addColorStop(1,'rgba(216,132,90,0)');
+  ctx.fillStyle = gl; ctx.fillRect(0,560,W,284);
+  /* HUD */
+  ctx.fillStyle = 'rgba(20,12,8,.55)'; ctx.fillRect(0,0,W,64);
+  ctx.strokeStyle = 'rgba(232,201,106,.18)'; ctx.beginPath();
+  ctx.moveTo(0,63.5); ctx.lineTo(W,63.5); ctx.stroke();
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#e8dcc8'; ctx.font = 'bold 17px sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText('第' + S.lv + '窑', 14, 26);
+  ctx.fillStyle = '#b5a37b'; ctx.font = '11px sans-serif';
+  ctx.fillText(GLAZE[S.grid[0]].name + ' · par ' + L().par, 14, 47);
+  ctx.textAlign = 'center'; ctx.fillStyle = '#e8dcc8'; ctx.font = 'bold 22px sans-serif';
+  ctx.fillText(S.steps + ' / ' + capOf(), 195, 30);
+  ctx.fillStyle = '#b5a37b'; ctx.font = '11px sans-serif';
+  ctx.fillText('步数', 195, 50);
+  ctx.textAlign = 'right'; ctx.font = '15px sans-serif';
+  var bs = S.best[S.lv-1] || 0;
+  ctx.fillStyle = bs ? '#e8c96a' : '#6a5a44';
+  ctx.fillText(bs ? '★★★'.slice(0,bs) : '未开窑', 376, 32);
+  /* 盘面框 */
+  var G = boardGeom(), N = G.N, cell = G.cell;
+  ctx.fillStyle = '#3a2c22';
+  rr(G.ox-6, G.oy-6, cell*N+12, cell*N+12, 8); ctx.fill();
+  ctx.strokeStyle = 'rgba(232,201,106,.28)'; ctx.lineWidth = 1.5;
+  rr(G.ox-6, G.oy-6, cell*N+12, cell*N+12, 8); ctx.stroke();
+  /* 砖缝底（§3 缝色 #241a14，比框更深） */
+  ctx.fillStyle = '#241a14';
+  ctx.fillRect(G.ox, G.oy, cell*N, cell*N);
+  /* 砖 */
+  var M = mainInfo();
+  for(r2=0;r2<N;r2++) for(c2=0;c2<N;c2++){
+    var idx = r2*N+c2, rgb = hexRGB(GLAZE[S.grid[idx]].base), j = jit(idx);
+    ctx.fillStyle = 'rgb(' + Math.max(0,Math.min(255,rgb[0]+j)) + ',' +
+      Math.max(0,Math.min(255,rgb[1]+j)) + ',' + Math.max(0,Math.min(255,rgb[2]+j)) + ')';
+    ctx.fillRect(G.ox+c2*cell+1, G.oy+r2*cell+1, cell-1, cell-1);
+  }
+  /* 并入闪光 */
+  if(S.flash && S.flash.t < .28){
+    var al = .85 * (1 - S.flash.t/.28);
+    ctx.fillStyle = 'rgba(255,244,214,' + al.toFixed(3) + ')';
+    for(i=0;i<S.flash.cells.length;i++){
+      var ci = S.flash.cells[i];
+      ctx.fillStyle = 'rgba(' + hexRGB(GLAZE[S.grid[ci]].bright).join(',') + ',' + al.toFixed(3) + ')';
+      ctx.fillRect(G.ox+(ci%N)*cell+1, G.oy+((ci/N)|0)*cell+1, cell-1, cell-1);
+    }
+  }
+  /* 主釉区金边（边界外缘） */
+  ctx.strokeStyle = '#e8c96a'; ctx.lineWidth = 2;
+  for(r2=0;r2<N;r2++) for(c2=0;c2<N;c2++){
+    var p = r2*N+c2;
+    if(!M.m[p]) continue;
+    var x = G.ox+c2*cell, y = G.oy+r2*cell;
+    ctx.beginPath();
+    if(r2===0   || !M.m[p-N]){ ctx.moveTo(x,y+1);     ctx.lineTo(x+cell,y+1); }
+    if(r2===N-1 || !M.m[p+N]){ ctx.moveTo(x,y+cell-1);ctx.lineTo(x+cell,y+cell-1); }
+    if(c2===0   || !M.m[p-1]){ ctx.moveTo(x+1,y);     ctx.lineTo(x+1,y+cell); }
+    if(c2===N-1 || !M.m[p+1]){ ctx.moveTo(x+cell-1,y);ctx.lineTo(x+cell-1,y+cell); }
+    ctx.stroke();
+  }
+  /* 信息带 */
+  ctx.textAlign = 'left'; ctx.fillStyle = '#9a8a70'; ctx.font = '12px sans-serif';
+  ctx.fillText('看火 ' + S.hints + ' 次', 14, 452);
+  ctx.textAlign = 'right';
+  ctx.fillText('满 ' + M.cnt + '/' + N*N, 376, 452);
+  /* 24 窑进度点 */
+  for(i=0;i<24;i++){
+    var dx = 195 - 11.5*15 + i*15;
+    ctx.beginPath(); ctx.arc(dx, 690, 3.2, 0, 6.284);
+    if(i+1 === S.lv){ ctx.fillStyle = '#e8c96a'; }
+    else if(S.best[i] >= 3){ ctx.fillStyle = 'rgba(232,201,106,.85)'; }
+    else if(S.best[i] > 0){ ctx.fillStyle = 'rgba(232,201,106,.4)'; }
+    else if(i+1 <= S.unlocked){ ctx.fillStyle = 'rgba(185,163,123,.4)'; }
+    else { ctx.fillStyle = 'rgba(120,100,80,.25)'; }
+    ctx.fill();
+  }
+  ctx.textAlign = 'center'; ctx.fillStyle = '#8a7a64'; ctx.font = '11px sans-serif';
+  ctx.fillText(S.unlocked + '/24 窑已开', 195, 715);
+  /* 窑火火星（纯装饰） */
+  for(i=0;i<S.sparks.length;i++){
+    var sp = S.sparks[i];
+    ctx.fillStyle = 'rgba(232,' + (140+((sp.h*80)|0)) + ',90,' + sp.a.toFixed(3) + ')';
+    ctx.fillRect(sp.x, sp.y, 2, 2);
+  }
+  /* 开窑演出：金色横扫 */
+  if(S.win && S.winT < 1.2){
+    var sw = (S.winT/1.2)*470 - 40;
+    var wg = ctx.createLinearGradient(sw-60,0,sw+60,0);
+    wg.addColorStop(0,'rgba(232,201,106,0)');
+    wg.addColorStop(.5,'rgba(232,201,106,.30)');
+    wg.addColorStop(1,'rgba(232,201,106,0)');
+    ctx.fillStyle = wg; ctx.fillRect(0,G.oy-8,W,cell*N+16);
+  }
+  if(S.fail && S.failT < .6){
+    ctx.fillStyle = 'rgba(150,60,40,' + (.28*(1-S.failT/.6)).toFixed(3) + ')';
+    ctx.fillRect(0,0,W,H);
+  }
+}
+function rr(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+
+/* ---- 主循环 ---- */
+var lastT = 0;
+function loop(ts){
+  var dt = Math.min(.05, lastT ? (ts-lastT)/1000 : .016);
+  lastT = ts; S.t += dt;
+  if(S.flash) S.flash.t += dt;
+  if(S.win){ S.winT += dt; if(S.winT >= 1.2 && $('winlay').classList.contains('hide')) openLay('winlay'); }
+  if(S.fail){ S.failT += dt; if(S.failT >= .8 && $('faillay').classList.contains('hide')) openLay('faillay'); }
+  /* 火星生成/消亡 */
+  if(Math.random() < .35) S.sparks.push({x: 40+Math.random()*310, y: 800+Math.random()*30, v: 14+Math.random()*26, a: .5+Math.random()*.4, h: Math.random()});
+  for(var i=S.sparks.length-1;i>=0;i--){
+    var sp = S.sparks[i]; sp.y -= sp.v*dt; sp.a -= dt*.55;
+    if(sp.a <= 0 || sp.y < 640) S.sparks.splice(i,1);
+  }
+  if(S.sparks.length > 60) S.sparks.splice(0, S.sparks.length-60);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+/* ---- 事件 ---- */
+$('hintBtn').addEventListener('pointerdown', function(){ if(S.win||S.fail) return; wake(); snd('bell'); hint(); });
+$('restartBtn').addEventListener('pointerdown', function(){ if(S.win||S.fail) return; wake(); restart(); });
+$('lvBtn').addEventListener('pointerdown', function(){ if(S.win||S.fail) return; wake(); buildLvGrid(); openLay('lvlay'); });
+$('nextBtn').addEventListener('pointerdown', function(){ wake(); if(S.lv < 24) loadLv(S.lv+1); else { buildLvGrid(); openLay('lvlay'); } });
+$('againBtn').addEventListener('pointerdown', function(){ wake(); restart(); });
+$('fRetryBtn').addEventListener('pointerdown', function(){ wake(); restart(); });
+$('fLvBtn').addEventListener('pointerdown', function(){ wake(); buildLvGrid(); openLay('lvlay'); });
+$('lvCloseBtn').addEventListener('pointerdown', function(){ closeLays(); });
+document.addEventListener('visibilitychange', function(){
+  if(document.hidden && !S.win && !S.fail) save();
+});
+
+/* ---- boot ---- */
+function boot(){
+  S.best = []; for(var i=0;i<24;i++) S.best.push(0);
+  var ok = loadSave();
+  if(!ok){ S.lv = 1; S.grid = LVLS[0].grid.slice(); }
+  if(!S.grid.length) S.grid = LVLS[S.lv-1].grid.slice();
+  /* 恢复到满釉态：直接进开窑演出尾（按钮可点；面板文案按档内 steps/hints 重算） */
+  var M = mainInfo();
+  if(M.cnt === N_()*N_()){
+    S.win = 1; S.winT = 1.3;
+    var stw = starCalc(S.steps, S.hints, L().par);
+    $('winStars').innerHTML = stars3(stw);
+    $('winSub').textContent = '第' + S.lv + '窑 · ' + S.steps + ' 步烧成（par ' + L().par + '）';
+    $('nextBtn').style.display = S.lv < 24 ? '' : 'none';
+  }
+  buildColorRow(); updBtns();
+  requestAnimationFrame(loop);
+}
+
+boot();
+</script>
+</body>
+</html>
