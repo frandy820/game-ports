@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>双陆渡子 · 离线版</title>
+<style>
+  html,body{margin:0;padding:0;background:#0d0f14;height:100%;overflow:hidden;touch-action:none;
+    font-family:"Songti SC","STSong","SimSun",serif;-webkit-user-select:none;user-select:none}
+  #app{position:relative;width:390px;height:844px;margin:0 auto;background:#17120d;overflow:hidden}
+  canvas{position:absolute;top:64px;left:0}
+  #hud{position:absolute;top:0;left:0;width:390px;height:64px;box-sizing:border-box;display:flex;
+    align-items:center;justify-content:space-between;padding:0 12px;z-index:5;
+    background:linear-gradient(180deg,#1d1712,#17120d);border-bottom:1px solid rgba(200,154,90,.25)}
+  #hud .hl{width:44px;height:40px;display:flex;align-items:center;justify-content:center;color:#c9a06a;
+    font-size:20px;cursor:pointer}
+  #hud .hc{flex:1;text-align:center;color:#e8d9b5;font-size:15px;letter-spacing:2px}
+  #hud .hc small{display:block;font-size:10px;color:#8a7a5c;letter-spacing:1px;margin-top:1px}
+  #btnrow{position:absolute;bottom:0;left:0;width:390px;height:64px;box-sizing:border-box;z-index:5;
+    display:flex;gap:8px;align-items:center;justify-content:center;
+    background:linear-gradient(0deg,#1d1712,#17120d);border-top:1px solid rgba(200,154,90,.25)}
+  .btn{min-width:86px;height:42px;border-radius:8px;border:1px solid rgba(200,154,90,.45);
+    background:rgba(200,154,90,.12);color:#e8d9b5;font-size:15px;letter-spacing:2px;cursor:pointer;
+    font-family:inherit;display:flex;align-items:center;justify-content:center;padding:0 10px}
+  .btn.primary{background:rgba(200,154,90,.3);border-color:#c9a06a}
+  .btn.dis{opacity:.35;pointer-events:none}
+  #flash{position:absolute;left:0;width:390px;text-align:center;color:#e8c96a;font-size:16px;
+    letter-spacing:3px;z-index:8;pointer-events:none;opacity:0;text-shadow:0 0 8px rgba(0,0,0,.8)}
+  .lay{position:absolute;inset:0;z-index:9;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;background:rgba(13,10,7,.86)}
+  .lay.hide{display:none}
+  .lay h2{color:#e8c96a;font-size:24px;letter-spacing:6px;margin:0 0 6px;font-weight:normal}
+  .lay .sub{color:#9a8a68;font-size:12px;letter-spacing:2px;margin-bottom:18px}
+  .lay .row{display:flex;gap:10px;margin-top:14px}
+  .stars{font-size:26px;color:#c9a06a;letter-spacing:6px;height:34px}
+  #menu .grid{display:grid;grid-template-columns:repeat(6,46px);gap:6px;margin:12px 0 6px}
+  #menu .cell{width:46px;height:46px;border-radius:6px;border:1px solid rgba(200,154,90,.3);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;color:#c9b58c;
+    font-size:15px;cursor:pointer;background:rgba(200,154,90,.06)}
+  #menu .cell .st{font-size:8px;color:#c9a06a;height:10px;line-height:10px}
+  #menu .cell.lock{opacity:.28;pointer-events:none}
+  #menu .cell.cur{border-color:#e8c96a;background:rgba(200,154,90,.22)}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div class="hl" id="btnMenu">≡</div>
+    <div class="hc"><span id="hLv">第 1 局</span><small id="hSub">白玉子 24→1 · 先渡十五子者胜</small></div>
+    <div class="hl" id="btnSnd">♪</div>
+  </div>
+  <canvas id="cv" width="390" height="780"></canvas>
+  <div id="flash"></div>
+  <div id="btnrow">
+    <div class="btn primary dis" id="btnRoll">掷 骰</div>
+    <div class="btn dis" id="btnHint">援手 ?</div>
+  </div>
+
+  <div class="lay hide" id="pause">
+    <h2>小 憩</h2><div class="sub">局未散 · 子在枰</div>
+    <div class="row">
+      <div class="btn" id="pResume">续弈</div>
+      <div class="btn" id="pReset">重开本局</div>
+      <div class="btn" id="pHome">回锦目录</div>
+    </div>
+  </div>
+
+  <div class="lay hide" id="over">
+    <h2 id="oTitle">渡 尽</h2><div class="sub" id="oSub"></div>
+    <div class="stars" id="oStars"></div>
+    <div class="row">
+      <div class="btn" id="oAgain">再渡一局</div>
+      <div class="btn primary" id="oNext">下一局</div>
+    </div>
+  </div>
+
+  <div class="lay" id="menu">
+    <h2>双陆渡子</h2><div class="sub">掷点行棋 · 渡子归家 · 凡廿四局</div>
+    <div class="grid" id="mGrid"></div>
+    <div class="row"><div class="btn primary" id="mGo">入 局</div></div>
+    <div class="sub" style="margin-top:14px;max-width:300px;line-height:1.8">黑漆盘上螺钿为尖，白玉子自廿四向一路归家。掷双骰行棋：单子可被吃送栏，双枚成垒不可越；先尽渡十五子者胜。</div>
+  </div>
+</div>
+<script>
+'use strict';
+var $ = function (id) { return document.getElementById(id); };
+var cv = $('cv'), ctx = cv.getContext('2d');
+var M214 = 2147483647;
+
+/* ===== 状态 ===== */
+var K = 'g130_backgammon';
+var S = {
+  ph: 'menu', lv: 1, unlocked: 1, stars: [], mute: false,
+  pts: [], barW: 0, barB: 0, offW: 0, offB: 0,
+  dice: [], turn: 0,          // 0=白(玩家) 1=黑(AI)
+  r1x: 1, r2x: 1,             // 双 LCG 状态
+  hints: 0, sel: -1, selBar: false, reach: null,
+  aiT: 0, aiDice: null,       // AI 手驱动
+  winT: 0, parts: [], flashT: 0, flashMsg: '', barWcnt: 0,
+  pd: null, t0: 0, anims: [], sndOK: false, shake: 0, rollAnim: 0
+};
+
+/* ===== LCG（48271；取值即推进——校准教训①）===== */
+function r1next() { S.r1x = S.r1x * 48271 % M214; return S.r1x; }
+function r2next() { S.r2x = S.r2x * 48271 % M214; return S.r2x; }
+function roll2() {  // v=floor(x*36/M)，a=v/6|0 +1, b=v%6+1 —— 先乘后模再减再除保位级同构
+  var x = r1next(), p = x * 36, v = (p - p % M214) / M214;
+  return [(v / 6 | 0) + 1, v % 6 + 1];
+}
+function noise(err) {  // u=floor(x*err/M) ∈[0,err)；err=0 不消费 r2（py 同构）
+  if (!err) return 0;
+  var x = r2next(), p = x * err, u = (p - p % M214) / M214;
+  return u;
+}
+
+/* ===== 存档 ===== */
+function saveMain() {
+  try { localStorage.setItem(K, JSON.stringify({ u: S.unlocked, s: S.stars, m: S.mute })); } catch (e) {}
+}
+function loadSave() {
+  var bad = true;
+  try {
+    var d = JSON.parse(localStorage.getItem(K));
+    if (d && typeof d === 'object' && !Array.isArray(d)) {
+      var u = d.u, st = d.s, mu = d.m;
+      if (typeof u === 'number' && isFinite(u) && u % 1 === 0 && u >= 1 && u <= 24 &&
+          Array.isArray(st) && st.length === 24 &&
+          st.every(function (x) { return typeof x === 'number' && isFinite(x) && x % 1 === 0 && x >= 0 && x <= 3; }) &&
+          (mu === true || mu === false)) {
+        S.unlocked = u; S.stars = st; S.mute = mu; bad = false;
+      }
+    }
+  } catch (e) {}
+  if (bad) { S.unlocked = 1; S.stars = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]; S.mute = false; }
+  $('btnSnd').textContent = S.mute ? '✕' : '♪';
+}
+
+/* ===== 规则核心（与 py 原型逐函数同构）===== */
+function pipOf(side) {
+  var t = 0, i, n;
+  for (i = 0; i < 24; i++) { n = S.pts[i];
+    if (side === 0 && n > 0) t += (i + 1) * n;
+    else if (side === 1 && n < 0) t += (25 - i - 1) * (-n); }
+  return t + (side === 0 ? S.barW * 25 : S.barB * 25);
+}
+function allHome(side) {
+  var i;
+  if (side === 0) { if (S.barW) return false; for (i = 6; i < 24; i++) if (S.pts[i] > 0) return false; return true; }
+  if (S.barB) return false; for (i = 0; i < 18; i++) if (S.pts[i] < 0) return false; return true;
+}
+function maxHomePt(side) {
+  var i;
+  if (side === 0) { for (i = 5; i >= 0; i--) if (S.pts[i] > 0) return i + 1; return 0; }
+  for (i = 18; i < 24; i++) if (S.pts[i] < 0) return 25 - (i + 1);
+  return 0;
+}
+/* 单步生成：side 用骰 n。返回 [[frm,to,hit],...]，frm=25=栏，to=-1=渡出 */
+function genSteps(side, n) {
+  var out = [], i, t;
+  if (side === 0) {
+    if (S.barW > 0) {
+      t = 25 - n - 1;
+      if (S.pts[t] >= -1) out.push([25, t, S.pts[t] === -1]);
+      return out;
+    }
+    for (i = 0; i < 24; i++) {
+      if (S.pts[i] <= 0) continue;
+      t = i - n;
+      if (t >= 0) { if (S.pts[t] >= -1) out.push([i, t, S.pts[t] === -1]); }
+      else if (allHome(0)) {
+        var pt = i + 1;
+        if (pt === n) out.push([i, -1, false]);
+        else if (pt < n && maxHomePt(0) === pt) out.push([i, -1, false]);
+      }
+    }
+    return out;
+  }
+  if (S.barB > 0) {
+    t = n - 1;
+    if (S.pts[t] <= 1) out.push([25, t, S.pts[t] === 1]);
+    return out;
+  }
+  for (i = 0; i < 24; i++) {
+    if (S.pts[i] >= 0) continue;
+    t = i + n;
+    if (t <= 23) { if (S.pts[t] <= 1) out.push([i, t, S.pts[t] === 1]); }
+    else if (allHome(1)) {
+      var pt2 = 25 - (i + 1);
+      if (pt2 === n) out.push([i, -1, false]);
+      else if (pt2 < n && maxHomePt(1) === pt2) out.push([i, -1, false]);
+    }
+  }
+  return out;
+}
+function applyStep(side, frm, to, hit) {
+  if (side === 0) {
+    if (frm === 25) S.barW--; else S.pts[frm]--;
+    if (to === -1) S.offW++;
+    else { if (hit) { S.pts[to] = 0; S.barB++; } S.pts[to]++; }
+  } else {
+    if (frm === 25) S.barB--; else S.pts[frm]++;
+    if (to === -1) S.offB++;
+    else { if (hit) { S.pts[to] = 0; S.barW++; } S.pts[to]--; }
+  }
+}
+/* 骰值去重枚举合法步 [[n,frm,to,hit],...] */
+function legalMoves(side, dice) {
+  var mv = [], seen = {}, i, n, j, st;
+  for (i = 0; i < dice.length; i++) {
+    n = dice[i];
+    if (seen[n]) continue; seen[n] = 1;
+    st = genSteps(side, n);
+    for (j = 0; j < st.length; j++) mv.push([n, st[j][0], st[j][1], st[j][2]]);
+  }
+  return mv;
+}
+
+/* ===== 评估（整数定点；blind=AI 盲评）===== */
+function evalSide(side, blind) {
+  // G3-M1 决策（SPEC v1.0.4）：blot 直射风险项设计性不启用——SHOT×8 权重未经校准，
+  // 实测启用后 optimal 带崩至 417/768=54%（白过度保守竞速大亏）；99.9% 校准带即「纯竞速+家内项」评估的产物。
+  var opp = 1 - side;
+  var sc = -pipOf(side) * 1000 + pipOf(opp) * 600 + (side === 0 ? S.offW : S.offB) * 40000;
+  var i, n, home = 0, made = 0;
+  for (i = 0; i < 24; i++) {
+    n = S.pts[i];
+    var mine = (side === 0) ? (n > 0 ? n : 0) : (n < 0 ? -n : 0);
+    if (!mine) continue;
+    var inhome = (side === 0) ? (i < 6) : (i >= 18);
+    if (inhome) { home += mine; if (mine >= 2) made++; }
+  }
+  var bar = (side === 0) ? S.barW : S.barB;
+  sc += home * 1500 + made * 3000 - bar * (blind ? 6000 : 12000);
+  if (allHome(side)) sc += 6000;
+  return sc;
+}
+function clonePts() { return S.pts.slice(); }
+
+/* ===== 决策 ===== */
+function errOf(lv) { var e = 80000 - 2600 * (lv - 1); return e < 28000 ? 28000 : e; }
+/* mode: 'opt'(最优) / 'noise'(err 噪声)。返回 [n,frm,to,hit] 或 null */
+function pickMove(side, dice, err, mode, blind) {
+  var mvs = legalMoves(side, dice);
+  if (!mvs.length) return null;
+  var best = null, bestS = -1e18, i, m, sv;
+  for (i = 0; i < mvs.length; i++) {
+    m = mvs[i];
+    var bak = clonePts(), bW = S.barW, bB = S.barB, oW = S.offW, oB = S.offB;
+    applyStep(side, m[1], m[2], m[3]);
+    sv = evalSide(side, blind);
+    if (mode === 'noise') sv += noise(err);
+    S.pts = bak; S.barW = bW; S.barB = bB; S.offW = oW; S.offB = oB;
+    if (sv > bestS) { bestS = sv; best = m; }
+  }
+  return best;
+}
+/* 执行一步（玩家/AI 共用；含动画参数与 HUD 刷新） */
+function doStep(side, m) {
+  var n = m[0], frm = m[1], to = m[2], hit = m[3];
+  var di = S.dice.indexOf(n);
+  if (di >= 0) S.dice.splice(di, 1);
+  applyStep(side, frm, to, hit);
+  if (side === 1 && hit) S.barWcnt++;   // 计数只在真实执行处（pickMove 试算不污染）
+  S.anims.push({ f: frm, t: to, side: side, hit: hit, tt: 0, dur: 280 });
+  if (hit) { S.anims.push({ f: to, t: 25, side: 1 - side, hit: 0, tt: 0, dur: 400 }); S.shake = 5; }  // G3-m4：吃子飞栏 0.4s+轻震
+  updHUD();
+}
+
+/* ===== 局流程（异步一律 waitT 计时驱动，vm 可 flush）===== */
+function newGame(lv) {
+  S.lv = lv; S.ph = 'play'; S.turn = 0;
+  S.pts = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+  S.pts[23] = 2; S.pts[12] = 5; S.pts[7] = 3; S.pts[5] = 5;
+  S.pts[0] = -2; S.pts[11] = -5; S.pts[16] = -3; S.pts[18] = -5;
+  S.barW = 0; S.barB = 0; S.offW = 0; S.offB = 0;
+  S.dice = []; S.hints = 0; S.sel = -1; S.selBar = false; S.reach = null;
+  S.winT = 0; S.parts = []; S.flashT = 0; S.flashMsg = '';
+  S.barWcnt = 0; S.aiT = 0; S.aiDice = null; S.anims = []; S.shake = 0; S.rollAnim = 0;
+  S.waitT = 0; S.waitAct = null;
+  S.r1x = (Date.now() % M214) || 1;
+  S.r2x = (S.r1x * 7919 + 13) % M214 || 1;
+  $('over').classList.add('hide'); $('pause').classList.add('hide');
+  updHUD();
+}
+function later(ms, act) { S.waitT = ms; S.waitAct = act; }
+function rollDice() {
+  var d = roll2();
+  S.lastRoll = [d[0], d[1]];
+  S.dice = (d[0] === d[1]) ? [d[0], d[0], d[0], d[0]] : [d[0], d[1]];
+  S.sel = -1; S.selBar = false; S.reach = null;
+  S.rollAnim = 500;   // G3-m4：骰 0.5s 翻滚揭示（SPEC §4.1）
+  snd('roll');
+  if (!legalMoves(S.turn, S.dice).length) {
+    flash('无路可走 · 过');
+    S.dice = [];
+    later(900, 'endHand');
+  }
+  updHUD();
+}
+function endHand() {
+  S.dice = []; S.sel = -1; S.selBar = false; S.reach = null; S.waitT = 0; S.waitAct = null;
+  if (S.ph !== 'play') return;
+  if (checkWin()) return;
+  S.turn = 1 - S.turn;
+  if (S.turn === 1) { S.aiT = 700; }
+  updHUD();
+}
+function checkWin() {
+  if (S.offW >= 15) { doWin(); return true; }
+  if (S.offB >= 15) { doLose(); return true; }
+  return false;
+}
+function starsOf() { return S.hints === 0 ? 3 : (S.hints <= 2 ? 2 : 1); }
+function doWin() {
+  S.ph = 'over'; S.winT = 1.6; S.parts = [];
+  var st = starsOf(), i;
+  if (st > S.stars[S.lv - 1]) S.stars[S.lv - 1] = st;
+  if (S.lv >= S.unlocked && S.lv < 24) S.unlocked = S.lv + 1;
+  if (S.lv === 24 && S.unlocked < 24) S.unlocked = 24;
+  saveMain();
+  $('oTitle').textContent = '渡 尽';
+  $('oSub').textContent = '十五子尽渡 · 援手 ' + S.hints + ' 次';
+  $('oStars').innerHTML = '★★★'.slice(0, st) + '☆☆☆'.slice(0, 3 - st);
+  $('oNext').style.display = (S.lv >= 24) ? 'none' : '';
+  snd('win');
+  updHUD();
+}
+function doLose() {
+  S.ph = 'over';
+  $('oTitle').textContent = '负 一 局';
+  $('oSub').textContent = '对家先渡完十五子 · 再渡须重开';
+  $('oStars').innerHTML = '';
+  $('oNext').style.display = 'none';
+  snd('lose');
+  updHUD();
+}
+
+/* ===== AI 手（tick 驱动逐步；决策即时）===== */
+function aiStep() {
+  if (S.turn !== 1 || S.ph !== 'play') return;
+  if (!S.dice.length) {
+    var d = roll2();
+    S.aiDice = d; S.lastRoll = [d[0], d[1]];
+    S.dice = (d[0] === d[1]) ? [d[0], d[0], d[0], d[0]] : [d[0], d[1]];
+    S.rollAnim = 500;   // G3 复核 nit1：AI 掷骰同享 0.5s 翻滚揭示
+    snd('roll');
+    if (!legalMoves(1, S.dice).length) { flash('对家无路 · 过'); S.dice = []; later(800, 'endHand'); }
+    else S.aiT = 520;   // G3-F1：掷后重挂思考延时（rAF 只在 aiT>0 时推进本手，漏挂=AI 永不走子）
+    updHUD();
+    return;
+  }
+  var m = pickMove(1, S.dice, errOf(S.lv), 'noise', 1);
+  if (!m) { S.dice = []; later(500, 'endHand'); return; }
+  doStep(1, m);
+  snd('move');
+  if (checkWin()) return;
+  if (!S.dice.length) later(700, 'endHand');
+  else S.aiT = 480;
+}
+
+/* ===== 玩家交互 ===== */
+function ptOfXY(x, y) {  // canvas 系 → 点索引 0..23 / -1 bar / -2 无
+  var col, topHalf = y < 390;
+  if (x >= 182 && x <= 210) return -1;
+  if (x >= 368 && y >= 634 && y <= 716) return -3;   // 渡出托盘（G3-m3：与1点命中区重叠，点此=渡出优先）
+  if (x < 4 || x > 386) return -2;
+  col = Math.floor((x - 4) / 29.85);
+  if (col > 5) col = Math.floor((x - 209.1) / 29.85) + 6;   // 右半区起点=4+6×29.85+26（bar 之后）
+  if (col < 0 || col > 11) return -2;
+  var triBand = topHalf ? (y < 330) : (y > 450);
+  if (!triBand) return -2;
+  if (topHalf) return 12 + col;      // 顶排左→右 = 点 13..24 → 索引 12+col
+  return 12 - col - 1;               // 底排左→右 = 点 12..1 → 索引 11-col
+}
+function calcReach() {  // sel/selBar → {to:[骰序列]}；任意用骰顺序的 1-4 步链（BFS 状态=落点+剩余骰，仅所选子）
+  var out = {}, start = S.selBar ? 25 : S.sel;
+  var kOf = function (pos, left) { return pos + '|' + left.slice().sort().join(','); };
+  var seen = {}; seen[kOf(start, S.dice)] = 1;
+  var q = [{ left: S.dice.slice(), seq: [] }], qi, i;
+  for (qi = 0; qi < q.length; qi++) {
+    var stt = q[qi], tried = {};
+    for (i = 0; i < stt.left.length; i++) {
+      var n = stt.left[i];
+      if (tried[n]) continue; tried[n] = 1;
+      var seq2 = stt.seq.concat([n]);
+      var r = simFrom(start, seq2);
+      if (r === null) continue;
+      var to = r[5];
+      if (!(to in out) || out[to].length > seq2.length) out[to] = seq2;
+      if (to === -1) continue;
+      var left2 = stt.left.slice(); left2.splice(left2.indexOf(n), 1);
+      var k2 = kOf(to, left2);
+      if (!seen[k2]) { seen[k2] = 1; q.push({ left: left2, seq: seq2 }); }
+    }
+  }
+  return out;
+}
+/* 从起点 fr 沿 steps 重放（白视角），返回快照 [pts,bW,bB,oW,oB,终位]，某步无 frm 匹配= null */
+function simFrom(fr, steps) {
+  var pts = clonePts(), bW = S.barW, bB = S.barB, oW = S.offW, oB = S.offB, i, j;
+  var frm = fr;
+  for (i = 0; i < steps.length; i++) {
+    var st = genStepsSim([pts, bW, bB, oW, oB], 0, steps[i]), ok = false;
+    for (j = 0; j < st.length; j++) {
+      if (st[j][0] === frm) {
+        var to = st[j][1], hit = st[j][2];
+        if (frm === 25) bW--; else pts[frm]--;
+        if (to === -1) oW++;
+        else { if (hit) { pts[to] = 0; bB++; } pts[to]++; }
+        frm = to; ok = true; break;
+      }
+    }
+    if (!ok) return null;
+  }
+  return [pts, bW, bB, oW, oB, frm];
+}
+function genStepsSim(sim, side, n) {  // 快照上单步（白视角，side 恒 0——白交互专用）
+  var pts = sim[0], bW = sim[1], out = [], i, t, q;
+  var allH = function () { if (bW) return false; for (q = 6; q < 24; q++) if (pts[q] > 0) return false; return true; };
+  var maxH = function () { for (q = 5; q >= 0; q--) if (pts[q] > 0) return q + 1; return 0; };
+  if (bW > 0) { t = 25 - n - 1; if (pts[t] >= -1) out.push([25, t, pts[t] === -1]); return out; }
+  for (i = 0; i < 24; i++) {
+    if (pts[i] <= 0) continue;
+    t = i - n;
+    if (t >= 0) { if (pts[t] >= -1) out.push([i, t, pts[t] === -1]); }
+    else if (allH()) { var pt = i + 1;
+      if (pt === n) out.push([i, -1, false]);
+      else if (pt < n && maxH() === pt) out.push([i, -1, false]); }
+  }
+  return out;
+}
+function tapPoint(p) {  // 玩家点盘面（p=点索引 / -1 栏 / -2 空）
+  if (S.ph !== 'play' || S.turn !== 0) return;
+  if (!S.dice.length) return;
+  if (p === -2) { S.sel = -1; S.selBar = false; S.reach = null; return; }
+  if (p === -3) { if ((S.sel >= 0 || S.selBar) && S.reach && (-1 in S.reach)) execReach(-1); return; }  // 托盘=渡出
+  var cur = S.selBar ? 25 : S.sel;
+  if (cur >= 0 || cur === 25) {
+    if (p === cur && S.reach && (-1 in S.reach)) { execReach(-1); return; }  // 再点自己=渡出
+    if (S.reach && (p in S.reach) && p !== cur) { execReach(p); return; }
+  }
+  if (p === -1) {
+    if (S.barW > 0) { S.sel = -1; S.selBar = true; S.reach = calcReach(); snd('sel'); }
+    return;
+  }
+  if (S.pts[p] > 0) {
+    if (S.barW > 0) { flash('栏上有子 · 须先重入'); return; }
+    S.sel = p; S.selBar = false; S.reach = calcReach(); snd('sel');
+  } else { S.sel = -1; S.selBar = false; S.reach = null; }
+}
+function execReach(to) {  // 实时逐步执行 reach[to] 骰序列（每步在真实盘面找 frm=cur 的步）
+  var seq = S.reach[to], cur = S.selBar ? 25 : S.sel, i, j;
+  for (i = 0; i < seq.length; i++) {
+    var st = genSteps(0, seq[i]), ok = false;
+    for (j = 0; j < st.length; j++) {
+      if (st[j][0] === cur) {
+        doStep(0, [seq[i], st[j][0], st[j][1], st[j][2]]);
+        cur = st[j][1]; ok = true; break;
+      }
+    }
+    if (!ok) break;
+  }
+  S.sel = -1; S.selBar = false; S.reach = null;
+  snd('move');
+  if (checkWin()) return;
+  if (!S.dice.length) endHand();
+  else if (!legalMoves(0, S.dice).length) { flash('余骰无路 · 过'); S.dice = []; later(800, 'endHand'); }
+}
+
+/* ===== 援手 ===== */
+function doHint() {
+  if (S.ph !== 'play' || S.turn !== 0 || !S.dice.length) return;
+  var m = pickMove(0, S.dice, 0, 'opt', 0);
+  if (!m) { flash('无路可走'); return; }
+  S.hints++;
+  doStep(0, m);
+  S.sel = -1; S.selBar = false; S.reach = null;
+  snd('move');
+  if (checkWin()) return;
+  if (!S.dice.length) endHand();
+  else if (!legalMoves(0, S.dice).length) { flash('余骰无路 · 过'); S.dice = []; later(800, 'endHand'); }
+}
+
+/* ===== HUD / flash ===== */
+function updHUD() {
+  $('hLv').textContent = '第 ' + S.lv + ' 局';
+  var st = S.stars[S.lv - 1] || 0;
+  $('hSub').textContent = (S.turn === 0 ? '白手 · ' : '黑手 · ') + '援 ' + S.hints +
+    (S.dice.length ? ' · 骰 ' + S.dice.join('') : '') + ' · 程 ' + pipOf(0) + ':' + pipOf(1) +
+    ' · 渡 ' + S.offW + ':' + S.offB + (st ? ' · ' + '★★★'.slice(0, st) : '');
+  $('btnRoll').classList.toggle('dis', !(S.ph === 'play' && S.turn === 0 && !S.dice.length));
+  $('btnHint').classList.toggle('dis', !(S.ph === 'play' && S.turn === 0 && S.dice.length));
+}
+function flash(msg) { S.flashMsg = msg; S.flashT = 1.1; var fe = $('flash'); fe.textContent = msg; fe.style.top = '470px'; }
+
+/* ===== 绘制 ===== */
+var COLW = 29.85;
+function ptX(p) {
+  var col = (p <= 12) ? (12 - p) : (p - 13);
+  return 4 + col * COLW + (col >= 6 ? 26 : 0) + COLW / 2;
+}
+function draw(t) {
+  ctx.clearRect(0, 0, 390, 780);
+  ctx.save();
+  if (S.shake > 0.2) { ctx.translate((Math.random() - 0.5) * S.shake, (Math.random() - 0.5) * S.shake); S.shake *= Math.pow(0.9, gDt / 16); }
+  // 盘底
+  ctx.fillStyle = '#17120d'; ctx.fillRect(0, 0, 390, 780);
+  var g = ctx.createLinearGradient(0, 0, 0, 780);
+  g.addColorStop(0, 'rgba(200,154,90,.06)'); g.addColorStop(.5, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(200,154,90,.06)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 390, 780);
+  // bar
+  ctx.fillStyle = '#241b12';
+  ctx.fillRect(183, 0, 26, 780);
+  ctx.fillStyle = 'rgba(200,154,90,.35)'; ctx.fillRect(182, 0, 2, 780); ctx.fillRect(208, 0, 2, 780);
+  // 尖区三角
+  var p, i;
+  for (p = 1; p <= 24; p++) {
+    var top = p >= 13, x0 = ptX(p) - COLW / 2 + 1, x1 = ptX(p) + COLW / 2 - 1;
+    var alt = (((top ? p - 13 : 12 - p)) % 2 === 0);
+    ctx.beginPath();
+    if (top) { ctx.moveTo(x0, 0); ctx.lineTo(x1, 0); ctx.lineTo((x0 + x1) / 2, 250); }
+    else { ctx.moveTo(x0, 716); ctx.lineTo(x1, 716); ctx.lineTo((x0 + x1) / 2, 530); }  // 底基线 716：btnrow 遮 canvas y>716
+    ctx.closePath();
+    ctx.fillStyle = alt ? '#3a2f52' : '#463a26';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(200,160,100,.16)'; ctx.stroke();
+  }
+  // 选中/可达高亮
+  if (S.sel >= 0 || S.selBar) {
+    var sx = S.selBar ? 196 : ptX(S.sel + 1);
+    ctx.strokeStyle = '#e8c96a'; ctx.lineWidth = 2;
+    ctx.strokeRect(sx - COLW / 2 + 1, S.sel >= 12 ? 4 : (S.selBar ? 480 : 596), COLW - 2, 120);
+    ctx.lineWidth = 1;
+    if (S.reach) for (var ro in S.reach) {
+      var rp = parseInt(ro, 10);
+      if (rp === -1) { ctx.strokeStyle = '#e8c96a'; ctx.strokeRect(370, 636, 16, 72); continue; }
+      ctx.strokeStyle = 'rgba(232,201,106,.85)';
+      ctx.strokeRect(ptX(rp + 1) - COLW / 2 + 1, rp >= 12 ? 2 : 640, COLW - 2, 76);
+    }
+  }
+  // 子
+  for (i = 0; i < 24; i++) {
+    var n2 = S.pts[i]; if (!n2) continue;
+    var white = n2 > 0, cnt = Math.abs(n2), k;
+    for (k = 0; k < Math.min(cnt, 5); k++) {
+      var cy = (i >= 12) ? (16 + k * 26) : (704 - k * 26);
+      drawChecker(ptX(i + 1), cy, white, k === Math.min(cnt, 5) - 1 && cnt > 5 ? cnt : 0);
+    }
+  }
+  // bar 子（白下黑上）
+  for (i = 0; i < S.barW; i++) drawChecker(196, 700 - i * 26, true, 0);
+  for (i = 0; i < S.barB; i++) drawChecker(196, 80 + i * 26, false, 0);
+  // 骰与 off 数（中央）
+  drawCenter(t);
+  // 动画飞行子（G3-m4：dt 驱动，段 0.28s / 飞栏 0.4s，不随刷新率漂移）
+  for (i = S.anims.length - 1; i >= 0; i--) {
+    var a = S.anims[i]; a.tt += gDt / (a.dur || 280);
+    if (a.tt >= 1) { S.anims.splice(i, 1); continue; }
+    var fx = a.f === 25 ? 196 : ptX(a.f + 1);
+    var tx = a.t === -1 ? 374 : (a.t === 25 ? 196 : ptX(a.t + 1));
+    var fy = a.f === 25 ? (a.side === 0 ? 700 : 80) : (a.f >= 12 ? 40 : 700);
+    var ty = a.t === -1 ? (a.side === 0 ? 700 : 40) : (a.t === 25 ? (a.side === 0 ? 700 : 80) : (a.t >= 12 ? 40 : 700));
+    var q = a.tt;
+    ctx.beginPath(); ctx.arc(fx + (tx - fx) * q, fy + (ty - fy) * q - Math.sin(q * Math.PI) * 60, 11, 0, 7);
+    ctx.fillStyle = a.side === 0 ? '#ece2cc' : '#1d1a16'; ctx.fill();
+    ctx.strokeStyle = a.side === 0 ? '#b5a37b' : '#c9a06a'; ctx.stroke();
+  }
+  // flash
+  if (S.flashT > 0) {
+    S.flashT -= gDt / 1000;
+    $('flash').style.opacity = Math.min(1, S.flashT * 2);
+  } else $('flash').style.opacity = 0;
+  // 胜利金波
+  if (S.winT > 0) {
+    S.winT -= gDt / 1000;
+    var pst = gDt / 16;
+    for (i = 0; i < S.parts.length; i++) {
+      var pt3 = S.parts[i]; pt3.y += pt3.v * pst; pt3.v += 0.12 * pst;
+      ctx.globalAlpha = Math.max(0, S.winT / 1.6);
+      ctx.fillStyle = pt3.c;
+      ctx.beginPath(); ctx.arc(pt3.x, pt3.y, pt3.r, 0, 7); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    if (S.winT <= 0) { S.parts = []; showOverPanel(); }
+  }
+  ctx.restore();
+}
+function drawChecker(x, y, white, num) {
+  ctx.beginPath(); ctx.arc(x, y, 11.5, 0, 7);
+  ctx.fillStyle = white ? '#ece2cc' : '#221d17'; ctx.fill();
+  ctx.strokeStyle = white ? '#b5a37b' : '#c9a06a'; ctx.lineWidth = 1.4; ctx.stroke();
+  ctx.lineWidth = 1;
+  if (white) { ctx.beginPath(); ctx.arc(x - 3, y - 3, 4, 0, 7); ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.stroke(); }
+  if (num > 5) { ctx.fillStyle = white ? '#6b4a2c' : '#e8c96a'; ctx.font = 'bold 10px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(num, x, y); }
+}
+function drawCenter(t) {
+  // 骰（中央 1 枚居中 / 2 枚并排 / 4 枚 2×2）
+  var dx = S.dice, i, px, py;
+  var rl = S.rollAnim > 0 && dx.length > 0;
+  for (i = 0; i < Math.min(dx.length, 4); i++) {
+    if (dx.length === 1) { px = 196; py = 392; }
+    else if (dx.length === 2) { px = 178 + i * 36; py = 392; }
+    else { px = 178 + (i % 2) * 36; py = 380 + Math.floor(i / 2) * 26; }
+    drawDie(px, py, rl ? 1 + ((i * 2 + Math.floor(t / 70)) % 6) : dx[i], !rl && (i > 0 || dx.length === 1), t, rl);
+  }
+  // off 计数（bar 上下端）
+  ctx.fillStyle = '#c9a06a'; ctx.font = 'bold 12px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('渡' + S.offW, 196, 330);
+  ctx.fillText('渡' + S.offB, 196, 452);
+  ctx.fillStyle = '#8a7a5c'; ctx.font = '9px serif';
+  ctx.fillText(S.turn === 0 ? '白手' : '黑手', 196, 306);
+}
+function drawDie(x, y, n, used, t, roll) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(used ? 0 : (roll ? Math.sin(t / 55 + n * 2) * 0.45 : Math.sin(t / 300 + n) * 0.08));
+  ctx.fillStyle = used ? '#d8cdb2' : '#efe6cd';
+  rr(-11, -11, 22, 22, 4); ctx.fill();
+  ctx.strokeStyle = '#8a7a5c'; ctx.stroke();
+  ctx.fillStyle = n === 1 ? '#b0402a' : '#2a2118';
+  var P = {1:[[0,0]],2:[[-5,-5],[5,5]],3:[[-5,-5],[0,0],[5,5]],4:[[-5,-5],[5,-5],[-5,5],[5,5]],
+    5:[[-5,-5],[5,-5],[0,0],[-5,5],[5,5]],6:[[-5,-5],[5,-5],[-5,0],[5,0],[-5,5],[5,5]]};
+  var ds = P[n], i;
+  for (i = 0; i < ds.length; i++) { ctx.beginPath(); ctx.arc(ds[i][0], ds[i][1], 2.2, 0, 7); ctx.fill(); }
+  ctx.restore();
+}
+function rr(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r); ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h); ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r); ctx.arcTo(x, y, x + r, y, r); ctx.closePath();
+}
+function showOverPanel() { $('over').classList.remove('hide'); }
+
+/* ===== 音效（WebAudio 短音）===== */
+var AC = null;
+function ensureAC() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  if (AC && AC.state === 'suspended') AC.resume();
+}
+function tone(fr, du, ty, dly) {
+  if (S.mute || !AC) return;
+  var o = AC.createOscillator(), gn = AC.createGain(), t0 = AC.currentTime + (dly || 0);
+  o.type = ty || 'sine'; o.frequency.value = fr;
+  gn.gain.setValueAtTime(0.0001, t0);
+  gn.gain.exponentialRampToValueAtTime(0.12, t0 + 0.012);
+  gn.gain.exponentialRampToValueAtTime(0.0001, t0 + du);
+  o.connect(gn); gn.connect(AC.destination);
+  o.start(t0); o.stop(t0 + du + 0.02);
+}
+function snd(kind) {
+  if (S.mute) return;
+  ensureAC();
+  if (kind === 'roll') { tone(220, 0.05, 'square'); tone(300, 0.05, 'square', 0.06); tone(260, 0.05, 'square', 0.12); }
+  else if (kind === 'move') tone(520, 0.06, 'triangle');
+  else if (kind === 'sel') tone(660, 0.04, 'sine');
+  else if (kind === 'hit') { tone(180, 0.12, 'sawtooth'); }
+  else if (kind === 'win') { tone(523, 0.14, 'sine'); tone(659, 0.14, 'sine', 0.12); tone(784, 0.2, 'sine', 0.24); tone(1046, 0.3, 'sine', 0.4); }
+  else if (kind === 'lose') { tone(300, 0.2, 'sine'); tone(220, 0.3, 'sine', 0.18); }
+}
+
+/* ===== 输入 ===== */
+function onDown(e) {
+  if (S.pd !== null && S.pd !== e.pointerId) return;
+  S.pd = e.pointerId;      // 只登记；pointerup/cancel 统一释放（g129 语义）
+  var r = cv.getBoundingClientRect();
+  var x = e.clientX - r.left, y = e.clientY - r.top;
+  ensureAC();
+  if (S.ph === 'menu') return;
+  if (S.ph !== 'play') return;
+  if (S.turn !== 0) return;
+  if (S.winT > 0) return;
+  if (y < 0 || y > 780) return;
+  tapPoint(ptOfXY(x, y));
+}
+function clearPd(e) { S.pd = null; }
+
+/* ===== 主循环 ===== */
+var lastT = 0, gDt = 16;
+function loop(t) {
+  var dt = lastT ? Math.min(50, t - lastT) : 16; lastT = t; gDt = dt;
+  if (S.rollAnim > 0) S.rollAnim -= dt;
+  if (S.ph === 'play') {
+    if (S.waitT > 0) { S.waitT -= dt; if (S.waitT <= 0) { S.waitT = 0; var act = S.waitAct; S.waitAct = null; if (act === 'endHand') endHand(); } }
+    else if (S.turn === 1 && S.aiT > 0) { S.aiT -= dt; if (S.aiT <= 0) { S.aiT = 0; aiStep(); } }
+  }
+  draw(t);
+  requestAnimationFrame(loop);
+}
+
+/* ===== 菜单 ===== */
+function buildMenu() {
+  var g = $('mGrid'); g.innerHTML = '';
+  for (var i = 1; i <= 24; i++) {
+    var c = document.createElement('div');
+    c.className = 'cell' + (i > S.unlocked ? ' lock' : '') + (i === S.lv ? ' cur' : '');
+    c.innerHTML = i + '<div class="st">' + '★'.repeat(S.stars[i - 1] || 0) + '</div>';
+    (function (k) { c.onclick = function () { if (k <= S.unlocked) { S.lv = k; buildMenu(); } }; })(i);
+  g.appendChild(c);
+  }
+}
+
+/* ===== 启动 ===== */
+(function boot() {
+  loadSave();
+  buildMenu();
+  $('mGo').onclick = function () { $('menu').classList.add('hide'); newGame(S.lv); };
+  $('btnRoll').onclick = function () { if (S.ph === 'play' && S.turn === 0 && !S.dice.length) rollDice(); };
+  $('btnHint').onclick = doHint;
+  $('btnSnd').onclick = function () { S.mute = !S.mute; $('btnSnd').textContent = S.mute ? '✕' : '♪'; saveMain(); };
+  $('btnMenu').onclick = function () { if (S.ph === 'play') { S.ph = 'pause'; $('pause').classList.remove('hide'); } };
+  $('pResume').onclick = function () { S.ph = 'play'; $('pause').classList.add('hide'); };
+  $('pReset').onclick = function () { newGame(S.lv); };
+  $('pHome').onclick = function () { $('pause').classList.add('hide'); S.winT = 0; S.parts = []; S.ph = 'menu'; buildMenu(); $('menu').classList.remove('hide'); updHUD(); };
+  $('oAgain').onclick = function () { newGame(S.lv); };
+  $('oNext').onclick = function () { if (S.lv < 24) newGame(S.lv + 1); };
+  cv.addEventListener('pointerdown', onDown);
+  cv.addEventListener('pointerup', clearPd);
+  cv.addEventListener('pointercancel', clearPd);
+  document.addEventListener('visibilitychange', function () { if (document.hidden) saveMain(); });
+  updHUD();
+  requestAnimationFrame(loop);
+})();
+
+/* ===== DEV 钩子（构建剥离）===== */
+
+</script>
+</body>
+</html>
