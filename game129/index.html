@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+<title>锦杼挑纹 · 离线版</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #efe3cc; height: 100%; overflow: hidden; }
+  #app { position: relative; width: 390px; height: 844px; margin: 0 auto; background: #f4ead8; font-family: "Kaiti SC", "KaiTi", "STKaiti", serif; touch-action: none; }
+  #hud { position: absolute; top: 0; left: 0; width: 390px; height: 64px; background: #2e2620; color: #e8d9b0; display: flex; align-items: center; padding: 0 12px; box-sizing: border-box; z-index: 5; gap: 10px; }
+  #hud .sp { flex: 1; }
+  #hLv { font-size: 16px; letter-spacing: 1px; }
+  #hFill, #hHint { font-size: 13px; color: #c9b98c; }
+  #hud button { background: none; border: 1px solid #6b5a3e; color: #d8c99a; font-size: 15px; border-radius: 6px; width: 34px; height: 34px; font-family: inherit; }
+  #cv { position: absolute; top: 64px; left: 0; }
+  #btnrow { position: absolute; left: 0; bottom: 0; width: 390px; height: 76px; display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 5; }
+  #btnrow button { background: #3a2f24; color: #ecdcac; border: 1px solid #8a744e; border-radius: 10px; font-size: 17px; font-family: inherit; letter-spacing: 2px; height: 48px; }
+  #btnHint, #btnCheck { width: 110px; }
+  #btnReset { width: 76px; font-size: 14px; color: #c9b98c; }
+  .lay { position: absolute; inset: 0; background: rgba(30, 24, 16, .82); z-index: 9; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
+  .lay.hide { display: none; }
+  .lay h2 { color: #f0e2b8; font-size: 30px; margin: 0 0 4px; letter-spacing: 6px; font-weight: normal; }
+  .lay .stars { color: #e8b54a; font-size: 34px; letter-spacing: 8px; }
+  .lay .sub { color: #bfae86; font-size: 14px; }
+  .lay button { background: #3a2f24; color: #ecdcac; border: 1px solid #8a744e; border-radius: 10px; font-size: 17px; font-family: inherit; letter-spacing: 3px; width: 180px; height: 50px; }
+  .lay button.ghost { background: none; border-color: #5a4c34; color: #bfae86; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <span id="hLv">锦杼挑纹</span>
+    <span id="hFill"></span>
+    <span id="hHint"></span>
+    <span class="sp"></span>
+    <button id="btnSnd">♪</button>
+    <button id="btnPause">‖</button>
+  </div>
+  <canvas id="cv" width="390" height="780"></canvas>
+  <div id="btnrow">
+    <button id="btnHint">援 手</button>
+    <button id="btnCheck">收 梭</button>
+    <button id="btnReset">重织</button>
+  </div>
+  <div id="pause" class="lay hide">
+    <h2>暂 歇</h2>
+    <button id="pResume">继续挑纹</button>
+    <button id="pReset" class="ghost">再织此纹</button>
+    <button id="pHome" class="ghost">回锦目录</button>
+  </div>
+  <div id="over" class="lay hide">
+    <h2 id="oTitle">纹 成</h2>
+    <div class="stars" id="oStars">★★★</div>
+    <div class="sub" id="oSub"></div>
+    <button id="oNext">挑下一纹</button>
+    <button id="oReset" class="ghost">再织此纹</button>
+    <button id="oHome" class="ghost">回锦目录</button>
+  </div>
+</div>
+<script>
+'use strict';
+/* ===== 花本数据（gentab129.py 离线烘焙，运行时零随机） ===== */
+const SIZES=[5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 9, 10, 10, 10, 10];
+const PNAMES=["回纹", "万字", "水波", "菱格", "联钱", "星芒", "花窗", "四合锦", "旋纹", "间道", "回纹", "万字", "水波", "菱格", "联钱", "星芒", "花窗", "四合锦", "旋纹", "间道", "回纹", "万字", "水波", "菱格"];
+const PAT=[[0,1,1,1,0,1,0,0,0,1,1,0,1,0,0,1,1,0,0,1,0,1,1,1,0],[1,0,1,0,1,1,0,1,0,0,1,1,1,1,1,0,0,1,0,1,1,0,1,0,1],[0,0,0,0,0,1,1,1,1,1,0,1,1,1,1,1,1,0,0,1,0,1,1,1,0],[1,0,1,0,1,0,0,1,0,0,0,1,1,1,0,0,0,1,0,0,1,0,1,0,1],[1,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,1,1,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,1],[0,1,1,1,1,0,0,0,1,1,1,0,0,0,0,1,0,0,0,0,1,1,1,1,0,1,1,0,1,1,0,1,1,0,0,0],[0,0,1,1,0,0,1,0,1,1,0,1,0,1,1,1,1,0,0,1,1,1,1,0,1,0,1,1,0,1,0,0,1,1,0,0],[0,1,1,1,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,1,1,1,0],[1,0,1,0,0,1,1,1,1,0,1,1,1,0,0,1,0,0,0,0,1,0,1,0,0,0,1,0,1,0,0,0,0,1,0,0,1,1,1,0,1,1,1,1,0,0,1,0,1],[1,1,0,1,0,1,1,1,1,0,1,0,1,1,1,0,0,1,0,0,1,0,1,1,0,1,1,0,0,0,0,1,0,0,0,1,0,1,0,1,0,1,1,0,0,1,0,0,1],[0,1,1,1,1,1,0,0,1,0,0,0,0,1,1,0,1,1,1,0,0,1,0,0,0,1,0,1,1,0,1,1,1,0,1,1,0,0,0,0,0,1,0,1,1,1,1,1,0],[0,0,1,1,1,0,0,0,0,0,1,1,1,0,0,0,0,1,0,1,0,1,1,1,1,1,1,1,0,1,0,1,0,0,0,0,1,1,1,0,0,0,0,0,1,1,1,0,0],[0,0,0,1,0,0,0,0,0,0,1,1,1,0,0,0,0,1,1,0,1,1,0,0,1,1,0,0,0,1,1,1,1,0,0,1,0,0,1,1,0,0,1,1,1,0,0,0,0,1,1,0,1,1,0,0,1,1,0,0,0,1,1,1],[1,1,0,0,0,0,1,1,1,0,0,1,1,0,0,1,0,0,0,1,1,0,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,0,1,1,0,0,0,1,0,0,1,1,0,0,1,1,1,0,0,0,0,1,1],[0,0,1,1,1,1,0,0,0,1,0,1,1,0,1,0,1,1,0,1,1,0,0,1,0,1,1,1,1,1,1,0,0,1,1,1,1,1,1,0,1,1,0,1,1,0,1,1,0,1,0,1,1,0,0,0,0,0,1,1,1,1,0,0],[0,0,1,1,1,1,0,0,0,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,0,1,1,1,0,0,0,0,0,0,1,1,0,0,0,0],[1,1,1,0,1,0,1,1,1,1,0,1,0,1,0,1,0,1,0,1,0,0,1,0,0,1,0,0,0,1,1,1,1,1,0,0,1,0,1,1,1,1,1,0,1,0,0,1,1,1,1,1,0,0,0,1,0,0,1,0,0,1,0,1,0,1,0,1,0,1,0,1,1,1,1,0,1,0,1,1,1],[1,1,1,1,1,1,1,1,1,0,1,0,1,0,1,0,1,0,0,1,1,1,0,1,1,1,0,0,0,0,1,0,1,0,0,0,1,1,0,0,1,0,0,1,1,0,0,0,1,0,1,0,0,0,0,1,1,1,0,1,1,1,0,0,1,0,1,0,1,0,1,0,1,1,1,1,1,1,1,1,1],[1,0,1,1,1,0,1,0,1,0,1,0,1,0,0,0,1,0,1,0,1,1,1,1,1,0,1,0,0,1,1,0,1,1,1,1,1,0,1,0,0,0,1,0,1,1,1,1,1,0,1,1,0,0,1,0,1,1,1,1,1,0,1,0,1,0,0,0,1,0,1,0,1,0,1,0,1,1,1,0,1],[0,1,0,0,0,0,0,1,0,0,1,0,1,1,1,0,1,0,1,1,1,0,1,0,1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,1,0,1,1,1,1,1,1,0,1,0,1,1,1,1,0,1,0,0,0,1,0,1,0,1,0,1,1,1,0,1,0,0,1,1,1,0,1,1,1,0],[1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,1,1,0,1,1,1,1,1,1,0,1,1,0,1,0,0,0,0,1,0,1,1,0,1,0,1,1,0,1,0,1,1,0,1,0,1,1,0,1,0,1,1,0,1,0,0,0,0,1,0,1,1,0,1,1,1,1,1,1,0,1,1,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1],[0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,0,1,0,0,0,0,1,0,1,1,1,1,0,0,0,0,1,1,1,1,0,1,0,0,0,0,1,0,1,1,0,1,0,1,1,1,1,1,1,1,1,1,1,0,0,1,1,1,1,1,0,0,0,0,0,1,1,0,1,1,0,0,0,0,1,1,1,1,1,0,0,1,0,0,0,0,0,0,1,0,0,0,0],[0,0,1,1,0,0,0,0,1,1,0,1,1,1,1,0,0,1,1,1,1,1,0,0,1,1,1,1,0,0,1,0,1,0,0,1,1,0,0,1,0,1,1,1,0,0,0,0,1,1,1,1,0,1,1,1,1,1,1,0,1,0,0,0,1,1,1,1,0,0,0,1,1,1,0,0,0,0,1,1,1,1,1,1,1,0,0,1,1,1,1,0,0,0,1,1,1,1,0,0],[0,1,1,1,0,0,1,1,0,0,1,1,1,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,1,1,1,0,1,0,1,1,0,0,0,1,0,0,0,1,1,1,1,0,0,0,0,0,0,1,1,1,1,0,0,0,1,0,0,0,1,1,0,0,0,1,1,1,0,0,0,0,0,0,1,1,1,1,1,0,0,1,0,1,1,1,0,1,1,1,0,0,1,1,1,0]];
+const ROWH=[[[3],[1,1],[1,1],[2,1],[3]],[[1,1,1],[1,1],[5],[1,1],[1,1,1]],[[],[5],[4],[2,1],[3]],[[1,1,1],[1],[3],[1],[1,1,1]],[[1,1],[6],[1,1],[1,1],[6],[1,1]],[[4],[3],[1],[4],[2,2],[2]],[[2],[1,2,1],[4],[4],[1,2,1],[2]],[[4],[1,1],[1,1],[1,1],[1,1],[4]],[[1,1,2],[2,3],[1,1],[1,1],[1,1],[3,2],[2,1,1]],[[2,1,2],[2,1,2],[1,1,1],[2,2],[1],[1,1,1,1],[1,1,1]],[[5],[1,1],[1,3],[1,1,1],[1,3,1],[1,1],[5]],[[3],[3],[1,1],[7],[1,1],[3],[3]],[[1],[3],[2,2],[2,3],[1,1,2],[3],[2,2],[2,3]],[[2,2],[1,2,1],[2],[4],[4],[2],[1,2,1],[2,2]],[[4],[1,2,1],[2,2,1],[6],[6],[2,2,2],[1,2],[4]],[[4],[6],[8],[8],[4],[4],[3],[2]],[[3,1,3],[1,1,1,1,1],[1,1,1],[5],[1,5,1],[5],[1,1,1],[1,1,1,1,1],[3,1,3]],[[9],[1,1,1,1],[3,3],[1,1],[2,1,2],[1,1],[3,3],[1,1,1,1],[9]],[[1,3,1,1],[1,1,1],[1,5,1],[2,4],[1,1,1,1],[4,2],[1,5,1],[1,1,1],[1,1,3,1]],[[1,1],[1,3,1],[3,1,3],[3,3],[3,1,3],[3,1,3],[1,1,1,1],[1,3,1],[3,3]],[[10],[1,1],[1,6,1],[1,1,1,1],[1,1,2,1,1],[1,1,2,1,1],[1,1,1,1],[1,6,1],[1,1],[10]],[[1],[1,1,1],[1,4],[4,1],[1,2,1],[10],[5],[2,2],[5,1],[1]],[[2,2],[4,3],[2,4],[1,1,2,1],[3,2],[2,6],[1,4],[3,2],[5,3],[1,4]],[[3,2],[3,3],[2,2],[1,1,2,1],[4],[4],[1,2,1],[2,2],[3,1,3],[3,3]]];
+const COLH=[[[3],[1,2],[1,1,1],[1,1],[1,1]],[[3,1],[1],[5],[1],[1,3]],[[1,1],[4],[2,1],[2,1],[3]],[[1,1],[1],[5],[1],[1,1]],[[6],[1,1],[1,1],[1,1],[1,1],[6]],[[],[1,2],[2,3],[4],[2,2],[2]],[[1,1],[2],[6],[6],[2],[1,1]],[[],[6],[1,1],[1,1],[6],[]],[[2,1,1],[3,2],[1,1],[1,1],[1,1],[2,3],[1,1,2]],[[3,2],[2,1],[1,1],[3,1,1],[1,1],[2,1],[3,2]],[[4],[2,1],[1,1,1,1],[1,1,1,1],[1,3,1],[1,1],[1,3]],[[1],[3],[1,1,2],[7],[2,1,1],[3],[1]],[[2,1],[2,2],[2,2],[2,2],[2,2],[2,2],[2,1],[2,1]],[[2,2],[1,1],[2],[6],[6],[2],[1,1],[2,2]],[[1,1],[6],[1,2,1],[8],[8],[1,2,1],[1,3],[1,1]],[[4],[6],[8],[8],[4],[4],[3],[2]],[[2,1,2],[1,1,1,1],[2,3,2],[3],[9],[3],[2,3,2],[1,1,1,1],[2,1,2]],[[1,1,1],[3,1,3],[1,1,1,1],[4,4],[1,1,1],[4,4],[1,1,1,1],[3,1,3],[1,1,1]],[[1,1,3,1],[1,1,1],[1,5,1],[4,2],[1,1,1,1],[2,4],[1,5,1],[1,1,1],[1,3,1,1]],[[1,3],[6,2],[5,1],[1,1,2],[2,2,1],[1,1,2],[5,1],[6,2],[1,3]],[[10],[1,1],[1,6,1],[1,1,1,1],[1,1,2,1,1],[1,1,2,1,1],[1,1,1,1],[1,6,1],[1,1],[10]],[[1],[1,1,1],[4],[7],[1,2,1],[10],[6],[1,1],[5,1],[1]],[[2,2,2],[2,2,2],[2,2,2],[2,2,2],[2,2,2],[2,2,1],[2,2,1],[2,2,2],[2,2,2],[2,2,2]],[[3,3],[3,3],[2,1,2],[1,2,1],[4],[4,1],[1,2,1],[2,2],[2,3],[3,3]]];
+
+var K_G = 'g129_nonogram';
+var RLW = 56, CLH = 44;
+var cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+function $(id) { return document.getElementById(id); }
+
+var S = {
+  ph: 'menu', lv: 1, n: 5,
+  grid: [], pat: [], rowh: [], colh: [],
+  fill: 0, marked: 0, hints: 0,
+  winT: 0, hintGlow: -1, hintT: 0,
+  anim: [], parts: [],
+  flashT: 0, flashMsg: '',
+  unlocked: 1, stars: [], mute: false,
+  t: 0, pd: null
+};
+var G = { cell: 34, bx: 100, by: 200, bw: 170 };
+
+function geo() {
+  var n = S.n;
+  var cell = Math.min(34, Math.floor((390 - 20 - RLW) / n));
+  var bw = cell * n;
+  var bx = Math.floor((390 - RLW - bw) / 2) + RLW;
+  var availH = 780 - 100;
+  var by = Math.floor((availH - CLH - bw) / 2) + CLH;
+  G = { cell: cell, bx: bx, by: by, bw: bw };
+}
+
+/* ===== 存档 ===== */
+function saveMain() { try { localStorage.setItem(K_G, JSON.stringify({ unlocked: S.unlocked, stars: S.stars, mute: S.mute })); } catch (e) {} }
+function loadSave() {
+  S.stars = new Array(24).fill(0); S.unlocked = 1; S.mute = false;
+  var bad = false, o = null;
+  try { o = JSON.parse(localStorage.getItem(K_G)); } catch (e) { bad = true; }
+  if (!o || typeof o !== 'object') { if (bad || o !== null) saveMain(); return; }
+  if (!Number.isInteger(o.unlocked) || o.unlocked < 1 || o.unlocked > 24) return;
+  if (!Array.isArray(o.stars) || o.stars.length !== 24) return;
+  for (var i = 0; i < 24; i++) { var v = o.stars[i]; if (!Number.isInteger(v) || v < 0 || v > 3) return; }
+  S.unlocked = o.unlocked;
+  for (var j = 0; j < 24; j++) S.stars[j] = o.stars[j];
+  if (typeof o.mute === 'boolean') S.mute = o.mute;
+}
+
+/* ===== line solver（与 py 同构：先行后列 · 轮内即时写 · 位序 0→N-1） ===== */
+function arrangements(hint, known, n) {
+  var sols = [];
+  function rec(idx, pos, pre) {
+    if (idx === hint.length) {
+      for (var i0 = pos; i0 < n; i0++) if (known[i0] === 1) return;
+      var tail = pre.slice(); for (var i1 = pos; i1 < n; i1++) tail.push(0);
+      sols.push(tail); return;
+    }
+    var L = hint[idx], need = 0;
+    for (var k = idx; k < hint.length; k++) need += hint[k];
+    need += hint.length - idx - 1;
+    for (var st = pos; st <= n - need; st++) {
+      var piece = [], ok = true;
+      for (var g = 0; g < st - pos; g++) piece.push(0);
+      for (var s = 0; s < L; s++) piece.push(1);
+      for (var q = 0; q < piece.length; q++) {
+        var kk = known[pos + q];
+        if (kk && (piece[q] ? 1 : 2) !== kk) { ok = false; break; }
+      }
+      if (!ok) continue;
+      if (idx === hint.length - 1) rec(idx + 1, st + L, pre.concat(piece));
+      else {
+        if (known[st + L] === 1) continue;
+        var nx = pre.concat(piece); nx.push(0);
+        rec(idx + 1, st + L + 1, nx);
+      }
+    }
+  }
+  rec(0, 0, []);
+  return sols;
+}
+function solveLine(hint, known, n) {
+  var sols = arrangements(hint, known, n);
+  if (!sols.length) return null;
+  var det = [];
+  for (var i = 0; i < n; i++) {
+    if (known[i]) continue;
+    var v0 = sols[0][i], same = true;
+    for (var k = 1; k < sols.length; k++) if (sols[k][i] !== v0) { same = false; break; }
+    if (same) det.push([i, v0 ? 1 : 2]);
+  }
+  return det;
+}
+function solveGrid(rowh, colh, n, base) {
+  var grid = base ? base.slice() : new Array(n * n).fill(0);
+  var steps = [];
+  for (;;) {
+    var prog = false, y, x, k;
+    for (y = 0; y < n; y++) {
+      var det = solveLine(rowh[y], grid.slice(y * n, y * n + n), n);
+      if (!det) return null;
+      for (k = 0; k < det.length; k++) { grid[y * n + det[k][0]] = det[k][1]; steps.push(['r', y, det[k][0], det[k][1]]); prog = true; }
+    }
+    for (x = 0; x < n; x++) {
+      var col = [];
+      for (y = 0; y < n; y++) col.push(grid[y * n + x]);
+      var det2 = solveLine(colh[x], col, n);
+      if (!det2) return null;
+      for (k = 0; k < det2.length; k++) { grid[det2[k][0] * n + x] = det2[k][1]; steps.push(['c', x, det2[k][0], det2[k][1]]); prog = true; }
+    }
+    if (!prog) break;
+  }
+  return steps;
+}
+
+/* ===== 规则核心 ===== */
+function rleOf(line) {
+  var h = [], c = 0;
+  for (var i = 0; i < line.length; i++) {
+    if (line[i] === 1) c++;
+    else if (c) { h.push(c); c = 0; }
+  }
+  if (c) h.push(c);
+  return h;
+}
+function sameSeq(a, b) {
+  if (a.length !== b.length) return false;
+  for (var i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+function fillMatchesPat() {
+  for (var i = 0; i < S.n * S.n; i++) if ((S.grid[i] === 1) !== (S.pat[i] === 1)) return false;
+  return true;
+}
+function newGame(lv) {
+  S.lv = Math.max(1, Math.min(24, lv));
+  S.n = SIZES[S.lv - 1];
+  S.pat = PAT[S.lv - 1]; S.rowh = ROWH[S.lv - 1]; S.colh = COLH[S.lv - 1];
+  S.grid = new Array(S.n * S.n).fill(0);
+  S.fill = 0; S.marked = 0; S.hints = 0;
+  S.winT = 0; S.hintGlow = -1; S.hintT = 0;
+  S.anim = []; S.parts = []; S.flashT = 0; S.flashMsg = '';
+  S.ph = 'play';
+  geo();
+  $('pause').classList.add('hide');
+  $('over').classList.add('hide');
+  updHUD();
+}
+function tapCell(i) {
+  if (S.ph !== 'play' || S.winT > 0) return;
+  var v = S.grid[i];
+  if (v === 0) { S.grid[i] = 1; S.fill++; S.anim.push({ i: i, t: 0 }); tone(520, .05); }
+  else if (v === 1) { S.grid[i] = 2; S.fill--; S.marked++; tone(330, .05); }
+  else { S.grid[i] = 0; S.marked--; }
+  updHUD();
+  autoJudge();
+}
+function autoJudge() {
+  if (S.ph !== 'play' || S.winT > 0) return;
+  if (S.marked + S.fill === S.n * S.n && fillMatchesPat()) doWin();
+}
+function doCheck() {
+  if (S.ph !== 'play' || S.winT > 0) return;
+  if (fillMatchesPat()) { doWin(); return; }
+  var x = 0;
+  for (var i = 0; i < S.n * S.n; i++) if (S.grid[i] === 1 && S.pat[i] === 0) x++;
+  flash('纹有 ' + x + ' 处不合，再斟酌');
+  tone(220, .12);
+}
+function doHint() {
+  if (S.ph !== 'play' || S.winT > 0) return 'no';
+  var steps = solveGrid(S.rowh, S.colh, S.n, S.grid);
+  if (!steps) { flash('盘面与花本不合，先自查'); return 'contra'; }
+  if (!steps.length) { flash('无可推之格'); return 'stuck'; }
+  var s0 = steps[0];
+  var i = s0[0] === 'r' ? s0[1] * S.n + s0[2] : s0[2] * S.n + s0[1];
+  S.grid[i] = s0[3];
+  if (s0[3] === 1) S.fill++; else S.marked++;
+  S.hints++;
+  S.hintGlow = i; S.hintT = .6;
+  tone(587, .07);
+  updHUD();
+  autoJudge();
+  return 'ok:' + i + ':' + s0[3];
+}
+function doWin() {
+  S.winT = 1.6;
+  var st = S.hints === 0 ? 3 : (S.hints <= 2 ? 2 : 1);
+  if (st > (S.stars[S.lv - 1] || 0)) S.stars[S.lv - 1] = st;
+  S.unlocked = Math.max(S.unlocked, Math.min(S.lv + 1, 24));
+  saveMain();
+  winTone();
+  updHUD();
+}
+function starsOf() { return S.hints === 0 ? 3 : (S.hints <= 2 ? 2 : 1); }
+function flash(m) { S.flashMsg = m; S.flashT = 1.6; }
+function showOver() {
+  S.ph = 'over';
+  $('oTitle').textContent = '纹 成';
+  var st = starsOf();
+  $('oStars').textContent = st === 3 ? '★★★' : (st === 2 ? '★★' : '★');
+  $('oSub').textContent = PNAMES[S.lv - 1] + ' · 第 ' + S.lv + ' 纹' + (S.hints ? ' · 援手 ' + S.hints + ' 次' : ' · 未借援手');
+  $('oNext').style.display = (S.lv < 24) ? '' : 'none';
+  $('over').classList.remove('hide');
+}
+function updHUD() {
+  $('hLv').textContent = '第 ' + S.lv + ' 纹 · ' + PNAMES[S.lv - 1];
+  $('hFill').textContent = '织 ' + S.fill + '/' + S.pat.filter(function (v) { return v === 1; }).length;
+  $('hHint').textContent = '援 ' + S.hints;
+}
+
+/* ===== 步进 ===== */
+function step(dt) {
+  S.t += dt;
+  if (S.flashT > 0) S.flashT -= dt;
+  if (S.hintT > 0) S.hintT -= dt;
+  for (var k = S.anim.length - 1; k >= 0; k--) { S.anim[k].t += dt; if (S.anim[k].t > .12) S.anim.splice(k, 1); }
+  if (S.winT > 0) {
+    S.winT -= dt;
+    if (S.winT <= 0) { S.winT = 0; showOver(); }
+  }
+  for (var p = S.parts.length - 1; p >= 0; p--) {
+    var q = S.parts[p];
+    q.y -= q.v * dt; q.life -= dt;
+    if (q.life <= 0) S.parts.splice(p, 1);
+  }
+  if (S.winT > 0 && S.parts.length < 60) {
+    for (var s = 0; s < 2; s++) {
+      var gi = Math.floor(Math.random() * S.n * S.n);
+      if (S.pat[gi] === 1) {
+        var px = G.bx + (gi % S.n) * G.cell + G.cell / 2;
+        var py = G.by + Math.floor(gi / S.n) * G.cell + G.cell / 2;
+        S.parts.push({ x: px + (Math.random() - .5) * 10, y: py, v: 26 + Math.random() * 34, life: .9 + Math.random() * .7 });
+      }
+    }
+  }
+}
+
+/* ===== 绘制 ===== */
+function draw() {
+  var W = 390, H = 780;
+  ctx.fillStyle = '#f4ead8'; ctx.fillRect(0, 0, W, H);
+  if (S.ph === 'menu') { drawMenu(); return; }
+  drawBoard();
+  drawHints();
+  drawCells();
+  if (S.winT > 0) drawWinWave();
+  drawParts();
+  if (S.flashT > 0) drawFlash();
+}
+function drawBoard() {
+  var n = S.n, c = G.cell, bx = G.bx, by = G.by;
+  ctx.fillStyle = '#e8dbbe'; ctx.fillRect(bx - 4, by - 4, G.bw + 8, G.bw + 8);
+  ctx.strokeStyle = '#8a744e'; ctx.lineWidth = 2;
+  ctx.strokeRect(bx - 4, by - 4, G.bw + 8, G.bw + 8);
+  ctx.strokeStyle = '#d8c8a8'; ctx.lineWidth = 1;
+  for (var i = 0; i <= n; i++) {
+    var heavy = (n >= 8 && i === 5);
+    ctx.strokeStyle = heavy ? '#b8a478' : '#d8c8a8';
+    ctx.lineWidth = heavy ? 2 : 1;
+    ctx.beginPath(); ctx.moveTo(bx + i * c + .5, by); ctx.lineTo(bx + i * c + .5, by + G.bw); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(bx, by + i * c + .5); ctx.lineTo(bx + G.bw, by + i * c + .5); ctx.stroke();
+  }
+}
+function drawHints() {
+  var n = S.n, c = G.cell, bx = G.bx, by = G.by;
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  ctx.font = (n <= 6 ? '13px' : '11px') + ' serif';
+  for (var y = 0; y < n; y++) {
+    var line = [];
+    for (var x = 0; x < n; x++) line.push(S.grid[y * n + x] === 1 ? 1 : 0);
+    var done = sameSeq(rleOf(line), S.rowh[y]);
+    ctx.fillStyle = done ? '#c4b696' : '#6b5638';
+    var txt = S.rowh[y].length ? S.rowh[y].join(' ') : '0';
+    ctx.fillText(txt, bx - 8, by + y * c + c / 2);
+  }
+  ctx.textAlign = 'center';
+  for (var x2 = 0; x2 < n; x2++) {
+    var col = [];
+    for (var y2 = 0; y2 < n; y2++) col.push(S.grid[y2 * n + x2] === 1 ? 1 : 0);
+    var done2 = sameSeq(rleOf(col), S.colh[x2]);
+    ctx.fillStyle = done2 ? '#c4b696' : '#6b5638';
+    var hh = S.colh[x2].length ? S.colh[x2] : [0];
+    var ch = Math.min(12, (CLH - 6) / hh.length);
+    for (var k = 0; k < hh.length; k++) {
+      ctx.fillText('' + hh[k], bx + x2 * c + c / 2, by - 6 - (hh.length - k) * ch);
+    }
+  }
+}
+function drawCells() {
+  var n = S.n, c = G.cell, bx = G.bx, by = G.by;
+  var animMap = {};
+  for (var a = 0; a < S.anim.length; a++) animMap[S.anim[a].i] = S.anim[a].t / .12;
+  for (var i = 0; i < n * n; i++) {
+    var x = bx + (i % n) * c, y = by + Math.floor(i / n) * c;
+    var v = S.grid[i];
+    if (v === 1) {
+      ctx.fillStyle = '#c8a05a'; ctx.fillRect(x + 1, y + 1, c - 2, c - 2);
+      ctx.fillStyle = '#b8904a';
+      var m = Math.max(3, Math.floor(c / 5));
+      ctx.fillRect(x + 1 + m, y + 1 + m, m, m);
+      ctx.fillRect(x + c - 1 - 2 * m, y + c - 1 - 2 * m, m, m);
+      if (animMap[i] !== undefined) {
+        var sc = .5 + .5 * Math.min(1, animMap[i]);
+        ctx.save();
+        ctx.translate(x + c / 2, y + c / 2); ctx.scale(sc, sc);
+        ctx.strokeStyle = '#e8d9a8'; ctx.lineWidth = 2;
+        ctx.strokeRect(-c / 2 + 1, -c / 2 + 1, c - 2, c - 2);
+        ctx.restore();
+      }
+    } else if (v === 2) {
+      ctx.fillStyle = '#ece2cc'; ctx.fillRect(x + 1, y + 1, c - 2, c - 2);
+      ctx.strokeStyle = '#c8b898'; ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x + c * .3, y + c * .74); ctx.lineTo(x + c * .7, y + c * .26);
+      ctx.stroke();
+    }
+    if (S.hintGlow === i && S.hintT > 0) {
+      ctx.strokeStyle = 'rgba(232,181,74,' + Math.min(1, S.hintT / .3) + ')';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x + 1.5, y + 1.5, c - 3, c - 3);
+    }
+  }
+}
+function drawWinWave() {
+  var n = S.n, c = G.cell, bx = G.bx, by = G.by;
+  var ph = 1 - S.winT / 1.6;
+  for (var i = 0; i < n * n; i++) {
+    if (S.pat[i] !== 1) continue;
+    var gx = i % n, gy = Math.floor(i / n);
+    var d = (gx + gy) / (2 * n - 2);
+    var w = ph * 1.6 - d;
+    if (w > 0 && w < .35) {
+      var al = Math.sin(w / .35 * Math.PI);
+      ctx.fillStyle = 'rgba(255,216,112,' + (al * .75) + ')';
+      ctx.fillRect(bx + gx * c + 1, by + gy * c + 1, c - 2, c - 2);
+    }
+  }
+}
+function drawParts() {
+  for (var k = 0; k < S.parts.length; k++) {
+    var q = S.parts[k];
+    ctx.fillStyle = 'rgba(232,181,74,' + Math.min(1, q.life) + ')';
+    ctx.fillRect(q.x - 1.5, q.y - 1.5, 3, 3);
+  }
+}
+function drawFlash() {
+  var y = 780 - 104;
+  var al = Math.min(1, S.flashT / .4);
+  ctx.fillStyle = 'rgba(46,38,32,' + (al * .88) + ')';
+  ctx.fillRect(0, y, 390, 34);
+  ctx.fillStyle = 'rgba(240,226,184,' + al + ')';
+  ctx.font = '14px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(S.flashMsg, 195, y + 17);
+}
+function drawMenu() {
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#6b5638';
+  ctx.font = '52px serif';
+  ctx.fillText('锦 杼 挑 纹', 195, 120);
+  ctx.font = '15px serif'; ctx.fillStyle = '#a08a5e';
+  ctx.fillText('缂丝挑经 · 按诀显花', 195, 172);
+  ctx.font = '12px serif';
+  ctx.fillText('左诀上谱，点格循环：织点 → 留白 → 复原', 195, 204);
+  var x0 = 17, y0 = 252, cw = 56, gap = 4;
+  for (var lv = 1; lv <= 24; lv++) {
+    var col = (lv - 1) % 6, row = Math.floor((lv - 1) / 6);
+    var x = x0 + col * (cw + gap), y = y0 + row * (cw + gap);
+    var locked = lv > S.unlocked;
+    ctx.fillStyle = locked ? '#e2d6bc' : (lv === Math.min(S.unlocked, 24) ? '#efe0b8' : '#e8dbbe');
+    ctx.fillRect(x, y, cw, cw);
+    ctx.strokeStyle = locked ? '#cfc2a4' : '#8a744e'; ctx.lineWidth = 1;
+    ctx.strokeRect(x + .5, y + .5, cw - 1, cw - 1);
+    ctx.fillStyle = locked ? '#b3a888' : '#5a4830';
+    ctx.font = '17px serif';
+    ctx.fillText('' + lv, x + cw / 2, y + 20);
+    var st = S.stars[lv - 1] || 0;
+    ctx.font = '11px serif'; ctx.fillStyle = locked ? '#b3a888' : '#d8a83a';
+    ctx.fillText(st === 0 ? '—' : '★'.repeat(st), x + cw / 2, y + 40);
+  }
+  ctx.fillStyle = '#3a2f24';
+  ctx.fillRect(115, 560, 160, 52);
+  ctx.strokeStyle = '#8a744e'; ctx.lineWidth = 1.5; ctx.strokeRect(115.5, 560.5, 159, 51);
+  ctx.fillStyle = '#ecdcac'; ctx.font = '21px serif';
+  ctx.fillText('开  织', 195, 586);
+  ctx.font = '12px serif'; ctx.fillStyle = '#a08a5e';
+  ctx.fillText('共二十四纹 · 皆可纯推理成纹', 195, 650);
+}
+
+/* ===== 输入 ===== */
+function onDown(e) {
+  if (S.pd !== null && S.pd !== e.pointerId) return;
+  S.pd = e.pointerId;
+  var r = cv.getBoundingClientRect();
+  var x = (e.clientX - r.left) * (390 / r.width);
+  var y = (e.clientY - r.top) * (780 / r.height);
+  if (S.ph === 'menu') {
+    var x0 = 17, y0 = 252, cw = 60;
+    var col = Math.floor((x - 17) / cw), row = Math.floor((y - 252) / cw);
+    if (col >= 0 && col < 6 && row >= 0 && row < 4) {
+      var lx = 17 + col * 60, ly = 252 + row * 60;
+      if (x >= lx && x < lx + 56 && y >= ly && y < ly + 56) {
+        var lv = row * 6 + col + 1;
+        if (lv <= S.unlocked) { ensureAC(); newGame(lv); return; }
+      }
+    }
+    if (x >= 115 && x <= 275 && y >= 560 && y <= 612) { ensureAC(); newGame(Math.min(S.unlocked, 24)); return; }
+    return;
+  }
+  if (S.ph !== 'play') return;
+  if (S.winT > 0) return;
+  var c = G.cell;
+  var gx = Math.floor((x - G.bx) / c), gy = Math.floor((y - G.by) / c);
+  if (gx >= 0 && gx < S.n && gy >= 0 && gy < S.n) {
+    tapCell(gy * S.n + gx);
+  }
+}
+function clearPd() { S.pd = null; }
+
+/* ===== 音效 ===== */
+var AC = null;
+function ensureAC() { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } if (AC && AC.state === 'suspended') AC.resume(); }
+function tone(f, d) {
+  if (S.mute || !AC) return;
+  try {
+    var o = AC.createOscillator(), g = AC.createGain();
+    o.frequency.value = f; o.type = 'sine';
+    g.gain.setValueAtTime(.12, AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001, AC.currentTime + d);
+    o.connect(g); g.connect(AC.destination);
+    o.start(); o.stop(AC.currentTime + d);
+  } catch (e) {}
+}
+function winTone() { tone(660, .16); setTimeout(function () { tone(990, .22); }, 150); }
+
+/* ===== boot ===== */
+function boot() {
+  loadSave();
+  $('btnSnd').textContent = S.mute ? '✕' : '♪';
+  geo();
+  cv.addEventListener('pointerdown', function (e) { e.preventDefault(); onDown(e); });
+  window.addEventListener('pointerup', clearPd);
+  window.addEventListener('pointercancel', clearPd);
+  $('btnSnd').onclick = function () { S.mute = !S.mute; $('btnSnd').textContent = S.mute ? '✕' : '♪'; saveMain(); ensureAC(); };
+  $('btnPause').onclick = function () { if (S.ph === 'play') { S.ph = 'pause'; $('pause').classList.remove('hide'); } };
+  $('pResume').onclick = function () { if (S.ph === 'pause') { S.ph = 'play'; $('pause').classList.add('hide'); } };
+  $('pReset').onclick = function () { $('pause').classList.add('hide'); newGame(S.lv); };
+  $('pHome').onclick = function () { $('pause').classList.add('hide'); S.winT = 0; S.parts = []; S.ph = 'menu'; };
+  $('btnHint').onclick = function () { ensureAC(); doHint(); };
+  $('btnCheck').onclick = function () { ensureAC(); doCheck(); };
+  $('btnReset').onclick = function () { if (S.ph === 'play' && S.winT <= 0) newGame(S.lv); };
+  $('oNext').onclick = function () { if (S.lv < 24) newGame(S.lv + 1); };
+  $('oReset').onclick = function () { $('over').classList.add('hide'); newGame(S.lv); };
+  $('oHome').onclick = function () { $('over').classList.add('hide'); S.ph = 'menu'; };
+  document.addEventListener('visibilitychange', function () { if (document.hidden && S.ph === 'play') { S.ph = 'pause'; $('pause').classList.remove('hide'); } });
+  var last = 0;
+  function loop(ts) {
+    var dt = Math.min(.05, (ts - last) / 1000 || 0);
+    last = ts;
+    if (S.ph !== 'pause') step(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+}
+boot();
+
+
+</script>
+</body>
+</html>
