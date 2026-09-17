@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>钱潮</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;background:#141b2e;font-family:"PingFang SC","Microsoft YaHei",sans-serif;touch-action:none}
+#app{position:relative;width:390px;height:844px;margin:0 auto;background:#1a2237;overflow:hidden}
+#cv{position:absolute;left:0;top:64px;width:390px;height:780px}
+#hud{position:absolute;left:0;top:0;width:390px;height:64px;background:linear-gradient(180deg,#202a44,#1a2237);display:flex;align-items:center;padding:0 12px;z-index:5}
+#hInfo{color:#e8d9b0;font-size:15px;letter-spacing:1px}
+#hSub{color:#8fa0c0;font-size:12px;margin-left:10px}
+.hbtn{position:absolute;top:16px;width:32px;height:32px;border-radius:8px;background:#2a3552;border:1px solid #3d4a6e;color:#c8a05a;font-size:15px;line-height:30px;text-align:center;cursor:pointer;z-index:6}
+#sndbtn{right:56px}#pausebtn{right:12px}
+#btnrow{position:absolute;left:0;bottom:0;width:390px;height:64px;background:#161d30;border-top:1px solid #2a3552;display:flex;z-index:5}
+#btnrow div{flex:1;height:64px;line-height:64px;text-align:center;color:#c8a05a;font-size:16px;letter-spacing:2px;cursor:pointer}
+#btnrow div:active{background:#222c48}
+.lay{position:absolute;inset:0;z-index:9;background:rgba(16,22,38,.92);display:flex;flex-direction:column;align-items:center;justify-content:center}
+.hide{display:none}
+#title{color:#e8d9b0;font-size:52px;letter-spacing:12px;font-weight:700;text-shadow:0 0 24px rgba(200,160,90,.4);margin-bottom:6px}
+#tsub{color:#8fa0c0;font-size:13px;letter-spacing:3px;margin-bottom:44px}
+.mbtn{width:200px;height:52px;margin:9px 0;border-radius:12px;background:#2a3552;border:1px solid #c8a05a;color:#e8d9b0;font-size:18px;letter-spacing:6px;line-height:52px;text-align:center;cursor:pointer}
+.mbtn:active{background:#3a4768}
+#lvbar{position:absolute;left:0;top:64px;width:390px;background:rgba(16,22,38,.97);z-index:8;padding:12px;display:none;flex-wrap:wrap}
+#lvbar.show{display:flex}
+.lvcell{width:56px;height:56px;margin:4px;border-radius:10px;background:#2a3552;color:#e8d9b0;font-size:18px;line-height:56px;text-align:center;cursor:pointer;border:1px solid #3d4a6e}
+.lvcell.cur{border-color:#c8a05a;background:#3a4768}
+.lvcell.lock{opacity:.32;pointer-events:none}
+#trophy .prow{display:flex;gap:10px;margin:8px 0}
+.pcell{width:76px;height:96px;border-radius:10px;background:#2a3552;border:1px solid #3d4a6e;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.pcell.on{border-color:#c8a05a}
+.pcell .pc{font-size:26px}
+.pcell .pn{font-size:11px;color:#8fa0c0;margin-top:4px}
+#oTitle{font-size:40px;letter-spacing:8px;margin-bottom:8px}
+#oStars{font-size:30px;color:#c8a05a;letter-spacing:6px;margin-bottom:6px}
+#oSub{color:#a8b4cc;font-size:14px;margin-bottom:26px}
+.obtn{width:180px;height:46px;margin:6px 0;border-radius:10px;background:#2a3552;border:1px solid #c8a05a;color:#e8d9b0;font-size:16px;letter-spacing:4px;line-height:46px;text-align:center;cursor:pointer}
+#pTitle{color:#e8d9b0;font-size:26px;letter-spacing:8px;margin-bottom:30px}
+#flash{position:absolute;left:0;top:64px;width:390px;height:40px;line-height:40px;text-align:center;color:#e8c96a;font-size:14px;letter-spacing:2px;z-index:6;pointer-events:none;opacity:0}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud"><span id="hInfo">钱潮</span><span id="hSub"></span></div>
+  <div class="hbtn" id="sndbtn">♪</div><div class="hbtn" id="pausebtn">‖</div>
+  <canvas id="cv" width="390" height="780"></canvas>
+  <div id="btnrow"><div id="bHint">拨泉</div><div id="bAgain">再潮</div><div id="bHome">钱庄</div></div>
+  <div id="menu" class="lay">
+    <div id="title">钱潮</div>
+    <div id="tsub">夜市钱摊 · 推板如潮 · 古泉入谱</div>
+    <div class="mbtn" id="mGo">开摊</div>
+    <div class="mbtn" id="mLvs">选摊</div>
+    <div class="mbtn" id="mTrophy">泉谱</div>
+  </div>
+  <div id="lvbar"></div>
+  <div id="over" class="lay hide">
+    <div id="oTitle"></div><div id="oStars"></div><div id="oSub"></div>
+    <div class="obtn" id="oNext">下一摊</div>
+    <div class="obtn" id="oAgain">再潮</div>
+    <div class="obtn" id="oHome">钱庄</div>
+  </div>
+  <div id="pause" class="lay hide">
+    <div id="pTitle">歇 息</div>
+    <div class="obtn" id="pRes">继续</div>
+    <div class="obtn" id="pHome2">钱庄</div>
+  </div>
+  <div id="trophy" class="lay hide">
+    <div id="title" style="font-size:30px">泉 谱</div>
+    <div class="prow" id="prow"></div>
+    <div class="obtn" id="tHome" style="margin-top:26px">钱庄</div>
+  </div>
+  <div id="flash"></div>
+</div>
+<script>
+'use strict';
+/* ===== 常量（与 sim134.py 同构；改物理须双侧同步）===== */
+var R=9,G=0.32,SUB=2,DESK_Y=560,EDGE_L=60,WALL_R=350,PB_W=26,PB_H=46;
+var PB_TOP=DESK_Y-PB_H,PB_LO=170.0,PB_HI=258.0,PERIOD=132;
+var E_COIN=0.12,E_WALL=0.2,E_PB=0.1,FRICS=0.9924716620639604; /* 0.985**0.5 预计算字面量（py repr 精确复制，禁手算近似/运行时 pow） */
+var SLEEP_V=0.05,DROP_X=60,STAB=600;
+var VAL=[1,5,10,20,50,120];
+var PNAMES=['铜钱','五铢','开元','乾元','大观','永通'];
+var PCOLS=['#b8945a','#9aa8b0','#d8b45a','#7ab8a0','#d0d8e8','#f0c860'];
+/* SIN134：py 离线正弦 132 项（round 3） */
+var SIN134=[170.0,170.05,170.199,170.448,170.795,171.24,171.782,172.42,173.152,173.976,174.891,175.895,176.985,178.159,179.414,180.747,182.156,183.637,185.186,186.801,188.477,190.212,192.0,193.838,195.722,197.647,199.609,201.604,203.627,205.673,207.738,209.818,211.906,214.0,216.094,218.182,220.262,222.327,224.373,226.396,228.391,230.353,232.278,234.162,236.0,237.788,239.523,241.199,242.814,244.363,245.844,247.253,248.586,249.841,251.015,252.105,253.109,254.024,254.848,255.58,256.218,256.76,257.205,257.552,257.801,257.95,258.0,257.95,257.801,257.552,257.205,256.76,256.218,255.58,254.848,254.024,253.109,252.105,251.015,249.841,248.586,247.253,245.844,244.363,242.814,241.199,239.523,237.788,236.0,234.162,232.278,230.353,228.391,226.396,224.373,222.327,220.262,218.182,216.094,214.0,211.906,209.818,207.738,205.673,203.627,201.604,199.609,197.647,195.722,193.838,192.0,190.212,188.477,186.801,185.186,183.637,182.156,180.747,179.414,178.159,176.985,175.895,174.891,173.976,173.152,172.42,171.782,171.24,170.795,170.448,170.199,170.05];
+/* LVDATA：24 关 v3 谱（lvldata134.json；ratio 0.94-0.97+敏感度门禁内嵌） */
+var LVDATA=[{"lv":1,"k":0,"coins":[[72.0,551,0],[72.0,534,0],[91.0,551,2],[91.0,534,0],[110.0,551,0],[110.0,534,2],[129.0,551,0],[129.0,534,0],[148.0,551,0],[148.0,534,0]],"N":12,"target":11,"base":0,"par":11,"sol":[171,81,81,81,117,81,81,81,117,99,90,90],"best":12},{"lv":2,"k":0,"coins":[[72.0,551,0],[72.0,534,2],[91.0,551,0],[91.0,534,0],[110.0,551,1],[110.0,534,0],[129.0,551,0],[129.0,534,0],[148.0,551,0],[148.0,534,0]],"N":12,"target":19,"base":0,"par":10,"sol":[171,81,81,81,117,81,81,81,117,99,90,90],"best":21},{"lv":3,"k":0,"coins":[[72.0,551,2],[72.0,534,0],[91.0,551,0],[91.0,534,0],[110.0,551,0],[110.0,534,2],[129.0,551,0],[129.0,534,0],[148.0,551,0],[148.0,534,0]],"N":12,"target":11,"base":0,"par":11,"sol":[171,81,81,81,117,81,81,81,117,99,90,90],"best":12},{"lv":4,"k":0,"coins":[[72.0,551,2],[72.0,534,0],[91.0,551,0],[91.0,534,2],[110.0,551,0],[110.0,534,0],[129.0,551,0],[129.0,534,0],[148.0,551,0],[148.0,534,0]],"N":12,"target":11,"base":0,"par":11,"sol":[171,81,81,81,117,81,81,81,117,99,90,90],"best":12},{"lv":5,"k":0,"coins":[[68.0,551,3],[68.0,534,1],[87.0,551,0],[87.0,534,0],[106.0,551,0],[106.0,534,0],[125.0,551,0],[125.0,534,0],[144.0,551,0],[144.0,534,0]],"N":12,"target":16,"base":0,"par":11,"sol":[171,81,81,108,81,108,81,81,81,108,90,90],"best":17},{"lv":6,"k":4,"coins":[[68.0,551,2],[68.0,534,0],[87.0,551,3],[87.0,534,0],[106.0,551,0],[106.0,534,0],[125.0,551,0],[125.0,534,0],[144.0,551,0],[144.0,534,0]],"N":12,"target":12,"base":0,"par":11,"sol":[171,81,81,108,81,108,81,81,81,108,90,90],"best":13},{"lv":7,"k":8,"coins":[[68.0,551,0],[68.0,534,1],[87.0,551,0],[87.0,534,0],[106.0,551,3],[106.0,534,0],[125.0,551,0],[125.0,534,0],[144.0,551,0],[144.0,534,0]],"N":12,"target":16,"base":0,"par":11,"sol":[171,81,81,108,81,108,81,81,81,108,90,90],"best":17},{"lv":8,"k":1,"coins":[[68.0,551,0],[68.0,534,0],[87.0,551,1],[87.0,534,0],[106.0,551,3],[106.0,534,0],[125.0,551,0],[125.0,534,0],[144.0,551,0],[144.0,534,0]],"N":12,"target":12,"base":0,"par":11,"sol":[171,81,81,108,81,108,81,81,81,108,90,90],"best":13},{"lv":9,"k":1,"coins":[[66.0,551,0],[66.0,534,0],[66.0,517,0],[85.0,551,3],[85.0,534,0],[85.0,517,0],[104.0,551,0],[104.0,534,0],[104.0,517,1],[123.0,551,0],[123.0,534,0],[123.0,517,2],[142.0,551,0],[142.0,534,0],[142.0,517,0]],"N":13,"target":52,"base":0,"par":10,"sol":[171,81,81,81,81,81,81,81,81,81,81,81,81],"best":55},{"lv":10,"k":18,"coins":[[66.0,551,0],[66.0,534,0],[66.0,517,0],[85.0,551,0],[85.0,534,0],[85.0,517,0],[104.0,551,0],[104.0,534,0],[104.0,517,0],[123.0,551,0],[123.0,534,3],[123.0,517,3],[142.0,551,0],[142.0,534,2],[142.0,517,0]],"N":13,"target":58,"base":0,"par":10,"sol":[171,81,81,81,81,81,81,81,81,81,81,81,81],"best":61},{"lv":11,"k":9,"coins":[[66.0,551,0],[66.0,534,0],[66.0,517,0],[85.0,551,0],[85.0,534,0],[85.0,517,0],[104.0,551,0],[104.0,534,0],[104.0,517,0],[123.0,551,3],[123.0,534,2],[123.0,517,2],[142.0,551,0],[142.0,534,0],[142.0,517,0]],"N":13,"target":39,"base":0,"par":11,"sol":[171,81,81,81,81,81,81,81,81,81,81,81,81],"best":41},{"lv":12,"k":45,"coins":[[66.0,551,0],[66.0,534,0],[66.0,517,0],[85.0,551,1],[85.0,534,0],[85.0,517,0],[104.0,551,0],[104.0,534,0],[104.0,517,2],[123.0,551,0],[123.0,534,0],[123.0,517,3],[142.0,551,0],[142.0,534,0],[142.0,517,0]],"N":13,"target":52,"base":0,"par":10,"sol":[171,81,81,81,81,81,81,81,81,81,81,81,81],"best":55},{"lv":13,"k":61,"coins":[[66.0,551,0],[66.0,534,0],[66.0,517,0],[85.0,551,0],[85.0,534,0],[85.0,517,0],[104.0,551,0],[104.0,534,3],[104.0,517,3],[123.0,551,0],[123.0,534,0],[123.0,517,2],[142.0,551,0],[142.0,534,0],[142.0,517,0]],"N":13,"target":67,"base":0,"par":10,"sol":[171,81,81,81,81,81,81,81,81,81,81,81,81],"best":70},{"lv":14,"k":12,"coins":[[66.0,551,0],[66.0,534,0],[66.0,517,0],[85.0,551,0],[85.0,534,0],[85.0,517,3],[104.0,551,0],[104.0,534,0],[104.0,517,0],[123.0,551,0],[123.0,534,2],[123.0,517,2],[142.0,551,0],[142.0,534,0],[142.0,517,0]],"N":13,"target":57,"base":0,"par":10,"sol":[171,81,81,81,81,81,81,81,81,81,81,81,81],"best":60},{"lv":15,"k":1,"coins":[[64.0,551,0],[64.0,534,0],[64.0,517,0],[83.0,551,0],[83.0,534,0],[83.0,517,2],[102.0,551,0],[102.0,534,3],[102.0,517,0],[121.0,551,0],[121.0,534,3],[121.0,517,0],[140.0,551,0],[140.0,534,0],[140.0,517,0],[159.0,551,0],[159.0,534,0],[159.0,517,0]],"N":13,"target":69,"base":0,"par":10,"sol":[117,90,81,81,81,81,81,81,81,81,81,81,81],"best":72},{"lv":16,"k":0,"coins":[[64.0,551,0],[64.0,534,0],[64.0,517,0],[83.0,551,0],[83.0,534,0],[83.0,517,0],[102.0,551,0],[102.0,534,2],[102.0,517,0],[121.0,551,0],[121.0,534,0],[121.0,517,0],[140.0,551,0],[140.0,534,0],[140.0,517,4],[159.0,551,0],[159.0,534,4],[159.0,517,0]],"N":13,"target":32,"base":0,"par":11,"sol":[117,90,81,81,81,81,81,81,81,81,81,81,81],"best":34},{"lv":17,"k":0,"coins":[[64.0,551,0],[64.0,534,0],[64.0,517,0],[83.0,551,0],[83.0,534,0],[83.0,517,0],[102.0,551,0],[102.0,534,0],[102.0,517,0],[121.0,551,0],[121.0,534,3],[121.0,517,0],[140.0,551,0],[140.0,534,0],[140.0,517,2],[159.0,551,3],[159.0,534,0],[159.0,517,0]],"N":13,"target":42,"base":0,"par":11,"sol":[117,90,81,81,81,81,81,81,81,81,81,81,81],"best":44},{"lv":18,"k":1,"coins":[[64.0,551,0],[64.0,534,0],[64.0,517,0],[83.0,551,0],[83.0,534,0],[83.0,517,0],[102.0,551,0],[102.0,534,0],[102.0,517,0],[121.0,551,0],[121.0,534,0],[121.0,517,0],[140.0,551,2],[140.0,534,0],[140.0,517,2],[159.0,551,2],[159.0,534,0],[159.0,517,0]],"N":13,"target":32,"base":0,"par":11,"sol":[117,90,81,81,81,81,81,81,81,81,81,81,81],"best":34},{"lv":19,"k":1,"coins":[[64.0,551,0],[64.0,534,0],[64.0,517,0],[83.0,551,0],[83.0,534,0],[83.0,517,3],[102.0,551,0],[102.0,534,0],[102.0,517,0],[121.0,551,0],[121.0,534,0],[121.0,517,0],[140.0,551,4],[140.0,534,0],[140.0,517,4],[159.0,551,0],[159.0,534,0],[159.0,517,0]],"N":13,"target":89,"base":0,"par":9,"sol":[117,90,81,81,81,81,81,81,81,81,81,81,81],"best":93},{"lv":20,"k":11,"coins":[[64.0,551,0],[64.0,534,0],[64.0,517,0],[83.0,551,0],[83.0,534,0],[83.0,517,4],[102.0,551,0],[102.0,534,0],[102.0,517,0],[121.0,551,0],[121.0,534,0],[121.0,517,0],[140.0,551,4],[140.0,534,0],[140.0,517,0],[159.0,551,5],[159.0,534,3],[159.0,517,0]],"N":14,"target":118,"base":0,"par":8,"sol":[117,90,81,81,81,81,81,81,81,81,81,81,81,81],"best":124},{"lv":21,"k":5,"coins":[[64.0,551,0],[64.0,534,4],[64.0,517,3],[83.0,551,0],[83.0,534,0],[83.0,517,0],[102.0,551,0],[102.0,534,0],[102.0,517,0],[121.0,551,4],[121.0,534,5],[121.0,517,0],[140.0,551,0],[140.0,534,0],[140.0,517,0],[159.0,551,0],[159.0,534,0],[159.0,517,0]],"N":14,"target":251,"base":0,"par":4,"sol":[171,81,81,81,81,81,81,81,81,81,81,81,108,153],"best":263},{"lv":22,"k":8,"coins":[[64.0,551,0],[64.0,534,3],[64.0,517,0],[83.0,551,0],[83.0,534,4],[83.0,517,3],[102.0,551,0],[102.0,534,0],[102.0,517,0],[121.0,551,0],[121.0,534,0],[121.0,517,0],[140.0,551,4],[140.0,534,0],[140.0,517,0],[159.0,551,0],[159.0,534,0],[159.0,517,0]],"N":14,"target":154,"base":0,"par":6,"sol":[117,90,81,81,81,81,81,81,81,81,81,81,81,81],"best":162},{"lv":23,"k":8,"coins":[[64.0,551,0],[64.0,534,3],[64.0,517,0],[83.0,551,0],[83.0,534,0],[83.0,517,0],[102.0,551,0],[102.0,534,0],[102.0,517,4],[121.0,551,4],[121.0,534,0],[121.0,517,4],[140.0,551,0],[140.0,534,0],[140.0,517,0],[159.0,551,0],[159.0,534,0],[159.0,517,0]],"N":14,"target":184,"base":0,"par":7,"sol":[171,81,81,81,81,81,81,81,81,81,81,81,108,153],"best":193},{"lv":24,"k":28,"coins":[[64.0,551,3],[64.0,534,5],[64.0,517,0],[83.0,551,0],[83.0,534,0],[83.0,517,0],[102.0,551,0],[102.0,534,0],[102.0,517,0],[121.0,551,4],[121.0,534,0],[121.0,517,0],[140.0,551,0],[140.0,534,0],[140.0,517,0],[159.0,551,0],[159.0,534,4],[159.0,517,0]],"N":14,"target":204,"base":0,"par":6,"sol":[171,81,81,81,81,81,81,81,81,81,81,81,108,153],"best":214}];
+var M214=2147483647;
+function LCG(x0){this.x=x0%M214||1}
+LCG.prototype.n=function(){this.x=this.x*48271%M214;return this.x};
+LCG.prototype.u=function(m){this.n();return (this.x*m-this.x*m%M214)/M214}; /* 先推进再取比例（g133 U 范式） */
+
+/* ===== 世界（js 侧物理，与 sim134.py step 逐行同构）===== */
+function mkC(x,y,tp){return {x:x,y:y,vx:0,vy:0,tp:tp,sleep:false,fall:0}}
+var S={ph:'menu',lv:1,coins:[],falling:[],f:0,dropped:[],score:0,thrown:0,hints:0,hits:0,
+       pend:[],winT:0,loseT:0,reached:0,reachT:0,parts:[],collected:{},best:{},unlocked:1,snd:1,flashT:0,lastDropF:0,lastActF:0};
+function pbV(){return SIN134[(S.f+1)%PERIOD]-SIN134[S.f%PERIOD]}
+function dropChk(c){if(c.x+R<DROP_X&&c.fall===0){c.fall=1;return true}return false}
+function stepW(){
+  var pv=pbV();
+  for(var s2=0;s2<SUB;s2++){
+    var px=SIN134[S.f%PERIOD];
+    for(var ci=0;ci<S.coins.length;ci++){
+      var c=S.coins[ci];
+      if(c.sleep)continue;
+      c.vy+=G/SUB;c.x+=c.vx/SUB;c.y+=c.vy/SUB;
+      if(c.y>DESK_Y-R){c.y=DESK_Y-R;if(c.vy>0)c.vy=0;c.vx*=FRICS;
+        if(Math.abs(c.vx)<SLEEP_V&&Math.abs(c.vy)<SLEEP_V){c.sleep=true;c.vx=0;c.vy=0}}
+      if(c.x>WALL_R-R){c.x=WALL_R-R;if(c.vx>0)c.vx=-c.vx*E_WALL}
+      dropChk(c);
+      if(c.fall>0)continue;   /* 同构白名单①：js 跳过已标记掉落币的推板检测，py 侧仍过——掉落币 x<51 距推板≥110px 分支不可达，数值等价（G3 m-2） */
+      var qx=c.x<px?px:(c.x>px+PB_W?px+PB_W:c.x);
+      var qy=c.y<PB_TOP?PB_TOP:(c.y>DESK_Y?DESK_Y:c.y);
+      var dx=c.x-qx,dy=c.y-qy,d2=dx*dx+dy*dy;
+      if(d2<R*R){S.hits++;c.sleep=false;
+        if(dy<-1e-9&&Math.abs(dx)<1e-9&&c.y<PB_TOP){
+          c.y=PB_TOP-R;if(c.vy>0)c.vy=0;
+          if(pv<=0){c.vx=c.vx*0.5+pv*0.5}else{c.vx=c.vx*0.9+pv*0.1}
+        }else if(dx>1e-9&&Math.abs(dy)<1e-9&&c.x>px+PB_W){
+          c.x=px+PB_W+R;if((c.vx-pv)<0)c.vx=pv+(c.vx-pv)*-E_PB;
+        }else if(dx<-1e-9&&Math.abs(dy)<1e-9&&c.x<px){
+          c.x=px-R;if((c.vx-pv)<0)c.vx=pv;
+        }else{
+          var d=Math.sqrt(d2);
+          if(d>1e-9){var nx=dx/d,ny=dy/d;c.x=qx+nx*R;c.y=qy+ny*R;
+            var rvx=c.vx-pv,vn=rvx*nx+c.vy*ny;
+            if(vn<0){var j=-(1+E_PB)*vn;c.vx+=j*nx;c.vy+=j*ny}
+          }else{c.x=px-R}
+        }
+      }
+    }
+    var cs=S.coins;
+    for(var i=0;i<cs.length;i++){
+      var a=cs[i];
+      for(var j2=i+1;j2<cs.length;j2++){
+        var b=cs[j2];
+        var ddx=b.x-a.x,ddy=b.y-a.y,rr=2*R;
+        if(ddx*ddx+ddy*ddy<rr*rr){S.hits++;
+          var dd2=ddx*ddx+ddy*ddy,d=Math.sqrt(dd2);
+          if(d<1e-9){ddx=1e-9;ddy=0;d=1e-9}
+          var nx=ddx/d,ny=ddy/d,ov=(rr-d)/2;
+          a.x-=nx*ov;a.y-=ny*ov;b.x+=nx*ov;b.y+=ny*ov;
+          var va=a.sleep?0:a.vx,vya=a.sleep?0:a.vy,vb=b.sleep?0:b.vx,vyb=b.sleep?0:b.vy;
+          var rvn=(vb-va)*nx+(vyb-vya)*ny;
+          if(rvn<0){var jj=-(1+E_COIN)*rvn/2;
+            if(!a.sleep){a.vx-=jj*nx;a.vy-=jj*ny}
+            if(!b.sleep){b.vx+=jj*nx;b.vy+=jj*ny}}
+          if(rvn<-0.3){a.sleep=false;b.sleep=false}
+        }
+      }
+      if(a.x+R<DROP_X)dropChk(a);
+    }
+    var keep=[];
+    for(var k=0;k<cs.length;k++){if(cs[k].fall>0){S.falling.push(cs[k])}else{keep.push(cs[k])}}
+    S.coins=keep;
+  }
+  /* 同构白名单②：js 倒序 vs py 正序遍历坠槽——dropped 顺序无消费方（仅 length/整数累加），等价（G3 m-2） */
+  for(var fi=S.falling.length-1;fi>=0;fi--){
+    S.falling[fi].fall++;
+    if(S.falling[fi].fall>30){
+      var tp=S.falling[fi].tp;
+      S.falling.splice(fi,1);S.dropped.push(tp);S.score+=VAL[tp];
+      if(tp>0&&!S.collected[tp]){S.collected[tp]=1;flashMsg(PNAMES[tp]+' 入谱！');saveMain()}   /* 入谱即落盘（G3 M-R1）：败局/中途回菜单/达标窗口离开均不丢泉谱 */
+    }
+  }
+  S.f++;
+}
+function dropCoin(x,tp){S.lastDropF=S.f;S.coins.push(mkC(x,120.0,tp||0))}
+
+/* ===== 关卡/UI ===== */
+var els={};
+function $(id){return document.getElementById(id)}
+function updHUD(){
+  var L=LVDATA[S.lv-1];
+  els.hInfo.textContent='第 '+S.lv+' 摊 · '+S.score+'/'+L.target+' 文';
+  var done=S.score>=L.target;
+  els.hSub.textContent='投 '+S.thrown+'/'+L.N+(done?' · 已达标':'');
+  els.hSub.style.color=done?'#e8c96a':'#8fa0c0';
+}
+function loadLv(lv){
+  S.lv=lv;var L=LVDATA[lv-1];
+  S.coins=[];S.falling=[];S.f=0;S.dropped=[];S.score=0;S.thrown=0;S.hints=0;S.pend=[];S.winT=0;S.loseT=0;S.reached=0;S.reachT=0;S.parts=[];
+  for(var i=0;i<L.coins.length;i++)S.coins.push(mkC(L.coins[i][0],L.coins[i][1],L.coins[i][2]));
+  for(var t=0;t<STAB;t++)stepW();
+  S.lastDropF=S.f;S.lastActF=S.f;   /* 落定钟归零：STAB 后起算（G3 F-1） */
+  updHUD();
+}
+function starsOf(){
+  var L=LVDATA[S.lv-1];
+  var used=S.reachT||S.thrown;   /* 达标时刻用投数（续投刷分不改星级，SPEC §1.9） */
+  if(used<=L.par&&S.hints===0)return 3;
+  if(used<=L.par+3&&S.hints<=1)return 2;
+  return 1;
+}
+function finishWin(){
+  var st=starsOf();
+  S.winT=1;S.ph='over';
+  S.best[S.lv]=Math.max(S.best[S.lv]||0,S.score);
+  if(S.lv>=S.unlocked&&S.lv<24)S.unlocked=S.lv+1;
+  saveMain();
+  els.oTitle.textContent='钱 潮 落 定';els.oTitle.style.color='#e8c96a';
+  els.oStars.textContent=st===3?'★★★':(st===2?'★★☆':'★☆☆');
+  els.oSub.textContent=S.score+' 文 · 用 '+S.thrown+' 投（par '+LVDATA[S.lv-1].par+'）';
+  els.oNext.style.display=S.lv<24?'block':'none';
+  $('over').classList.remove('hide');
+  snd('win');
+}
+function finishLose(){
+  S.loseT=1;S.ph='over';
+  els.oTitle.textContent='潮 落 未 及';els.oTitle.style.color='#a8b4cc';
+  els.oStars.textContent='';
+  els.oSub.textContent=S.score+' 文 · 差 '+(LVDATA[S.lv-1].target-S.score)+' 文';
+  els.oNext.style.display='none';
+  $('over').classList.remove('hide');
+  snd('lose');
+}
+function newGame(lv){loadLv(lv);S.ph='play';$('menu').classList.add('hide');$('over').classList.add('hide');$('lvbar').classList.remove('show');$('trophy').classList.add('hide')}
+function home(){$('menu').classList.remove('hide');$('over').classList.add('hide');$('pause').classList.add('hide');$('lvbar').classList.remove('show');$('trophy').classList.add('hide');S.ph='menu';els.hInfo.textContent='钱潮';els.hSub.textContent=''}
+function flashMsg(t){els.flash.textContent=t;S.flashT=90}
+/* 存档 */
+var KEY='g134_coin';
+function saveMain(){try{localStorage.setItem(KEY,JSON.stringify({best:S.best,unlocked:S.unlocked,collected:Object.keys(S.collected).map(Number),snd:S.snd}))}catch(e){}}
+function loadSave(){
+  try{
+    var v=localStorage.getItem(KEY);if(!v)return;
+    var d=JSON.parse(v);
+    if(typeof d!=='object'||!d)return;
+    if(typeof d.unlocked!=='number'||!isFinite(d.unlocked)||Math.floor(d.unlocked)!==d.unlocked||d.unlocked<1||d.unlocked>24)return;   /* 整数门禁（G3 m-1：1.5 过旧校验→LVDATA[0.5] 崩） */
+    if(!d.best||typeof d.best!=='object'||Array.isArray(d.best))return;
+    for(var k in d.best){var vv=d.best[k];if(typeof k!=='string'||!/^[0-9]+$/.test(k)||+k<1||+k>24||typeof vv!=='number'||!isFinite(vv)||Math.floor(vv)!==vv||vv<0||vv>9999)return}   /* 键关窗+值整数非负有界（G3 m-R4 卫生） */
+    if(d.collected&&!Array.isArray(d.collected))return;
+    S.best={};
+    for(var k2 in d.best){S.best[+k2]=d.best[k2]}
+    S.unlocked=d.unlocked;
+    if(d.collected&&d.collected.length){for(var i=0;i<d.collected.length;i++){var t=d.collected[i];if(typeof t==='number'&&Math.floor(t)===t&&t>=1&&t<=5)S.collected[t]=1}}   /* 项整数门禁（G3 m-R4） */
+    if(typeof d.snd==='number')S.snd=d.snd;
+  }catch(e){}
+}
+/* 音效 */
+var AC=null;
+function ensureAC(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}if(AC&&AC.state==='suspended')AC.resume()}
+function tone(f,dur,dly,vol){if(!AC||!S.snd)return;var t0=AC.currentTime+(dly||0);var o=AC.createOscillator(),gn=AC.createGain();o.type='triangle';o.frequency.value=f;gn.gain.setValueAtTime(vol||0.12,t0);gn.gain.exponentialRampToValueAtTime(0.001,t0+dur);o.connect(gn);gn.connect(AC.destination);o.start(t0);o.stop(t0+dur)}
+function snd(k){
+  if(k==='drop')tone(660,0.08,0,0.08);
+  else if(k==='clink')tone(880,0.05,0,0.05);
+  else if(k==='fall')tone(520,0.12,0,0.1);
+  else if(k==='coin_special'){tone(660,0.1,0,0.1);tone(990,0.14,0.09,0.1)}
+  else if(k==='win'){tone(523,0.12,0);tone(659,0.12,0.1);tone(784,0.2,0.2)}
+  else if(k==='lose')tone(330,0.25,0,0.1);
+}
+/* 输入 */
+function tryThrow(x){
+  if(S.ph!=='play')return false;
+  var L=LVDATA[S.lv-1];
+  if(S.thrown>=L.N)return false;
+  x=Math.round(x/3)*3;if(x<80)x=80;if(x>252)x=252;
+  S.pend.push(x);S.thrown++;S.lastActF=S.f;
+  updHUD();snd('drop');
+  return true;
+}
+/* 提示（拨泉）*/
+function doHint(){
+  if(S.ph!=='play'||S.hints>=3)return;
+  var L=LVDATA[S.lv-1];
+  var x=L.sol[Math.min(S.thrown,L.sol.length-1)];
+  S.hintX=x;S.hintT=90;S.hints++;
+  updHUD();
+}
+/* ===== 渲染 ===== */
+var cv,ctx;
+function draw(){
+  ctx.clearRect(0,0,390,780);
+  /* 背景夜市 */
+  var g=ctx.createLinearGradient(0,0,0,780);g.addColorStop(0,'#1a2237');g.addColorStop(1,'#12182a');
+  ctx.fillStyle=g;ctx.fillRect(0,0,390,780);
+  /* 远景灯笼串 */
+  ctx.globalAlpha=0.25;
+  for(var i=0;i<6;i++){var lx=30+i*66,ly=40+((i%2)*14);
+    ctx.fillStyle='#8a4a3a';ctx.beginPath();ctx.arc(lx,ly+420,8,0,6.283);ctx.fill()}
+  ctx.globalAlpha=1;
+  /* 槽（左缘）*/
+  ctx.fillStyle='#3a2a22';ctx.fillRect(0,DESK_Y-70,EDGE_L,150);
+  ctx.fillStyle='#5a3a2a';ctx.fillRect(6,DESK_Y+50,44,10);
+  ctx.fillStyle='#c05a3a';ctx.fillRect(EDGE_L-6,DESK_Y-64,4,128);
+  /* 台面 */
+  ctx.fillStyle='#3d3226';ctx.fillRect(EDGE_L,DESK_Y,WALL_R-EDGE_L,12);
+  ctx.fillStyle='#4a3c2e';ctx.fillRect(EDGE_L,DESK_Y,WALL_R-EDGE_L,3);
+  /* 右壁 */
+  ctx.fillStyle='#332a20';ctx.fillRect(WALL_R,DESK_Y-90,10,102);
+  /* 掉落中的币（坠槽）*/
+  for(var fi=0;fi<S.falling.length;fi++){
+    var c=S.falling[fi];var p=Math.min(1,c.fall/30);
+    var fx=c.x-(c.x-28)*p,fy=c.y+(700-c.y)*p;
+    drawCoin(fx,fy,c.tp,0.9-p*0.3);
+  }
+  /* 台上币 */
+  for(var i2=0;i2<S.coins.length;i2++){drawCoin(S.coins[i2].x,S.coins[i2].y,S.coins[i2].tp,1)}
+  /* 推板 */
+  var px=SIN134[S.f%PERIOD];
+  ctx.fillStyle='#6a5238';ctx.fillRect(px,PB_TOP,PB_W,PB_H);
+  ctx.fillStyle='#7d6244';ctx.fillRect(px,PB_TOP,PB_W,6);
+  ctx.strokeStyle='#4a3a28';ctx.lineWidth=2;ctx.strokeRect(px+1,PB_TOP+1,PB_W-2,PB_H-2);
+  ctx.fillStyle='#c8a05a';ctx.fillRect(px,PB_TOP,PB_W,2);
+  /* 投币轨道 */
+  ctx.fillStyle='#2a3552';ctx.fillRect(78,90,178,8);
+  ctx.fillStyle='#c8a05a';ctx.fillRect(84,94,166,2);
+  /* 提示箭头 */
+  if(S.hintT>0){S.hintT--;
+    ctx.fillStyle='rgba(232,201,106,'+(S.hintT/90*0.9)+')';
+    ctx.beginPath();ctx.moveTo(S.hintX,110);ctx.lineTo(S.hintX-8,96);ctx.lineTo(S.hintX+8,96);ctx.closePath();ctx.fill();
+  }
+  /* 彩带粒子 */
+  for(var pi=S.parts.length-1;pi>=0;pi--){var p2=S.parts[pi];p2.y+=p2.vy;p2.vy+=0.08;p2.x+=p2.vx;p2.life--;
+    if(p2.life<=0){S.parts.splice(pi,1);continue}
+    ctx.globalAlpha=Math.min(1,p2.life/30);
+    ctx.fillStyle=p2.col;ctx.fillRect(p2.x,p2.y,4,8);ctx.globalAlpha=1;
+  }
+  if(S.flashT>0){S.flashT--;els.flash.style.opacity=Math.min(1,S.flashT/30)}else{els.flash.style.opacity=0}
+}
+function drawCoin(x,y,tp,alpha){
+  ctx.globalAlpha=alpha;
+  ctx.fillStyle=PCOLS[tp];
+  ctx.beginPath();ctx.arc(x,y,R,0,6.283);ctx.fill();
+  ctx.strokeStyle='rgba(0,0,0,0.35)';ctx.lineWidth=1;ctx.stroke();
+  ctx.fillStyle='#1a2237';ctx.fillRect(x-2.5,y-2.5,5,5); /* 方孔 */
+  if(tp>0){ctx.fillStyle='#2a2016';ctx.font='7px sans-serif';ctx.textAlign='center';
+    ctx.fillText(['','五','開','乾','觀','永'][tp],x,y+13)}
+  ctx.globalAlpha=1;
+}
+/* ===== 主循环（固定帧步）===== */
+var last=0,acc=0;
+function loop(ts){
+  var dt=Math.min(50,ts-last);last=ts;acc+=dt;
+  while(acc>=1000/60){
+    acc-=1000/60;
+    if(S.ph==='play'){
+      while(S.pend.length){dropCoin(S.pend.shift(),0)}
+      stepW();
+      if(S.score>=LVDATA[S.lv-1].target&&!S.reached){
+        S.reached=1;S.reachT=S.thrown;
+        for(var i=0;i<40;i++)S.parts.push({x:20+Math.random()*350,y:-10,vx:(Math.random()-0.5)*2,vy:1+Math.random()*2,life:60+Math.random()*40,col:['#e8c96a','#c05a3a','#7ab8a0','#d8b45a'][i%4]});
+        snd('coin_special');
+      }
+      updHUD();   /* 每帧刷新（G3 M-1：掉落计分/达标态不得陈旧——g128 教训复发防线） */
+      var L=LVDATA[S.lv-1];
+      /* 落定结算（G3 F-1/M-3）：须静默 600 帧（自末次投放/操作起）且坠槽空——防投尽当帧空中误判；
+         投尽→胜负裁定；达标未投尽→闲置自动胜结算（600 帧=10s 续投刷分窗口，每次投币重置时钟） */
+      if(S.winT===0&&S.loseT===0&&S.falling.length===0&&S.f-Math.max(S.lastDropF,S.lastActF)>=600){
+        if(S.thrown>=L.N){if(S.score>=L.target){finishWin()}else{finishLose()}}
+        else if(S.reached===1){finishWin()}
+      }
+    }
+  }
+  draw();
+  requestAnimationFrame(loop);
+}
+/* ===== boot ===== */
+function buildLvbar(){
+  var bar=$('lvbar');bar.innerHTML='';
+  for(var i=1;i<=24;i++){
+    var d=document.createElement('div');d.className='lvcell'+(i<=S.unlocked?'':' lock')+(i===S.lv?' cur':'');d.textContent=i;
+    d.onclick=(function(k){return function(){newGame(k)}})(i);
+    bar.appendChild(d);
+  }
+}
+function boot(){
+  ['hInfo','hSub','sndbtn','pausebtn','menu','over','pause','trophy','lvbar','flash','oTitle','oStars','oSub','oNext'].forEach(function(id){els[id]=$(id)});
+  cv=$('cv');ctx=cv.getContext('2d');
+  loadSave();
+  $('mGo').onclick=function(){ensureAC();newGame(S.unlocked>1?S.unlocked:1)};
+  $('mLvs').onclick=function(){buildLvbar();$('menu').classList.add('hide');$('lvbar').classList.add('show')};
+  $('mTrophy').onclick=function(){renderTrophy();$('trophy').classList.remove('hide');S.ph='trophy'};
+  $('tHome').onclick=home;
+  $('bAgain').onclick=function(){if(S.ph==='play'){newGame(S.lv)}};
+  $('bHome').onclick=home;
+  $('bHint').onclick=function(){ensureAC();doHint()};
+  $('oAgain').onclick=function(){newGame(S.lv)};
+  $('oNext').onclick=function(){if(S.lv<24)newGame(S.lv+1)};
+  $('oHome').onclick=home;
+  $('pausebtn').onclick=function(){if(S.ph==='play'){S.ph='pause';$('pause').classList.remove('hide')}};
+  $('pRes').onclick=function(){if(S.ph==='pause'){S.ph='play';$('pause').classList.add('hide')}};
+  $('pHome2').onclick=home;
+  $('sndbtn').onclick=function(){S.snd=S.snd?0:1;els.sndbtn.textContent=S.snd?'♪':'✕';saveMain();ensureAC()};
+  els.sndbtn.textContent=S.snd?'♪':'✕';
+  cv.addEventListener('pointerdown',function(e){
+    ensureAC();
+    if(S.ph!=='play')return;
+    var r=cv.getBoundingClientRect();
+    tryThrow((e.clientX-r.left)*390/r.width);
+  });
+  window.addEventListener('keydown',function(e){
+    var k=e.key;
+    if(S.ph!=='play')return;
+    if(k==='ArrowLeft'||k==='a'){if(S.aimX===undefined)S.aimX=160;S.aimX=Math.max(80,S.aimX-9);flashMsg('投点 '+S.aimX)}
+    else if(k==='ArrowRight'||k==='d'){if(S.aimX===undefined)S.aimX=160;S.aimX=Math.min(252,S.aimX+9);flashMsg('投点 '+S.aimX)}
+    else if(k===' '||k==='ArrowDown'||k==='s'){tryThrow(S.aimX===undefined?166:S.aimX)}
+  });
+  document.addEventListener('visibilitychange',function(){if(document.hidden&&S.ph==='play'){S.ph='pause';$('pause').classList.remove('hide')}});
+  requestAnimationFrame(loop);
+}
+function renderTrophy(){
+  var pr=$('prow');pr.innerHTML='';
+  for(var t=1;t<=5;t++){
+    var d=document.createElement('div');d.className='pcell'+(S.collected[t]?' on':'');
+    d.innerHTML='<div class="pc">'+(S.collected[t]?'○':'？')+'</div><div class="pn">'+PNAMES[t]+' '+VAL[t]+'文</div>';
+    d.firstChild.style.color=PCOLS[t];
+    pr.appendChild(d);
+  }
+}
+
+boot();
+</script>
+</body>
+</html>
