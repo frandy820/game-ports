@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
+<title>打瓦</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{width:100%;height:100%;background:#1a1410;overflow:hidden;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+#app{position:relative;width:390px;height:844px;margin:0 auto;background:#2b2018;overflow:hidden}
+#hud{position:absolute;top:0;left:0;width:100%;height:64px;background:#241a12;border-bottom:2px solid #4a3826;display:flex;align-items:center;justify-content:space-between;padding:0 14px;z-index:5}
+#hInfo{color:#e8d5b0;font-size:15px;font-weight:700;letter-spacing:1px}
+#hSub{color:#a08c68;font-size:12px;letter-spacing:1px}
+#cv{position:absolute;top:64px;left:0}
+.btnrow{position:absolute;bottom:0;left:0;width:100%;height:64px;background:#241a12;border-top:2px solid #4a3826;display:flex;align-items:center;justify-content:space-around;z-index:8}
+.hbtn{min-width:64px;padding:9px 14px;background:#3d2e1e;border:1px solid #5a4530;border-radius:10px;color:#d9c28a;font-size:14px;font-weight:600;text-align:center;cursor:pointer}
+.hbtn:active{background:#4d3a26}
+.lay{position:absolute;inset:0;background:rgba(20,14,8,.86);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9}
+.hide{display:none}
+#menu h1{color:#e8c96a;font-size:44px;letter-spacing:10px;font-weight:800;text-shadow:0 3px 12px rgba(232,201,106,.25);margin-bottom:6px}
+#menu .msub{color:#a08c68;font-size:13px;letter-spacing:4px;margin-bottom:40px}
+.mrow{display:flex;gap:14px}
+.mbtn{width:120px;padding:14px 0;background:#3d2e1e;border:1px solid #5a4530;border-radius:12px;color:#e8d5b0;font-size:16px;font-weight:700;text-align:center;cursor:pointer}
+.mbtn:active{background:#4d3a26}
+#over .ot{color:#e8c96a;font-size:34px;letter-spacing:8px;font-weight:800;margin-bottom:12px}
+#over .os{color:#e8c96a;font-size:26px;letter-spacing:6px;margin-bottom:10px}
+#over .osub{color:#a08c68;font-size:13px;letter-spacing:2px;margin-bottom:34px}
+#trophy .tt{color:#e8d5b0;font-size:24px;letter-spacing:6px;font-weight:800;margin-bottom:26px}
+.pgrid{display:flex;gap:12px;margin-bottom:30px}
+.pcell{width:64px;height:64px;border:1px solid #5a4530;border-radius:10px;background:#332619;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.pcell .pv{width:34px;height:12px;border-radius:2px}
+.pcell .pn{color:#8a775a;font-size:10px}
+.pcell.on .pn{color:#d9c28a}
+#lvbar{position:absolute;top:64px;left:0;width:100%;background:rgba(36,26,18,.97);border-bottom:2px solid #4a3826;display:flex;flex-wrap:wrap;gap:8px;padding:12px;z-index:10}
+.lvcell{width:44px;height:44px;border-radius:8px;background:#3d2e1e;border:1px solid #5a4530;color:#d9c28a;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.lvcell.lock{color:#5a4a34;border-color:#3a2d1e;background:#2b2016}
+.lvcell:active{background:#4d3a26}
+#pause .pt{color:#e8d5b0;font-size:26px;letter-spacing:6px;font-weight:800;margin-bottom:28px}
+.flash{position:absolute;top:76px;left:0;width:100%;text-align:center;color:#e8c96a;font-size:14px;letter-spacing:2px;z-index:6;pointer-events:none;transition:opacity .4s}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud"><div id="hInfo">打瓦</div><div id="hSub"></div></div>
+  <canvas id="cv" width="390" height="780"></canvas>
+  <div class="btnrow">
+    <div class="hbtn" id="bHint">闪轨 ×3</div>
+    <div class="hbtn" id="bTrophy">瓦谱</div>
+    <div class="hbtn" id="pausebtn">暂停</div>
+  </div>
+  <div class="lay hide" id="menu">
+    <h1>打 瓦</h1>
+    <div class="msub">巷口泥丸 · 弹碎瓦阵</div>
+    <div class="mrow">
+      <div class="mbtn" id="mGo">开阵</div>
+      <div class="mbtn" id="mLvs">选阵</div>
+      <div class="mbtn" id="mTrophy">瓦谱</div>
+    </div>
+  </div>
+  <div class="lay hide" id="over">
+    <div class="ot" id="oTitle">瓦阵已清</div>
+    <div class="os" id="oStars"></div>
+    <div class="osub" id="oSub"></div>
+    <div class="mrow">
+      <div class="mbtn hide" id="bNext">下一阵</div>
+      <div class="mbtn" id="bAgain">再战</div>
+      <div class="mbtn" id="bHome">回巷口</div>
+    </div>
+  </div>
+  <div class="lay hide" id="pause">
+    <div class="pt">暂 停</div>
+    <div class="mrow">
+      <div class="mbtn" id="pRes">续战</div>
+      <div class="mbtn" id="pMute">声音</div>
+      <div class="mbtn" id="pHome">回巷口</div>
+    </div>
+  </div>
+  <div class="lay hide" id="trophy">
+    <div class="tt">瓦 谱</div>
+    <div class="pgrid" id="pgrid"></div>
+    <div class="mbtn" id="pBack">收起</div>
+  </div>
+  <div id="lvbar" class="hide"></div>
+  <div class="flash" id="flash" style="opacity:0"></div>
+</div>
+<script>
+'use strict';
+/* ==== g135 打瓦 物理内核（与 sim135.py 逐行同构；帧序：托→丸→道具→判定）==== */
+var R=6.0,WALL_L=15.0,WALL_R=375.0,WALL_T=78.0,PAD_Y=690.0,PAD_H=12.0,PAD_W0=64.0,BALL_Y_MAX=742.0,TW=42.0,TH=14.0,TOP_Y=100.0;
+var V_RAMP=0.15,V_RAMP_CAP=2.4,SUB=2;
+var COSB=[[-0.866025403784,0.5],[-0.819152044289,0.573576436351],[-0.766044443119,0.642787609687],[-0.707106781187,0.707106781187],[-0.642787609687,0.766044443119],[-0.573576436351,0.819152044289],[-0.5,0.866025403784],[-0.422618261741,0.906307787037],[-0.342020143326,0.939692620786],[-0.258819045103,0.965925826289],[-0.173648177667,0.984807753012],[-0.087155742748,0.996194698092],[0.0,1.0],[0.087155742748,0.996194698092],[0.173648177667,0.984807753012],[0.258819045103,0.965925826289],[0.342020143326,0.939692620786],[0.422618261741,0.906307787037],[0.5,0.866025403784],[0.573576436351,0.819152044289],[0.642787609687,0.766044443119],[0.707106781187,0.707106781187],[0.766044443119,0.642787609687],[0.819152044289,0.573576436351],[0.866025403784,0.5]];
+var LAUNCH=[[-0.422618261741,0.906307787037],[0.0,1.0],[0.422618261741,0.906307787037]];
+var C8=0.990268068742,S8=0.13917310096,C30=0.866025403784,S30=0.5;
+var TILE_HP=[1,2,3,1000000000,1],TILE_SC=[10,25,50,0,30];
+var PNAMES=['素瓦','琉璃瓦','鎏金瓦','脊砖','宝瓦'];
+var LVDATA=[{"lv":1,"k":0,"tiles":[[37.0,100.0,0,null],[81.0,100.0,0,null],[125.0,100.0,0,null],[169.0,100.0,0,null],[213.0,100.0,0,null],[257.0,100.0,0,null],[301.0,100.0,0,null],[37.0,117.0,0,null],[81.0,117.0,0,null],[125.0,117.0,0,null],[169.0,117.0,0,null],[213.0,117.0,4,2],[257.0,117.0,0,null],[301.0,117.0,0,null],[37.0,134.0,0,null],[81.0,134.0,0,null],[125.0,134.0,0,null],[169.0,134.0,0,null],[213.0,134.0,0,null],[257.0,134.0,0,null],[301.0,134.0,0,null]],"v0":6.0,"par":4312,"hw":4},{"lv":2,"k":0,"tiles":[[37.0,100.0,0,null],[81.0,100.0,0,null],[125.0,100.0,0,null],[169.0,100.0,0,null],[213.0,100.0,0,null],[257.0,100.0,0,null],[301.0,100.0,0,null],[37.0,117.0,0,null],[81.0,117.0,0,null],[125.0,117.0,0,null],[169.0,117.0,0,null],[213.0,117.0,0,null],[257.0,117.0,0,null],[301.0,117.0,0,null],[37.0,134.0,0,null],[81.0,134.0,0,null],[125.0,134.0,4,2],[169.0,134.0,0,null],[213.0,134.0,0,null],[257.0,134.0,0,null],[301.0,134.0,0,null]],"v0":6.0,"par":5116,"hw":3},{"lv":3,"k":0,"tiles":[[37.0,100.0,4,1],[81.0,100.0,0,null],[125.0,100.0,0,null],[169.0,100.0,0,null],[213.0,100.0,0,null],[257.0,100.0,0,null],[301.0,100.0,0,null],[37.0,117.0,0,null],[81.0,117.0,0,null],[125.0,117.0,0,null],[169.0,117.0,0,null],[213.0,117.0,0,null],[257.0,117.0,0,null],[301.0,117.0,0,null],[37.0,134.0,0,null],[81.0,134.0,0,null],[125.0,134.0,0,null],[169.0,134.0,0,null],[213.0,134.0,0,null],[257.0,134.0,0,null],[301.0,134.0,0,null]],"v0":6.0,"par":4370,"hw":4},{"lv":4,"k":0,"tiles":[[37.0,100.0,0,null],[81.0,100.0,0,null],[125.0,100.0,0,null],[169.0,100.0,0,null],[213.0,100.0,0,null],[257.0,100.0,4,0],[301.0,100.0,0,null],[37.0,117.0,0,null],[81.0,117.0,0,null],[125.0,117.0,0,null],[169.0,117.0,0,null],[213.0,117.0,0,null],[257.0,117.0,0,null],[301.0,117.0,0,null],[37.0,134.0,0,null],[81.0,134.0,0,null],[125.0,134.0,0,null],[169.0,134.0,0,null],[213.0,134.0,0,null],[257.0,134.0,0,null],[301.0,134.0,0,null]],"v0":6.0,"par":4748,"hw":4},{"lv":5,"k":0,"tiles":[[37.0,100.0,0,null],[81.0,100.0,0,null],[125.0,100.0,0,null],[169.0,100.0,0,null],[213.0,100.0,0,null],[257.0,100.0,4,1],[301.0,100.0,0,null],[37.0,134.0,0,null],[81.0,134.0,1,null],[125.0,134.0,0,null],[169.0,134.0,1,null],[213.0,134.0,0,null],[257.0,134.0,0,null],[301.0,134.0,0,null]],"v0":6.4,"par":3937,"hw":4},{"lv":6,"k":0,"tiles":[[37.0,100.0,1,null],[81.0,100.0,0,null],[125.0,100.0,0,null],[169.0,100.0,0,null],[213.0,100.0,0,null],[257.0,100.0,0,null],[301.0,100.0,0,null],[37.0,134.0,1,null],[81.0,134.0,0,null],[125.0,134.0,0,null],[169.0,134.0,0,null],[213.0,134.0,0,null],[257.0,134.0,0,null],[301.0,134.0,4,1]],"v0":6.4,"par":5631,"hw":4},{"lv":7,"k":0,"tiles":[[37.0,100.0,0,null],[81.0,100.0,0,null],[125.0,100.0,0,null],[169.0,100.0,0,null],[213.0,100.0,0,null],[257.0,100.0,1,null],[301.0,100.0,1,null],[37.0,134.0,4,1],[81.0,134.0,0,null],[125.0,134.0,0,null],[169.0,134.0,0,null],[213.0,134.0,0,null],[257.0,134.0,0,null],[301.0,134.0,0,null]],"v0":6.4,"par":4611,"hw":4},{"lv":8,"k":1,"tiles":[[37.0,100.0,0,null],[125.0,100.0,0,null],[213.0,100.0,0,null],[301.0,100.0,0,null],[81.0,117.0,0,null],[169.0,117.0,0,null],[257.0,117.0,4,2],[37.0,134.0,0,null],[125.0,134.0,1,null],[213.0,134.0,0,null],[301.0,134.0,1,null]],"v0":6.4,"par":3805,"hw":4},{"lv":9,"k":0,"tiles":[[37.0,100.0,0,null],[81.0,100.0,0,null],[257.0,100.0,1,null],[301.0,100.0,0,null],[37.0,117.0,0,null],[81.0,117.0,1,null],[257.0,117.0,0,null],[301.0,117.0,0,null],[37.0,134.0,0,null],[81.0,134.0,1,null],[125.0,134.0,0,null],[169.0,134.0,0,null],[213.0,134.0,4,1],[257.0,134.0,2,null],[301.0,134.0,4,2],[37.0,151.0,1,null],[81.0,151.0,0,null],[125.0,151.0,0,null],[169.0,151.0,0,null],[213.0,151.0,0,null],[257.0,151.0,0,null],[301.0,151.0,0,null]],"v0":7.0,"par":5705,"hw":3},{"lv":10,"k":0,"tiles":[[37.0,100.0,0,null],[81.0,100.0,0,null],[257.0,100.0,0,null],[301.0,100.0,0,null],[37.0,117.0,4,3],[81.0,117.0,1,null],[257.0,117.0,2,null],[301.0,117.0,0,null],[37.0,134.0,0,null],[81.0,134.0,1,null],[125.0,134.0,0,null],[169.0,134.0,0,null],[213.0,134.0,1,null],[257.0,134.0,4,2],[301.0,134.0,0,null],[37.0,151.0,0,null],[81.0,151.0,0,null],[125.0,151.0,0,null],[169.0,151.0,0,null],[213.0,151.0,0,null],[257.0,151.0,1,null],[301.0,151.0,0,null]],"v0":7.0,"par":4991,"hw":4},{"lv":11,"k":0,"tiles":[[37.0,100.0,0,null],[81.0,100.0,0,null],[257.0,100.0,4,0],[301.0,100.0,0,null],[37.0,117.0,0,null],[81.0,117.0,1,null],[257.0,117.0,0,null],[301.0,117.0,0,null],[37.0,134.0,4,2],[81.0,134.0,1,null],[125.0,134.0,1,null],[169.0,134.0,0,null],[213.0,134.0,0,null],[257.0,134.0,0,null],[301.0,134.0,0,null],[37.0,151.0,0,null],[81.0,151.0,2,null],[125.0,151.0,1,null],[169.0,151.0,0,null],[213.0,151.0,0,null],[257.0,151.0,0,null],[301.0,151.0,0,null]],"v0":7.0,"par":4555,"hw":3},{"lv":12,"k":1,"tiles":[[37.0,100.0,4,2],[125.0,100.0,0,null],[213.0,100.0,0,null],[301.0,100.0,0,null],[81.0,117.0,1,null],[169.0,117.0,4,0],[257.0,117.0,0,null],[37.0,134.0,0,null],[125.0,134.0,1,null],[213.0,134.0,0,null],[301.0,134.0,0,null],[81.0,151.0,1,null],[169.0,151.0,1,null],[257.0,151.0,2,null]],"v0":7.0,"par":3227,"hw":4},{"lv":13,"k":0,"tiles":[[37.0,100.0,0,null],[81.0,100.0,0,null],[257.0,100.0,1,null],[301.0,100.0,4,2],[37.0,117.0,1,null],[81.0,117.0,0,null],[257.0,117.0,0,null],[301.0,117.0,4,3],[37.0,134.0,0,null],[81.0,134.0,1,null],[125.0,134.0,0,null],[169.0,134.0,1,null],[213.0,134.0,0,null],[257.0,134.0,0,null],[301.0,134.0,0,null],[37.0,151.0,0,null],[81.0,151.0,0,null],[125.0,151.0,2,null],[169.0,151.0,0,null],[213.0,151.0,0,null],[257.0,151.0,0,null],[301.0,151.0,0,null]],"v0":7.0,"par":4713,"hw":2},{"lv":14,"k":0,"tiles":[[37.0,100.0,0,null],[81.0,100.0,0,null],[257.0,100.0,0,null],[301.0,100.0,0,null],[37.0,117.0,1,null],[81.0,117.0,0,null],[257.0,117.0,1,null],[301.0,117.0,0,null],[37.0,134.0,0,null],[81.0,134.0,4,2],[125.0,134.0,0,null],[169.0,134.0,4,2],[213.0,134.0,1,null],[257.0,134.0,0,null],[301.0,134.0,2,null],[37.0,151.0,0,null],[81.0,151.0,0,null],[125.0,151.0,0,null],[169.0,151.0,0,null],[213.0,151.0,0,null],[257.0,151.0,0,null],[301.0,151.0,1,null]],"v0":7.0,"par":4168,"hw":4},{"lv":15,"k":2,"tiles":[[37.0,100.0,4,2],[81.0,100.0,1,null],[169.0,100.0,3,null],[213.0,100.0,3,null],[257.0,100.0,3,null],[125.0,117.0,0,null],[169.0,117.0,0,null],[301.0,117.0,1,null],[37.0,134.0,0,null],[81.0,134.0,1,null],[169.0,134.0,2,null],[213.0,134.0,2,null],[257.0,134.0,0,null],[125.0,151.0,4,0],[169.0,151.0,1,null],[301.0,151.0,1,null]],"v0":7.6,"par":4461,"hw":4},{"lv":16,"k":0,"tiles":[[37.0,100.0,0,null],[81.0,100.0,3,null],[125.0,100.0,0,null],[169.0,100.0,3,null],[213.0,100.0,1,null],[257.0,100.0,0,null],[301.0,100.0,3,null],[37.0,117.0,1,null],[81.0,117.0,0,null],[213.0,117.0,4,2],[257.0,117.0,0,null],[37.0,134.0,4,0],[81.0,134.0,0,null],[125.0,134.0,0,null],[169.0,134.0,1,null],[213.0,134.0,1,null],[257.0,134.0,2,null],[301.0,134.0,0,null],[37.0,151.0,0,null],[81.0,151.0,2,null],[213.0,151.0,1,null],[257.0,151.0,0,null]],"v0":7.6,"par":3868,"hw":3},{"lv":17,"k":3,"tiles":[[37.0,100.0,1,null],[81.0,100.0,4,3],[125.0,100.0,0,null],[169.0,100.0,0,null],[213.0,100.0,3,null],[257.0,100.0,1,null],[301.0,100.0,3,null],[37.0,117.0,3,null],[81.0,117.0,0,null],[213.0,117.0,0,null],[257.0,117.0,0,null],[37.0,134.0,2,null],[81.0,134.0,0,null],[125.0,134.0,1,null],[169.0,134.0,1,null],[213.0,134.0,2,null],[257.0,134.0,0,null],[301.0,134.0,0,null],[37.0,151.0,4,0],[81.0,151.0,0,null],[213.0,151.0,1,null],[257.0,151.0,0,null]],"v0":7.6,"par":5278,"hw":2},{"lv":18,"k":11,"tiles":[[37.0,100.0,3,null],[81.0,100.0,3,null],[169.0,100.0,1,null],[213.0,100.0,0,null],[257.0,100.0,0,null],[125.0,117.0,0,null],[169.0,117.0,1,null],[301.0,117.0,3,null],[37.0,134.0,1,null],[81.0,134.0,1,null],[169.0,134.0,4,0],[213.0,134.0,1,null],[257.0,134.0,4,3],[125.0,151.0,0,null],[169.0,151.0,2,null],[301.0,151.0,2,null]],"v0":7.6,"par":3159,"hw":3},{"lv":19,"k":0,"tiles":[[37.0,100.0,2,null],[81.0,100.0,0,null],[125.0,100.0,1,null],[169.0,100.0,3,null],[213.0,100.0,1,null],[257.0,100.0,3,null],[301.0,100.0,0,null],[37.0,117.0,0,null],[81.0,117.0,3,null],[213.0,117.0,1,null],[257.0,117.0,1,null],[37.0,134.0,0,null],[81.0,134.0,4,0],[125.0,134.0,2,null],[169.0,134.0,0,null],[213.0,134.0,0,null],[257.0,134.0,0,null],[301.0,134.0,4,3],[37.0,151.0,1,null],[81.0,151.0,0,null],[213.0,151.0,0,null],[257.0,151.0,0,null]],"v0":7.6,"par":4243,"hw":3},{"lv":20,"k":0,"tiles":[[37.0,100.0,3,null],[81.0,100.0,3,null],[169.0,100.0,3,null],[213.0,100.0,3,null],[257.0,100.0,3,null],[125.0,117.0,1,null],[169.0,117.0,2,null],[301.0,117.0,1,null],[37.0,134.0,0,null],[81.0,134.0,1,null],[169.0,134.0,4,3],[213.0,134.0,2,null],[257.0,134.0,2,null],[125.0,151.0,1,null],[169.0,151.0,0,null],[301.0,151.0,1,null],[37.0,168.0,0,null],[81.0,168.0,4,2],[169.0,168.0,4,2],[213.0,168.0,2,null],[257.0,168.0,0,null]],"v0":8.2,"par":3544,"hw":3},{"lv":21,"k":0,"tiles":[[37.0,100.0,3,null],[81.0,100.0,3,null],[169.0,100.0,3,null],[213.0,100.0,3,null],[257.0,100.0,0,null],[125.0,117.0,1,null],[169.0,117.0,2,null],[301.0,117.0,3,null],[37.0,134.0,1,null],[81.0,134.0,1,null],[169.0,134.0,2,null],[213.0,134.0,0,null],[257.0,134.0,2,null],[125.0,151.0,4,0],[169.0,151.0,4,0],[301.0,151.0,1,null],[37.0,168.0,0,null],[81.0,168.0,4,1],[169.0,168.0,0,null],[213.0,168.0,2,null],[257.0,168.0,1,null]],"v0":8.2,"par":5707,"hw":3},{"lv":22,"k":1,"tiles":[[37.0,100.0,0,null],[81.0,100.0,3,null],[125.0,100.0,0,null],[169.0,100.0,3,null],[213.0,100.0,3,null],[257.0,100.0,3,null],[301.0,100.0,3,null],[37.0,134.0,4,2],[81.0,134.0,1,null],[257.0,134.0,0,null],[301.0,134.0,4,0],[37.0,151.0,2,null],[81.0,151.0,0,null],[125.0,151.0,0,null],[169.0,151.0,1,null],[213.0,151.0,2,null],[257.0,151.0,1,null],[301.0,151.0,1,null],[37.0,168.0,4,2],[81.0,168.0,0,null],[125.0,168.0,2,null],[169.0,168.0,2,null],[213.0,168.0,1,null],[257.0,168.0,0,null],[301.0,168.0,0,null]],"v0":8.2,"par":5109,"hw":3},{"lv":23,"k":4,"tiles":[[37.0,100.0,2,null],[81.0,100.0,3,null],[169.0,100.0,3,null],[213.0,100.0,3,null],[257.0,100.0,3,null],[125.0,117.0,2,null],[169.0,117.0,0,null],[301.0,117.0,3,null],[37.0,134.0,1,null],[81.0,134.0,2,null],[169.0,134.0,0,null],[213.0,134.0,4,0],[257.0,134.0,1,null],[125.0,151.0,1,null],[169.0,151.0,1,null],[301.0,151.0,1,null],[37.0,168.0,0,null],[81.0,168.0,4,0],[169.0,168.0,0,null],[213.0,168.0,2,null],[257.0,168.0,4,3]],"v0":8.2,"par":2627,"hw":3},{"lv":24,"k":7,"tiles":[[37.0,100.0,2,null],[81.0,100.0,3,null],[125.0,100.0,1,null],[169.0,100.0,3,null],[213.0,100.0,3,null],[257.0,100.0,3,null],[301.0,100.0,0,null],[37.0,117.0,0,null],[81.0,117.0,3,null],[213.0,117.0,2,null],[257.0,117.0,1,null],[37.0,134.0,4,2],[81.0,134.0,0,null],[125.0,134.0,0,null],[169.0,134.0,0,null],[213.0,134.0,0,null],[257.0,134.0,2,null],[301.0,134.0,0,null],[37.0,151.0,2,null],[81.0,151.0,0,null],[213.0,151.0,1,null],[257.0,151.0,4,1],[37.0,168.0,0,null],[81.0,168.0,1,null],[125.0,168.0,0,null],[169.0,168.0,4,2],[213.0,168.0,0,null],[257.0,168.0,1,null],[301.0,168.0,0,null]],"v0":8.2,"par":5358,"hw":2}];
+var M214=2147483647;
+function LCGn(x){return x*48271%M214}
+
+var S={ph:'menu',lv:1,f:0,tiles:[],pad_x:195.0,pad_w:PAD_W0,longT:0,slowT:0,pierceT:0,
+  balls:[],items:[],score:0,lives:3,v0:6.0,chain:0,breaks:[0,0,0,0,0],over:0,result:null,
+  vExtra:0.0,winT:0,loseT:0,hints:3,flashT:0,hintT:0,traj:null,parts:[]};
+var best={},unlocked=1,brk={},sndOn=1;
+
+function mkB(x,y,vx,vy,stuck){return{x:x,y:y,vx:vx,vy:vy,stuck:!!stuck,dead:false}}
+function vnow(){var v=S.v0+S.vExtra;if(S.slowT>0)v=v*0.7;return v}
+
+function newGame(lv){
+  var L=LVDATA[lv-1];
+  S.lv=lv;S.f=0;S.score=0;S.lives=3;S.chain=0;S.over=0;S.result=null;S.vExtra=0.0;
+  S.pad_x=195.0;S.pad_w=PAD_W0;S.longT=0;S.slowT=0;S.pierceT=0;
+  S.tiles=[];S.items=[];S.balls=[];S.parts=[];S.hints=3;S.hintT=0;S.traj=null;
+  S.winT=0;S.loseT=0;
+  S.v0=L.v0;
+  for(var i=0;i<L.tiles.length;i++){
+    var t=L.tiles[i];
+    S.tiles.push([t[0],t[1],t[2],t[2]===3?1000000000:TILE_HP[t[2]],t[3]===undefined?null:t[3]]);
+  }
+  S.balls.push(mkB(S.pad_x,PAD_Y-R-1,0,0,true));
+  S.ph='play';
+  document.getElementById('menu').classList.add('hide');
+  document.getElementById('over').classList.add('hide');
+  document.getElementById('lvbar').classList.add('hide');
+  updHUD();
+}
+
+function launch(dirx){
+  var b=S.balls[0];
+  if(!b||!b.stuck)return;
+  var v=vnow(),di=dirx>0?1:(dirx===0?0:2);
+  b.vx=LAUNCH[di][0]*v;b.vy=-LAUNCH[di][1]*v;b.stuck=false;
+  tone(520,.04);
+}
+
+function movePad(target,vmax){
+  vmax=vmax||7.0;
+  var d=target-S.pad_x;
+  if(d>vmax)d=vmax;else if(d<-vmax)d=-vmax;
+  S.pad_x+=d;
+  var hw=S.pad_w/2;
+  if(S.pad_x<WALL_L+hw)S.pad_x=WALL_L+hw;
+  else if(S.pad_x>WALL_R-hw)S.pad_x=WALL_R-hw;
+}
+
+function hitTiles(b,v){
+  for(var i=0;i<S.tiles.length;i++){
+    var t=S.tiles[i];
+    if(t[3]<=0)continue;
+    var dx=Math.abs(b.x-t[0]),dy=Math.abs(b.y-t[1]);
+    if(dx<=TW/2+R&&dy<=TH/2+R){
+      var ox=TW/2+R-dx,oy=TH/2+R-dy;
+      if(S.pierceT>0&&t[2]!==3){}
+      else if(ox<=oy){
+        b.vx=-b.vx;
+        if(b.x<t[0])b.x=t[0]-TW/2-R-0.01;else b.x=t[0]+TW/2+R+0.01;
+      }else{
+        b.vy=-b.vy;
+        if(b.y<t[1])b.y=t[1]-TH/2-R-0.01;else b.y=t[1]+TH/2+R+0.01;
+      }
+      if(t[2]!==3){
+        t[3]-=1;
+        S.score+=TILE_SC[t[2]];S.chain+=1;
+        if(S.chain>1)S.score+=10*(S.chain-1);
+        S.breaks[t[2]]+=1;brk[t[2]]=1;saveMain();   /* 碎达即入谱落盘（g134 M-R1 同律） */
+        if(t[3]<=0){
+          if(t[2]===4)S.items.push({x:t[0],y:t[1],kind:t[4]});
+          spawnParts(t[0],t[1],t[2]);
+          if(t[2]===1)tone(300,.05);else if(t[2]===2)tone(360,.05);else tone(240,.05);
+          /* 散轨（防轨迹环）：碎瓦瞬间丸速旋转 ±8°（方向=瓦列奇偶，查表定值；速率不变） */
+          if(Math.floor((t[0]-37)/44)%2===1){var nvx=b.vx*C8-b.vy*S8,nvy=b.vx*S8+b.vy*C8;b.vx=nvx;b.vy=nvy}
+          else{var nvx2=b.vx*C8+b.vy*S8,nvy2=-b.vx*S8+b.vy*C8;b.vx=nvx2;b.vy=nvy2}
+        }
+      }
+      break;   /* 一子步一丸至多碰一瓦（钉死） */
+    }
+  }
+}
+
+function applyItem(kind){
+  if(kind===0){S.pad_w=96.0;S.longT=600}
+  else if(kind===1){
+    var cur=[];for(var i=0;i<S.balls.length;i++)if(!S.balls[i].stuck)cur.push(S.balls[i]);
+    for(var j=0;j<cur.length;j++){
+      if(S.balls.length>=6)break;
+      var b=cur[j];
+      S.balls.push(mkB(b.x,b.y,b.vx*C30-b.vy*S30,b.vx*S30+b.vy*C30));
+      S.balls.push(mkB(b.x,b.y,b.vx*C30+b.vy*S30,-b.vx*S30+b.vy*C30));
+    }
+    if(S.balls.length>6)S.balls.length=6;
+  }
+  else if(kind===2)S.slowT=480;
+  else S.pierceT=360;
+  flashMsg(['长托','三丸','缓丸','穿丸'][kind]+'！');
+  tone(660,.06);
+}
+
+function stepW(){
+  S.f+=1;
+  S.vExtra=Math.min(V_RAMP_CAP,Math.floor(S.f/600)*V_RAMP);
+  if(S.longT>0){S.longT-=1;if(S.longT===0)S.pad_w=PAD_W0}
+  if(S.slowT>0)S.slowT-=1;
+  if(S.pierceT>0)S.pierceT-=1;
+  var v=vnow();
+  for(var bi=0;bi<S.balls.length;bi++){
+    var b=S.balls[bi];
+    if(b.stuck){b.x=S.pad_x;b.y=PAD_Y-R-1;continue}
+    for(var s2=0;s2<SUB;s2++){
+      b.x+=b.vx/SUB;b.y+=b.vy/SUB;
+      if(b.x-R<WALL_L){b.x=WALL_L+R;b.vx=Math.abs(b.vx)}
+      else if(b.x+R>WALL_R){b.x=WALL_R-R;b.vx=-Math.abs(b.vx)}
+      if(b.y-R<WALL_T){b.y=WALL_T+R;b.vy=Math.abs(b.vy)}
+      if(b.vy>0){
+        if(PAD_Y<=b.y+R&&b.y+R<=PAD_Y+PAD_H+8&&Math.abs(b.x-S.pad_x)<=S.pad_w/2+R&&b.y<PAD_Y+PAD_H){
+          var off=(b.x-S.pad_x)/(S.pad_w/2);
+          if(off>1)off=1;else if(off<-1)off=-1;
+          var qi=Math.floor((off+1)*12+0.5);   /* 两侧统一半上（g135 同构钉死） */
+          if(qi<0)qi=0;else if(qi>24)qi=24;
+          b.vx=COSB[qi][0]*v;b.vy=-COSB[qi][1]*v;
+          b.y=PAD_Y-R-0.01;
+          S.chain=0;
+          tone(480,.03);
+        }
+      }
+      hitTiles(b,v);
+      if(b.y-R>BALL_Y_MAX){b.dead=true;break}
+    }
+  }
+  var dead=[];
+  for(var k=0;k<S.balls.length;k++){
+    var bb=S.balls[k];
+    if(bb.dead||bb.y-R>BALL_Y_MAX)dead.push(bb);
+  }
+  for(var d2=0;d2<dead.length;d2++){
+    var idx=S.balls.indexOf(dead[d2]);
+    if(idx>=0)S.balls.splice(idx,1);
+  }
+  if(dead.length>0){
+    if(S.balls.length===0){
+      S.lives-=1;
+      S.chain=0;   /* G3 m-2：损丸清连锁（新丸不继承上丸加成） */
+      if(S.lives>0)S.balls.push(mkB(S.pad_x,PAD_Y-R-1,0,0,true));
+    }
+  }
+  var got=[];
+  for(var ii=0;ii<S.items.length;ii++){
+    var it=S.items[ii];
+    it.y+=2.5;
+    if(PAD_Y<=it.y&&it.y<=PAD_Y+PAD_H+6&&Math.abs(it.x-S.pad_x)<=S.pad_w/2+8)got.push(it);
+    else if(it.y>742)got.push(it);
+  }
+  for(var g2=0;g2<got.length;g2++){
+    var gi=S.items.indexOf(got[g2]);
+    if(gi>=0)S.items.splice(gi,1);
+    if(got[g2].y<=742&&got[g2].kind!==null&&got[g2].kind!==undefined)applyItem(got[g2].kind);
+  }
+  var alive=0;
+  for(var t2=0;t2<S.tiles.length;t2++)if(S.tiles[t2][3]>0&&S.tiles[t2][2]!==3)alive++;
+  if(alive===0&&S.over===0){S.over=1;S.result=[1,S.score,S.f,S.lives]}
+  else if(S.lives<=0&&S.balls.length===0&&S.items.length===0&&S.over===0){S.over=2;S.result=[0,S.score,S.f,0]}
+}
+
+/* ==== 星级与结算 ==== */
+function starsOf(){
+  if(S.over!==1)return 0;
+  var f=S.result?S.result[2]:S.f,par=LVDATA[S.lv-1].par;
+  if(S.lives===3&&f<=par)return 3;
+  if(S.lives>=2||f<=par*1.5)return 2;
+  return 1;
+}
+function finishWin(){
+  S.winT=90;S.ph='celeb';
+  var sc=S.score;
+  if(!best[S.lv]||sc>best[S.lv])best[S.lv]=sc;
+  if(S.lv+1>unlocked&&S.lv<24)unlocked=S.lv+1;
+  saveMain();
+  for(var i=0;i<50;i++)S.parts.push({x:Math.random()*390,y:80+Math.random()*120,vx:(Math.random()-.5)*3,vy:Math.random()*2+1,life:60+Math.random()*40,tp:Math.floor(Math.random()*3)});
+  tone(523,.08);setTimeout(function(){tone(659,.08)},120);setTimeout(function(){tone(784,.12)},240);
+}
+function finishLose(){S.loseT=60;S.ph='celeb';saveMain();tone(200,.2)}
+function flashMsg(s){
+  var el=document.getElementById('flash');
+  el.textContent=s;el.style.opacity=1;S.flashT=80;
+}
+
+/* ==== 闪轨援手：克隆推演 90 帧（不触真实状态） ==== */
+function doHint(){
+  if(S.hints<=0||S.ph!=='play')return;
+  var L=LVDATA[S.lv-1];
+  var tiles=[];for(var i=0;i<S.tiles.length;i++){var t=S.tiles[i];tiles.push([t[0],t[1],t[2],t[3],t[4]])}
+  var b=S.balls[0];if(!b||b.stuck)return;
+  var bx=b.x,by=b.y,bvx=b.vx,bvy=b.vy;
+  var tr=[bx,by];
+  var v=vnow();
+  for(var f2=0;f2<90;f2++){
+    for(var s3=0;s3<SUB;s3++){
+      bx+=bvx/SUB;by+=bvy/SUB;
+      if(bx-R<WALL_L){bx=WALL_L+R;bvx=Math.abs(bvx)}
+      else if(bx+R>WALL_R){bx=WALL_R-R;bvx=-Math.abs(bvx)}
+      if(by-R<WALL_T){by=WALL_T+R;bvy=Math.abs(bvy)}
+      for(var t3=0;t3<tiles.length;t3++){
+        var tt=tiles[t3];
+        if(tt[3]<=0)continue;
+        var dx=Math.abs(bx-tt[0]),dy=Math.abs(by-tt[1]);
+        if(dx<=TW/2+R&&dy<=TH/2+R){
+          var ox=TW/2+R-dx,oy=TH/2+R-dy;
+          if(S.pierceT-f2-1>0&&tt[2]!==3){}   /* G3 MAJ-2+复审：穿透窗对齐真实帧序（碰撞时 pierceT 已减为 P0-(f2+1)） */
+          else if(ox<=oy){bvx=-bvx;if(bx<tt[0])bx=tt[0]-TW/2-R-0.01;else bx=tt[0]+TW/2+R+0.01}
+          else{bvy=-bvy;if(by<tt[1])by=tt[1]-TH/2-R-0.01;else by=tt[1]+TH/2+R+0.01}
+          if(tt[2]!==3){
+            tt[3]-=1;
+            if(tt[3]<=0){   /* G3 MAJ-2：散轨同款（碎瓦瞬间 ±8°，速率守恒） */
+              if(Math.floor((tt[0]-37)/44)%2===1){var hvx=bvx*C8-bvy*S8,hvy=bvx*S8+bvy*C8;bvx=hvx;bvy=hvy}
+              else{var hvx2=bvx*C8+bvy*S8,hvy2=-bvx*S8+bvy*C8;bvx=hvx2;bvy=hvy2}
+            }
+          }
+          break;
+        }
+      }
+      if(by+R>PAD_Y-2||by-R>BALL_Y_MAX){f2=90;break}   /* G3 MAJ-2：托线截断（不预测玩家接位） */
+    }
+    if(f2%3===0)tr.push(bx,by);
+  }
+  S.traj=tr;S.hintT=72;S.hints-=1;
+  tone(700,.05);
+}
+
+/* ==== 存档 ==== */
+function saveMain(){
+  try{
+    var bk=[];for(var k in brk)if(brk[k])bk.push(+k);
+    localStorage.setItem('g135_tie',JSON.stringify({best:best,unlocked:unlocked,breaks:bk,snd:sndOn}));
+  }catch(e){}
+}
+function loadSave(){
+  var s=null;
+  try{s=localStorage.getItem('g135_tie')}catch(e){return}
+  if(!s)return;
+  var d;
+  try{d=JSON.parse(s)}catch(e){return}
+  if(typeof d!=='object'||d===null||Array.isArray(d))return;
+  if(d.unlocked===undefined||typeof d.unlocked!=='number'||!isFinite(d.unlocked)||Math.floor(d.unlocked)!==d.unlocked||d.unlocked<1||d.unlocked>24)return;
+  if(d.best===undefined||typeof d.best!=='object'||d.best===null||Array.isArray(d.best))return;
+  for(var k in d.best){
+    var vv=d.best[k];
+    if(typeof k!=='string'||!/^[0-9]+$/.test(k)||+k<1||+k>24||typeof vv!=='number'||!isFinite(vv)||Math.floor(vv)!==vv||vv<0||vv>99999)return;
+  }
+  if(d.breaks!==undefined){
+    if(!Array.isArray(d.breaks))return;
+    for(var i=0;i<d.breaks.length;i++){
+      var t2=d.breaks[i];
+      if(typeof t2==='number'&&Math.floor(t2)===t2&&(t2===0||t2===1||t2===2||t2===4))brk[t2]=1;   /* G3 MAJ-1：键域 0/1/2/4（4=宝瓦；3=脊永不可碎拒） */
+    }
+  }
+  if(typeof d.snd==='number'&&Math.floor(d.snd)===d.snd&&(d.snd===0||d.snd===1))sndOn=d.snd;
+  unlocked=d.unlocked;best=d.best;
+}
+
+/* ==== 渲染 ==== */
+var cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+function tone(fr,dur){
+  if(!sndOn)return;
+  try{
+    var AC=window.AudioContext||window.webkitAudioContext;
+    if(!tone.ac)tone.ac=new AC();
+    if(tone.ac.state==='suspended')tone.ac.resume();
+    var o=tone.ac.createOscillator(),g=tone.ac.createGain();
+    o.frequency.value=fr;o.type='triangle';
+    g.gain.setValueAtTime(.08,tone.ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001,tone.ac.currentTime+dur);
+    o.connect(g);g.connect(tone.ac.destination);
+    o.start();o.stop(tone.ac.currentTime+dur);
+  }catch(e){}
+}
+function spawnParts(x,y,tp){
+  for(var i=0;i<5;i++)S.parts.push({x:x,y:y,vx:(Math.random()-.5)*4,vy:-Math.random()*2-1,life:30+Math.random()*20,tp:tp});
+}
+var TILE_COL=['#8a9aa2','#7ab8a8','#d8b45a','#b8b0a4','#c05a3a'];
+function draw(){
+  ctx.clearRect(0,0,390,780);
+  /* 黄昏暖墙底 */
+  var g=ctx.createLinearGradient(0,0,0,780);
+  g.addColorStop(0,'#3a2c1e');g.addColorStop(1,'#2b2018');
+  ctx.fillStyle=g;ctx.fillRect(0,0,390,780);
+  /* 墙 */
+  ctx.fillStyle='#1a1410';ctx.fillRect(0,0,15,780);ctx.fillRect(375,0,15,780);ctx.fillRect(0,64,390,14);
+  ctx.fillStyle='#4a3826';ctx.fillRect(15,78,360,2);
+  /* 瓦阵 */
+  for(var i=0;i<S.tiles.length;i++){
+    var t=S.tiles[i];
+    if(t[3]<=0)continue;
+    var x=t[0],y=t[1];
+    ctx.fillStyle=TILE_COL[t[2]];
+    ctx.fillRect(x-21,y-7,42,14);
+    ctx.fillStyle='rgba(0,0,0,.25)';ctx.fillRect(x-21,y+4,42,3);
+    if(t[2]===0){ctx.fillStyle='rgba(0,0,0,.12)';ctx.fillRect(x-16,y-4,14,1);ctx.fillRect(x+2,y+1,14,1)}
+    if(t[2]===1){ctx.fillStyle='rgba(255,255,255,.18)';ctx.fillRect(x-21,y-7,42,2)}
+    if(t[2]===2){ctx.fillStyle='rgba(255,240,180,.4)';ctx.fillRect(x-19,y-5,16,2)}
+    if(t[2]===3){ctx.strokeStyle='rgba(0,0,0,.2)';ctx.beginPath();ctx.moveTo(x-21,y);ctx.lineTo(x+21,y);ctx.stroke()}
+    if(t[2]===4){ctx.fillStyle='#f0c860';ctx.beginPath();ctx.arc(x,y-3,2,0,7);ctx.fill();ctx.beginPath();ctx.arc(x,y+3,2,0,7);ctx.fill()}
+    if(t[3]<TILE_HP[t[2]]&&t[2]!==3){   /* 裂纹 */
+      ctx.strokeStyle='rgba(20,10,5,.5)';ctx.beginPath();
+      ctx.moveTo(x-8,y-6);ctx.lineTo(x-4,y);ctx.lineTo(x-9,y+6);ctx.stroke();
+    }
+  }
+  /* 闪轨 */
+  if(S.traj&&S.hintT>0){
+    ctx.strokeStyle='rgba(240,200,96,.5)';ctx.lineWidth=1.5;ctx.setLineDash([4,4]);
+    ctx.beginPath();
+    ctx.moveTo(S.traj[0],S.traj[1]);
+    for(var j=1;j<S.traj.length/2;j++)ctx.lineTo(S.traj[j*2],S.traj[j*2+1]);
+    ctx.stroke();ctx.setLineDash([]);ctx.lineWidth=1;
+  }
+  /* 道具 */
+  for(var k=0;k<S.items.length;k++){
+    var it=S.items[k];
+    ctx.fillStyle='#e8c96a';
+    ctx.fillRect(it.x-7,it.y-5,14,10);
+    ctx.fillStyle='#3a2c1e';ctx.font='700 8px system-ui';ctx.textAlign='center';
+    ctx.fillText(['长','三','缓','穿'][it.kind]||'?',it.x,it.y+3);
+  }
+  /* 泥丸 */
+  for(var m=0;m<S.balls.length;m++){
+    var b=S.balls[m];
+    ctx.fillStyle='#c8a068';
+    ctx.beginPath();ctx.arc(b.x,b.y,R,0,7);ctx.fill();
+    ctx.fillStyle='rgba(255,240,200,.35)';
+    ctx.beginPath();ctx.arc(b.x-2,b.y-2,2.5,0,7);ctx.fill();
+  }
+  /* 木托 */
+  ctx.fillStyle='#6a5238';
+  var pw=S.pad_w;
+  rr2(ctx,S.pad_x-pw/2,PAD_Y,pw,PAD_H,6);
+  ctx.fillStyle='#c8a05a';ctx.fillRect(S.pad_x-pw/2+4,PAD_Y+2,pw-8,2);
+  /* 碎片粒子 */
+  for(var p=0;p<S.parts.length;p++){
+    var pt=S.parts[p];
+    ctx.fillStyle=TILE_COL[pt.tp]||'#8a9aa2';
+    ctx.globalAlpha=Math.min(1,pt.life/30);
+    ctx.fillRect(pt.x-2,pt.y-2,4,4);
+  }
+  ctx.globalAlpha=1;
+  ctx.textAlign='left';
+}
+function rr2(c,x,y,w,h,r){
+  c.beginPath();
+  c.moveTo(x+r,y);c.lineTo(x+w-r,y);c.arcTo(x+w,y,x+w,y+r,r);
+  c.lineTo(x+w,y+h-r);c.arcTo(x+w,y+h,x+w-r,y+h,r);
+  c.lineTo(x+r,y+h);c.arcTo(x,y+h,x,y+h-r,r);
+  c.lineTo(x,y+r);c.arcTo(x,y,x+r,y,r);c.closePath();c.fill();
+}
+
+/* ==== HUD（每帧刷新） ==== */
+function updHUD(){
+  var el=document.getElementById('hInfo'),s2=document.getElementById('hSub');
+  if(S.ph==='menu'){el.textContent='打瓦';s2.textContent='';return}
+  var balls='';for(var i=0;i<S.lives;i++)balls+='●';
+  el.textContent='第 '+S.lv+' 阵 · '+S.score+' 分';
+  s2.textContent='丸 '+balls+' · '+Math.floor(S.f/60)+'s'+(S.pierceT>0?' · 穿':S.slowT>0?' · 缓':'');
+  document.getElementById('bHint').textContent='闪轨 ×'+S.hints;
+}
+
+/* ==== 主循环 ==== */
+var last=0,acc=0;
+function loop(ts){
+  var dt=Math.min(50,ts-last);last=ts;acc+=dt;
+  while(acc>=1000/60){
+    acc-=1000/60;
+    if(S.ph==='play'){
+      inputStep();
+      stepW();
+      if(S.over===1&&S.winT===0)finishWin();
+      else if(S.over===2&&S.loseT===0)finishLose();
+    }else if(S.ph==='celeb'){
+      if(S.winT>0){S.winT-=1;if(S.winT===0)showOver()}
+      else if(S.loseT>0){S.loseT-=1;if(S.loseT===0)showOver()}
+    }
+    if(S.hintT>0)S.hintT-=1;
+    if(S.flashT>0){if(S.flashT===1)document.getElementById('flash').style.opacity=0;S.flashT-=1}
+    for(var i=S.parts.length-1;i>=0;i--){
+      var p=S.parts[i];
+      p.x+=p.vx;p.y+=p.vy;p.vy+=.15;p.life-=1;
+      if(p.life<=0)S.parts.splice(i,1);
+    }
+  }
+  if(S.ph!=='menu')draw();
+  updHUD();
+  requestAnimationFrame(loop);
+}
+
+/* ==== 结算面板 ==== */
+function showOver(){
+  S.ph='over';
+  var oT=document.getElementById('oTitle'),oS=document.getElementById('oStars'),oSu=document.getElementById('oSub');
+  if(S.over===1){
+    oT.textContent='瓦阵已清';
+    var st=starsOf(),s='';
+    for(var i=0;i<st;i++)s+='★';
+    oS.textContent=s;
+    oSu.textContent=S.score+' 分 · '+Math.floor(S.f/60)+'s · 余丸 '+S.lives;
+    document.getElementById('bNext').classList.toggle('hide',S.lv>=24);
+  }else{
+    oT.textContent='丸尽瓦存';oS.textContent='';
+    var al=0;for(var t=0;t<S.tiles.length;t++)if(S.tiles[t][3]>0&&S.tiles[t][2]!==3)al++;
+    oSu.textContent=S.score+' 分 · 余瓦 '+al;
+    document.getElementById('bNext').classList.add('hide');
+  }
+  document.getElementById('over').classList.remove('hide');
+}
+
+/* ==== 输入 ==== */
+var padTarget=195.0,keys={};
+var cvEl=document.getElementById('cv');
+function cvX(e){
+  var r=cvEl.getBoundingClientRect();
+  return (e.clientX-r.left)*390/r.width;
+}
+document.getElementById('app').addEventListener('pointerdown',function(e){
+  if(S.ph!=='play')return;
+  if(e.target.closest('.btnrow'))return;
+  var x=cvX(e);
+  if(S.balls[0]&&S.balls[0].stuck){
+    launch(x>S.pad_x?1:(x<S.pad_x?-1:0));
+  }
+  padTarget=x;
+});
+document.getElementById('app').addEventListener('pointermove',function(e){
+  if(S.ph!=='play')return;
+  if(e.buttons||e.pointerType==='touch')padTarget=cvX(e);
+});
+window.addEventListener('keydown',function(e){
+  if(S.ph!=='play')return;
+  if(e.key==='ArrowLeft'||e.key==='ArrowRight'){keys[e.key]=1;e.preventDefault()}
+  if(e.key===' '){if(S.balls[0]&&S.balls[0].stuck)launch(keys.ArrowLeft?-1:(keys.ArrowRight?1:0));e.preventDefault()}
+});
+window.addEventListener('keyup',function(e){keys[e.key]=0});
+function inputStep(){
+  if(S.ph!=='play')return;
+  var t=padTarget;
+  if(keys.ArrowLeft)t=S.pad_x-14;
+  else if(keys.ArrowRight)t=S.pad_x+14;
+  movePad(t,7.0);
+}
+
+/* ==== UI 接线 ==== */
+function home(){
+  S.ph='menu';
+  document.getElementById('menu').classList.remove('hide');
+  document.getElementById('over').classList.add('hide');
+  document.getElementById('pause').classList.add('hide');
+  document.getElementById('trophy').classList.add('hide');
+  document.getElementById('lvbar').classList.add('hide');
+  saveMain();
+}
+document.getElementById('mGo').onclick=function(){newGame(Math.min(unlocked,24));tone(440,.05)};
+document.getElementById('mLvs').onclick=function(){
+  var bar=document.getElementById('lvbar');
+  bar.innerHTML='';
+  for(var i=1;i<=24;i++){
+    (function(n){
+      var c=document.createElement('div');
+      c.className='lvcell'+(n>unlocked?' lock':'');
+      c.textContent=n;
+      if(n<=unlocked)c.onclick=function(){newGame(n);tone(440,.05)};
+      bar.appendChild(c);
+    })(i);
+  }
+  bar.classList.toggle('hide');
+};
+document.getElementById('mTrophy').onclick=showTrophy;
+document.getElementById('bTrophy').onclick=showTrophy;
+function showTrophy(){
+  if(S.ph==='play'&&S.over===0)return;
+  if(S.ph==='celeb')return;   /* G3 m-8：演出态不开瓦谱（防与 over 面板同屏叠放） */
+  var g=document.getElementById('pgrid');
+  g.innerHTML='';
+  var names=['素瓦','琉璃瓦','鎏金瓦','宝瓦'],cols=['#8a9aa2','#7ab8a8','#d8b45a','#c05a3a'];
+  var TK=[0,1,2,4];   /* G3 MAJ-1：碎达键域=瓦型 0/1/2/4（3=脊永不可碎无格） */
+  for(var i=0;i<4;i++){
+    var d=document.createElement('div');
+    d.className='pcell'+(brk[TK[i]]?' on':'');
+    d.innerHTML='<div class="pv" style="background:'+(brk[TK[i]]?cols[i]:'#2b2018')+'"></div><div class="pn">'+names[i]+'</div>';
+    g.appendChild(d);
+  }
+  document.getElementById('trophy').classList.remove('hide');
+}
+document.getElementById('pBack').onclick=function(){document.getElementById('trophy').classList.add('hide')};
+document.getElementById('bHint').onclick=doHint;
+document.getElementById('pausebtn').onclick=function(){
+  if(S.ph!=='play')return;
+  S.ph='pause';
+  document.getElementById('pause').classList.remove('hide');
+};
+document.getElementById('pRes').onclick=function(){
+  if(S.ph!=='pause')return;
+  S.ph='play';
+  document.getElementById('pause').classList.add('hide');
+};
+document.getElementById('pHome').onclick=home;
+document.getElementById('pMute').onclick=function(){
+  sndOn=sndOn?0:1;saveMain();
+  this.textContent=sndOn?'声音':'静音';
+};
+document.getElementById('bAgain').onclick=function(){newGame(S.lv)};
+document.getElementById('bNext').onclick=function(){if(S.lv<24)newGame(S.lv+1)};
+document.getElementById('bHome').onclick=home;
+
+/* 开局 */
+loadSave();
+home();   /* boot 即显菜单（2026-09-18 smoke 实锤：menu 只在 home() 显示，boot 不调=真实浏览器黑屏无入口） */
+requestAnimationFrame(function(ts){last=ts;requestAnimationFrame(loop)});
+
+/* ==== DEV 钩子（构建剥离）==== */
+
+</script>
+</body>
+</html>
