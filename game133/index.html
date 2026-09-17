@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>翻印 · 口袋游戏机</title>
+<style>
+  html,body{margin:0;padding:0;background:#0e1420;overflow:hidden;height:100%;-webkit-user-select:none;user-select:none;touch-action:none}
+  #app{position:relative;width:390px;height:844px;margin:0 auto;background:#0e1420;font-family:"PingFang SC","Microsoft YaHei",sans-serif}
+  #cv{position:absolute;left:0;top:64px;width:390px;height:780px}
+  #hud{position:absolute;left:0;top:0;width:390px;height:64px;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;padding:0 14px;background:#131b2c;border-bottom:1px solid #233049;z-index:5}
+  #hud .hl{font-size:15px;color:#e8dcc0;letter-spacing:1px}
+  #hud .hr{font-size:13px;color:#8fa0b8}
+  #hud .hb{font-size:12px;color:#c06a52;margin-left:8px}
+  #btnrow{position:absolute;left:0;bottom:0;width:390px;height:64px;display:flex;align-items:center;justify-content:center;gap:22px;background:#131b2c;border-top:1px solid #233049;z-index:5}
+  .btn{min-width:76px;height:40px;border-radius:20px;border:1px solid #2c3c58;background:#1a2438;color:#c8d4e8;font-size:14px;letter-spacing:2px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .btn:active{background:#26344e}
+  .lay{position:absolute;inset:0;z-index:9;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(10,14,24,.86)}
+  .lay.hide{display:none}
+  .lay h1{font-size:34px;color:#e8dcc0;margin:0 0 6px;letter-spacing:8px;font-weight:600}
+  .lay h2{font-size:14px;color:#8fa0b8;margin:0 0 30px;letter-spacing:3px;font-weight:400}
+  .mbtn{width:190px;height:48px;border-radius:24px;border:1px solid #3a4c6c;background:#1c2840;color:#e0d6bc;font-size:16px;letter-spacing:5px;margin:7px 0;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .mbtn:active{background:#2a3a58}
+  .mbtn.minor{width:150px;height:40px;font-size:13px;color:#8fa0b8;border-color:#2a3750}
+  #over .ot{font-size:26px;margin:0 0 8px;letter-spacing:6px;font-weight:600}
+  #over .os{font-size:15px;color:#c8b48a;margin:0 0 22px;letter-spacing:2px}
+  #over .stars{font-size:30px;letter-spacing:10px;color:#d8a45c;margin-bottom:26px}
+  #over .fail{color:#b06a5a}
+  #lvbar{position:absolute;left:0;right:0;top:64px;bottom:64px;z-index:8;background:rgba(12,17,28,.97);display:none;flex-direction:column;padding:16px;box-sizing:border-box;overflow-y:auto}
+  #lvbar.show{display:flex}
+  #lvbar .lt{font-size:15px;color:#e8dcc0;letter-spacing:4px;margin-bottom:12px}
+  #lvgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .lvcell{height:56px;border-radius:10px;border:1px solid #2a3750;background:#172034;color:#c8d4e8;font-size:17px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer}
+  .lvcell .st{font-size:10px;color:#d8a45c;letter-spacing:2px;margin-top:2px}
+  .lvcell.lock{opacity:.32;pointer-events:none}
+  .lvcell:active{background:#26344e}
+  #flash{position:absolute;left:50%;top:120px;transform:translateX(-50%);z-index:6;background:rgba(20,28,44,.92);border:1px solid #3a4c6c;color:#e0d6bc;font-size:14px;letter-spacing:1px;padding:8px 18px;border-radius:18px;opacity:0;pointer-events:none;transition:opacity .25s;white-space:nowrap}
+  #flash.show{opacity:1}
+  #sndbtn{position:absolute;right:10px;top:70px;width:30px;height:30px;z-index:6;border:1px solid #2a3750;border-radius:15px;background:rgba(20,28,44,.7);color:#8fa0b8;font-size:14px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  #pausebtn{position:absolute;right:46px;top:70px;width:30px;height:30px;z-index:6;border:1px solid #2a3750;border-radius:15px;background:rgba(20,28,44,.7);color:#8fa0b8;font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud"><span class="hl" id="hInfo">—— 待 拓 ——</span><span class="hr" id="hSub"></span><span class="hb" id="hHint"></span></div>
+  <canvas id="cv" width="390" height="780"></canvas>
+  <div id="btnrow">
+    <div class="btn" id="bUndo">⟲ 撤销</div>
+    <div class="btn" id="bHint">✦ 拓示</div>
+    <div class="btn" id="bReset">↻ 重开</div>
+  </div>
+  <div id="pausebtn">⏸</div>
+  <div id="sndbtn">♪</div>
+  <div id="flash"></div>
+  <div class="lay" id="menu">
+    <h1>翻 印</h1>
+    <h2>夜拓古碑 · 官印翻滚 · 印面朝上落穴</h2>
+    <div class="mbtn" id="mGo">开 拓</div>
+    <div class="mbtn" id="mLvs">选 碑</div>
+    <div class="mbtn minor" id="mBest">战绩</div>
+  </div>
+  <div class="lay hide" id="over">
+    <p class="ot" id="oTitle"></p>
+    <p class="os" id="oStars"></p>
+    <p class="os" id="oSub"></p>
+    <div class="mbtn" id="oAgain">再 拓</div>
+    <div class="mbtn" id="oNext">下一碑</div>
+    <div class="mbtn minor" id="pHome">回目录</div>
+  </div>
+  <div class="lay hide" id="pause">
+    <h1 style="font-size:26px">小 憩</h1>
+    <div class="mbtn" id="pRes">继续</div>
+    <div class="mbtn minor" id="pHome2">回目录</div>
+  </div>
+  <div id="lvbar"><div class="lt">选 碑 · 已拓 N 碑</div><div id="lvgrid"></div></div>
+</div>
+<script>
+'use strict';
+/* ============ LVDATA（离线固化，运行时零随机） ============ */
+var LVDATA=[
+{W:5,H:5,g:"0001000000000050000011100",s:[2,2],h:[4,2],hd:[],sf:[],br:{},par:10,sol:"ESWNEESWNE"},
+{W:5,H:5,g:"0110010000100010050010010",s:[3,2],h:[2,3],hd:[],sf:[],br:{},par:6,sol:"WSENWS"},
+{W:5,H:5,g:"0000001000010000000150010",s:[2,1],h:[0,4],hd:[],sf:[],br:{},par:9,sol:"ENWSESWSW"},
+{W:6,H:6,g:"000010000000000000000000105001010000",s:[2,1],h:[2,4],hd:[],sf:[],br:{},par:5,sol:"ESSSW"},
+{W:6,H:6,g:"000000000000000100000000000000001500",s:[2,2],h:[3,5],hd:[],sf:[],br:{},par:12,sol:"WSENNWSSESES"},
+{W:6,H:6,g:"020020000000000000000101001005000000",s:[0,2],h:[5,4],hd:[],sf:[],br:{},par:13,sol:"EENWSWSSSEENE"},
+{W:6,H:6,g:"122101200005010000010001000020000101",s:[0,4],h:[5,1],hd:[],sf:[],br:{},par:16,sol:"EENESWNENWWSENNE"},
+{W:7,H:7,g:"0001200000011100011000000100000000110010000510000",s:[6,5],h:[1,6],hd:[],sf:[],br:{},par:14,sol:"WNWWNNNNWSESSS"},
+{W:7,H:7,g:"0001010001213300100201001000000100001005000201000",s:[4,2],h:[4,5],hd:[[1,3,0]],sf:[],br:{0:"5161"},par:15,sol:"SEESWSENWWNESSW"},
+{W:7,H:7,g:"1000100000000000001000101000010220003000000300512",s:[1,2],h:[4,6],hd:[[3,5,0]],sf:[],br:{0:"1516"},par:25,sol:"NESSSESWNNNWNESEESSSSWWSE"},
+{W:7,H:7,g:"0111001000000100000000030100003100005300220000001",s:[1,1],h:[1,5],hd:[[3,5,0]],sf:[],br:{0:"232425"},par:16,sol:"ESENESSENWWWWSES"},
+{W:7,H:7,g:"0111010000000100000010100330000000001200005010000",s:[2,1],h:[0,6],hd:[[6,4,0]],sf:[],br:{0:"4353"},par:15,sol:"SESEEWNWNWWWSSS"},
+{W:8,H:8,g:"5300021013100100032000100300130000010300020003000210030000000010",s:[0,7],h:[0,0],hd:[[3,5,0],[5,2,1]],sf:[],br:{0:"10111213",1:"53545556"},par:15,sol:"EENSWWNNENENNWW"},
+{W:8,H:8,g:"1001001030000010300020000100010030001101300000013001100500001001",s:[2,6],h:[7,6],hd:[[1,5,0],[2,7,1]],sf:[],br:{0:"040506",1:"0102"},par:15,sol:"NWESWNESWNEEESE"},
+{W:8,H:8,g:"1101000110000000010001333020010331000003300111030001000000050000",s:[7,1],h:[3,7],hd:[[6,6,0],[3,7,1]],sf:[[7,1,2]],br:{0:"030405",1:"6272",2:"737475"},par:26,sol:"WNWSWWSESWSWSEEENSWWWNWSEE"},
+{W:8,H:8,g:"2000133011105000000110000010001003330022000100000333100112101020",s:[0,4],h:[4,1],hd:[[1,2,0],[6,1,1]],sf:[[7,5,2]],br:{0:"142434",1:"5060",2:"162636"},par:21,sol:"NEWSEEEESWNWNENEENWSW"},
+{W:8,H:8,g:"0000200000001000000020010223303000002030011000350000213113331100",s:[7,0],h:[7,5],hd:[[3,2,0],[2,6,1]],sf:[[2,4,2]],br:{0:"3343",1:"63646566",2:"172737"},par:23,sol:"WWWWSEESSSWENNEESENWSSE"},
+{W:8,H:8,g:"0020100321000113010100030000000015130020000300000010002033300200",s:[4,5],h:[1,4],hd:[[2,1,0],[4,4,1]],sf:[[7,4,2]],br:{0:"071727",1:"3435",2:"707172"},par:20,sol:"NWSENENWWNWESSSSWWNN"},
+{W:9,H:9,g:"110001100033330310200100310020101300100000000020010000110351010100300110021310010",s:[8,2],h:[4,6],hd:[[8,0,0],[2,6,1]],sf:[[2,5,2]],br:{0:"11213141",1:"363738",2:"616263"},par:24,sol:"SSWNWWWSNEEESENWSWNWWSSE"},
+{W:9,H:9,g:"000100000001200021000000120000103000300003032310013030310001000310000000510001000",s:[5,0],h:[0,8],hd:[[8,7,0],[4,4,1]],sf:[[5,1,2]],br:{0:"04050607",1:"7475",2:"535455"},par:31,sol:"SWNESWSSWSSSEEENESWWWSWNNNWWSSS"},
+{W:9,H:9,g:"333101015002000020120000000001112300000110300210000300011010300000101000013300100",s:[0,5],h:[8,0],hd:[[0,1,0],[2,4,1]],sf:[[8,7,2]],br:{0:"63646566",1:"2838",2:"001020"},par:25,sol:"NENEEEESENWWWNWWEESEESENN"},
+{W:9,H:9,g:"000000000000001301010032311000133320100013000000103010002013000001100021002010005",s:[0,0],h:[8,8],hd:[[6,0,0],[2,0,1]],sf:[[2,5,2]],br:{0:"4243",1:"53545556",2:"616263"},par:24,sol:"EEEEWWSWSSSWNENNEESSSSEE"},
+{W:9,H:9,g:"100300130100300131010300030001001000000101020000000210011000012103310001500000011",s:[5,0],h:[0,8],hd:[[3,8,0],[1,7,1]],sf:[[4,5,2]],br:{0:"303132",1:"2737",2:"707172"},par:37,sol:"SWSSSESSWWEENNWNNNENWWSENESSESSSSWWWW"},
+{W:9,H:9,g:"201000005200100111110000000033310000000000002030000013031101013032000103122020103",s:[0,6],h:[8,0],hd:[[0,6,0],[4,4,1]],sf:[[6,2,2]],br:{0:"151617",1:"85868788",2:"132333"},par:24,sol:"NSNEEEEENESENWWWSENWNNEE"}
+];
+/* ============ 基础 ============ */
+var M214 = 2147483647;
+function LCG(x){this.x=(x%M214)||1;}
+LCG.prototype.next=function(){this.x=this.x*48271%M214;return this.x;};
+function U(r,m){r.next();return (r.x*m-r.x*m%M214)/M214;} /* 整数精确式（r.x*m<2^53 商≤m 恒整），与 py // 同构 */
+var DIRS=['E','W','S','N'];
+var DIRV={E:[1,0],W:[-1,0],S:[0,1],N:[0,-1]};
+/* ============ 存档 ============ */
+var KEY='g133_seal';
+function loadSave(){
+  try{
+    var raw=localStorage.getItem(KEY);
+    if(!raw)return {best:{},unlocked:1,snd:1};
+    var d=JSON.parse(raw);
+    if(!d||typeof d!=='object'||typeof d.unlocked!=='number'||!isFinite(d.unlocked)||d.unlocked<1||d.unlocked>24||d.unlocked%1!==0)return {best:{},unlocked:1,snd:1};
+    if(typeof d.best!=='object'||d.best===null)return {best:{},unlocked:1,snd:1};
+    for(var k in d.best){var v=d.best[k];if(typeof v!=='number'||!isFinite(v)||v<1||v>3||v%1!==0)return {best:{},unlocked:1,snd:1};}
+    return {best:d.best,unlocked:d.unlocked,snd:d.snd?1:0};
+  }catch(e){return {best:{},unlocked:1,snd:1};}
+}
+function saveMain(){
+  try{localStorage.setItem(KEY,JSON.stringify({best:S.best,unlocked:S.unlocked,snd:S.snd}));}catch(e){}
+}
+/* ============ 音效 ============ */
+var AC=null;
+function ensureAC(){
+  if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}
+  if(AC&&AC.state==='suspended'){AC.resume();}
+}
+function tone(f,dur,dly,type){
+  if(!S.snd||!AC)return;
+  var t=AC.currentTime+(dly||0);
+  var o=AC.createOscillator(),g=AC.createGain();
+  o.type=type||'sine';o.frequency.value=f;
+  g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(0.12,t+0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+dur+0.02);
+}
+var SND={roll:function(){tone(180,0.08,0,'triangle');},stamp:function(){tone(520,0.18,0);tone(780,0.22,0.04);},
+  fall:function(){tone(220,0.3,0,'sawtooth');tone(140,0.4,0.12,'sawtooth');},switch:function(){tone(660,0.1,0,'square');tone(880,0.12,0.06,'square');},
+  win:function(){[523,659,784,1046].forEach(function(f,i){tone(f,0.25,i*0.13);});},
+  lose:function(){tone(330,0.3,0);tone(247,0.35,0.16);tone(165,0.5,0.34);}};
+/* ============ 状态 ============ */
+var S={ph:'boot',lv:1,cells:null,n:0,bstate:null,steps:0,hints:0,hist:[],fell:0,
+  anim:null,winT:0,loseT:0,hintDir:null,hintT:0,dead:false,best:{},unlocked:1,snd:1,
+  seed:0,r1:null,botMode:null,botPath:null,botBstate:null};
+var els={};
+function $(id){return document.getElementById(id);}
+/* ============ 关卡 ============ */
+function parseLv(d){
+  var g=[];
+  for(var y=0;y<d.H;y++){var row=[];for(var x=0;x<d.W;x++)row.push(+d.g[y*d.W+x]);g.push(row);}
+  var br={};
+  for(var k in d.br){var arr=[];for(var i=0;i<d.br[k].length;i+=2)arr.push([+d.br[k][i],+d.br[k][i+1]]);br[+k]=arr;}
+  return {W:d.W,H:d.H,g:g,s:d.s,h:d.h,hd:d.hd,sf:d.sf,br:br,par:d.par,sol:d.sol};
+}
+function initBstate(L){
+  var bs={};
+  for(var gid in L.br){var c=L.br[gid][0];bs[gid]=L.g[c[1]][c[0]]===4?1:0;}
+  return bs;
+}
+function ground(L,cells,bs,n){
+  var softOn={};
+  for(var i=0;i<L.sf.length;i++){var sb=L.sf[i];if(hasCell(cells,sb))softOn[sb[2]]=1;}
+  for(var j=0;j<cells.length;j++){
+    var x=cells[j][0],y=cells[j][1];
+    if(x<0||x>=L.W||y<0||y>=L.H)return 'bad';
+    var t=L.g[y][x];
+    if(t===1)return 'bad';
+    if(t===3||t===4){
+      var gid=null;
+      for(var g2 in L.br){if(hasCell(L.br[g2],cells[j])){gid=+g2;break;}}
+      if(gid===null)return 'bad';
+      var on=bs[gid]||0;
+      if(softOn[gid])on=1;
+      if(!on)return 'bad';
+    }
+  }
+  if(cells.length===2){
+    for(var j2=0;j2<2;j2++){var c2=cells[j2];if(L.g[c2[1]][c2[0]]===2)return 'fall';}
+  }
+  if(cells.length===1){
+    var cc=cells[0];
+    if(L.g[cc[1]][cc[0]]===5)return n===0?'hole_up':'hole_down';
+  }
+  return 'ok';
+}
+function hasCell(cells,c){
+  for(var i=0;i<cells.length;i++){if(cells[i][0]===c[0]&&cells[i][1]===c[1])return true;}
+  return false;
+}
+function toggleHard(L,cells,bs){
+  for(var i=0;i<L.hd.length;i++){var hb=L.hd[i];if(hasCell(cells,hb)){bs[hb[2]]=1-(bs[hb[2]]||0);}}
+}
+/* ROLL 真表（cells 已是数组 [x,y] 或 [[x,y],[x,y]]） */
+function rollJ(cells,n,d){
+  var cs=cells.slice().sort(function(a,b){return a[1]===b[1]?a[0]-b[0]:a[1]-b[1];});
+  if(cs.length===1){
+    var x=cs[0][0],y=cs[0][1];
+    if(d==='E')return {c:[[x+1,y],[x+2,y]],n:(n===0?2:3)};
+    if(d==='W')return {c:[[x-2,y],[x-1,y]],n:(n===0?3:2)};
+    if(d==='S')return {c:[[x,y+1],[x,y+2]],n:(n===0?4:5)};
+    return {c:[[x,y-2],[x,y-1]],n:(n===0?5:4)};
+  }
+  var x1=cs[0][0],y1=cs[0][1],x2=cs[1][0],y2=cs[1][1];
+  if(y1===y2){ /* HZ（枢轴侧端面滚后朝下，与 VT 一致；G3 审查 M1 修正） */
+    if(d==='E')return {c:[[x2+1,y1]],n:(n===2?1:0)};
+    if(d==='W')return {c:[[x1-1,y1]],n:(n===2?0:1)};
+    var dy=(d==='S')?1:-1;
+    return {c:[[x1,y1+dy],[x2,y2+dy]],n:n};
+  }else{ /* VT */
+    if(d==='S')return {c:[[x1,y2+1]],n:(n===4?1:0)};
+    if(d==='N')return {c:[[x1,y1-1]],n:(n===4?0:1)};
+    var dx=(d==='E')?1:-1;
+    return {c:[[x1+dx,y1],[x2+dx,y2]],n:n};
+  }
+}
+/* ============ 游戏流 ============ */
+function curLv(){return parseLv(LVDATA[S.lv-1]);}
+function loadLv(lv){
+  S.lv=lv;var L=curLv();
+  S.cells=[[L.s[0],L.s[1]]];S.n=0;
+  S.bstate=initBstate(L);
+  S.steps=0;S.hints=0;S.hist=[];S.fell=0;S.dead=false;
+  S.anim=null;S.winT=0;S.loseT=0;S.hintDir=null;S.hintT=0;S.overShown=false;
+  updHUD();
+}
+function newGame(lv){
+  loadLv(lv||1);
+  S.ph='play';
+  els.menu.classList.add('hide');
+  els.over.classList.add('hide');
+  els.lvbar.classList.remove('show');
+  updHUD();
+}
+function updHUD(){
+  if(S.ph!=='play'&&S.ph!=='over'){els.hInfo.textContent='—— 待 拓 ——';els.hSub.textContent='';els.hHint.textContent='';return;}
+  var L=curLv();
+  els.hInfo.textContent='第 '+S.lv+' 碑 · '+S.steps+'/'+L.par+' 步';
+  els.hSub.textContent='印面'+(['上','下','东','西','南','北'][S.n]);
+  els.hHint.textContent=S.hints?('✦'+S.hints):'';
+}
+function tryMove(d){
+  if(S.ph!=='play'||S.winT>0||S.loseT>0)return false;
+  if(S.anim){S.anim=null;} /* 快速连滑：旧动画视为完成（逻辑本已原子，动画纯视觉） */
+  var L=curLv();
+  var r=rollJ(S.cells,S.n,d);
+  if(!r)return false;
+  var nbs=cloneBs(S.bstate);
+  var gd=ground(L,r.c,nbs,r.n);
+  if(gd==='bad'||gd==='hole_down'){
+    if(gd==='hole_down'){flash('印背朝上 · 卡穴退回');tone(160,0.12,0,'triangle');}
+    return false;
+  }
+  if(gd==='fall'){
+    S.fell++;
+    S.dead=true;
+    S.anim={from:S.cells,to:r.c,n:S.n,nn:r.n,t:0,fell:true};
+    SND.fall();
+    S.loseT=0.001; /* 演出起步（draw 中计时，归 1.2 后 over） */
+    return true;
+  }
+  S.hist.push({cells:S.cells,n:S.n,bs:cloneBs(S.bstate)});
+  toggleHard(L,r.c,nbs);
+  S.cells=r.c;S.n=r.n;S.bstate=nbs;
+  S.steps++;
+  var bridged=false;
+  for(var gid in L.br){if((nbs[gid]||0)!==(S.hist[S.hist.length-1].bs[gid]||0)){bridged=true;}}
+  if(bridged)SND.switch();
+  S.anim={from:S.hist[S.hist.length-1].cells,to:r.c,n:S.hist[S.hist.length-1].n,nn:r.n,t:0};
+  SND.roll();
+  if(gd==='hole_up'){
+    S.winT=0.001;
+    SND.stamp();
+  }
+  updHUD();
+  return true;
+}
+function cloneBs(bs){var o={};for(var k in bs)o[k]=bs[k];return o;}
+function undo(){
+  if(S.ph!=='play'||S.winT>0||S.loseT>0)return;
+  if(S.anim){S.anim=null;}
+  if(!S.hist.length){flash('已到起点');return;}
+  var h=S.hist.pop();
+  S.cells=h.cells;S.n=h.n;S.bstate=h.bs;
+  updHUD();
+  flash('撤销（步数不减）');
+}
+function hintNext(){
+  if(S.ph!=='play'||S.winT>0||S.loseT>0)return;
+  if(S.anim){S.anim=null;}
+  if(S.hints>=3){flash('拓示已用尽');return;}
+  var d=solveFrom(S.cells,S.n,S.bstate);
+  if(!d){flash('此处已无解 · 试试撤销');return;}
+  S.hints++;
+  S.hintDir=d;S.hintT=1.5;
+  updHUD();
+}
+/* BFS（援手+bot 共用；返回首向） */
+function solveFrom(cells,n,bs){
+  var L=curLv();
+  var key0=stKey(cells,n,bs);
+  var q=[[cells,n,cloneBs(bs),null]];
+  var seen={};seen[key0]=1;
+  var head=0;
+  while(head<q.length){
+    var it=q[head++];
+    if(it[0].length===1&&it[0][0][0]===L.h[0]&&it[0][0][1]===L.h[1]&&it[1]===0){
+      var p=it[3];
+      return p?p[0]:null;
+    }
+    for(var di=0;di<4;di++){
+      var d=DIRS[di];
+      var r=rollJ(it[0],it[1],d);
+      if(!r)continue;
+      var nbs=cloneBs(it[2]);
+      var gd=ground(L,r.c,nbs,r.n);
+      if(gd==='bad'||gd==='fall'||gd==='hole_down')continue;
+      if(gd==='hole_up'){
+        var path=(it[3]||[]).concat([d]);
+        return path[0];
+      }
+      toggleHard(L,r.c,nbs);
+      var k2=stKey(r.c,r.n,nbs);
+      if(seen[k2])continue;
+      seen[k2]=1;
+      q.push([r.c,r.n,nbs,(it[3]||[]).concat([d])]);
+    }
+  }
+  return null;
+}
+function stKey(cells,n,bs){
+  var cs=cells.slice().sort(function(a,b){return a[1]===b[1]?a[0]-b[0]:a[1]-b[1];});
+  var s=cs.map(function(c){return c[0]+','+c[1];}).join('|')+'#'+n+'#';
+  var ks=Object.keys(bs).sort();
+  for(var i=0;i<ks.length;i++)s+=ks[i]+':'+bs[ks[i]];
+  return s;
+}
+/* ============ 胜负 ============ */
+function starsOf(){
+  var L=curLv();
+  if(S.steps<=L.par&&S.hints===0)return 3;
+  if(S.steps<=L.par+2&&S.hints<=1)return 2;
+  return 1;
+}
+function finishWin(){
+  var st=starsOf();
+  if(!S.best[S.lv]||S.best[S.lv]<st)S.best[S.lv]=st;
+  if(S.unlocked<S.lv+1&&S.lv<24)S.unlocked=S.lv+1;
+  saveMain();
+  els.oTitle.textContent='盖 印 成 功';
+  els.oTitle.className='ot';
+  els.oStars.textContent='★★★'.slice(0,st)+'☆☆☆'.slice(0,3-st);
+  els.oSub.textContent=S.steps+' 步 / par '+curLv().par+(S.hints?(' · 拓示 ×'+S.hints):'');
+  els.oNext.style.display=(S.lv<24)?'flex':'none';
+  S.ph='over';S.overWin=true;
+  els.over.classList.remove('hide');
+  SND.win();
+}
+function finishLose(){
+  els.oTitle.textContent='宣 纸 破 损';
+  els.oTitle.className='ot fail';
+  els.oStars.textContent='';
+  els.oSub.textContent='裂纹宣承不住平压 · 重拓此碑';
+  els.oNext.style.display='none';
+  S.ph='over';S.overWin=false;
+  els.over.classList.remove('hide');
+  SND.lose();
+}
+/* ============ 渲染 ============ */
+var cv,ctx;
+var CELL=34;
+function boardOrigin(L){
+  var bw=L.W*CELL,bh=L.H*CELL;
+  return [Math.floor((390-bw)/2),90+Math.floor((560-bh)/2)];
+}
+function draw(ts){
+  ctx.fillStyle='#0e1420';ctx.fillRect(0,0,390,780);
+  var L=curLv();
+  var ox=boardOrigin(L)[0],oy=boardOrigin(L)[1];
+  /* 底纹：夜拓靛青+纸格 */
+  for(var y=0;y<L.H;y++)for(var x=0;x<L.W;x++){
+    var t=L.g[y][x],px=ox+x*CELL,py=oy+y*CELL;
+    var on=1;
+    if(t===3||t===4){
+      var gid=null;
+      for(var g2 in L.br){if(hasCell(L.br[g2],[x,y])){gid=+g2;break;}}
+      on=(gid!==null)&&((S.bstate[gid]||isSoftOn(L,[x,y]))||softHeld(L,gid))?1:0;
+    }
+    if(t===1){ /* 墨石 */
+      ctx.fillStyle='#232c40';ctx.fillRect(px+1,py+1,CELL-2,CELL-2);
+      ctx.fillStyle='#2e3a54';ctx.fillRect(px+4,py+4,CELL-8,10);
+      ctx.fillRect(px+4,py+CELL-14,CELL-12,8);
+    }else if(t===2){ /* 裂纹宣 */
+      ctx.fillStyle='#3a3a30';ctx.fillRect(px+1,py+1,CELL-2,CELL-2);
+      ctx.strokeStyle='#585848';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(px+6,py+8);ctx.lineTo(px+16,py+18);ctx.lineTo(px+12,py+26);
+      ctx.moveTo(px+24,py+6);ctx.lineTo(px+20,py+16);ctx.lineTo(px+28,py+24);ctx.stroke();
+    }else if(t===5){ /* 印穴 */
+      ctx.fillStyle='#1a1416';ctx.fillRect(px+2,py+2,CELL-4,CELL-4);
+      ctx.strokeStyle='#a04a3a';ctx.lineWidth=2;ctx.strokeRect(px+3,py+3,CELL-6,CELL-6);
+      ctx.fillStyle='#a04a3a';ctx.font='13px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText('穴',px+CELL/2,py+CELL/2+1);
+    }else if(t===3||t===4){ /* 断笺/搭笺 */
+      if(on){
+        ctx.fillStyle='#4a4030';ctx.fillRect(px+1,py+1,CELL-2,CELL-2);
+        ctx.strokeStyle='#7a6848';ctx.lineWidth=1;
+        ctx.beginPath();ctx.moveTo(px+3,py+CELL/2);ctx.lineTo(px+CELL-3,py+CELL/2);ctx.stroke();
+      }else{
+        ctx.strokeStyle='#2c3448';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+        ctx.strokeRect(px+3.5,py+3.5,CELL-7,CELL-7);ctx.setLineDash([]);
+      }
+    }else{ /* 宣纸 */
+      ctx.fillStyle='#d8d0bc';ctx.fillRect(px+1,py+1,CELL-2,CELL-2);
+      ctx.strokeStyle='rgba(60,50,40,.18)';ctx.lineWidth=1;ctx.strokeRect(px+1.5,py+1.5,CELL-3,CELL-3);
+    }
+  }
+  /* 钮 */
+  for(var i=0;i<L.hd.length;i++)drawBtn(L,ox,oy,L.hd[i],'hard');
+  for(var i2=0;i2<L.sf.length;i2++)drawBtn(L,ox,oy,L.sf[i2],'soft');
+  /* 提示箭头 */
+  if(S.hintT>0&&S.hintDir){
+    var c0=anchorOf(S.cells);
+    var hx=ox+c0[0]*CELL+CELL/2,hy=oy+c0[1]*CELL+CELL/2;
+    var v=DIRV[S.hintDir];
+    ctx.strokeStyle='rgba(216,164,92,'+Math.min(1,S.hintT)+')';ctx.lineWidth=3;
+    ctx.beginPath();ctx.moveTo(hx+v[0]*10,hy+v[1]*10);ctx.lineTo(hx+v[0]*34,hy+v[1]*34);
+    ctx.moveTo(hx+v[0]*34,hy+v[1]*34);ctx.lineTo(hx+v[0]*24+v[1]*8,hy+v[1]*24+v[0]*8);
+    ctx.moveTo(hx+v[0]*34,hy+v[1]*34);ctx.lineTo(hx+v[0]*24-v[1]*8,hy+v[1]*24-v[0]*8);ctx.stroke();
+  }
+  /* 印章 */
+  drawSeal(L,ox,oy);
+  /* 演出 */
+  if(S.winT>0){
+    var c1=anchorOf(S.cells);
+    var wx=ox+c1[0]*CELL+CELL/2,wy=oy+c1[1]*CELL+CELL/2;
+    var p=Math.min(1,S.winT/1.4);
+    ctx.strokeStyle='rgba(200,80,60,'+(0.8*(1-p))+')';ctx.lineWidth=3;
+    ctx.beginPath();ctx.arc(wx,wy,10+p*46,0,Math.PI*2);ctx.stroke();
+    ctx.strokeStyle='rgba(216,164,92,'+(0.7*(1-p))+')';ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(wx,wy,6+p*70,0,Math.PI*2);ctx.stroke();
+  }
+  if(S.loseT>0){
+    var c2=anchorOf(S.cells);
+    var lx=ox+c2[0]*CELL+CELL/2,ly=oy+c2[1]*CELL+CELL/2;
+    var q=Math.min(1,S.loseT/1.2);
+    ctx.fillStyle='rgba(20,16,12,'+(0.5*q)+')';
+    ctx.beginPath();ctx.arc(lx,ly,10+q*36,0,Math.PI*2);ctx.fill();
+  }
+}
+function isSoftOn(L,c){
+  for(var i=0;i<L.sf.length;i++){var s=L.sf[i];if(s[0]===c[0]&&s[1]===c[1])return true;}
+  return false;
+}
+function softHeld(L,gid){
+  /* 软组绘制态：印章占格踩住该组任一软钮时该组桥即时为实（与 ground 同源） */
+  if(!S.cells)return false;
+  for(var i=0;i<L.sf.length;i++){
+    if(L.sf[i][2]===gid&&hasCell(S.cells,L.sf[i]))return true;
+  }
+  return false;
+}
+function drawBtn(L,ox,oy,b,kind){
+  var px=ox+b[0]*CELL,py=oy+b[1]*CELL;
+  var on;
+  if(kind==='hard')on=S.bstate[b[2]]||0;
+  else on=isSoftOn(L,b)?1:(S.cells&&hasCell(S.cells,b)?1:0);
+  ctx.beginPath();ctx.arc(px+CELL/2,py+CELL/2,9,0,Math.PI*2);
+  if(kind==='hard'){
+    ctx.fillStyle=on?'#c8a050':'#584e38';ctx.fill();
+    ctx.strokeStyle='#d8c080';ctx.lineWidth=2;ctx.stroke();
+  }else{
+    ctx.fillStyle=on?'#7ab0a0':'#38544c';ctx.fill();
+    ctx.strokeStyle='#90c8b8';ctx.lineWidth=2;ctx.strokeRect(px+CELL/2-7,py+CELL/2-7,14,14);
+  }
+}
+function anchorOf(cells){
+  /* 印章视觉锚：立式=本格；卧式=两格中点 */
+  if(cells.length===2)return [(cells[0][0]+cells[1][0])/2,(cells[0][1]+cells[1][1])/2];
+  return [cells[0][0],cells[0][1]];
+}
+function cellRect(L,ox,oy,c){
+  return [ox+c[0]*CELL,oy+c[1]*CELL];
+}
+function drawSeal(L,ox,oy){
+  var t;
+  if(S.anim){
+    var a=S.anim;
+    var p=Math.min(1,a.t/0.16);
+    var ease=p*p*(3-2*p);
+    /* 简化补间：从 from 锚到 to 锚线性插值绘制（视觉近似，逻辑已原子完成） */
+    var f0=a.from[a.from.length-1],t0=a.to[a.to.length-1];
+    var fx=ox+f0[0]*CELL,ty=oy+f0[1]*CELL,tx=ox+t0[0]*CELL,t2y=oy+t0[1]*CELL;
+    t={x:fx+(tx-fx)*ease,y:ty+(t2y-ty)*ease,n:(p<0.5?a.n:a.nn),len:a.to.length};
+    if(a.fell){t.fade=1-p;}
+  }else{
+    var c=S.cells[S.cells.length-1];
+    t={x:ox+c[0]*CELL,y:oy+c[1]*CELL,n:S.n,len:S.cells.length};
+  }
+  var alpha=t.fade!==undefined?t.fade:1;
+  ctx.globalAlpha=alpha;
+  if(t.len===1){
+    /* 立式：2:1 竖块+顶面 */
+    ctx.fillStyle='#3a5068';
+    ctx.fillRect(t.x+5,t.y+2,CELL-10,CELL-4);
+    ctx.fillStyle='#46617e';
+    ctx.fillRect(t.x+7,t.y+4,CELL-14,CELL-8);
+    /* 顶面标印面朝向 */
+    ctx.fillStyle=t.n===0?'#c05a48':'#7a8898';
+    ctx.font='bold 12px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(t.n===0?'印':'背',t.x+CELL/2,t.y+CELL/2+1);
+    /* 立体影 */
+    ctx.fillStyle='rgba(0,0,0,.3)';
+    ctx.fillRect(t.x+3,t.y+CELL-5,CELL-6,4);
+  }else{
+    /* 卧式：2:1 横/竖块，端面小标印面方向 */
+    var horiz=S.cells[0][1]===S.cells[1][1];
+    if(S.anim){horiz=S.anim.to[0][1]===S.anim.to[1][1];}
+    ctx.fillStyle='#3a5068';
+    if(horiz){
+      var x0=Math.min(S.cells[0][0],S.cells[1][0]);
+      if(S.anim){x0=Math.min(S.anim.to[0][0],S.anim.to[1][0]);}
+      var rx=ox+x0*CELL;
+      ctx.fillRect(rx+3,t.y+8,CELL*2-6,CELL-16);
+      ctx.fillStyle='#46617e';ctx.fillRect(rx+5,t.y+10,CELL*2-10,CELL-20);
+      var face=(t.n===2)?rx+CELL*2-14:rx+8;
+      ctx.fillStyle='#c05a48';ctx.beginPath();ctx.arc(face+4,t.y+CELL/2,5,0,Math.PI*2);ctx.fill();
+    }else{
+      var y0=Math.min(S.cells[0][1],S.cells[1][1]);
+      if(S.anim){y0=Math.min(S.anim.to[0][1],S.anim.to[1][1]);}
+      var ry=oy+y0*CELL;
+      ctx.fillRect(t.x+8,ry+3,CELL-16,CELL*2-6);
+      ctx.fillStyle='#46617e';ctx.fillRect(t.x+10,ry+5,CELL-20,CELL*2-10);
+      var faceY=(t.n===4)?ry+CELL*2-14:ry+8;
+      ctx.fillStyle='#c05a48';ctx.beginPath();ctx.arc(t.x+CELL/2,faceY+4,5,0,Math.PI*2);ctx.fill();
+    }
+  }
+  ctx.globalAlpha=1;
+}
+/* ============ 主循环 ============ */
+var lastTs=0;
+function loop(ts){
+  var dt=Math.min(50,ts-lastTs)||16;lastTs=ts;
+  var gDt=dt/1000;
+  if(S.anim){S.anim.t+=gDt;if(S.anim.t>=0.16){S.anim=null;}}
+  if(S.hintT>0)S.hintT=Math.max(0,S.hintT-gDt);
+  if(S.ph==='play'||S.ph==='over'){
+    if(S.winT>0){S.winT+=gDt;if(S.winT>=1.4&&!S.overShown){S.overShown=true;finishWin();}}
+    if(S.loseT>0){S.loseT+=gDt;if(S.loseT>=1.2&&!S.overShown){S.overShown=true;finishLose();}}
+  }
+  draw(ts);
+  requestAnimationFrame(loop);
+}
+/* ============ 输入 ============ */
+var pdX=0,pdY=0,pDown=false,pdId=-1;
+function bindInput(){
+  cv.addEventListener('pointerdown',function(e){
+    e.preventDefault();
+    if(S.ph!=='play')return;
+    if(pDown)return; /* 已有指在滑，第二指不覆写起点（g129 同族修复） */
+    pDown=true;pdId=e.pointerId;pdX=e.clientX;pdY=e.clientY;
+  });
+  window.addEventListener('pointerup',function(e){
+    if(!pDown)return;
+    if(e.pointerId!==pdId)return; /* 只认起始指抬起 */
+    pDown=false;
+    var dx=e.clientX-pdX,dy=e.clientY-pdY;
+    if(Math.abs(dx)<18&&Math.abs(dy)<18)return;
+    ensureAC();
+    tryMove(Math.abs(dx)>Math.abs(dy)?(dx>0?'E':'W'):(dy>0?'S':'N'));
+  });
+  window.addEventListener('pointercancel',function(e){if(e.pointerId===pdId)pDown=false;});
+  window.addEventListener('keydown',function(e){
+    if(S.ph!=='play')return;
+    var m={ArrowLeft:'W',ArrowRight:'E',ArrowUp:'N',ArrowDown:'S',a:'W',d:'E',w:'N',s:'S',A:'W',D:'E',W:'N',S:'S'};
+    if(m[e.key]){e.preventDefault();ensureAC();tryMove(m[e.key]);}
+  });
+  $('bUndo').addEventListener('click',function(){undo();});
+  $('bHint').addEventListener('click',function(){hintNext();});
+  $('bReset').addEventListener('click',function(){if(S.ph==='play'){loadLv(S.lv);flash('重开此碑');}});
+  $('sndbtn').addEventListener('pointerdown',function(e){e.stopPropagation();});
+  $('sndbtn').addEventListener('click',function(){
+    S.snd=S.snd?0:1;this.textContent=S.snd?'♪':'✕';saveMain();
+  });
+  $('pausebtn').addEventListener('pointerdown',function(e){e.stopPropagation();});
+  $('pausebtn').addEventListener('click',function(){
+    if(S.ph==='play'&&!S.anim&&S.winT===0&&S.loseT===0){
+      S.ph='pause';$('pause').classList.remove('hide');
+    }else if(S.ph==='pause'){
+      S.ph='play';$('pause').classList.add('hide');
+    }
+  });
+  $('pRes').addEventListener('click',function(){
+    if(S.ph==='pause'){S.ph='play';$('pause').classList.add('hide');}
+  });
+}
+function flash(msg){
+  var f=$('flash');
+  f.textContent=msg;f.classList.add('show');
+  clearTimeout(flash._t);
+  flash._t=setTimeout(function(){f.classList.remove('show');},1600);
+}
+/* ============ 菜单 ============ */
+function buildLvbar(){
+  var g=$('lvgrid');g.innerHTML='';
+  $('lvbar').querySelector('.lt').textContent='选 碑 · 已拓 '+countBest()+' 碑';
+  for(var i=1;i<=24;i++){
+    var c=document.createElement('div');
+    c.className='lvcell'+(i>S.unlocked?' lock':'');
+    c.innerHTML=i+'<span class="st">'+(S.best[i]?'★'.repeat(S.best[i]):'')+'</span>';
+    (function(lv,cell){cell.addEventListener('click',function(){
+      $('lvbar').classList.remove('show');
+      els.menu.classList.add('hide');
+      newGame(lv);
+    });})(i,c);
+    g.appendChild(c);
+  }
+}
+function countBest(){var n=0;for(var k in S.best)n++;return n;}
+function bindMenu(){
+  els.mGo.addEventListener('click',function(){ensureAC();newGame(S.unlocked>24?24:S.unlocked);});
+  els.mLvs.addEventListener('click',function(){
+    buildLvbar();
+    var open=els.lvbar.classList.toggle('show');
+    els.menu.classList.toggle('hide',open);
+  });
+  els.lvbar.addEventListener('click',function(e){
+    if(e.target===els.lvbar){els.lvbar.classList.remove('show');els.menu.classList.remove('hide');}
+  });
+  els.mBest.addEventListener('click',function(){
+    var tot=0,st=0;
+    for(var k in S.best){st+=S.best[k];tot++;}
+    flash(tot?('已拓 '+tot+' 碑 · ★'+st):'尚无战绩');
+  });
+  els.oAgain.addEventListener('click',function(){S.overShown=false;newGame(S.lv);});
+  els.oNext.addEventListener('click',function(){S.overShown=false;newGame(Math.min(24,S.lv+1));});
+  function home(){S.overShown=false;S.ph='menu';S.winT=0;S.loseT=0;
+    els.over.classList.add('hide');els.pause.classList.add('hide');els.menu.classList.remove('hide');els.lvbar.classList.remove('show');updHUD();}
+  els.pHome.addEventListener('click',home);
+  els.pHome2.addEventListener('click',home);
+}
+/* ============ boot ============ */
+function boot(){
+  ['hInfo','hSub','hHint','menu','over','pause','mGo','mLvs','mBest','oAgain','oNext','oTitle','oStars','oSub','pHome','pHome2','lvbar'].forEach(function(id){els[id]=$(id);});
+  cv=$('cv');ctx=cv.getContext('2d');
+  var sv=loadSave();
+  S.best=sv.best;S.unlocked=sv.unlocked;S.snd=sv.snd;
+  $('sndbtn').textContent=S.snd?'♪':'✕';
+  loadLv(1);
+  S.ph='menu';
+  bindInput();bindMenu();
+  document.addEventListener('pointerdown',ensureAC,{once:false});
+  requestAnimationFrame(loop);
+}
+boot();
+
+</script>
+</body>
+</html>
