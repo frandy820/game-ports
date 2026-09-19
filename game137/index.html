@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>叶子戏</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;background:#141210;overflow:hidden;font-family:"Songti SC","STSong","SimSun",serif;user-select:none}
+#app{position:relative;width:390px;height:844px;margin:0 auto;background:linear-gradient(180deg,#26211b 0%,#2d2620 64px,#1b1713 64px)}
+#hud{position:absolute;top:0;left:0;width:100%;height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;color:#e5d8b4;z-index:5}
+#hInfo{font-size:19px;letter-spacing:1px}
+#hSub{font-size:13px;color:#a9986f}
+#cv{position:absolute;top:64px;left:0}
+.btnrow{position:absolute;bottom:0;left:0;width:100%;height:64px;display:flex;gap:10px;align-items:center;justify-content:center;z-index:5}
+.hbtn{min-width:72px;padding:8px 12px;border:1px solid #6b5a44;border-radius:8px;background:#382f24;color:#d6c294;font-size:14px;text-align:center;cursor:pointer}
+#bDraw{min-width:110px;background:#4c3d2c;border-color:#8a7350;color:#ffe2ac;font-size:16px}
+.lay{position:absolute;inset:0;background:rgba(16,13,10,.86);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:20}
+.hide{display:none!important}
+.mt{font-size:34px;color:#e5d8b4;letter-spacing:6px;margin-bottom:6px}
+.msub{font-size:13px;color:#9c8b66;margin-bottom:26px;letter-spacing:2px}
+.mbtn{width:200px;padding:12px 0;margin:7px 0;border:1px solid #776244;border-radius:10px;background:#382f24;color:#dcc898;font-size:17px;text-align:center;cursor:pointer;letter-spacing:3px}
+.ot{font-size:30px;color:#e5d8b4;letter-spacing:4px;margin-bottom:12px}
+.os{font-size:24px;color:#ffce6a;margin-bottom:8px}
+.osub{font-size:14px;color:#9c8b66;margin-bottom:20px}
+#lvbar{position:absolute;left:50%;transform:translateX(-50%);bottom:80px;width:342px;background:#2a231c;border:1px solid #6b5a44;border-radius:12px;padding:10px;display:grid;grid-template-columns:repeat(6,1fr);gap:6px;z-index:22}
+.lvcell{height:44px;border:1px solid #57462f;border-radius:6px;background:#382f24;color:#d6c294;font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.lvcell.lock{color:#57462f;border-color:#382f24}
+.flash{position:absolute;top:180px;left:50%;transform:translateX(-50%);padding:8px 18px;background:#443626;color:#ffe2ac;border-radius:8px;font-size:15px;z-index:15;pointer-events:none;transition:opacity .3s}
+#pgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.pcell{width:80px;text-align:center}
+.pv{width:56px;height:72px;margin:0 auto 6px;border-radius:6px;border:2px solid #6b5a44;background:#241e18;display:flex;align-items:center;justify-content:center;font-size:26px;color:#57462f}
+.pcell.on .pv{color:#e5d8b4;background:#3a3125;border-color:#a08a5c}
+.pn{font-size:12px;color:#a9986f}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud"><div id="hInfo">叶子戏</div><div id="hSub"></div></div>
+  <canvas id="cv" width="390" height="780"></canvas>
+  <div class="btnrow">
+    <div class="hbtn" id="bDraw">翻 笺</div>
+    <div class="hbtn" id="bUndo">悔 手</div>
+    <div class="hbtn" id="bHint">灯下读书</div>
+    <div class="hbtn" id="bTrophy">函匣</div>
+    <div class="hbtn" id="pausebtn">暂停</div>
+  </div>
+  <div class="lay hide" id="menu">
+    <div class="mt">叶 子 戏</div>
+    <div class="msub">唐人书斋 · 青史黄叶归函</div>
+    <div class="mbtn" id="mGo">开局</div>
+    <div class="mbtn" id="mLvs">选局</div>
+    <div class="mbtn" id="mTrophy">函匣</div>
+  </div>
+  <div class="lay hide" id="over">
+    <div class="ot" id="oTitle">四函归满</div>
+    <div class="os" id="oStars"></div>
+    <div class="osub" id="oSub"></div>
+    <div class="mbtn hide" id="bNext">下一局</div>
+    <div class="mbtn" id="bAgain">再战</div>
+    <div class="mbtn" id="bHome">回斋</div>
+  </div>
+  <div class="lay hide" id="pause">
+    <div class="ot">搁 卷</div>
+    <div class="mbtn" id="pRes">续战</div>
+    <div class="mbtn" id="pRestart">重排此局</div>
+    <div class="mbtn" id="pMute">声音</div>
+    <div class="mbtn" id="pHome">回斋</div>
+  </div>
+  <div class="lay hide" id="trophy">
+    <div class="ot">函 匣</div>
+    <div class="pgrid" id="pgrid"></div>
+    <div class="mbtn" id="pBack">收起</div>
+  </div>
+  <div id="lvbar" class="hide"></div>
+  <div class="flash" id="flash" style="opacity:0"></div>
+</div>
+<script>
+'use strict';
+/* g137 叶子戏 —— py sim137.py 逐行同构（LCG 洗牌/规则/策略 bot 钉死） */
+var M214=2147483647,LCGX=48271;
+var CW=48,CH=66,COLS=7;
+var TOP_Y=8,TAB_Y=88;      /* 上排槽 y / 列区 y（canvas 坐标，画布高 780） */
+function LCGn(x){return x*LCGX%M214}
+function isRed(s){return s===1||s===2}
+var RNAME=['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+var SCHAR=['♠','♥','♦','♣'];
+var LVDATA=[{"seed":76,"par":134,"loops":1,"sol":["TF1,1","T2,2,5","T0,0,4","T1,0,3","D","D","D","D","D","D","D","W0","D","D","W6","D","D","D","W1","D","W1","D","D","WF2","TF6,2","D","W2","T6,6,2","T2,1,6","TF2,1","T6,5,3","T6,4,2","TF6,0","TF4,0","D","D","D","D","WF0","D","W4","D","W0","T6,2,0","D","WF3","TF4,3","TF3,3","TF4,1","TF3,1","D","D","D","W0","D","D","W0","T5,5,0","D","D","W1","D","W4","TF4,2","TF4,0","T4,2,2","T4,1,2","W4","T6,1,4","W2","T6,0,0","D","W1","D","W0","D","W2","T5,4,2","T5,3,0","TF0,3","TF0,1","D","W2","D","D","W3","TF3,2","TF3,3","D","W1","T3,3,1","T3,2,5","T3,1,5","W3","T5,2,3","T5,1,2","T4,0,3","T5,0,1","TF1,0","TF3,1","D","W0","TF0,2","TF0,0","TF1,2","TF2,3","TF0,1","TF1,3","TF2,2","TF2,3","TF3,0","TF0,0","TF1,1","TF0,1","TF3,2","TF1,3","TF2,2","TF0,3","TF3,0","TF1,2","TF2,0","TF0,2","TF3,1","TF1,3","TF2,1","TF2,3","TF3,0","TF0,0","TF1,1","TF0,1","TF3,2","TF1,3","TF2,2","TF3,0"],"hw":4},{"seed":116,"par":141,"loops":2,"sol":["TF4,0","T2,2,1","TF2,3","T3,3,2","T3,2,1","T5,5,4","D","D","D","W6","D","W3","T2,0,3","T3,1,2","T4,3,3","D","D","WF3","D","W5","T0,0,5","D","D","D","D","D","D","D","D","W3","T6,6,3","T5,4,6","TF5,1","T5,2,6","T5,1,0","T6,5,2","TF6,0","D","W3","D","D","D","W2","T6,3,2","T6,2,4","D","D","W3","D","D","W3","T1,1,3","T1,0,6","W1","D","WF2","TF3,2","TF2,2","D","D","W0","D","W2","D","W6","D","W5","D","D","D","W4","D","WF1","TF2,1","TF3,3","TF2,3","T5,1,2","D","D","W1","W1","T4,2,1","T4,1,0","T5,0,4","D","W6","D","W0","D","W1","T4,0,1","D","D","W3","TF3,0","TF2,0","TF3,1","T6,4,3","TF2,1","TF3,2","TF1,2","TF3,3","T6,3,3","TF1,3","TF3,0","TF2,0","TF3,1","T6,2,3","TF2,1","TF3,2","TF1,2","TF3,3","T6,1,3","T6,0,0","TF1,3","TF3,0","TF2,0","TF3,2","TF2,2","D","W0","TF0,1","TF0,0","TF1,1","TF2,0","TF3,3","TF0,2","TF1,3","TF2,2","TF3,1","TF0,3","TF1,1","TF1,3","TF3,0","TF0,1","TF2,0","TF2,1","TF3,2","TF0,0","TF1,2","TF3,3"],"hw":4},{"seed":138,"par":133,"loops":1,"sol":["TF2,2","T3,3,6","T3,2,1","T5,5,6","T5,4,4","T2,1,5","T5,3,0","T5,2,2","T3,1,5","T6,6,3","T3,0,1","D","D","W0","T2,0,0","D","W1","D","D","W5","T1,1,5","D","W0","T4,4,0","T4,3,0","T4,2,6","TF4,0","TF0,0","T6,6,0","D","WF1","TF5,1","D","W2","W2","T5,1,2","D","D","D","W3","D","WF3","TF0,3","TF6,1","D","W6","D","WF2","TF0,2","TF2,3","D","D","D","D","W5","T6,4,5","D","D","W4","T0,0,4","D","D","W1","D","W1","T1,2,2","TF2,0","TF1,1","TF2,2","TF4,0","TF1,0","D","W0","D","D","W4","TF4,3","TF2,3","TF4,1","D","W5","TF5,1","D","D","W6","D","D","W4","TF4,2","TF2,2","TF4,3","T6,4,4","TF2,3","T5,3,2","TF4,0","TF2,0","TF4,2","T6,3,4","T6,2,3","T6,1,0","W3","W0","T5,0,3","T6,0,0","TF2,2","TF4,1","TF3,1","TF4,0","TF3,0","D","W0","D","W0","TF0,3","TF0,2","TF2,3","TF2,2","TF4,1","TF0,0","TF3,1","TF3,0","TF4,3","TF0,1","TF2,3","TF3,1","TF4,2","TF0,3","TF2,2","TF2,3","TF4,0","TF0,1","TF3,0","TF4,2"],"hw":4},{"seed":160,"par":143,"loops":1,"sol":["D","W1","D","D","D","D","D","D","D","D","D","WF2","TF0,2","D","D","D","W6","D","WF0","D","W2","D","WF0","D","D","D","W3","D","D","D","D","D","W6","T5,5,6","T3,3,5","TF3,1","TF6,1","T3,1,0","T5,4,2","T5,3,4","T6,6,4","W6","T2,2,6","W3","TF4,0","D","D","W0","T6,5,0","T4,4,6","T1,1,4","T6,4,4","T6,3,2","T0,2,2","D","D","D","W2","T1,0,2","T2,1,1","T2,0,5","W2","D","W3","T3,2,4","D","D","W5","T6,2,5","T6,1,5","T4,3,6","T4,2,2","TF4,3","T3,0,4","W3","T6,0,3","D","D","D","W0","D","D","D","WF3","TF1,2","TF3,3","TF3,2","T4,2,3","D","W1","TF1,1","TF1,3","T5,6,1","TF1,0","TF1,2","T5,5,1","TF3,1","TF1,1","TF3,0","T4,1,3","TF1,0","T5,4,1","TF3,3","TF1,3","TF3,1","T4,0,3","TF3,2","TF1,2","T5,3,1","TF1,1","TF3,0","TF5,0","T5,1,2","W2","W3","W2","T5,0,2","TF3,3","TF1,3","TF2,1","TF1,1","W1","W0","TF3,2","TF1,2","TF2,3","TF0,3","TF3,0","TF1,0","TF2,1","TF0,1","TF3,2","TF1,2","TF2,3","TF0,3","TF3,0","TF1,0","TF2,2","TF1,2","TF3,1","TF0,1","TF2,3","TF3,0"],"hw":4},{"seed":165,"par":140,"loops":1,"sol":["TF1,2","TF1,0","T4,4,0","T2,2,4","T5,5,3","D","D","W3","D","D","W6","T2,1,6","D","D","W0","T6,6,0","T6,5,1","TF6,1","TF6,3","T2,0,6","D","W2","D","WF3","D","D","D","WF0","D","D","D","D","W1","D","D","D","D","D","D","D","D","WF1","D","W3","D","D","D","W2","T4,3,2","T4,2,2","T4,1,0","D","W1","D","D","W1","W1","T0,1,1","D","D","D","D","D","W2","D","D","D","W2","T3,3,2","T3,2,5","T5,4,3","TF5,2","T5,2,6","W5","TF1,2","T3,3,1","TF1,1","TF2,0","T6,4,2","TF1,0","T3,2,1","TF2,3","TF1,3","TF2,1","T6,3,2","TF2,2","TF1,2","T3,1,1","W3","T5,1,3","T5,0,0","W5","W0","TF1,1","TF2,3","T6,2,2","T6,1,5","W6","W6","T0,0,6","T3,0,5","T6,0,4","TF1,3","TF2,0","TF2,1","W2","TF2,2","D","W1","TF1,0","TF1,1","TF2,0","TF4,2","TF1,0","D","W2","TF2,3","TF2,2","TF4,3","TF1,2","TF5,1","TF2,0","TF4,1","TF4,0","TF5,3","TF1,3","TF2,2","TF1,2","TF5,1","TF2,3","TF4,1","TF1,3","TF5,0","TF2,2","TF4,0","TF4,2","TF5,1","TF1,1","TF2,3","TF5,0"],"hw":4},{"seed":192,"par":141,"loops":2,"sol":["TF6,1","T5,5,2","T0,0,1","D","W6","D","D","D","W5","D","W0","T5,4,0","T2,2,5","D","D","D","D","W6","T3,3,6","T6,5,3","T4,4,6","T4,3,6","T6,4,5","D","D","D","D","D","D","W1","T1,3,6","D","WF1","D","WF0","D","WF0","D","WF3","TF5,3","TF5,1","D","D","D","WF2","TF6,2","TF1,3","T6,3,1","T1,1,6","T3,2,1","T3,1,0","T6,2,1","T6,1,5","T6,0,4","TF1,0","TF1,1","TF5,2","TF5,0","D","D","D","D","D","D","W0","W0","T5,3,0","T5,2,2","D","D","W6","D","W3","T1,0,3","D","W4","D","W1","D","D","W0","TF0,3","TF0,1","D","W2","D","W5","T4,2,5","T4,1,2","T4,0,3","TF3,2","TF3,3","D","W0","TF0,2","D","W2","D","D","W6","T2,1,6","T2,0,1","D","W6","TF6,3","D","W1","T5,1,1","T5,0,1","TF1,0","TF0,0","TF1,2","TF3,1","TF0,1","TF1,3","TF3,0","TF3,1","TF6,2","TF0,0","TF1,2","TF3,0","TF6,3","TF0,1","TF1,3","TF1,1","TF6,2","TF0,3","TF3,2","TF1,3","TF6,0","TF0,1","TF3,0","TF1,1","TF6,2","TF0,0","TF3,2","TF3,0","TF6,3","TF0,1","TF1,3","TF6,2"],"hw":4},{"seed":202,"par":130,"loops":1,"sol":["T5,5,0","T0,1,2","D","D","D","W3","T6,6,3","T1,1,6","T5,4,1","T5,3,2","D","D","WF1","D","W4","T3,3,4","T3,2,2","T6,5,3","TF6,3","T6,3,0","T1,0,6","T4,4,1","T4,3,2","T3,1,4","T4,2,6","T6,2,3","D","WF2","D","D","WF2","D","D","D","W1","T2,2,1","D","W4","W4","D","D","W6","W6","T3,0,6","T6,1,3","W6","D","D","D","W3","D","W2","D","WF0","TF3,0","D","W0","T6,0,0","W6","D","D","W4","D","D","D","WF1","TF0,0","D","D","D","W2","D","W4","T0,0,4","W0","T4,1,0","T4,0,6","D","W2","T5,2,2","D","W5","W5","T2,1,5","T5,1,2","TF5,3","T2,0,6","TF1,3","TF3,2","TF0,2","TF6,1","TF1,1","TF3,3","TF1,3","TF6,0","TF0,0","TF3,1","TF1,1","TF6,2","TF0,2","TF3,0","TF0,0","TF6,3","TF1,3","TF3,2","TF1,2","TF6,1","TF0,1","TF3,3","TF0,3","TF6,0","TF1,0","TF3,1","TF0,1","TF6,2","TF1,2","TF3,3","TF0,3","TF6,0","TF1,0","TF3,1","TF1,1","TF6,2","TF0,2","TF3,3","TF1,3","TF6,0","TF0,0","TF3,1","TF6,2"],"hw":4},{"seed":213,"par":140,"loops":1,"sol":["D","D","W1","D","D","D","D","D","W1","T6,6,1","TF6,0","TF1,0","T0,0,1","D","D","D","W0","D","W3","T2,2,3","D","D","W0","D","D","W6","T5,5,6","D","WF2","D","D","D","D","D","W2","T4,4,2","TF4,3","TF1,3","T6,4,4","D","D","WF1","D","D","D","W0","T4,2,0","T6,3,4","T6,2,5","T2,1,6","T1,1,2","T6,1,1","T5,4,6","T5,3,1","T0,2,4","T1,0,5","T4,1,1","T3,3,4","T3,2,1","T3,1,4","T2,1,1","D","D","D","D","W0","W0","T3,0,0","T5,2,3","T5,1,3","T5,0,4","T6,0,3","D","WF2","TF1,2","D","WF1","TF3,3","D","D","D","W1","TF1,1","D","W2","D","D","W5","W5","T4,0,5","D","W5","W5","W2","TF2,3","D","W0","W0","W3","T2,0,0","TF3,0","TF1,0","TF3,1","TF1,1","TF5,2","TF0,2","TF3,3","TF1,3","TF5,0","TF0,0","TF3,1","TF0,1","TF5,2","TF1,2","TF3,0","TF1,0","TF5,3","TF0,3","TF3,1","TF1,1","TF5,2","TF0,2","TF3,3","TF0,3","TF5,0","TF1,0","TF3,2","TF0,2","TF5,1","TF1,1","TF3,0","TF1,0","TF5,3","TF0,3","TF3,1","TF0,1","TF5,2","TF1,2","TF3,0","TF5,3"],"hw":4},{"seed":82,"par":143,"loops":2,"sol":["TF5,2","T1,1,5","T4,4,2","T5,4,2","T5,3,1","T6,6,3","T6,5,4","D","D","WF3","D","W3","D","W0","T5,2,0","D","D","D","D","W1","D","W3","W3","D","D","W1","T4,3,1","TF4,1","D","D","D","D","D","WF2","D","D","W0","D","D","D","WF0","TF0,0","D","D","W1","D","WF1","TF2,0","T6,4,2","T6,3,3","D","D","W4","D","D","D","W1","T0,0,1","T3,3,0","T3,2,5","D","D","W3","D","W0","T2,2,0","D","D","D","D","D","W2","T4,1,2","T3,1,4","T3,0,4","T4,0,2","D","D","D","D","W3","T5,1,3","D","W2","W2","D","D","W5","T6,2,5","T2,1,6","TF2,3","T6,1,2","W6","W6","T6,0,3","TF0,3","TF1,2","TF0,2","T5,2,0","TF2,1","TF0,1","TF1,0","TF0,0","T5,1,0","TF2,3","TF0,3","TF1,1","TF0,1","T5,0,0","TF2,2","TF0,2","TF1,3","TF2,0","TF0,0","TF1,1","TF2,2","TF1,0","D","W0","TF0,3","TF0,1","TF2,3","TF1,1","TF3,2","TF0,0","TF2,2","TF2,0","TF3,3","TF0,2","TF1,3","TF1,2","TF3,1","TF0,3","TF2,1","TF1,3","TF3,0","TF0,2","TF2,0","TF2,2","TF3,1","TF0,3","TF1,1","TF3,0"],"hw":0},{"seed":88,"par":137,"loops":1,"sol":["TF2,1","T3,3,5","T3,2,5","T6,6,1","D","D","W5","T3,1,5","T5,5,3","T1,2,5","D","D","W4","T1,1,4","T5,5,4","D","W0","T4,4,0","W4","T2,1,4","D","W5","D","D","WF0","TF1,0","T4,3,1","T4,2,1","T4,1,3","D","D","D","W3","D","D","D","WF3","D","W1","T0,0,1","T6,5,0","T5,4,6","T1,1,5","D","D","WF3","D","D","W0","D","WF1","TF3,1","D","WF2","D","D","D","W0","T3,0,0","T5,3,3","T5,2,2","T5,1,0","T6,4,5","TF6,2","T6,2,2","T6,1,4","T5,0,6","TF0,2","TF3,3","T6,4,3","TF0,3","TF3,0","TF3,1","T6,3,3","TF3,2","TF3,3","T6,2,3","D","D","D","W1","T4,0,1","D","W2","D","D","W2","D","D","D","W1","D","W0","TF0,0","TF0,2","W0","TF0,1","TF0,3","TF3,0","TF3,2","T6,1,3","TF3,1","TF3,3","T6,0,3","D","W2","W2","W0","W1","TF0,0","TF0,2","TF2,1","TF0,3","TF3,0","TF1,1","TF2,0","TF2,1","TF3,2","TF0,2","TF1,3","TF2,3","TF3,0","TF0,0","TF1,1","TF2,1","TF3,2","TF0,2","TF1,3","TF2,3","TF3,0","TF0,0","TF1,2","TF2,2","TF3,1","TF0,1","TF1,3","TF3,0"],"hw":0},{"seed":104,"par":144,"loops":2,"sol":["TF6,1","T5,5,4","T3,3,5","T0,0,2","D","WF0","D","W3","T5,4,3","D","W1","T1,2,5","D","D","D","WF3","D","D","W0","D","D","W6","T1,1,6","T2,2,1","T5,4,6","D","W5","D","WF3","D","D","D","D","W4","T6,5,4","D","D","W1","T2,1,1","T4,4,2","T2,0,0","T6,4,2","T1,1,6","D","D","W6","T3,2,6","T3,1,0","T3,0,4","T6,3,3","TF6,1","T4,3,6","T4,2,6","T4,1,2","T4,0,3","T6,4,3","D","D","D","W1","D","W5","D","D","W2","D","W0","D","D","D","D","D","D","W5","D","D","W1","D","W2","W2","D","D","W2","D","D","D","D","W2","T5,3,2","TF5,2","TF3,2","TF5,0","TF0,2","TF2,1","TF3,0","T6,3,3","TF0,0","TF3,3","TF2,3","TF3,2","T6,2,3","TF0,2","TF3,1","TF2,1","TF3,0","T6,1,3","T6,0,1","TF0,0","TF3,3","TF2,3","TF3,2","W3","W1","W5","T5,0,1","TF0,2","TF3,1","TF1,3","TF2,1","TF0,3","TF3,0","TF1,2","TF2,0","TF0,2","TF3,1","TF1,3","TF2,1","TF2,3","TF3,0","TF0,0","TF1,1","TF2,1","TF3,2","TF0,2","TF1,3","TF0,3","TF3,0","TF1,2","TF2,0","TF0,2","TF3,1","TF1,3","TF2,1","TF3,0"],"hw":0},{"seed":162,"par":137,"loops":1,"sol":["TF6,0","T1,1,6","T6,5,3","T2,2,6","T3,3,2","TF3,1","TF5,1","T5,4,1","T5,3,4","T0,0,1","T2,2,5","D","W0","D","WF2","TF5,2","D","D","D","D","D","D","D","W4","T6,4,4","T6,3,3","T6,2,0","D","D","W2","D","D","W0","T1,0,0","W1","D","WF0","D","W1","D","D","D","D","W4","T2,1,4","T2,0,4","W2","TF4,0","T5,4,4","D","D","W2","T4,4,2","T5,2,4","T5,1,0","D","D","W0","D","D","D","W1","T5,0,1","D","D","W0","D","W5","D","W5","T6,1,5","T4,3,6","D","D","W0","T3,1,0","T3,0,1","D","W4","W4","W1","T4,2,1","T4,1,5","TF4,3","TF0,3","TF0,2","TF2,3","TF6,2","D","D","W1","D","W5","W5","T6,0,5","D","W0","TF0,1","TF0,3","TF1,0","TF0,2","TF2,1","TF1,1","TF2,0","TF0,0","TF5,3","TF1,3","TF2,2","TF1,2","TF5,1","TF0,1","TF2,0","TF1,0","TF5,3","TF0,3","TF2,2","TF1,2","TF5,1","TF0,1","TF2,0","TF0,0","TF5,3","TF1,3","TF2,2","TF0,2","TF5,1","TF1,1","TF2,3","TF0,3","TF5,0","TF1,0","TF2,1","TF1,1","TF5,2","TF0,2","TF2,3","TF5,0"],"hw":0},{"seed":177,"par":138,"loops":2,"sol":["TF3,2","T5,5,0","T5,4,6","T6,6,2","T6,5,1","T0,0,1","T2,2,0","T2,1,5","T5,3,2","T1,1,5","T5,2,0","T2,0,3","T3,3,4","D","D","WF0","D","W6","D","W2","D","W1","D","D","D","D","W3","D","W5","T3,2,5","T3,1,0","D","W2","T3,0,2","D","W5","D","W0","T6,4,0","TF6,1","TF4,1","T0,2,6","T1,0,0","D","D","D","W0","D","D","WF0","D","D","WF3","TF6,3","TF6,1","D","W0","D","W2","D","WF2","TF4,0","T5,5,4","TF4,3","TF4,1","T5,4,4","D","W2","D","D","D","D","W1","T6,2,1","T6,1,3","D","D","W0","W0","D","D","W1","TF1,2","TF1,3","TF4,2","TF4,3","T6,0,4","D","W3","D","D","W1","TF1,0","TF1,1","TF5,0","TF5,1","D","W3","T4,3,3","T4,2,2","T4,1,3","T5,1,2","T4,0,0","T5,0,2","TF0,2","TF0,0","TF1,3","TF0,1","TF2,2","TF1,2","TF2,0","TF1,0","D","W2","TF2,3","TF0,3","TF2,1","TF1,1","TF3,2","TF0,2","TF2,0","TF1,0","TF3,3","TF0,3","TF2,2","TF1,2","TF3,1","TF0,1","TF2,0","TF1,0","TF3,3","TF0,3","TF2,1","TF0,1","TF3,2","TF1,2","TF2,0","TF3,3"],"hw":0},{"seed":180,"par":137,"loops":1,"sol":["TF5,2","T5,4,4","T5,3,2","T6,6,2","D","D","D","D","D","W2","D","WF0","D","D","D","W5","D","D","D","W1","T3,3,1","D","D","W2","T6,5,2","TF6,0","TF6,3","T3,2,6","T1,1,3","T6,2,4","T6,1,2","T0,0,6","T4,4,0","T0,2,5","T1,0,0","T5,2,1","D","D","D","WF3","D","W4","T2,2,4","TF2,2","T2,0,4","D","D","W1","T3,1,1","D","W2","D","W1","D","WF1","TF4,1","TF4,0","W4","TF4,3","D","W2","T4,3,2","D","D","W0","D","W1","TF1,1","TF2,1","D","D","W4","D","W5","T6,0,5","D","W1","TF1,2","TF1,0","D","W3","D","W4","T3,0,4","D","W3","D","W3","T4,2,3","T4,1,3","W3","T4,0,1","TF1,3","TF1,1","T5,4,1","D","W2","TF2,2","TF1,2","TF2,3","TF3,0","TF1,0","T5,3,1","TF1,3","TF2,1","TF1,1","T5,2,1","TF3,2","TF1,2","TF2,3","TF1,3","T5,1,1","T5,0,0","TF3,0","TF1,0","TF2,1","TF0,1","TF3,2","TF1,2","TF2,3","TF0,3","TF3,0","TF1,0","TF2,1","TF1,1","TF3,2","TF0,2","TF2,3","TF0,3","TF3,0","TF1,0","TF2,2","TF0,2","TF3,1","TF1,1","TF2,3","TF3,0"],"hw":0},{"seed":189,"par":140,"loops":2,"sol":["T0,0,4","T2,2,0","T6,6,2","TF6,2","D","WF2","D","W5","D","D","WF0","D","D","D","D","D","W0","T5,5,0","D","D","W3","T6,4,3","T6,3,5","T1,1,6","D","W5","T4,4,5","T4,3,0","T6,2,0","T3,3,6","T2,1,3","T3,2,6","T6,1,2","TF6,3","TF2,3","T5,4,6","T4,2,5","T2,1,6","D","WF1","D","D","D","D","D","D","W0","D","D","D","D","W1","D","W2","D","D","W0","T5,3,0","T5,2,3","T5,1,3","T2,0,3","D","W3","D","WF1","TF4,3","D","D","D","D","W5","D","W1","D","W1","D","W2","T3,1,2","TF3,0","TF0,0","TF6,2","TF4,2","D","W2","T5,0,2","D","D","W3","T1,0,3","D","W3","D","D","D","W2","TF2,1","TF0,1","TF2,3","TF0,3","W0","TF6,0","TF0,0","TF2,2","TF6,1","TF0,1","TF2,3","TF6,0","TF2,1","D","W3","D","W0","TF0,2","TF0,3","TF3,0","TF3,1","TF6,2","TF0,2","TF2,3","TF3,3","TF6,0","TF0,0","TF2,1","TF3,1","TF6,2","TF0,2","TF2,0","TF3,0","TF6,3","TF0,3","TF2,1","TF0,1","TF6,2","TF2,0","TF3,2","TF3,0","TF6,3","TF0,3","TF2,2","TF6,1"],"hw":0},{"seed":195,"par":138,"loops":2,"sol":["TF6,3","T6,5,3","T6,4,1","D","WF1","D","WF1","D","D","WF3","D","D","W3","D","W4","T1,1,4","D","D","W5","D","D","W5","D","W4","D","W1","T5,5,1","T0,0,5","T2,2,0","TF2,2","T1,3,6","D","W4","D","D","W6","T3,3,6","D","D","W2","T4,4,2","T2,1,4","D","W5","T1,0,5","T5,4,1","T4,3,5","T5,3,0","T6,4,1","D","W5","D","D","WF0","TF1,0","TF4,1","T5,2,4","T5,1,0","D","D","D","D","W4","T6,3,4","T0,2,6","T2,0,0","D","D","D","W2","T4,1,2","T4,0,2","D","D","W4","T6,2,4","D","W2","D","D","W2","T6,1,2","W6","T3,2,6","T3,1,6","TF3,2","T6,0,0","TF1,2","TF4,0","T5,0,4","TF1,0","TF4,3","TF2,3","TF4,2","TF1,2","D","D","W0","D","W4","TF4,1","TF2,1","TF4,0","TF2,0","D","W0","TF0,3","TF0,2","TF1,3","TF1,2","TF4,1","TF0,3","TF2,1","TF2,3","TF4,0","TF0,1","TF1,0","TF2,1","TF4,2","TF0,3","TF1,2","TF2,3","TF4,0","TF0,2","TF1,0","TF1,2","TF4,1","TF0,3","TF2,1","TF2,3","TF4,0","TF0,2","TF1,0","TF1,2","TF4,1","TF0,0","TF2,1","TF4,3"],"hw":0},{"seed":109,"par":146,"loops":1,"sol":["T5,5,2","T0,0,4","T3,3,0","D","D","D","D","D","D","D","D","D","D","D","W6","T5,4,6","T5,3,0","TF5,3","W0","T0,1,3","D","WF2","D","D","W0","D","W3","D","D","WF0","D","D","D","W6","T1,1,6","D","D","D","D","WF1","D","D","W0","D","W0","D","D","D","D","W5","D","W0","T0,4,3","D","W0","D","W0","T6,6,0","T6,5,3","T6,4,4","T6,3,5","TF6,0","TF6,2","W4","T0,6,3","T6,0,1","T3,2,6","T3,1,1","T1,1,2","D","W3","T3,1,4","D","D","W5","D","W4","T2,2,4","T2,1,4","T3,0,2","T4,4,3","TF4,3","T4,2,2","T4,1,1","TF4,1","W1","TF3,0","TF5,1","TF6,2","TF6,0","T5,3,6","D","W2","W2","W0","T5,1,0","T1,0,2","T5,0,2","T2,8,3","TF3,3","TF2,2","TF3,1","TF2,0","TF6,3","TF0,1","TF3,3","TF2,1","TF6,2","TF0,0","TF3,2","TF3,0","T2,4,3","TF6,3","TF0,1","TF3,3","TF3,1","T2,3,3","TF6,2","TF0,0","TF3,2","TF2,0","TF6,3","TF0,2","TF3,3","TF2,2","TF6,1","TF0,3","TF3,1","TF3,3","T2,0,3","TF6,0","TF0,1","TF3,0","TF6,2","TF0,0","TF3,2","TF6,3","TF6,2","D","W1","D","W1","TF1,1","TF0,1","TF1,0","TF3,3"],"hw":0},{"seed":211,"par":153,"loops":2,"sol":["T5,5,4","T3,3,5","T0,0,3","T3,2,0","D","D","D","D","WF2","TF5,2","D","D","D","D","D","D","D","D","W0","T1,1,0","T1,0,4","D","W1","T6,6,1","T1,1,6","D","D","D","W6","T3,1,6","T4,5,6","D","D","W2","T5,4,2","T0,1,5","D","W6","D","D","D","W5","D","D","D","D","D","D","W1","D","W6","T2,2,6","T2,1,3","T4,4,2","W3","T2,0,1","T5,3,2","T5,2,0","T3,0,4","T6,5,3","T6,4,1","T5,1,6","TF5,1","D","D","D","D","D","D","D","D","D","W2","D","W0","D","W2","W2","T4,3,2","D","D","W1","D","D","W1","D","W1","T6,3,1","T4,2,6","T4,1,1","TF4,0","TF2,0","D","D","W0","T6,2,0","TF6,3","TF6,1","TF3,0","D","WF3","TF1,3","TF2,1","TF3,1","D","D","W0","W0","D","W2","TF2,2","TF1,2","TF2,3","W2","TF1,3","TF2,0","TF2,2","TF3,0","TF3,2","D","W0","TF0,1","TF0,3","TF1,1","TF1,3","TF2,0","TF0,1","TF2,2","TF0,3","TF3,0","TF1,1","TF2,0","TF2,1","TF3,2","TF0,2","TF1,3","TF2,3","TF3,0","TF0,0","TF1,1","TF2,1","TF3,2","TF0,2","TF1,3","TF2,3","TF3,0","TF0,0","TF1,1","TF2,1","TF3,2","TF0,2","TF1,3","TF3,0"],"hw":0},{"seed":217,"par":151,"loops":2,"sol":["T5,5,0","TF5,3","T6,6,5","D","W2","D","D","D","D","W2","D","D","D","D","D","W0","D","D","W2","D","D","W3","T5,3,3","D","W6","D","WF0","D","D","D","D","D","D","WF0","D","W0","D","D","D","D","W2","T1,1,2","D","D","D","W0","W0","W0","T6,5,0","T6,4,4","T2,2,6","TF2,1","T6,3,3","T6,2,1","T0,0,2","T4,4,0","TF4,3","T4,2,5","T3,3,4","TF3,2","TF4,2","T0,1,3","T2,0,0","T3,1,2","TF1,2","D","D","D","D","D","D","W2","D","W6","D","D","D","D","D","D","D","D","W6","T1,0,6","T4,1,1","T6,1,4","TF6,1","T1,3,5","TF0,1","TF3,3","TF4,3","TF5,0","TF0,0","TF5,2","TF4,2","D","W2","D","W3","T5,2,3","T5,1,1","D","W3","TF3,1","TF0,1","TF3,3","W3","TF3,0","TF0,0","T4,2,0","TF0,3","TF3,2","W3","W5","TF0,2","T4,1,0","TF3,1","TF0,1","TF3,3","T5,1,3","TF0,3","T4,0,0","TF3,0","TF0,0","TF3,2","T5,0,3","TF3,1","TF0,1","TF3,0","D","W1","TF1,3","TF3,1","D","W0","TF0,2","TF0,0","TF1,2","TF2,3","TF0,2","TF1,3","TF2,1","TF0,3","TF3,0","TF1,1","TF2,0","TF0,1","TF3,2","TF1,0","TF2,2","TF3,3"],"hw":0},{"seed":250,"par":163,"loops":3,"sol":["TF6,3","T1,1,0","T1,0,0","T0,2,4","D","D","D","WF0","D","WF0","D","D","D","W6","D","D","D","W3","D","D","D","D","D","D","W5","D","D","D","D","D","D","D","W1","T4,4,1","D","D","D","D","D","D","D","D","W5","D","D","D","D","W4","D","W5","D","W5","D","D","D","D","D","D","D","D","W4","T3,3,4","D","D","D","D","W5","T6,5,5","T4,3,6","T4,2,2","T5,5,2","T6,4,1","T6,3,3","TF6,3","TF6,2","W6","WF2","T4,1,6","T3,2,4","T3,1,0","T2,3,5","T3,0,1","T6,1,1","TF5,2","D","D","D","W5","D","D","W4","D","D","D","W6","D","W3","T2,2,3","T5,4,2","T6,0,5","T2,1,6","TF2,1","TF1,1","TF1,3","T5,5,1","TF1,0","TF1,2","T5,4,1","TF6,1","TF1,1","TF6,3","TF5,3","T5,2,3","T5,1,6","T5,0,0","TF6,0","TF1,0","TF6,1","WF1","D","D","D","W4","T4,4,6","TF6,2","TF1,2","TF4,3","TF6,0","TF1,0","W1","TF1,3","TF4,2","TF6,1","TF1,1","TF4,3","TF6,0","TF4,1","D","W0","D","W3","D","W0","TF0,2","TF0,0","TF1,3","TF0,1","TF6,2","TF1,2","TF3,0","TF0,0","TF6,3","TF1,3","TF3,1","TF1,1","TF6,2","TF0,2","TF3,3","TF0,3","TF6,0","TF1,0","TF3,1","TF6,2"],"hw":0},{"seed":260,"par":156,"loops":2,"sol":["T3,3,0","T4,4,2","TF4,2","T6,6,3","T2,2,6","T4,2,2","T0,0,2","D","WF0","D","D","W1","T4,1,1","D","WF3","TF1,3","D","D","D","D","D","D","W0","T3,2,0","TF3,1","TF3,2","D","D","W6","D","D","D","D","D","D","D","W3","T5,5,3","T0,1,5","D","D","D","W5","T6,5,5","D","D","D","D","D","D","D","W6","D","D","D","D","D","D","W0","D","D","D","D","D","D","D","D","D","D","D","D","D","W0","T6,4,0","T6,3,3","W3","T2,1,3","T2,0,5","T5,4,2","T5,3,0","TF5,1","T1,1,5","T5,1,3","T5,0,6","TF4,3","D","W6","D","D","W0","D","D","D","W6","D","W1","T1,1,2","D","W1","D","W0","T1,0,0","D","W1","W1","T6,2,1","TF6,0","W1","W6","W1","W6","W0","T6,0,1","TF0,0","TF1,1","TF2,1","TF3,2","TF0,2","TF1,0","TF2,0","TF3,3","TF0,3","TF1,1","TF2,1","TF3,2","TF0,2","TF1,3","TF2,3","TF3,0","TF0,0","TF1,1","TF2,1","TF3,2","TF0,2","TF1,3","TF0,3","TF3,0","TF1,1","TF2,0","TF0,1","TF3,2","TF1,3","TF2,2","TF0,3","TF3,0","TF1,1","TF2,0","TF2,1","TF3,2","TF0,2","TF1,0","TF0,0","TF3,3","TF1,1","TF2,3","TF3,2"],"hw":0},{"seed":298,"par":148,"loops":2,"sol":["TF2,2","TF3,3","TF4,3","T1,1,5","T4,3,0","T6,6,5","D","D","W2","T2,2,3","D","D","D","D","D","D","D","W5","D","D","D","W4","T2,1,4","T1,0,2","W1","T2,0,6","T3,3,4","D","D","D","D","WF2","D","D","D","W4","W4","T0,0,4","D","WF0","D","W0","T5,5,0","T4,3,5","D","WF0","TF5,2","D","W0","T6,5,0","TF6,1","D","D","D","W1","D","W5","D","D","D","D","W2","W2","D","D","D","D","W6","D","D","W1","T4,2,1","T4,1,0","D","W2","T5,4,2","D","D","D","D","W4","T5,3,4","T3,2,5","T3,1,0","T5,2,1","TF5,1","T3,0,4","TF0,0","T4,3,0","TF0,3","TF2,1","TF0,1","T4,2,0","TF0,2","TF2,0","TF4,0","D","W2","TF2,3","TF0,3","TF2,2","T6,4,2","TF2,1","TF0,1","T4,0,0","TF0,2","TF2,3","T6,3,2","T6,2,3","T6,1,3","W3","W5","T6,0,1","TF2,0","TF0,0","T5,1,0","TF0,3","TF1,1","TF2,2","TF0,2","T5,0,0","TF0,1","TF1,0","TF0,0","TF2,3","TF1,2","TF2,1","TF2,0","D","W3","D","W0","TF0,3","TF0,1","TF1,3","TF1,1","TF3,2","TF0,3","TF2,2","TF1,3","TF3,0","TF0,1","TF2,0","TF2,1","TF3,2","TF0,3","TF1,2","TF3,0"],"hw":0},{"seed":301,"par":147,"loops":2,"sol":["D","W0","D","D","W0","T1,1,0","TF1,2","T2,2,1","D","D","D","D","W0","D","WF2","D","D","D","D","D","D","D","D","WF3","TF4,3","D","WF0","D","W1","D","D","D","WF1","TF0,1","TF3,3","T3,2,1","D","W5","T0,0,5","T2,1,0","T2,0,3","T6,6,2","T3,1,6","T6,5,0","T1,1,6","D","D","D","D","W0","T5,5,0","T5,4,4","T5,3,3","T5,2,1","D","W3","D","D","D","D","D","W1","D","W3","T4,3,3","T4,2,3","TF4,0","TF0,0","TF3,2","TF0,2","D","D","W1","T1,3,6","T3,0,6","T6,4,3","D","W3","TF3,1","TF3,0","T5,1,3","T5,0,1","TF3,3","D","W6","D","D","W4","D","W4","D","D","W0","TF0,1","TF0,3","TF3,1","D","W4","D","W1","D","W3","TF3,2","TF6,3","D","D","W0","TF0,0","TF0,2","T4,3,0","TF0,1","TF3,0","TF0,0","T4,2,0","TF0,3","TF3,1","T6,3,3","T6,2,1","T6,1,2","W6","T4,0,6","T6,0,2","TF2,1","TF3,2","TF0,2","TF1,0","TF2,0","TF3,3","TF0,3","TF1,2","TF0,2","TF3,1","TF1,3","TF2,1","TF2,3","TF3,0","TF0,0","TF1,1","TF2,1","TF3,2","TF0,2","TF1,0","TF0,0","TF3,3","TF1,2","TF2,3","TF3,1"],"hw":0},{"seed":332,"par":149,"loops":2,"sol":["T4,4,2","D","W1","D","W4","D","D","D","D","D","D","D","D","W4","T2,2,4","D","D","D","WF1","TF0,1","T3,3,0","T3,2,5","T3,1,0","T5,5,3","W0","T3,0,2","T4,4,5","D","WF2","TF6,2","D","D","D","W5","D","W3","D","D","D","D","W3","D","W2","D","W0","T2,1,0","D","D","W3","T4,3,3","D","D","W5","D","D","D","D","D","W0","T1,1,0","W1","T4,2,1","TF4,3","TF0,3","T6,5,0","T0,2,6","D","D","D","D","W5","TF5,3","D","D","D","W4","T5,4,4","T5,3,3","T5,2,2","T5,1,4","T2,0,3","T4,6,3","D","D","W0","W0","D","W5","D","W0","T1,0,0","D","D","W1","T6,4,1","T6,3,2","T6,2,0","W0","T6,1,0","TF6,0","TF1,0","T4,0,2","TF0,2","TF1,1","TF1,3","TF3,0","TF0,0","TF3,2","T5,1,3","TF1,2","TF3,1","TF0,1","TF3,3","T5,0,3","TF1,3","TF3,0","TF0,0","TF3,2","TF1,2","D","W2","TF2,1","TF0,1","TF2,0","TF1,0","TF3,3","TF0,3","TF2,2","TF0,2","TF3,1","TF1,1","TF2,0","TF0,0","TF3,3","TF1,3","TF2,1","TF1,1","TF3,2","TF0,2","TF2,0","TF0,0","TF3,3","TF1,3","TF2,2","TF0,2","TF3,1","TF1,1","TF2,0","TF3,3"],"hw":0}];
+
+/* ==== 状态（全局，家族制） ==== */
+var S={ph:'menu',lv:1,score:0,moves:0,over:0,result:null,hintN:3,hintT:0,from:null};
+var tab=[],found=[0,0,0,0],stock=[],waste=[];
+var undoStack=[];
+var rndS=1;
+function u(m){rndS=LCGn(rndS);return rndS%m}
+function shuffle(seed){
+  var deck=[],i;
+  for(var s=0;s<4;s++)for(var r=1;r<=13;r++)deck.push([s,r]);
+  rndS=seed%M214;if(rndS===0)rndS=1;
+  for(i=51;i>0;i--){var j=u(i+1),t=deck[i];deck[i]=deck[j];deck[j]=t}
+  return deck;
+}
+function newGame(lv){
+  S.lv=lv;S.score=0;S.moves=0;S.over=0;S.result=null;S.hintN=3;S.hintT=0;S.from=null;
+  var deck=shuffle(LVDATA[lv-1].seed),k=0;
+  tab=[];
+  for(var c=0;c<COLS;c++){
+    var col=[];
+    for(var i=0;i<=c;i++){var d=deck[k++];col.push([d[0],d[1],i===c?1:0])}
+    tab.push(col);
+  }
+  stock=[];for(var w=28;w<52;w++)stock.push([deck[w][0],deck[w][1]]);
+  waste=[];found=[0,0,0,0];undoStack=[];
+  S.ph='play';
+  document.getElementById('menu').classList.add('hide');
+  document.getElementById('over').classList.add('hide');
+  document.getElementById('pause').classList.add('hide');
+  document.getElementById('lvbar').classList.add('hide');
+  document.getElementById('bHint').textContent='灯下读书';
+  updHUD();
+}
+/* ==== 规则（与 py 同构） ==== */
+function seqOk(col,idx){
+  for(var i=idx;i<col.length-1;i++){
+    var a=col[i],b=col[i+1];
+    if(!a[2]||!b[2])return false;
+    if(a[1]!==b[1]+1||isRed(a[0])===isRed(b[0]))return false;
+  }
+  return !!col[idx][2];
+}
+function canTab(first,col){
+  if(!col.length)return first[1]===13;
+  var top=col[col.length-1];
+  return top[2]&&top[1]===first[1]+1&&isRed(top[0])!==isRed(first[0]);
+}
+function canFound(card){return found[card[0]]===card[1]-1}
+function snapAll(){
+  var t=[],i,c;
+  for(i=0;i<COLS;i++){var cc=[];for(c=0;c<tab[i].length;c++)cc.push([tab[i][c][0],tab[i][c][1],tab[i][c][2]]);t.push(cc)}
+  var st=[],wa=[];
+  for(i=0;i<stock.length;i++)st.push([stock[i][0],stock[i][1]]);
+  for(i=0;i<waste.length;i++)wa.push([waste[i][0],waste[i][1]]);
+  return {t:t,f:found.slice(),st:st,w:wa,sc:S.score,mv:S.moves};
+}
+function restore(s){
+  tab=[];for(var i=0;i<COLS;i++){var cc=[];for(var c=0;c<s.t[i].length;c++)cc.push([s.t[i][c][0],s.t[i][c][1],s.t[i][c][2]]);tab.push(cc)}
+  found=s.f.slice();stock=[];waste=[];
+  for(i=0;i<s.st.length;i++)stock.push([s.st[i][0],s.st[i][1]]);
+  for(i=0;i<s.w.length;i++)waste.push([s.w[i][0],s.w[i][1]]);
+  S.score=s.sc;S.moves=s.mv;
+}
+function doDraw(){
+  if(!stock.length&&!waste.length)return false;
+  undoStack.push(snapAll());          /* draw 可撤销（SPEC §1.8 无限撤销） */
+  if(undoStack.length>400)undoStack.shift();
+  if(stock.length)waste.push(stock.pop());
+  else{
+    stock=waste.slice().reverse();   /* waste 逆转回 stock（与 py 同式·保序循环） */
+    waste=[];
+  }
+  S.moves++;updHUD();return true;
+}
+function doMove(src,idx,dst){
+  /* src/dst：{k:'t',c}/{k:'w'}/{k:'f',s}；返回 true=成 */
+  undoStack.push(snapAll());
+  if(undoStack.length>400)undoStack.shift();
+  var ok=_apply(src,idx,dst);
+  if(!ok){undoStack.pop();return false}
+  S.moves++;updHUD();return true;
+}
+function _apply(src,idx,dst){
+  if(src.k==='t'){
+    var col=tab[src.c];
+    if(idx<0||idx>=col.length||!seqOk(col,idx))return false;
+    var seg=col.slice(idx);
+    if(dst.k==='t'){
+      if(!canTab(seg[0],tab[dst.c]))return false;
+      var dc=tab[dst.c];
+      for(var i=0;i<seg.length;i++)dc.push(seg[i]);
+      col.length=idx;
+    }else if(dst.k==='f'){
+      if(seg.length!==1||!canFound(seg[0]))return false;
+      found[seg[0][0]]=seg[0][1];
+      col.length=idx;
+      S.score+=10;suitDone(seg[0][0]);
+    }else return false;
+    if(col.length&&!col[col.length-1][2]){col[col.length-1][2]=1;S.score+=5}
+    return true;
+  }
+  if(src.k==='w'){
+    if(!waste.length)return false;
+    var card=waste[waste.length-1];
+    if(dst.k==='t'){
+      if(!canTab(card,tab[dst.c]))return false;
+      var w0=waste.pop();tab[dst.c].push([w0[0],w0[1],1]);
+    }else if(dst.k==='f'){
+      if(!canFound(card))return false;
+      found[card[0]]=card[1];waste.pop();S.score+=10;suitDone(card[0]);
+    }else return false;
+    return true;
+  }
+  if(src.k==='f'){
+    var su=src.s;
+    if(found[su]===0||dst.k!=='t')return false;
+    var fc=[su,found[su],1];
+    if(!canTab(fc,tab[dst.c]))return false;
+    found[su]--;tab[dst.c].push(fc);S.score-=10;
+    return true;
+  }
+  return false;
+}
+function doUndo(){
+  if(!undoStack.length)return;
+  restore(undoStack.pop());
+  S.from=null;updHUD();
+}
+function won(){return found[0]===13&&found[1]===13&&found[2]===13&&found[3]===13}
+function checkWin(){
+  if(won()&&S.over===0){
+    var par=LVDATA[S.lv-1].par;
+    if(S.moves<=Math.floor(par*1.2))S.score+=200;
+    S.over=1;S.result=[1,S.score,S.moves];
+    S.ph='over';showOver();saveMain();tone(660,.2);
+  }
+}
+
+/* ==== 星级/援手/存档 ==== */
+function starsOf(){
+  var par=LVDATA[S.lv-1].par;
+  if(S.moves<=Math.floor(par*1.2))return 3;
+  if(S.moves<=par*2)return 2;
+  return 1;
+}
+function doHint(){
+  if(S.ph!=='play'||S.hintN<=0)return;
+  S.hintN--;S.hintT=90;
+  document.getElementById('bHint').textContent='灯下读书'+(S.hintN>0?' ×'+S.hintN:' 尽');
+  tone(700,.1);flashMsg('灯下读书 · 可行之步皆明');
+}
+var best=0,unlocked=1,suitSeen=[false,false,false,false],sndOn=1;
+function saveMain(){
+  try{
+    var d={best:Math.max(best,S.score),unlocked:unlocked,suits:suitSeen,snd:sndOn};
+    localStorage.setItem('g137_leaves',JSON.stringify(d));
+  }catch(e){}
+}
+function loadSave(){
+  try{
+    var d=JSON.parse(localStorage.getItem('g137_leaves')||'null');
+    if(!d)return;
+    best=d.best|0;
+    unlocked=Math.min(Math.max(d.unlocked|0,1),24);
+    if(d.suits)for(var i=0;i<4;i++)suitSeen[i]=!!d.suits[i];
+    sndOn=d.snd===0?0:1;
+  }catch(e){}
+}
+function suitDone(s){
+  if(found[s]===13&&!suitSeen[s]){suitSeen[s]=true;saveMain()}
+}
+
+/* ==== 音效 ==== */
+var AC=null;
+function tone(fr,dur){
+  if(!sndOn)return;
+  try{
+    if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();
+    var o=AC.createOscillator(),g=AC.createGain();
+    o.type='triangle';o.frequency.value=fr;
+    g.gain.setValueAtTime(0.12,AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,AC.currentTime+dur);
+    o.connect(g);g.connect(AC.destination);
+    o.start();o.stop(AC.currentTime+dur);
+  }catch(e){}
+}
+function flashMsg(s2){
+  var el=document.getElementById('flash');
+  el.textContent=s2;el.style.opacity=1;
+  setTimeout(function(){el.style.opacity=0},900);
+}
+
+/* ==== 渲染 ==== */
+var ctx=document.getElementById('cv').getContext('2d');
+function colX(c){return 8+c*53}
+function draw(){
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.fillStyle='#1b1713';ctx.fillRect(0,0,390,780);
+  if(S.ph==='menu'){return}
+  var i,c;
+  /* 上排槽：stock(0) waste(1) 空(2) f0-f3(3-6) */
+  drawSlot(colX(0),TOP_Y,'stock');
+  drawSlot(colX(1),TOP_Y,'waste');
+  for(i=0;i<4;i++)drawSlot(colX(3+i),TOP_Y,'f',i);
+  /* stock 叠（画 2 层底影示厚度） */
+  if(stock.length){
+    ctx.fillStyle='#2e3a30';
+    roundRect(colX(0)+2,TOP_Y+2,CW,CH,5);ctx.fill();
+    drawBack(colX(0),TOP_Y);
+  }
+  if(waste.length){
+    var wn=Math.min(waste.length,3);
+    for(i=wn;i>1;i--){
+      ctx.fillStyle='#3a3226';
+      roundRect(colX(1)-(i-1)*5,TOP_Y,CW,CH,5);ctx.fill();
+    }
+    drawFace(colX(1)-(wn-1)*5,TOP_Y,waste[waste.length-1],S.from&&S.from.k==='w');
+  }
+  /* 基础堆顶 */
+  for(i=0;i<4;i++){
+    var fx=colX(3+i);
+    ctx.fillStyle='#241e16';
+    roundRect(fx,TOP_Y,CW,CH,5);ctx.fill();
+    ctx.strokeStyle='#6b5a44';ctx.lineWidth=1;
+    roundRect(fx,TOP_Y,CW,CH,5);ctx.stroke();
+    ctx.fillStyle='#57462f';ctx.font='13px serif';ctx.textAlign='center';
+    ctx.fillText(SCHAR[i],fx+CW/2,TOP_Y+24);
+    ctx.font='9px serif';ctx.fillText('函',fx+CW/2,TOP_Y+38);
+    if(found[i]>0)drawFace(fx,TOP_Y,[i,found[i],1],false);
+  }
+  /* 列 */
+  for(c=0;c<COLS;c++){
+    var col=tab[c],x=colX(c);
+    if(!col.length){drawSlot(x,TAB_Y,'t')}
+    var up=0,dk=0,j;
+    for(j=0;j<col.length;j++)col[j][2]?up++:dk++;
+    var gapU=Math.min(22,up>1?(560-CH)/(up-1):22);
+    var gapD=Math.min(12,gapU);
+    var y=TAB_Y;
+    for(j=0;j<col.length;j++){
+      if(col[j][2]){
+        drawFace(x,y,col[j],S.from&&S.from.k==='t'&&S.from.c===c&&j>=S.from.i);
+      }else{
+        drawBack(x,y);
+      }
+      y+=col[j][2]?gapU:gapD;
+    }
+    /* 选中段目标高亮 */
+    if(S.from&&S.from.k==='t'&&S.from.c===c)drawGlow(x,TAB_Y,CW,Math.max(CH,y-TAB_Y));
+  }
+  if(S.from)drawTargets();   /* 合法落点绿框（SPEC §3 承诺） */
+  if(S.hintT>0){S.hintT--;drawHints()}
+}
+function drawSlot(x,y,kind,i){
+  ctx.fillStyle='#211b14';
+  roundRect(x,y,CW,CH,5);ctx.fill();
+  ctx.strokeStyle='#4a3d2c';ctx.lineWidth=1;
+  roundRect(x,y,CW,CH,5);ctx.stroke();
+  if(kind==='t'){
+    ctx.strokeStyle='#3a3024';
+    ctx.beginPath();ctx.moveTo(x+8,y+CH/2);ctx.lineTo(x+CW-8,y+CH/2);ctx.stroke();
+  }
+}
+function roundRect(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();
+}
+function drawFace(x,y,card,sel){
+  ctx.fillStyle='#ece0c0';
+  roundRect(x,y,CW,CH,5);ctx.fill();
+  ctx.strokeStyle=sel?'#ffb84a':'#b8a678';ctx.lineWidth=sel?2:1;
+  roundRect(x,y,CW,CH,5);ctx.stroke();
+  var col=isRed(card[0])?'#a83226':'#2a2620';
+  ctx.fillStyle=col;ctx.textAlign='left';
+  ctx.font=(card[1]>=10?'13px':'15px')+' "Songti SC",serif';
+  ctx.fillText(RNAME[card[1]-1],x+4,y+16);
+  ctx.font='15px serif';ctx.fillText(SCHAR[card[0]],x+4,y+32);
+  ctx.textAlign='right';
+  ctx.font=(card[1]>=10?'11px':'12px')+' serif';
+  ctx.fillText(RNAME[card[1]-1]+SCHAR[card[0]],x+CW-4,y+CH-6);
+}
+function drawBack(x,y){
+  ctx.fillStyle='#3c4a3e';
+  roundRect(x,y,CW,CH,5);ctx.fill();
+  ctx.strokeStyle='#5a6a58';ctx.lineWidth=1;
+  roundRect(x+3,y+3,CW-6,CH-6,3);ctx.stroke();
+  ctx.strokeStyle='rgba(255,255,240,.14)';
+  ctx.beginPath();
+  ctx.moveTo(x+8,y+CH-10);ctx.quadraticCurveTo(x+CW/2,y+8,x+CW-8,y+CH-10);
+  ctx.stroke();
+}
+function drawGlow(x,y,w,h){
+  ctx.strokeStyle='rgba(255,196,90,.85)';ctx.lineWidth=2;
+  ctx.setLineDash([5,4]);
+  roundRect(x-2,y-2,w+4,Math.min(h+4,586),6);ctx.stroke();
+  ctx.setLineDash([]);
+}
+function colGap(c){
+  var col=tab[c],up=0,k;
+  for(k=0;k<col.length;k++)if(col[k][2])up++;
+  return Math.min(22,up>1?(560-CH)/(up-1):22);   /* 亮牌叠距（与 draw/hitTest 同式） */
+}
+function colTopY(c){
+  var col=tab[c],y=TAB_Y,k,g=colGap(c),gd=Math.min(12,g);
+  for(k=0;k<col.length-1;k++)y+=col[k][2]?g:gd;
+  return y;
+}
+function drawHints(){
+  var mv=allMoves(),i;
+  ctx.strokeStyle='rgba(120,220,140,.9)';ctx.lineWidth=2;
+  for(i=0;i<mv.length;i++){
+    var m=mv[i],x,y2;
+    if(m[0]==='t'){x=colX(m[1]);y2=colTopY(m[1])}
+    else if(m[0]==='w'){x=colX(1);y2=TOP_Y}
+    else{x=colX(3+m[4]);y2=TOP_Y}
+    roundRect(x-1,y2-1,CW+2,CH+2,6);ctx.stroke();
+  }
+}
+function drawTargets(){
+  /* 当前选中源的全部合法落点：列顶绿框；可上函的函匣绿框 */
+  var src=null;
+  if(S.from&&S.from.k==='t'){var col=tab[S.from.c];if(S.from.i<col.length&&seqOk(col,S.from.i))src=col[S.from.i]}
+  else if(S.from&&S.from.k==='w'&&waste.length)src=waste[waste.length-1];
+  else if(S.from&&S.from.k==='f'&&found[S.from.s]>0)src=[S.from.s,found[S.from.s],1];
+  if(!src)return;
+  ctx.strokeStyle='rgba(120,220,140,.9)';ctx.lineWidth=2;
+  var d;
+  for(d=0;d<COLS;d++){
+    if(S.from.k==='t'&&d===S.from.c)continue;
+    if(canTab(src,tab[d])){
+      var y2=tab[d].length?colTopY(d):TAB_Y;
+      roundRect(colX(d)-2,y2-2,CW+4,CH+4,6);ctx.stroke();
+    }
+  }
+  var single=(S.from.k!=='t')||(tab[S.from.c].length-S.from.i===1);
+  if(single&&S.from.k!=='f'&&canFound(src)){
+    var su=src[0],fx=colX(3+su);
+    roundRect(fx-2,TOP_Y-2,CW+4,CH+4,6);ctx.stroke();
+  }
+}
+function allMoves(){
+  var out=[],c,idx,d,col;
+  for(c=0;c<COLS;c++){
+    col=tab[c];
+    for(idx=0;idx<col.length;idx++){
+      if(seqOk(col,idx)){
+        for(d=0;d<COLS;d++)if(d!==c&&canTab(col[idx],tab[d]))out.push(['t',c,idx,'t',d]);
+        if(idx===col.length-1&&canFound(col[idx]))out.push(['t',c,idx,'f',col[idx][0]]);
+      }
+    }
+  }
+  if(waste.length){
+    var wt=waste[waste.length-1];
+    for(d=0;d<COLS;d++)if(canTab(wt,tab[d]))out.push(['w',-1,0,'t',d]);
+    if(canFound(wt))out.push(['w',-1,0,'f',wt[0]]);
+  }
+  return out;
+}
+
+/* ==== HUD/主循环 ==== */
+function updHUD(){
+  var el=document.getElementById('hInfo'),s2=document.getElementById('hSub');
+  if(S.ph==='menu'){el.textContent='叶子戏';s2.textContent=best>0?('最高 '+best+' 分'):'';return}
+  el.textContent='第 '+S.lv+' 局 · '+S.score+' 分';
+  var f=found[0]+found[1]+found[2]+found[3];
+  s2.textContent='步 '+S.moves+' · 归函 '+f+'/52';
+}
+function loop(){
+  requestAnimationFrame(loop);
+  draw();
+}
+function showOver(){
+  var oT=document.getElementById('oTitle'),oS=document.getElementById('oStars'),oSu=document.getElementById('oSub');
+  if(S.lv>=unlocked&&S.lv<24)unlocked=S.lv+1;
+  oT.textContent='四函归满';
+  var st=starsOf(),s='';
+  for(var i=0;i<st;i++)s+='★';
+  oS.textContent=s;
+  oSu.textContent=S.score+' 分 · '+S.moves+' 步';
+  document.getElementById('bNext').classList.toggle('hide',S.lv>=24);
+  tone(880,.2);
+  document.getElementById('over').classList.remove('hide');
+  saveMain();
+}
+
+/* ==== 输入：点选两段式+双击自动上基础 ==== */
+var appEl=document.getElementById('app');
+function hitTest(px,py){
+  if(py>=TOP_Y&&py<=TOP_Y+CH){
+    var s=Math.floor((px-8)/53);
+    /* 叠影顶牌左缘并入 waste 命中（与渲染 colX(1)-(min(wn,3)-1)*5 同源——waste≥2 顶牌左移 5-10px，防误触翻笺） */
+    if(s===0&&waste.length>1&&px>=colX(1)-(Math.min(waste.length,3)-1)*5)return {k:'w'};
+    if(s===0)return {k:'stock'};
+    if(s===1)return waste.length?{k:'w'}:{k:'none'};
+    if(s>=3&&s<7)return {k:'f',s:s-3};
+    return {k:'none'};
+  }
+  if(py>=TAB_Y){
+    var c=Math.floor((px-8)/53);
+    if(c<0||c>=COLS)return {k:'none'};
+    var col=tab[c],y=TAB_Y,j=-1,i2;
+    var up=0,dk=0,kk;
+    for(kk=0;kk<col.length;kk++)col[kk][2]?up++:dk++;
+    var gapU=Math.min(22,up>1?(560-CH)/(up-1):22),gapD=Math.min(12,gapU);
+    for(i2=0;i2<col.length;i2++){
+      var span=col[i2][2]?gapU:gapD;
+      var h2=(i2===col.length-1)?CH:span;   /* 中间张=可见条带到下张顶；末张=全牌高 */
+      if(py>=y&&py<y+h2){j=i2;break}
+      y+=span;
+    }
+    if(j<0)j=col.length-1;
+    if(j>=0&&j<col.length&&col[j][2])return {k:'t',c:c,i:j};
+    if(col.length)return {k:'none'};
+    return {k:'tdrop',c:c};
+  }
+  return {k:'none'};
+}
+var lastTap={t:0,h:null};
+function onTap(px,py){
+  if(S.ph!=='play')return;
+  var h=hitTest(px,py);
+  var now=Date.now();
+  var dbl=lastTap.h&&sameHit(lastTap.h,h)&&now-lastTap.t<350;
+  lastTap={t:now,h:h};
+  if(h.k==='stock'){doDraw();tone(520,.05);checkWin();return}
+  if(h.k==='none'){S.from=null;return}   /* 点空白=取消已选 */
+  if(dbl&&h.k==='t'){
+    var col=tab[h.c];
+    if(h.i===col.length-1&&canFound(col[h.i])){
+      if(doMove({k:'t',c:h.c},h.i,{k:'f',s:col[h.i][0]})){tone(620,.08);S.from=null;checkWin()}
+      return;
+    }
+    /* 双击不可上函：退化为选中（连续两击同张=「落牌后立刻再拿」自然节奏，不吞点击） */
+    S.from={k:'t',c:h.c,i:h.i};tone(440,.04);return;
+  }
+  if(dbl&&h.k==='w'){
+    if(canFound(waste[waste.length-1])){
+      if(doMove({k:'w'},0,{k:'f',s:waste[waste.length-1][0]})){tone(620,.08);S.from=null;checkWin()}
+    }else{
+      S.from={k:'w'};tone(440,.04);
+    }
+    return;
+  }
+  if(!S.from){
+    if(h.k==='t'){S.from={k:'t',c:h.c,i:h.i};tone(440,.04)}
+    else if(h.k==='w'){S.from={k:'w'};tone(440,.04)}
+    else if(h.k==='f'&&found[h.s]>0){S.from={k:'f',s:h.s};tone(440,.04)}
+    return;
+  }
+  /* 已选源 → 目标 */
+  var dst=null;
+  if(h.k==='t')dst={k:'t',c:h.c};
+  else if(h.k==='tdrop')dst={k:'t',c:h.c};
+  else if(h.k==='f')dst={k:'f',s:h.s};
+  if(!dst){S.from=null;return}
+  if(dst.k==='t'&&S.from.k==='t'&&dst.c===S.from.c){S.from=null;return}
+  var idx=S.from.k==='t'?S.from.i:(S.from.k==='w'?0:0);
+  if(doMove(S.from,idx,dst)){tone(560,.06);S.from=null;checkWin()}
+  else{S.from=null;tone(200,.08)}
+}
+function sameHit(a,b){
+  if(a.k!==b.k)return false;
+  if(a.k==='t')return a.c===b.c&&a.i===b.i;   /* 同列同张才算双击 */
+  if(a.k==='f')return a.s===b.s;
+  return true;
+}
+appEl.addEventListener('pointerdown',function(e){
+  if(S.ph!=='play')return;
+  if(e.target.closest('.btnrow'))return;
+  var r=document.getElementById('cv').getBoundingClientRect();
+  onTap((e.clientX-r.left)*390/r.width,(e.clientY-r.top)*780/r.height);
+});
+window.addEventListener('keydown',function(e){
+  if(e.key===' '){if(S.ph==='play'){doDraw();checkWin()}e.preventDefault()}
+  if(e.key==='u'||e.key==='U'){if(S.ph==='play')doUndo()}
+  if(e.key==='h'||e.key==='H'){doHint()}
+  if(e.key.indexOf('Arrow')===0)e.preventDefault();
+});
+
+/* ==== UI 接线 ==== */
+function home(){
+  S.ph='menu';
+  document.getElementById('menu').classList.remove('hide');
+  document.getElementById('over').classList.add('hide');
+  document.getElementById('pause').classList.add('hide');
+  document.getElementById('trophy').classList.add('hide');
+  document.getElementById('lvbar').classList.add('hide');
+  saveMain();
+}
+document.getElementById('mGo').onclick=function(){newGame(Math.min(unlocked,24));tone(440,.05)};
+document.getElementById('mLvs').onclick=function(){
+  var bar=document.getElementById('lvbar');
+  bar.innerHTML='';
+  for(var i=1;i<=24;i++){
+    (function(n){
+      var c=document.createElement('div');
+      c.className='lvcell'+(n>unlocked?' lock':'');
+      c.textContent=n;
+      if(n<=unlocked)c.onclick=function(){newGame(n);tone(440,.05)};
+      bar.appendChild(c);
+    })(i);
+  }
+  bar.classList.toggle('hide');
+};
+document.getElementById('mTrophy').onclick=showTrophy;
+document.getElementById('bTrophy').onclick=showTrophy;
+function showTrophy(){
+  if(S.ph==='play'&&S.over===0)return;
+  var g=document.getElementById('pgrid');
+  g.innerHTML='';
+  var names=['黑桃函','红心函','方片函','梅花函'];
+  for(var i=0;i<4;i++){
+    var d=document.createElement('div');
+    d.className='pcell'+(suitSeen[i]?' on':'');
+    d.innerHTML='<div class="pv">'+(suitSeen[i]?SCHAR[i]:'?')+'</div><div class="pn">'+names[i]+'</div>';
+    g.appendChild(d);
+  }
+  document.getElementById('trophy').classList.remove('hide');
+}
+document.getElementById('pBack').onclick=function(){document.getElementById('trophy').classList.add('hide')};
+document.getElementById('bDraw').onclick=function(){if(S.ph==='play'){doDraw();checkWin()}};
+document.getElementById('bUndo').onclick=function(){if(S.ph==='play')doUndo()};
+document.getElementById('bHint').onclick=doHint;
+document.getElementById('pausebtn').onclick=function(){
+  if(S.ph!=='play')return;
+  S.ph='pause';
+  document.getElementById('pause').classList.remove('hide');
+};
+document.getElementById('pRes').onclick=function(){
+  if(S.ph!=='pause')return;
+  S.ph='play';
+  document.getElementById('pause').classList.add('hide');
+};
+document.getElementById('pRestart').onclick=function(){
+  if(S.ph!=='pause')return;
+  newGame(S.lv);flashMsg('重排此局 · 同局再来');
+};
+document.getElementById('pHome').onclick=home;
+document.getElementById('pMute').onclick=function(){
+  sndOn=sndOn?0:1;saveMain();
+  this.textContent=sndOn?'声音':'静音';
+};
+document.getElementById('bAgain').onclick=function(){newGame(S.lv)};
+document.getElementById('bNext').onclick=function(){if(S.lv<24)newGame(S.lv+1)};
+document.getElementById('bHome').onclick=home;
+
+/* 开局 */
+loadSave();
+home();   /* boot 即显菜单（g135 教训） */
+requestAnimationFrame(loop);
+
+/* ==== DEV 钩子（构建剥离） ==== */
+
+</script>
+</body>
+</html>
