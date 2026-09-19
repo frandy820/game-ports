@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>冰轮夜泊</title>
+<style>
+html,body{margin:0;padding:0;width:100%;height:100%;background:#0b0e1e;overflow:hidden;font-family:"Songti SC","STSong","SimSun",serif;user-select:none;-webkit-user-select:none}
+#app{position:relative;width:390px;height:844px;margin:0 auto;background:linear-gradient(180deg,#0b0e1e 0%,#141026 40%,#1a1430 100%)}
+#hud{position:absolute;top:0;left:0;width:100%;height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;color:#cfd8e8;z-index:5;box-sizing:border-box}
+#hInfo{font-size:15px;letter-spacing:1px}
+#hRight{text-align:right}
+#hSpd{font-size:12px;letter-spacing:1px}
+#hSpd.ok{color:#8fe0a8}
+#hSpd.bad{color:#e88a7a}
+#fuelWrap{width:120px;height:7px;background:#232741;border-radius:4px;margin-top:4px;margin-left:auto;overflow:hidden}
+#fuelBar{height:100%;width:100%;background:linear-gradient(90deg,#e8b45a,#f0d08a);border-radius:4px}
+#cv{position:absolute;top:64px;left:0}
+.btnrow{position:absolute;bottom:0;left:0;width:100%;height:64px;display:flex;gap:14px;align-items:center;justify-content:center;z-index:5}
+.hbtn{min-width:88px;padding:10px 0;border:1px solid #4a5578;border-radius:10px;background:#1c2238;color:#cfd8e8;font-size:16px;text-align:center;cursor:pointer;letter-spacing:2px}
+.hbtn.on{background:#33406b;border-color:#7a8ac0}
+.hbtn.dis{opacity:.4}
+.lay{position:absolute;inset:0;background:rgba(8,10,22,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:20}
+.mtitle{font-size:34px;color:#dfe8f8;letter-spacing:12px;margin:6px 0 2px;text-indent:12px}
+.msub{font-size:12px;color:#8a94b8;letter-spacing:3px;margin-bottom:26px}
+.mbtn{min-width:200px;padding:11px 0;margin:7px;border:1px solid #5a679a;border-radius:10px;background:#1e2540;color:#cfd8e8;font-size:16px;text-align:center;cursor:pointer;letter-spacing:6px;text-indent:6px}
+.mbtn:active{background:#2c3560}
+.mbtn.hide{display:none}
+.mnote{font-size:10px;color:#5a6488;margin-top:14px;letter-spacing:1px}
+.otitle{font-size:26px;color:#9fe8dc;margin-bottom:8px;letter-spacing:8px;text-indent:8px}
+.otitle.bad{color:#e88a7a}
+.ostat{font-size:14px;color:#cfd8e8;margin:4px;letter-spacing:2px}
+.stars{font-size:26px;color:#ffd97a;letter-spacing:6px;margin:8px 0}
+.pgrid{display:grid;grid-template-columns:repeat(3,86px);gap:8px;margin:14px 0}
+.lvwrap{width:330px;max-height:430px;overflow-y:auto}
+.lvrow{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.lvcell{width:58px;height:46px;border:1px solid #4a5578;border-radius:8px;background:#1c2238;color:#cfd8e8;font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.lvcell.lock{opacity:.35}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud"><div id="hInfo">冰轮夜泊</div>
+    <div id="hRight"><div id="hSpd">H +0.00 · V +0.00</div><div id="fuelWrap"><div id="fuelBar"></div></div></div>
+  </div>
+  <canvas id="cv" width="390" height="780"></canvas>
+  <div class="btnrow">
+    <div class="hbtn" id="bL">⟲ 左转</div>
+    <div class="hbtn" id="bT">喷 焰</div>
+    <div class="hbtn" id="bR">右转 ⟳</div>
+    <div class="hbtn" id="bP" style="min-width:56px">泊</div>
+  </div>
+  <div class="lay hide" id="menu">
+    <div class="mtitle">冰 轮 夜 泊</div>
+    <div class="msub">月舟归埠 · 轻落广寒</div>
+    <div class="mbtn" id="mGo">启 航</div>
+    <div class="mbtn" id="mLvs">选 夜</div>
+    <div class="mbtn" id="mHelp">航 法</div>
+    <div class="mnote">转舷对向 · 喷焰减速 · 双速入绿 · 稳泊埠头</div>
+  </div>
+  <div class="lay hide" id="over">
+    <div class="otitle">稳 泊 埠 头</div>
+    <div class="stars" id="oStars"></div>
+    <div class="ostat" id="oScore"></div>
+    <div class="ostat" id="oBest"></div>
+    <div class="mbtn" id="bNext">下一夜</div>
+    <div class="mbtn" id="bAgain">再泊此夜</div>
+    <div class="mbtn" id="bHome">回 月 榜</div>
+  </div>
+  <div class="lay hide" id="dead">
+    <div class="otitle bad">舟 毁 寒 空</div>
+    <div class="ostat" id="dInfo"></div>
+    <div class="mbtn" id="dAgain">再泊此夜</div>
+    <div class="mbtn" id="dHome">回 月 榜</div>
+  </div>
+  <div class="lay hide" id="pause">
+    <div class="otitle">暂 泊 星 间</div>
+    <div class="mbtn" id="pRes">续 航</div>
+    <div class="mbtn" id="pRestart">重 启</div>
+    <div class="mbtn" id="pSnd">音 效</div>
+    <div class="mbtn" id="pHome">回 月 榜</div>
+  </div>
+  <div class="lay hide" id="help">
+    <div class="otitle">航 法</div>
+    <div class="ostat" style="font-size:12px;line-height:2.1;text-align:left;max-width:290px">左右钮转舷（朝向八八六十四向）<br>喷焰沿舷向发力，耗灯油 55/息<br>夜寒重力恒坠 · 深夜更有横风吹舟<br>落埠双速皆须入绿窗（H≤1.40 · V≤2.00）<br>埠外触坡、撞崖、出界皆舟毁<br>余油五成半泊岸得三星</div>
+    <div class="mbtn" id="hBack">回</div>
+  </div>
+  <div class="lay hide" id="lvbar">
+    <div class="otitle">选 夜</div>
+    <div class="lvwrap"><div class="lvrow" id="lvrow"></div></div>
+    <div class="mbtn" id="lBack">回</div>
+  </div>
+</div>
+<script>
+'use strict';
+/* ============ g139 冰轮夜泊 · Lunar Lander 软着陆（广寒埠意象） ============ */
+var LVDATA=[{"lv":1,"sx":318.0,"sy":100.0,"svx":0.69,"svy":-0.4,"sri":0,"fuel":310,"grav":0.048,"wind":0.0,"pw":96,"px0":147.0,"px1":243.0,"terr":[[0.0,657.0],[43.0,642.0],[73.0,645.0],[117.0,633.0],[147.0,629.0],[243.0,629.0],[269.0,618.0],[312.0,630.0],[355.0,646.0],[360.0,636.0],[390.0,636.0]],"seed":146919},{"lv":2,"sx":299.5,"sy":100.0,"svx":0.62,"svy":-0.4,"sri":0,"fuel":310,"grav":0.049,"wind":0.0,"pw":93,"px0":143.0,"px1":236.0,"terr":[[0.0,613.0],[36.0,606.0],[80.0,610.0],[108.0,610.0],[143.0,600.0],[236.0,600.0],[277.0,591.0],[313.0,607.0],[341.0,607.0],[360.0,604.0],[390.0,604.0]],"seed":154838},{"lv":3,"sx":94.0,"sy":100.0,"svx":-0.55,"svy":-0.4,"sri":0,"fuel":310,"grav":0.05,"wind":0.0,"pw":90,"px0":146.0,"px1":236.0,"terr":[[0.0,629.0],[29.0,630.0],[74.0,635.0],[106.0,647.0],[146.0,631.0],[236.0,631.0],[272.0,624.0],[314.0,634.0],[347.0,618.0],[360.0,632.0],[390.0,632.0]],"seed":162757},{"lv":4,"sx":304.5,"sy":100.0,"svx":0.41,"svy":-0.4,"sri":0,"fuel":310,"grav":0.051,"wind":0.0,"pw":87,"px0":124.0,"px1":211.0,"terr":[[0.0,645.0],[42.0,664.0],[81.0,670.0],[124.0,655.0],[211.0,655.0],[243.0,672.0],[274.0,667.0],[302.0,671.0],[340.0,688.0],[360.0,670.0],[390.0,670.0]],"seed":170676},{"lv":5,"sx":57.0,"sy":100.0,"svx":-0.34,"svy":-0.4,"sri":0,"fuel":310,"grav":0.052,"wind":0.0,"pw":84,"px0":139.0,"px1":223.0,"terr":[[0.0,654.0],[42.0,642.0],[75.0,649.0],[102.0,646.0],[139.0,657.0],[223.0,657.0],[256.0,654.0],[290.0,662.0],[333.0,663.0],[360.0,662.0],[390.0,662.0]],"seed":178595},{"lv":6,"sx":72.5,"sy":100.0,"svx":-0.68,"svy":-0.4,"sri":0,"fuel":310,"grav":0.053,"wind":0.0,"pw":81,"px0":149.0,"px1":230.0,"terr":[[0.0,610.0],[35.0,606.0],[69.0,614.0],[107.0,633.0],[149.0,628.0],[230.0,628.0],[258.0,627.0],[285.0,629.0],[320.0,614.0],[348.0,620.0],[360.0,628.0],[390.0,628.0]],"seed":186514},{"lv":7,"sx":73.0,"sy":100.0,"svx":-0.6,"svy":-0.4,"sri":0,"fuel":310,"grav":0.054,"wind":0.0,"pw":78,"px0":132.0,"px1":210.0,"terr":[[0.0,626.0],[28.0,630.0],[56.0,639.0],[98.0,631.0],[132.0,620.0],[210.0,620.0],[253.0,621.0],[286.0,617.0],[326.0,625.0],[360.0,609.0],[390.0,609.0]],"seed":194433},{"lv":8,"sx":100.5,"sy":100.0,"svx":-0.46,"svy":-0.4,"sri":0,"fuel":310,"grav":0.055,"wind":0.0,"pw":75,"px0":148.0,"px1":223.0,"terr":[[0.0,642.0],[41.0,625.0],[83.0,635.0],[109.0,639.0],[148.0,622.0],[223.0,622.0],[261.0,625.0],[300.0,615.0],[345.0,617.0],[360.0,608.0],[390.0,608.0]],"seed":202352},{"lv":9,"sx":274.0,"sy":100.0,"svx":0.66,"svy":-0.4,"sri":0,"fuel":258,"grav":0.056,"wind":-0.007,"pw":54,"px0":158.0,"px1":212.0,"terr":[[0.0,651.0],[34.0,642.0],[77.0,653.0],[114.0,669.0],[158.0,685.0],[212.0,685.0],[245.0,680.0],[290.0,674.0],[320.0,660.0],[351.0,668.0],[360.0,660.0],[390.0,660.0]],"seed":210271},{"lv":10,"sx":243.0,"sy":100.0,"svx":0.68,"svy":-0.4,"sri":0,"fuel":258,"grav":0.057,"wind":-0.007,"pw":52,"px0":126.0,"px1":178.0,"terr":[[0.0,607.0],[39.0,591.0],[66.0,588.0],[100.0,594.0],[126.0,609.0],[178.0,609.0],[223.0,602.0],[259.0,615.0],[298.0,620.0],[340.0,622.0],[360.0,639.0],[390.0,639.0]],"seed":218190},{"lv":11,"sx":45.0,"sy":100.0,"svx":-0.44,"svy":-0.4,"sri":0,"fuel":258,"grav":0.058,"wind":-0.008,"pw":50,"px0":137.0,"px1":187.0,"terr":[[0.0,628.0],[29.0,612.0],[61.0,624.0],[99.0,610.0],[137.0,614.0],[187.0,614.0],[224.0,601.0],[267.0,589.0],[311.0,584.0],[352.0,603.0],[360.0,588.0],[390.0,588.0]],"seed":226109},{"lv":12,"sx":281.0,"sy":100.0,"svx":0.53,"svy":-0.4,"sri":0,"fuel":258,"grav":0.059,"wind":0.008,"pw":48,"px0":168.0,"px1":216.0,"terr":[[0.0,606.0],[30.0,609.0],[64.0,606.0],[99.0,608.0],[130.0,622.0],[168.0,617.0],[216.0,617.0],[255.0,625.0],[297.0,626.0],[336.0,617.0],[360.0,608.0],[390.0,608.0]],"seed":234028},{"lv":13,"sx":254.0,"sy":100.0,"svx":0.45,"svy":-0.4,"sri":0,"fuel":258,"grav":0.06,"wind":-0.009,"pw":46,"px0":125.0,"px1":171.0,"terr":[[0.0,651.0],[34.0,632.0],[60.0,636.0],[96.0,645.0],[125.0,635.0],[171.0,635.0],[207.0,653.0],[237.0,637.0],[269.0,653.0],[312.0,657.0],[344.0,674.0],[360.0,677.0],[390.0,677.0]],"seed":241947},{"lv":14,"sx":227.0,"sy":100.0,"svx":0.31,"svy":-0.4,"sri":0,"fuel":258,"grav":0.061,"wind":0.009,"pw":44,"px0":123.0,"px1":167.0,"terr":[[0.0,653.0],[44.0,644.0],[89.0,650.0],[123.0,667.0],[167.0,667.0],[200.0,650.0],[238.0,643.0],[265.0,660.0],[305.0,665.0],[340.0,651.0],[360.0,635.0],[390.0,635.0]],"seed":249866},{"lv":15,"sx":294.0,"sy":100.0,"svx":0.59,"svy":-0.4,"sri":0,"fuel":258,"grav":0.062,"wind":0.01,"pw":42,"px0":184.0,"px1":226.0,"terr":[[0.0,634.0],[38.0,638.0],[77.0,623.0],[106.0,638.0],[142.0,646.0],[184.0,650.0],[226.0,650.0],[267.0,655.0],[300.0,659.0],[341.0,649.0],[360.0,643.0],[390.0,643.0]],"seed":257785},{"lv":16,"sx":257.0,"sy":100.0,"svx":0.67,"svy":-0.4,"sri":0,"fuel":258,"grav":0.063,"wind":0.01,"pw":40,"px0":143.0,"px1":183.0,"terr":[[0.0,645.0],[36.0,634.0],[67.0,646.0],[98.0,648.0],[143.0,656.0],[183.0,656.0],[224.0,640.0],[254.0,631.0],[296.0,646.0],[334.0,639.0],[360.0,645.0],[390.0,645.0]],"seed":265704},{"lv":17,"sx":72.0,"sy":100.0,"svx":-0.61,"svy":-0.4,"sri":0,"fuel":252,"grav":0.063,"wind":0.011,"pw":40,"px0":164.0,"px1":204.0,"terr":[[0.0,460.0],[26.0,618.0],[60.0,633.0],[97.0,624.0],[133.0,630.0],[164.0,624.0],[204.0,624.0],[248.0,629.0],[285.0,646.0],[317.0,633.0],[360.0,625.0],[364.0,618.0],[390.0,460.0]],"seed":273623},{"lv":18,"sx":47.0,"sy":100.0,"svx":-0.32,"svy":-0.4,"sri":0,"fuel":252,"grav":0.064,"wind":-0.011,"pw":38,"px0":170.0,"px1":208.0,"terr":[[0.0,460.0],[26.0,618.0],[70.0,625.0],[104.0,636.0],[140.0,619.0],[170.0,627.0],[208.0,627.0],[234.0,630.0],[276.0,612.0],[317.0,596.0],[359.0,602.0],[360.0,620.0],[364.0,618.0],[390.0,460.0]],"seed":281542},{"lv":19,"sx":317.0,"sy":100.0,"svx":0.41,"svy":-0.4,"sri":0,"fuel":252,"grav":0.065,"wind":0.012,"pw":36,"px0":172.0,"px1":208.0,"terr":[[0.0,460.0],[26.0,618.0],[54.0,631.0],[87.0,614.0],[129.0,601.0],[172.0,588.0],[208.0,588.0],[242.0,597.0],[268.0,583.0],[297.0,585.0],[334.0,604.0],[360.0,599.0],[364.0,618.0],[390.0,460.0]],"seed":289461},{"lv":20,"sx":266.0,"sy":100.0,"svx":0.44,"svy":-0.4,"sri":0,"fuel":252,"grav":0.066,"wind":0.012,"pw":34,"px0":127.0,"px1":161.0,"terr":[[0.0,460.0],[26.0,618.0],[56.0,636.0],[98.0,631.0],[127.0,617.0],[161.0,617.0],[194.0,614.0],[238.0,618.0],[281.0,614.0],[317.0,622.0],[352.0,611.0],[360.0,604.0],[364.0,618.0],[390.0,460.0]],"seed":297380},{"lv":21,"sx":304.0,"sy":100.0,"svx":0.57,"svy":-0.4,"sri":0,"fuel":252,"grav":0.067,"wind":0.013,"pw":32,"px0":174.0,"px1":206.0,"terr":[[0.0,460.0],[26.0,618.0],[52.0,634.0],[78.0,630.0],[114.0,614.0],[140.0,597.0],[174.0,594.0],[206.0,594.0],[238.0,582.0],[274.0,564.0],[317.0,560.0],[346.0,560.0],[360.0,576.0],[364.0,618.0],[390.0,460.0]],"seed":305299},{"lv":22,"sx":79.0,"sy":100.0,"svx":-0.34,"svy":-0.4,"sri":0,"fuel":252,"grav":0.068,"wind":-0.013,"pw":30,"px0":186.0,"px1":216.0,"terr":[[0.0,460.0],[26.0,618.0],[54.0,614.0],[92.0,630.0],[131.0,631.0],[157.0,631.0],[186.0,619.0],[216.0,619.0],[255.0,613.0],[287.0,609.0],[327.0,602.0],[356.0,587.0],[360.0,600.0],[364.0,618.0],[390.0,460.0]],"seed":313218},{"lv":23,"sx":100.0,"sy":100.0,"svx":-0.47,"svy":-0.4,"sri":0,"fuel":252,"grav":0.069,"wind":-0.014,"pw":28,"px0":192.0,"px1":220.0,"terr":[[0.0,460.0],[26.0,618.0],[58.0,610.0],[94.0,628.0],[123.0,642.0],[151.0,652.0],[192.0,660.0],[220.0,660.0],[256.0,662.0],[290.0,647.0],[329.0,650.0],[360.0,655.0],[364.0,618.0],[390.0,460.0]],"seed":321137},{"lv":24,"sx":286.0,"sy":100.0,"svx":0.37,"svy":-0.4,"sri":0,"fuel":252,"grav":0.071,"wind":0.014,"pw":26,"px0":149.0,"px1":175.0,"terr":[[0.0,460.0],[26.0,618.0],[55.0,624.0],[90.0,643.0],[121.0,634.0],[149.0,629.0],[175.0,629.0],[217.0,617.0],[262.0,616.0],[305.0,598.0],[338.0,580.0],[360.0,562.0],[364.0,618.0],[390.0,460.0]],"seed":329056}];
+var RI_N=64,ROT_SPD=1,TH=0.085,FUEL_BURN=0.55,VDX=1.40,VDY=2.00,TOP_Y=70,LAND_R=6;
+var TX=[0.0,0.008331457,0.016582677,0.024674198,0.032528092,0.040068723,0.04722347,0.053923429,0.060104076,0.065705889,0.070674917,0.074963307,0.07852976,0.081339929,0.083366749,0.084590702,0.085,0.084590702,0.083366749,0.081339929,0.07852976,0.074963307,0.070674917,0.065705889,0.060104076,0.053923429,0.04722347,0.040068723,0.032528092,0.024674198,0.016582677,0.008331457,0.0,-0.008331457,-0.016582677,-0.024674198,-0.032528092,-0.040068723,-0.04722347,-0.053923429,-0.060104076,-0.065705889,-0.070674917,-0.074963307,-0.07852976,-0.081339929,-0.083366749,-0.084590702,-0.085,-0.084590702,-0.083366749,-0.081339929,-0.07852976,-0.074963307,-0.070674917,-0.065705889,-0.060104076,-0.053923429,-0.04722347,-0.040068723,-0.032528092,-0.024674198,-0.016582677,-0.008331457],TY=[-0.085,-0.084590702,-0.083366749,-0.081339929,-0.07852976,-0.074963307,-0.070674917,-0.065705889,-0.060104076,-0.053923429,-0.04722347,-0.040068723,-0.032528092,-0.024674198,-0.016582677,-0.008331457,0.0,0.008331457,0.016582677,0.024674198,0.032528092,0.040068723,0.04722347,0.053923429,0.060104076,0.065705889,0.070674917,0.074963307,0.07852976,0.081339929,0.083366749,0.084590702,0.085,0.084590702,0.083366749,0.081339929,0.07852976,0.074963307,0.070674917,0.065705889,0.060104076,0.053923429,0.04722347,0.040068723,0.032528092,0.024674198,0.016582677,0.008331457,0.0,-0.008331457,-0.016582677,-0.024674198,-0.032528092,-0.040068723,-0.04722347,-0.053923429,-0.060104076,-0.065705889,-0.070674917,-0.074963307,-0.07852976,-0.081339929,-0.083366749,-0.084590702];
+
+var M214=2147483647,LCGX=48271;
+function LCG(x){this.x=x%M214||1}
+LCG.prototype.n=function(){this.x=this.x*LCGX%M214;return this.x};
+LCG.prototype.u=function(m){return this.n()%m};
+
+var S={ph:'menu',lv:1,x:0,y:0,vx:0,vy:0,ri:0,fuel:0,fuel0:0,frames:0,score:0,stars:0,over:0,
+       inL:0,inR:0,inT:0,shake:0,winT:0,parts:[],starsArr:null};
+var unlocked=1,best={},sndOn=1,GRS=null,L=null,stars=[];
+
+/* ============ 存档 ============ */
+var SK='g139_lander';
+function saveMain(){
+  try{localStorage.setItem(SK,JSON.stringify({unlocked:unlocked,best:best,snd:sndOn}))}catch(e){}
+}
+function loadSave(){
+  unlocked=1;best={};sndOn=1;
+  try{
+    var d=JSON.parse(localStorage.getItem(SK));
+    if(d&&typeof d==='object'){
+      if(typeof d.unlocked==='number'&&isFinite(d.unlocked)&&d.unlocked%1===0)unlocked=Math.min(24,Math.max(1,d.unlocked));
+      if(d.best&&typeof d.best==='object'&&!Array.isArray(d.best)){
+        for(var k in d.best){
+          var v=d.best[k],kk=parseInt(k,10);
+          if(kk>=1&&kk<=24&&Array.isArray(v)&&v.length===2&&
+             typeof v[0]==='number'&&isFinite(v[0])&&typeof v[1]==='number'&&isFinite(v[1])&&v[1]%1===0)
+            best[kk]=[v[0],v[1]];
+        }
+      }
+      if(d.snd===0)sndOn=0;
+    }
+  }catch(e){}
+}
+
+/* ============ 内核（与 sim139.py 逐行同构） ============ */
+function terrainY(terr,x){
+  if(x<=terr[0][0])return terr[0][1];
+  if(x>=terr[terr.length-1][0])return terr[terr.length-1][1];
+  for(var i=0;i<terr.length-1;i++){
+    var x0=terr[i][0],y0=terr[i][1],x1=terr[i+1][0],y1=terr[i+1][1];
+    if(x0<=x&&x<=x1){
+      if(x1===x0)return Math.min(y0,y1);
+      return y0+(y1-y0)*(x-x0)/(x1-x0);
+    }
+  }
+  return terr[terr.length-1][1];
+}
+function newGame(lv){
+  L=LVDATA[lv-1];
+  if(!L)return;
+  S.lv=lv;S.x=L.sx;S.y=L.sy;S.vx=L.svx;S.vy=L.svy;S.ri=L.sri;
+  S.fuel=L.fuel;S.fuel0=L.fuel;
+  S.ph='play';S.frames=0;S.score=0;S.stars=0;S.over=0;
+  S.inL=0;S.inR=0;S.inT=0;S.shake=0;S.winT=0;S.parts=[];
+  makeStars(L.seed);
+  document.getElementById('menu').classList.add('hide');
+  document.getElementById('over').classList.add('hide');
+  document.getElementById('dead').classList.add('hide');
+  document.getElementById('pause').classList.add('hide');
+  document.getElementById('lvbar').classList.add('hide');
+  document.getElementById('help').classList.add('hide');
+  updHUD();
+}
+function step(rot,thr){
+  if(S.ph!=='play')return S.over;
+  if(rot<0)S.ri=(S.ri+RI_N-ROT_SPD)%RI_N;
+  else if(rot>0)S.ri=(S.ri+ROT_SPD)%RI_N;
+  if(thr&&S.fuel>0){
+    S.vx+=TX[S.ri];S.vy+=TY[S.ri];
+    S.fuel-=FUEL_BURN;
+    if(S.fuel<0)S.fuel=0;
+  }
+  S.vx+=L.wind;S.vy+=L.grav;
+  S.x+=S.vx;S.y+=S.vy;
+  S.frames++;
+  if(S.y<TOP_Y)S.y=TOP_Y;
+  if(S.x<-6||S.x>396){doDead('撞 崖 而 毁');return 2}
+  var ty=terrainY(L.terr,S.x);
+  if(S.y+LAND_R>=ty){
+    if(L.px0<=S.x&&S.x<=L.px1&&Math.abs(S.vx)<=VDX&&Math.abs(S.vy)<=VDY){doWin();return 1}
+    doDead(Math.abs(S.vx)>VDX||Math.abs(S.vy)>VDY?'落 速 过 疾 · 舟 毁':'触 坡 而 毁');return 2;
+  }
+  if(S.frames>3600){doDead('寒 空 久 悬 · 灯 油渐尽');return 2}
+  return 0;
+}
+function doWin(){
+  S.ph='over';S.over=1;
+  var r=S.fuel/S.fuel0;
+  S.stars=r>=0.55?3:(r>=0.30?2:1);
+  var bon=(L.px1-L.px0)<40?60:((L.px1-L.px0)<56?30:0);
+  S.score=100+Math.round(r*100)+bon;
+  if(S.lv+1>unlocked&&S.lv<24)unlocked=S.lv+1;
+  var pb=best[S.lv];
+  if(!pb||S.score>pb[0]||(S.score===pb[0]&&S.stars>pb[1]))best[S.lv]=[S.score,S.stars];
+  saveMain();
+  S.winT=1;
+  document.getElementById('oStars').textContent='★'.repeat(S.stars)+'☆'.repeat(3-S.stars);
+  document.getElementById('oScore').textContent='泊岸 · '+S.score+' 分 · 余油 '+Math.round(r*100)+'%';
+  var b=best[S.lv];
+  document.getElementById('oBest').textContent='此夜最好：'+b[0]+' 分';
+  document.getElementById('bNext').classList.toggle('hide',S.lv>=24);
+  document.getElementById('over').classList.remove('hide');
+  tone(523,.1);setTimeout(function(){tone(659,.1)},120);setTimeout(function(){tone(784,.2)},240);
+}
+function doDead(why){
+  S.ph='dead';S.over=2;S.shake=18;
+  spawnDebris();
+  document.getElementById('dInfo').textContent=why+' · '+S.frames+' 息';
+  document.getElementById('dead').classList.remove('hide');
+  tone(140,.3);setTimeout(function(){tone(96,.35)},140);
+}
+function decide(){
+  /* optimal 控制律（与 sim139.decide 同构，减速包线式）：
+     brake(h)=√(1.2²+2(TH−g)h)——当前高度全力刹恰落地 1.2；贴线即全力刹；
+     水平=速度跟踪钳±0.75；档位距离=垂向1.0+横向0.35；紧急高坠速边转边喷 */
+  var xT=(L.px0+L.px1)/2;
+  var dx=xT-S.x;
+  var vwx=dx*0.02;
+  if(vwx>0.75)vwx=0.75;else if(vwx<-0.75)vwx=-0.75;
+  var h=terrainY(L.terr,S.x)-S.y;
+  var brake=Math.sqrt(1.44+2*(TH-L.grav)*h);
+  if(brake>2.2)brake=2.2;
+  var tY;
+  if(S.vy<brake)tY=0;
+  else tY=-TH;
+  if(tY<-TH)tY=-TH;else if(tY>TH)tY=TH;
+  var tX=(vwx-S.vx)*0.08;
+  if(tX>TH)tX=TH;else if(tX<-TH)tX=-TH;
+  if(tY===0&&Math.abs(tX)<0.01)return [0,0];
+  var bestK=-1,bestD=Math.abs(tX)*0.35+Math.abs(tY);
+  for(var k=0;k<RI_N;k++){
+    var d=Math.abs(TX[k]-tX)*0.35+Math.abs(TY[k]-tY);
+    if(d<bestD){bestD=d;bestK=k}
+  }
+  if(bestK<0)return [0,0];
+  var diff=(bestK-S.ri)%RI_N;
+  if(diff<0)diff+=RI_N;   /* js % 保号——先归正再折叠（py % 恒非负同构） */
+  if(diff>RI_N/2)diff-=RI_N;
+  if(diff!==0){
+    if(S.vy>1.2)return [diff>0?1:-1,1];
+    return [diff>0?1:-1,0];
+  }
+  return [0,1];
+}
+
+/* ============ 音效 ============ */
+var AC=null;
+function ensureAC(){
+  if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}
+  if(AC&&AC.state==='suspended')AC.resume();
+}
+function tone(f,d){
+  if(!sndOn)return;
+  ensureAC();
+  if(!AC)return;
+  var o=AC.createOscillator(),g=AC.createGain();
+  o.frequency.value=f;o.type='sine';
+  g.gain.setValueAtTime(.09,AC.currentTime);
+  g.gain.exponentialRampToValueAtTime(.0001,AC.currentTime+d);
+  o.connect(g);g.connect(AC.destination);
+  o.start();o.stop(AC.currentTime+d);
+}
+var lastFlame=0;
+function flameTone(){
+  if(!sndOn)return;
+  ensureAC();if(!AC)return;
+  if(Date.now()-lastFlame<180)return;
+  lastFlame=Date.now();
+  var o=AC.createOscillator(),g=AC.createGain();
+  o.frequency.value=90;o.type='square';
+  g.gain.setValueAtTime(.035,AC.currentTime);
+  g.gain.exponentialRampToValueAtTime(.0001,AC.currentTime+.22);
+  o.connect(g);g.connect(AC.destination);
+  o.start();o.stop(AC.currentTime+.22);
+}
+document.addEventListener('pointerdown',function wake(){ensureAC()},{once:true});
+
+/* ============ 渲染 ============ */
+var cv,ctx;
+function makeStars(seed){
+  stars=[];
+  var r=new LCG(seed*7+5);
+  for(var i=0;i<70;i++)stars.push([r.n()%390,(r.n()%640)+8,(r.n()%2)+1]);
+}
+function rr(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();
+}
+function draw(){
+  ctx.clearRect(0,0,390,780);
+  /* 夜空底 */
+  var g=ctx.createLinearGradient(0,0,0,780);
+  g.addColorStop(0,'#0b0e1e');g.addColorStop(.6,'#141026');g.addColorStop(1,'#1a1430');
+  ctx.fillStyle=g;ctx.fillRect(0,0,390,780);
+  /* 星点 */
+  ctx.fillStyle='rgba(220,228,255,.85)';
+  for(var i=0;i<stars.length;i++){
+    ctx.globalAlpha=stars[i][2]*0.35;
+    ctx.fillRect(stars[i][0],stars[i][1],stars[i][2],stars[i][2]);
+  }
+  ctx.globalAlpha=1;
+  /* 冷月 */
+  ctx.fillStyle='rgba(226,233,248,.10)';ctx.beginPath();ctx.arc(300,170,84,0,6.283);ctx.fill();
+  ctx.fillStyle='rgba(226,233,248,.16)';ctx.beginPath();ctx.arc(300,170,64,0,6.283);ctx.fill();
+  ctx.fillStyle='#dde6f6';ctx.beginPath();ctx.arc(300,170,46,0,6.283);ctx.fill();
+  ctx.fillStyle='rgba(180,192,220,.5)';
+  ctx.beginPath();ctx.arc(284,158,9,0,6.283);ctx.fill();
+  ctx.beginPath();ctx.arc(316,184,6,0,6.283);ctx.fill();
+  ctx.beginPath();ctx.arc(296,190,4,0,6.283);ctx.fill();
+  if(S.ph!=='play'&&S.ph!=='pause'&&S.ph!=='over'&&S.ph!=='dead')return;
+  if(!L)return;
+  /* 地形 */
+  ctx.fillStyle='#221c30';
+  ctx.beginPath();
+  ctx.moveTo(L.terr[0][0],L.terr[0][1]);
+  for(var t=1;t<L.terr.length;t++)ctx.lineTo(L.terr[t][0],L.terr[t][1]);
+  ctx.lineTo(390,780);ctx.lineTo(0,780);ctx.closePath();ctx.fill();
+  ctx.strokeStyle='#5a4f78';ctx.lineWidth=1.5;
+  ctx.beginPath();
+  ctx.moveTo(L.terr[0][0],L.terr[0][1]);
+  for(t=1;t<L.terr.length;t++)ctx.lineTo(L.terr[t][0],L.terr[t][1]);
+  ctx.stroke();
+  /* 埠头（冷玉发光条+灯笼） */
+  var py=terrainY(L.terr,(L.px0+L.px1)/2);
+  ctx.fillStyle='rgba(159,232,220,.18)';
+  rr(L.px0-3,py-8,L.px1-L.px0+6,10,4);ctx.fill();
+  ctx.fillStyle='#9fe8dc';
+  rr(L.px0,py-4,L.px1-L.px0,3,2);ctx.fill();
+  ctx.fillStyle='#e86a5a';
+  ctx.beginPath();ctx.arc(L.px0+4,py-10,3,0,6.283);ctx.fill();
+  ctx.beginPath();ctx.arc(L.px1-4,py-10,3,0,6.283);ctx.fill();
+  /* 月舟（震屏偏移） */
+  var ox=0,oy=0;
+  if(S.shake>0){ox=(Math.random()*8-4);oy=(Math.random()*8-4)}
+  var cx=S.x+ox,cy=S.y+oy;
+  var th=2*Math.PI*S.ri/RI_N;   /* 仅渲染三角变换（推力物理走 TX/TY 表） */
+  var nx=Math.sin(th),ny=-Math.cos(th);   /* 舷向单位向量 */
+  /* 焰 */
+  if(S.inT&&S.fuel>0&&S.ph==='play'){
+    /* 焰从舟尾（-舷向）喷出：基座=舟尾±垂直向，尖端=沿 -舷向 (7+fl) */
+    var fl=10+Math.random()*7;
+    ctx.fillStyle='rgba(255,150,60,.85)';
+    ctx.beginPath();
+    ctx.moveTo(cx-nx*7-ny*3.4,cy-ny*7+nx*3.4);
+    ctx.lineTo(cx-nx*7+ny*3.4,cy-ny*7-nx*3.4);
+    ctx.lineTo(cx-nx*(7+fl),cy-ny*(7+fl));
+    ctx.closePath();ctx.fill();
+    ctx.fillStyle='rgba(255,230,140,.9)';
+    ctx.beginPath();
+    ctx.moveTo(cx-nx*6.5-ny*1.8,cy-ny*6.5+nx*1.8);
+    ctx.lineTo(cx-nx*6.5+ny*1.8,cy-ny*6.5-nx*1.8);
+    ctx.lineTo(cx-nx*(6.5+fl*0.55),cy-ny*(6.5+fl*0.55));
+    ctx.closePath();ctx.fill();
+  }
+  /* 舟体三角（舷向为上） */
+  drawShip(cx,cy,nx,ny);
+  /* 粒子 */
+  for(var p=S.parts.length-1;p>=0;p--){
+    var pt=S.parts[p];
+    pt.x+=pt.vx;pt.y+=pt.vy;pt.vy+=0.06;pt.life--;
+    if(pt.life<=0){S.parts.splice(p,1);continue}
+    ctx.globalAlpha=pt.life/pt.max;
+    ctx.fillStyle=pt.col;
+    ctx.fillRect(pt.x,pt.y,pt.sz,pt.sz);
+  }
+  ctx.globalAlpha=1;
+  /* 泊岸光环 */
+  if(S.ph==='over'&&S.winT>0){
+    ctx.strokeStyle='rgba(159,232,220,'+(S.winT*0.5)+')';
+    ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(cx,cy,30+(1-S.winT)*46,0,6.283);ctx.stroke();
+  }
+}
+function drawShip(cx,cy,nx,ny){
+  /* 舷向 (nx,ny) 为舟「上」向；舷身宽 8 长 14 */
+  var px=-ny,py2=nx;   /* 垂直舷向 */
+  ctx.fillStyle='#e8e4d8';
+  ctx.strokeStyle='#8a8678';ctx.lineWidth=1;
+  var hx=cx+nx*7,hy=cy+ny*7;
+  var bxl=cx-nx*6+px*5,byl=cy-ny*6+py2*5;
+  var bxr=cx-nx*6-px*5,byr=cy-ny*6-py2*5;
+  ctx.beginPath();
+  ctx.moveTo(hx,hy);ctx.lineTo(bxl,byl);ctx.lineTo(bxr,byr);ctx.closePath();
+  ctx.fill();ctx.stroke();
+  /* 舷窗 */
+  ctx.fillStyle='#9fd8e8';
+  ctx.beginPath();ctx.arc(cx+nx*1.5,cy+ny*1.5,2.2,0,6.283);ctx.fill();
+}
+function spawnDebris(){
+  for(var i=0;i<26;i++){
+    var a=Math.random()*6.283,sp=1+Math.random()*3;
+    S.parts.push({x:S.x,y:S.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-1,
+                  life:30+Math.random()*40,max:60,sz:2+Math.random()*3,
+                  col:Math.random()<0.5?'#e8e4d8':'#f0a05a'});
+  }
+}
+function updHUD(){
+  document.getElementById('hInfo').textContent='第 '+S.lv+' 夜 · '+S.score+' 分';
+  var hok=Math.abs(S.vx)<=VDX,vok=Math.abs(S.vy)<=VDY;
+  var cls=(hok&&vok)?'ok':'bad';
+  var fv=S.vy>=0?'+':'−';
+  document.getElementById('hSpd').innerHTML='H '+(S.vx>=0?'+':'−')+Math.abs(S.vx).toFixed(2)+' · V '+fv+Math.abs(S.vy).toFixed(2);
+  document.getElementById('hSpd').className=cls;
+  document.getElementById('fuelBar').style.width=(S.fuel0>0?Math.max(0,S.fuel/S.fuel0*100):0)+'%';
+  document.getElementById('bT').classList.toggle('dis',S.fuel<=0);
+}
+
+/* ============ 输入 ============ */
+function bindHold(id,fn){
+  var el=document.getElementById(id);
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.classList.add('on');fn(1);ensureAC()});
+  var off=function(){el.classList.remove('on');fn(0)};
+  el.addEventListener('pointerup',off);
+  el.addEventListener('pointercancel',off);
+  el.addEventListener('pointerleave',off);
+}
+function mainLoop(){
+  if(S.ph==='play'){
+    var rot=(S.inR?1:0)-(S.inL?1:0);
+    step(rot,S.inT?1:0);
+    if(S.inT&&S.fuel>0){
+      flameTone();
+      /* 焰粒子（纯视觉——不参与物理） */
+      if(S.frames%3===0){
+        var th=2*Math.PI*S.ri/RI_N,nx=Math.sin(th),ny=-Math.cos(th);
+        S.parts.push({x:S.x-nx*8,y:S.y-ny*8,vx:-nx*1.2+(Math.random()-0.5),vy:-ny*1.2+(Math.random()-0.5),
+                      life:14,max:14,sz:2,col:'#f0b060'});
+      }
+    }
+    updHUD();
+  }
+  if(S.shake>0)S.shake--;
+  if(S.winT>0)S.winT=Math.max(0,S.winT-0.012);
+  draw();
+  requestAnimationFrame(mainLoop);
+}
+bindHold('bL',function(v){S.inL=v});
+bindHold('bR',function(v){S.inR=v});
+bindHold('bT',function(v){S.inT=v});
+window.addEventListener('keydown',function(e){
+  if(S.ph!=='play')return;
+  if(e.key==='ArrowLeft')S.inL=1;
+  else if(e.key==='ArrowRight')S.inR=1;
+  else if(e.key==='ArrowUp')S.inT=1;
+});
+window.addEventListener('keyup',function(e){
+  if(e.key==='ArrowLeft')S.inL=0;
+  else if(e.key==='ArrowRight')S.inR=0;
+  else if(e.key==='ArrowUp')S.inT=0;
+});
+
+/* ============ 面板接线 ============ */
+function home(){
+  S.ph='menu';saveMain();
+  document.getElementById('menu').classList.remove('hide');
+  document.getElementById('over').classList.add('hide');
+  document.getElementById('dead').classList.add('hide');
+  document.getElementById('pause').classList.add('hide');
+  document.getElementById('help').classList.add('hide');
+  document.getElementById('lvbar').classList.add('hide');
+}
+document.getElementById('mGo').onclick=function(){newGame(Math.min(unlocked,24));tone(440,.05)};
+document.getElementById('mLvs').onclick=function(){
+  var row=document.getElementById('lvrow');
+  row.innerHTML='';
+  for(var i=1;i<=24;i++){
+    (function(i){
+      var d=document.createElement('div');
+      d.className='lvcell'+(i>unlocked?' lock':'');
+      d.textContent=i;
+      d.onclick=function(){if(i<=unlocked){newGame(i);tone(440,.05)}};
+      row.appendChild(d);
+    })(i);
+  }
+  document.getElementById('lvbar').classList.remove('hide');
+};
+document.getElementById('lBack').onclick=function(){document.getElementById('lvbar').classList.add('hide')};
+document.getElementById('mHelp').onclick=function(){document.getElementById('help').classList.remove('hide')};
+document.getElementById('hBack').onclick=function(){document.getElementById('help').classList.add('hide')};
+document.getElementById('bNext').onclick=function(){newGame(Math.min(S.lv+1,24))};
+document.getElementById('bAgain').onclick=function(){newGame(S.lv)};
+document.getElementById('bHome').onclick=home;
+document.getElementById('dAgain').onclick=function(){newGame(S.lv)};
+document.getElementById('dHome').onclick=home;
+document.getElementById('bP').onclick=function(){
+  if(S.ph!=='play')return;
+  S.ph='pause';S.inL=0;S.inR=0;S.inT=0;
+  document.getElementById('pause').classList.remove('hide');
+};
+document.getElementById('pRes').onclick=function(){S.ph='play';document.getElementById('pause').classList.add('hide')};
+document.getElementById('pRestart').onclick=function(){newGame(S.lv)};
+document.getElementById('pSnd').onclick=function(){sndOn=sndOn?0:1;this.textContent=sndOn?'音 效':'静 音';saveMain()};
+document.getElementById('pHome').onclick=home;
+
+/* ============ DEV 段（build 剥离） ============ */
+
+
+/* ============ boot ============ */
+cv=document.getElementById('cv');ctx=cv.getContext('2d');
+loadSave();
+document.getElementById('pSnd').textContent=sndOn?'音 效':'静 音';
+home();
+requestAnimationFrame(mainLoop);
+</script>
+</body>
+</html>
