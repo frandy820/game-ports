@@ -22,6 +22,13 @@
   body::after{content:"";position:absolute;top:-160px;left:50%;transform:translateX(-50%);
     width:520px;height:420px;pointer-events:none;
     background:radial-gradient(ellipse at 50% 30%,rgba(240,205,140,.14),rgba(240,205,140,.05) 45%,transparent 70%)}
+  /* 2026-09-20 移动端横向溢出修复：上方摊灯光晕 ::after 的 520px 盒 + translateX(-50%) 使 post-transform 盒右缘=50%vw+260px（vw<520 时溢出，390 视口溢出 65px）。
+     窄屏(<=519px)改用 0..100%vw 盒 + 显式渐变半径（farthest-corner=farthest-side(260,294)×√2≈367.70/415.78，页内实测等价）——
+     椭圆中心 50%vw 与半径不变，数学上任意视口宽度视觉等价；宽屏(>=520px)不触发本规则，桌面渲染逐字节不变。 */
+  @media (max-width:519px){
+    body::after{left:0;width:100%;transform:none;
+      background:radial-gradient(ellipse 367.70px 415.78px at 50% 30%,rgba(240,205,140,.14),rgba(240,205,140,.05) 45%,transparent 70%)}
+  }
 
   #hud{position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);left:14px;right:60px;z-index:6;
     display:flex;align-items:center;gap:10px;pointer-events:none}
