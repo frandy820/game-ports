@@ -10,7 +10,7 @@
   #cv{position:absolute;left:0;top:64px;width:390px;height:780px}
   #hud{position:absolute;left:0;top:0;width:390px;height:64px;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;padding:0 14px;background:#131b2c;border-bottom:1px solid #233049;z-index:5}
   #hud .hl{font-size:15px;color:#e8dcc0;letter-spacing:1px}
-  #hud .hr{font-size:13px;color:#8fa0b8}
+  #hud .hr{font-size:14px;color:#a8b8cc}
   #hud .hb{font-size:12px;color:#c06a52;margin-left:8px}
   #btnrow{position:absolute;left:0;bottom:0;width:390px;height:64px;display:flex;align-items:center;justify-content:center;gap:22px;background:#131b2c;border-top:1px solid #233049;z-index:5}
   .btn{min-width:76px;height:40px;border-radius:20px;border:1px solid #2c3c58;background:#1a2438;color:#c8d4e8;font-size:14px;letter-spacing:2px;display:flex;align-items:center;justify-content:center;cursor:pointer}
@@ -148,7 +148,7 @@ var SND={roll:function(){tone(180,0.08,0,'triangle');},stamp:function(){tone(520
 /* ============ 状态 ============ */
 var S={ph:'boot',lv:1,cells:null,n:0,bstate:null,steps:0,hints:0,hist:[],fell:0,
   anim:null,winT:0,loseT:0,hintDir:null,hintT:0,dead:false,best:{},unlocked:1,snd:1,
-  seed:0,r1:null,botMode:null,botPath:null,botBstate:null};
+  seed:0,r1:null,botMode:null,botPath:null,botBstate:null,tut:0,tutShown:0};
 var els={};
 function $(id){return document.getElementById(id);}
 /* ============ 关卡 ============ */
@@ -237,6 +237,7 @@ function newGame(lv){
   els.over.classList.add('hide');
   els.lvbar.classList.remove('show');
   updHUD();
+  maybeTut();
 }
 function updHUD(){
   if(S.ph!=='play'&&S.ph!=='over'){els.hInfo.textContent='—— 待 拓 ——';els.hSub.textContent='';els.hHint.textContent='';return;}
@@ -254,6 +255,7 @@ function tryMove(d){
   var nbs=cloneBs(S.bstate);
   var gd=ground(L,r.c,nbs,r.n);
   if(gd==='bad'||gd==='hole_down'){
+    if(gd==='bad')flash('此向滚不过去 · 撞石/出界/断笺');
     if(gd==='hole_down'){flash('印背朝上 · 卡穴退回');tone(160,0.12,0,'triangle');}
     return false;
   }
@@ -375,12 +377,16 @@ function finishLose(){
 /* ============ 渲染 ============ */
 var cv,ctx;
 var CELL=34;
+/* UI 层参数（polish 抽离：散落魔法数字等值搬移；TUT=首局引导面板配色/坐标） */
+var UI={W:390,H:780,BOARD_Y:90,BOARD_H:560,
+  TUT:{KEY:'pg_tut_133',MASK:'rgba(10,14,24,.9)',TITLE:'#e8dcc0',SUB:'#8fa0b8',BODY:'#e0d6bc',
+    LABEL:'#d8a45c',HINT:'#6a7a92',Y0:210,BTN:{w:190,h:48,r:24,bg:'#1c2840',bd:'#3a4c6c',fg:'#e0d6bc'}}};
 function boardOrigin(L){
   var bw=L.W*CELL,bh=L.H*CELL;
-  return [Math.floor((390-bw)/2),90+Math.floor((560-bh)/2)];
+  return [Math.floor((UI.W-bw)/2),UI.BOARD_Y+Math.floor((UI.BOARD_H-bh)/2)];
 }
 function draw(ts){
-  ctx.fillStyle='#0e1420';ctx.fillRect(0,0,390,780);
+  ctx.fillStyle='#0e1420';ctx.fillRect(0,0,UI.W,UI.H);
   var L=curLv();
   var ox=boardOrigin(L)[0],oy=boardOrigin(L)[1];
   /* 底纹：夜拓靛青+纸格 */
@@ -452,6 +458,7 @@ function draw(ts){
     ctx.fillStyle='rgba(20,16,12,'+(0.5*q)+')';
     ctx.beginPath();ctx.arc(lx,ly,10+q*36,0,Math.PI*2);ctx.fill();
   }
+  if(S.tut)drawTut();
 }
 function isSoftOn(L,c){
   for(var i=0;i<L.sf.length;i++){var s=L.sf[i];if(s[0]===c[0]&&s[1]===c[1])return true;}
@@ -546,6 +553,7 @@ function drawSeal(L,ox,oy){
 var lastTs=0;
 function loop(ts){
   var dt=Math.min(50,ts-lastTs)||16;lastTs=ts;
+  if(S.tut){draw(ts);requestAnimationFrame(loop);return;} /* 引导暂停态：anim/演出计时全冻结 */
   var gDt=dt/1000;
   if(S.anim){S.anim.t+=gDt;if(S.anim.t>=0.16){S.anim=null;}}
   if(S.hintT>0)S.hintT=Math.max(0,S.hintT-gDt);
@@ -561,6 +569,7 @@ var pdX=0,pdY=0,pDown=false,pdId=-1;
 function bindInput(){
   cv.addEventListener('pointerdown',function(e){
     e.preventDefault();
+    if(S.tut){closeTut();return;}
     if(S.ph!=='play')return;
     if(pDown)return; /* 已有指在滑，第二指不覆写起点（g129 同族修复） */
     pDown=true;pdId=e.pointerId;pdX=e.clientX;pdY=e.clientY;
@@ -576,13 +585,17 @@ function bindInput(){
   });
   window.addEventListener('pointercancel',function(e){if(e.pointerId===pdId)pDown=false;});
   window.addEventListener('keydown',function(e){
+    if(S.tut){
+      if(e.key==='ArrowLeft'||e.key==='ArrowRight'||e.key==='ArrowUp'||e.key==='ArrowDown'||e.key===' ')e.preventDefault();
+      closeTut();return;
+    }
     if(S.ph!=='play')return;
     var m={ArrowLeft:'W',ArrowRight:'E',ArrowUp:'N',ArrowDown:'S',a:'W',d:'E',w:'N',s:'S',A:'W',D:'E',W:'N',S:'S'};
     if(m[e.key]){e.preventDefault();ensureAC();tryMove(m[e.key]);}
   });
-  $('bUndo').addEventListener('click',function(){undo();});
-  $('bHint').addEventListener('click',function(){hintNext();});
-  $('bReset').addEventListener('click',function(){if(S.ph==='play'){loadLv(S.lv);flash('重开此碑');}});
+  $('bUndo').addEventListener('click',function(){if(S.tut)return;undo();});
+  $('bHint').addEventListener('click',function(){if(S.tut)return;hintNext();});
+  $('bReset').addEventListener('click',function(){if(S.tut)return;if(S.ph==='play'){loadLv(S.lv);flash('重开此碑');}});
   $('sndbtn').addEventListener('pointerdown',function(e){e.stopPropagation();});
   $('sndbtn').addEventListener('click',function(){
     S.snd=S.snd?0:1;this.textContent=S.snd?'♪':'✕';saveMain();
@@ -604,6 +617,62 @@ function flash(msg){
   f.textContent=msg;f.classList.add('show');
   clearTimeout(flash._t);
   flash._t=setTimeout(function(){f.classList.remove('show');},1600);
+}
+/* ============ 首局引导（polish 新增：独立 S.tut 暂停态，不动 ph 枚举/物理；措辞按 SPEC §1.4-§1.6） ============ */
+function maybeTut(){
+  if(S.tutShown)return;
+  S.tutShown=1;
+  try{if(localStorage.getItem(UI.TUT.KEY)==='1')return;}catch(e){return;}
+  S.tut=1;
+}
+function closeTut(){
+  if(!S.tut)return;
+  S.tut=0;
+  try{localStorage.setItem(UI.TUT.KEY,'1');}catch(e){}
+  ensureAC();
+}
+function rr(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();
+}
+function tutRow(y,label,l1,l2){
+  ctx.textAlign='center';
+  ctx.fillStyle=UI.TUT.LABEL;ctx.font='bold 14px sans-serif';
+  ctx.fillText(label,195,y);
+  ctx.fillStyle=UI.TUT.BODY;ctx.font='15px sans-serif';
+  ctx.fillText(l1,195,y+24);
+  ctx.fillStyle=UI.TUT.SUB;ctx.font='13px sans-serif';
+  ctx.fillText(l2,195,y+46);
+}
+function drawTut(){
+  var T=UI.TUT;
+  ctx.fillStyle=T.MASK;ctx.fillRect(0,0,UI.W,UI.H);
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillStyle=T.TITLE;ctx.font='bold 26px sans-serif';
+  ctx.fillText('初 拓 指 南',195,T.Y0);
+  ctx.fillStyle=T.SUB;ctx.font='13px sans-serif';
+  ctx.fillText('夜拓古碑 · 以印为足 · 姿态为局',195,T.Y0+32);
+  tutRow(T.Y0+86,'◈ 目 标','把官印翻进朱红印穴','须立式落穴 · 印面朝上才算盖印');
+  tutRow(T.Y0+160,'◈ 操 作','滑屏四向滑动 · 或方向键 / WASD','四向翻滚 · 印面朝向随路径变化');
+  tutRow(T.Y0+234,'◈ 小 心','平压裂纹宣纸会破纸坠毁','印背朝上入穴会卡住退回');
+  /* 小示意：石青官印 → 朱红印穴（复用棋盘色板） */
+  var gy=T.Y0+300;
+  ctx.fillStyle='#3a5068';ctx.fillRect(88,gy,22,26);
+  ctx.fillStyle='#c05a48';ctx.font='bold 12px sans-serif';ctx.fillText('印',99,gy+14);
+  ctx.strokeStyle='#8fa0b8';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(124,gy+13);ctx.lineTo(154,gy+13);
+  ctx.moveTo(154,gy+13);ctx.lineTo(146,gy+7);ctx.moveTo(154,gy+13);ctx.lineTo(146,gy+19);ctx.stroke();
+  ctx.fillStyle='#1a1416';ctx.fillRect(166,gy+2,22,22);
+  ctx.strokeStyle='#a04a3a';ctx.lineWidth=2;ctx.strokeRect(168,gy+4,18,18);
+  ctx.fillStyle='#a04a3a';ctx.font='12px sans-serif';ctx.fillText('穴',177,gy+14);
+  /* 开始按钮（视觉锚，任意点/任意键均可关） */
+  var by=T.Y0+368;
+  rr(195-T.BTN.w/2,by,T.BTN.w,T.BTN.h,T.BTN.r);
+  ctx.fillStyle=T.BTN.bg;ctx.fill();ctx.strokeStyle=T.BTN.bd;ctx.lineWidth=1;ctx.stroke();
+  ctx.fillStyle=T.BTN.fg;ctx.font='16px sans-serif';ctx.fillText('开 始 拓 印',195,by+T.BTN.h/2+1);
+  ctx.fillStyle=T.HINT;ctx.font='12px sans-serif';
+  ctx.fillText('触屏任意处 / 任意键 即可开始',195,by+T.BTN.h+26);
 }
 /* ============ 菜单 ============ */
 function buildLvbar(){
