@@ -148,6 +148,13 @@ body{background:radial-gradient(1200px 700px at 70% -10%, #1a2444 0%, #0d1322 55
   recents = [gid].concat(recents.filter(function (x) { return x !== gid; })).slice(0, 12);
   LSS('hubRecent', recents);
 
+  // 同页 hash 变更（浏览器前进/后退在 play.html#g=A ↔ #g=B 之间）→ 整页重载等价全新导航，避免 iframe 残留旧游戏
+  window.addEventListener('hashchange', function () {
+    var m2 = location.hash.match(/#g=(\d+)/);
+    var g2 = m2 ? parseInt(m2[1], 10) : 0;
+    if (g2 !== gid) location.reload();
+  });
+
   // 收藏
   function paintFav() { $('bfav').classList.toggle('on', favs.indexOf(gid) >= 0); }
   $('bfav').onclick = function () {

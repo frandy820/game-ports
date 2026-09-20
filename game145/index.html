@@ -35,7 +35,7 @@ html,body{height:100%;background:#10141d;overflow:hidden;font-family:"PingFang S
 #lvgrid .c.lock{opacity:.32;pointer-events:none}
 #stars{font-size:26px;color:#e8c96a;letter-spacing:6px;height:32px}
 #obtns{display:flex;gap:12px}
-#obtns button{width:130px}
+#obtns button{width:110px}
 </style>
 </head>
 <body>
@@ -44,8 +44,9 @@ html,body{height:100%;background:#10141d;overflow:hidden;font-family:"PingFang S
 <canvas id="cv" width="390" height="780"></canvas>
 <div class="lay hide" id="menu"><h2>汴京夜跑马</h2><div class="sub">御街夜市，纵马竞速。<br>油门刹车掌控快慢，过弯循速勿甩护栏；<br>避石架、过沟坎、借灯帘加速，<br>先众骑冲线者夺魁。</div><button id="bGo">出 赛</button><button class="sec" id="bLvs">选 关</button></div>
 <div class="lay hide" id="lvs"><h2 style="font-size:20px">选 关</h2><div id="lvgrid"></div><button class="sec" id="bBack">返 回</button></div>
-<div class="lay hide" id="over"><h2 id="otitle">夺魁</h2><div id="stars"></div><div class="sub" id="osub"></div><div id="obtns"><button id="bAgain">再 赛</button><button class="sec" id="bNext">下一关</button></div><div class="sub" id="obest" style="color:#7a8898"></div></div>
+<div class="lay hide" id="over"><h2 id="otitle">夺魁</h2><div id="stars"></div><div class="sub" id="osub"></div><div id="obtns"><button id="bAgain">再 赛</button><button class="sec" id="bNext">下一关</button><button class="sec" id="bHome">回目录</button></div><div class="sub" id="obest" style="color:#7a8898"></div></div>
 <div class="lay hide" id="pause"><h2 style="font-size:20px">暂 停</h2><button id="bRes">继 续</button><button class="sec" id="bQuit">回目录</button></div>
+<div class="lay hide" id="tut"><h2 style="font-size:20px">出 赛 须 知</h2><div class="sub">御街夜市纵马竞速，<b style="color:#e8c96a">先众骑冲线者夺魁</b>。<br>过弯须循速——超速离心会被甩向护栏；<br>避石架、缓过沟坎、借灯帘加速。</div><div class="sub"><b style="color:#e8c96a">←/→</b> 横移　<b style="color:#e8c96a">↑/X</b> 油门　<b style="color:#e8c96a">↓/Z</b> 刹车<br>触屏按住底部 <b style="color:#e8c96a">◀ ▶ 油门 刹车</b> 四钮<br>屈居人后或时限内未冲线则败。</div><button id="bTut">出 赛</button><div class="sub" style="font-size:11px;color:#7a8898">点任意处或按方向键即可开始</div></div>
 <div id="btnrow">
 <button class="bk" id="kL">◀</button><button class="bk bu" id="kU">油门</button><button class="bk bd" id="kD">刹车</button><button class="bk" id="kR">▶</button>
 </div>
@@ -57,6 +58,8 @@ var ROWH=8, UMAX=80, VMIN=1.5, ACC=0.16, DRG=0.05, BRK=0.50, HSPD=3.0;
 var DRIFT_K=2.6, VC=5.5, VSAFE_MIN=3.5, VSF=1.15, START=45;
 var LANES=[-45,45,-20,20];
 var M=2147483647;
+// ============ UI 层参数（polish 抽离，等值搬移：引导记忆键/键盘→屏钮映射/进度条像素宽）============
+var UI={TUT_KEY:'pg_tut_145',KEY2BTN:{l:'kL',r:'kR',u:'kU',d:'kD'},PB_W:62};
 function Rcl(seed){var x=seed%M;if(x<=0)x+=M-1;this.x=x;}
 Rcl.prototype.u=function(n){this.x=this.x*48271%M;return Math.floor(this.x*n/M);};
 
@@ -254,14 +257,18 @@ var SND=null;
 
 // ============ 游戏状态与主循环 ============
 var cv=document.getElementById('cv'),ctx=cv.getContext('2d');
-var S={ph:'menu',lv:1,st:null,ex:null,keys:{l:0,r:0,u:0,d:0}};
+var S={ph:'menu',lv:1,st:null,ex:null,keys:{l:0,r:0,u:0,d:0},tut:0};
 var $=function(id){return document.getElementById(id);};
 function newGame(lv){
   S.lv=lv;S.ex=expand(lv);S.st=mkSt();
   S.keys={l:0,r:0,u:0,d:0};
   S.ph='play';
   $('menu').classList.add('hide');$('lvs').classList.add('hide');$('over').classList.add('hide');$('pause').classList.add('hide');
+  openTut();
 }
+function tutSeen(){try{return localStorage.getItem(UI.TUT_KEY)==='1';}catch(e){return true;}}
+function openTut(){if(tutSeen())return;S.tut=1;$('tut').classList.remove('hide');}
+function closeTut(){if(!S.tut)return;S.tut=0;$('tut').classList.add('hide');try{localStorage.setItem(UI.TUT_KEY,'1');}catch(e){}}
 function playerInp(){
   var brk=S.keys.d===1,thr=!brk&&S.keys.u===1;
   var mv=0;if(S.keys.l===1)mv-=1;if(S.keys.r===1)mv+=1;
@@ -285,7 +292,7 @@ function endGame(){
   }else{
     $('otitle').textContent=st.f>=d.tl?'马 力 不 济':'与 魁 首 无 缘';
     $('stars').textContent='';
-    $('osub').textContent=st.f>=d.tl?'时限内未能冲线。':'众骑先至，且再试身手。';
+    $('osub').innerHTML='用时 '+(st.f/60).toFixed(1)+' 秒 · 碰撞 '+st.hits+' 次<br>'+(st.f>=d.tl?'时限内未能冲线。':'众骑先至，且再试身手。');
     $('bNext').style.display='none';
     SND.lose();
   }
@@ -302,15 +309,17 @@ function mainLoop(ts){
     acc-=16.6667;
     if(S.ph==='play'){
       var st=S.st,d=S.ex.d;
-      var p0=st.p;
-      stepFrame(st,playerInp(),S.ex,d);
-      // 过帘音效（渲染层检测）
-      if(S.ph==='play'){
-        var rA=Math.floor(p0/ROWH),rB=Math.floor(st.p/ROWH);
-        for(var r=rA+1;r<=rB;r++){if(r<S.ex.NR&&S.ex.tarr[r]===3){SND.boost();break;}}
+      if(!S.tut){ // 引导态=暂停语义：物理不推进（终局结算独立，供直推通道收尾）
+        var p0=st.p;
+        stepFrame(st,playerInp(),S.ex,d);
+        // 过帘音效（渲染层检测）
+        if(S.ph==='play'){
+          var rA=Math.floor(p0/ROWH),rB=Math.floor(st.p/ROWH);
+          for(var r=rA+1;r<=rB;r++){if(r<S.ex.NR&&S.ex.tarr[r]===3){SND.boost();break;}}
+        }
       }
       if(st.over)endGame();
-      else SND.hoof(st.v,st.f);
+      else if(!S.tut)SND.hoof(st.v,st.f);
     }
   }
   if(S.ph!=='menu')draw();
@@ -398,9 +407,9 @@ function draw(){
   var rk=rankNow(st,d);
   $('hrk').textContent='第'+rk+'名';
   $('hsp').style.width=Math.round((st.v-VMIN)/(d.VMAX-VMIN)*100)+'%';
-  $('hpme').style.left=Math.round(st.p/d.L*62)+'px';
+  $('hpme').style.left=Math.round(st.p/d.L*UI.PB_W)+'px';
   var gBest=d.g[0],gSpd=d.L/(gBest-START),gPk=gSpd*Math.max(0,st.f-START);
-  $('hpgh').style.left=Math.round(Math.min(1,gPk/d.L)*62)+'px';
+  $('hpgh').style.left=Math.round(Math.min(1,gPk/d.L)*UI.PB_W)+'px';
   $('hht').textContent='碰 '+st.hits;
 }
 function drawRowAt(r,fn){
@@ -487,18 +496,26 @@ function showMenu(){
 // ============ 输入 ============
 var KEYMAP={ArrowLeft:'l',KeyX:'u',ArrowUp:'u',KeyZ:'d',ArrowDown:'d',ArrowRight:'r'};
 document.addEventListener('keydown',function(e){
+  if(S.tut){ // 引导态：任意游戏键/ESC 先关引导；游戏键同时生效（按住即出赛）
+    var kt=KEYMAP[e.code];
+    if(kt||e.code==='Escape')closeTut();
+    if(!kt)return;
+    if(S.ph==='play'){S.keys[kt]=1;setBtn(kt,1);e.preventDefault();}
+    return;
+  }
   if(S.ph!=='play')return;
   var k=KEYMAP[e.code];
-  if(k){S.keys[k]=1;e.preventDefault();}
+  if(k){S.keys[k]=1;setBtn(k,1);e.preventDefault();}
   if(e.code==='Escape'&&S.ph==='play'){S.ph='pause';$('pause').classList.remove('hide');}
 });
 document.addEventListener('keyup',function(e){
   var k=KEYMAP[e.code];
-  if(k){S.keys[k]=0;e.preventDefault();}
+  if(k){S.keys[k]=0;setBtn(k,0);e.preventDefault();}
 });
+function setBtn(k,on){var el=$(UI.KEY2BTN[k]);if(el)el.classList.toggle('on',!!on);}
 function bindHold(id,key){
   var el=$(id);
-  el.addEventListener('pointerdown',function(e){e.preventDefault();if(S.ph==='play'){S.keys[key]=1;el.classList.add('on');SND.ensureAC();}});
+  el.addEventListener('pointerdown',function(e){e.preventDefault();if(S.tut)closeTut();if(S.ph==='play'){S.keys[key]=1;el.classList.add('on');SND.ensureAC();}});
   var off=function(){S.keys[key]=0;el.classList.remove('on');};
   el.addEventListener('pointerup',off);el.addEventListener('pointercancel',off);el.addEventListener('pointerleave',off);
 }
@@ -510,6 +527,9 @@ $('bAgain').onclick=function(){newGame(S.lv);};
 $('bNext').onclick=function(){if(S.lv<24)newGame(S.lv+1);};
 $('bRes').onclick=function(){S.ph='play';$('pause').classList.add('hide');};
 $('bQuit').onclick=function(){showMenu();};
+$('bHome').onclick=function(){showMenu();};
+$('tut').addEventListener('pointerdown',function(){closeTut();});
+$('bTut').onclick=function(){closeTut();};
 
 // ============ boot ============
 showMenu();

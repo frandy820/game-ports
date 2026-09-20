@@ -33,19 +33,30 @@ const ok = (c, n, d) => { (c ? P : F).push(n); if (!c) console.log('  FAIL:', n,
   const ev = async (e) => { const r = await send('Runtime.evaluate', { expression: e, returnByValue: true, awaitPromise: true }); if (r && r.result && r.result.exceptionDetails) return 'EVALERR'; return r && r.result && r.result.result && r.result.result.value; };
   await send('Runtime.enable'); await send('Page.enable');
 
+  const waitReady = async (dir) => {   // hashchange→reload 场景下 Page.navigate 立即返回且旧 iframe 仍就绪——必须锚定目标款目录轮询
+    const expr = '(function(){try{var d=document.getElementById("gv").contentDocument;return !!(d&&d.readyState==="complete"&&d.body&&d.body.children.length>0&&d.location.href.indexOf("/' + dir + '/")>=0);}catch(e){return false;}})()';
+    for (let i = 0; i < 32; i++) {
+      const r = await ev(expr);
+      if (r === true) { await sleep(700); return true; }
+      await sleep(300);
+    }
+    return false;
+  };
   for (const vp of [{ name: 'm390', w: 390, h: 844, mobile: true }, { name: 'd1440', w: 1440, h: 900, mobile: false }]) {
     await send('Emulation.setDeviceMetricsOverride', { width: vp.w, height: vp.h, deviceScaleFactor: 1, mobile: vp.mobile });
     for (const g of GIDS) {
       const tag = vp.name + ' g' + g;
+      const dir = 'game' + (g < 10 ? '0' + g : g);
       errors = [];
-      await send('Page.navigate', { url: BASE + '/play.html#g=' + g }); await sleep(2600);
+      await send('Page.navigate', { url: BASE + '/play.html#g=' + g });
+      ok(await waitReady(dir) === true, tag + ' 就绪');
       ok(errors.length === 0, tag + ' 启动器零异常', errors.join(','));
       const nm = await ev('document.getElementById("gname").textContent');
       ok(!!nm && nm.length > 0, tag + ' 名称载入', nm);
       // 说明面板（首次弹/二次不弹都接受，但必须有「开始」可进）
       await ev('document.getElementById("go").click();"x"'); await sleep(2400);
       ok(await ev('document.getElementById("brief").classList.contains("hide")') === true, tag + ' 进入游戏');
-      ok(await ev('(function(){try{var d=document.getElementById("gv").contentDocument;var cv=d.querySelector("canvas");if(!cv)return false;var x=cv.getContext("2d");var dd=x.getImageData(0,0,cv.width,cv.height).data;var n=0;for(var i=0;i<dd.length;i+=4*97){if(dd[i]|dd[i+1]|dd[i+2])n++;}return n>20;}catch(e){return false;}})()') === true, tag + ' 画面非空白');
+      ok(await ev('(function(){try{var d=document.getElementById("gv").contentDocument;var cv=d.querySelector("canvas");var n=0;if(cv){try{var x=cv.getContext("2d");var dd=x.getImageData(0,0,cv.width,cv.height).data;for(var i=0;i<dd.length;i+=4*97){if(dd[i]|dd[i+1]|dd[i+2])n++;}}catch(e){}}if(n>20)return true;var b=0;[].slice.call(d.querySelectorAll("button,[onclick],.btn,#mGo,#mGo *")).forEach(function(e){var s=d.defaultView.getComputedStyle(e);if(s.display!=="none"&&s.visibility!=="hidden"&&e.offsetWidth>20&&e.offsetHeight>12&&e.textContent.trim())b++;});return b>=2;}catch(e){return false;}})()') === true, tag + ' 首屏可交互');
       ok(await ev('document.getElementById("errbar").classList.contains("show")') === false, tag + ' 无错误条');
       // 游戏内零异常（含 iframe 域）
       ok(errors.length === 0, tag + ' 全程零控制台错误', errors.join(','));
