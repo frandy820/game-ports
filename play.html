@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0d1322">
+<title>启动游戏 · 口袋游戏机</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+<style>
+:root{
+  --bg:#0d1322; --line:rgba(140,160,220,.14); --txt:#e8ecf8; --sub:#8d99b8; --gold:#ffb347;
+  --sat:env(safe-area-inset-top,0px); --sab:env(safe-area-inset-bottom,0px);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{background:radial-gradient(1200px 700px at 70% -10%, #1a2444 0%, #0d1322 55%);
+  color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+  display:flex;flex-direction:column;overflow:hidden}
+/* 顶栏 */
+.bar{flex:none;display:flex;align-items:center;gap:8px;padding:calc(var(--sat) + 8px) 10px 8px;
+  border-bottom:1px solid var(--line);background:rgba(13,19,34,.9)}
+.bar .back{display:flex;align-items:center;gap:4px;color:var(--sub);text-decoration:none;font-size:13px;
+  padding:8px 10px;border-radius:10px;border:1px solid transparent}
+.bar .back:hover{color:var(--txt);border-color:var(--line)}
+.bar .back svg{width:14px;height:14px;fill:currentColor}
+.bar .gname{font-size:15px;font-weight:700;letter-spacing:.02em;flex:1;min-width:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bbtn{flex:none;display:flex;align-items:center;justify-content:center;width:38px;height:38px;
+  border-radius:11px;border:1px solid var(--line);background:transparent;color:#c9d4ee;cursor:pointer}
+.bbtn:hover{border-color:rgba(140,160,220,.4);color:var(--txt)}
+.bbtn svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.bbtn .fillstar{fill:none;stroke:currentColor}
+.bbtn.on .fillstar{fill:var(--gold);stroke:var(--gold)}
+.bbtn:disabled{opacity:.35;cursor:default}
+/* 舞台 */
+.stage{flex:1;position:relative;display:flex;align-items:stretch;justify-content:center;
+  padding:8px calc(var(--sab) * 0 + 8px) calc(var(--sab) + 8px);min-height:0}
+.frame{position:relative;width:min(390px,100%);height:100%;border-radius:16px;overflow:hidden;
+  border:1px solid rgba(140,160,220,.22);background:#0a0f1c}
+.frame iframe{width:100%;height:100%;border:0;display:block;background:#fff}
+/* 启动前说明面板 */
+.brief{position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;
+  padding:20px;background:rgba(13,19,34,.96);transition:opacity .25s ease}
+.brief.hide{opacity:0;pointer-events:none}
+.bcard{width:min(360px,100%);max-height:100%;overflow:auto;background:linear-gradient(160deg,#182342,#141d33);
+  border:1px solid rgba(140,160,220,.25);border-radius:18px;padding:22px 20px}
+.bcard h2{font-size:20px;font-weight:800;margin-bottom:4px}
+.bcard .meta{color:var(--sub);font-size:12px;letter-spacing:.06em;margin-bottom:14px}
+.bcard .meta b{color:#c9d4ee;font-weight:600}
+.brow{display:flex;gap:10px;margin:11px 0;align-items:flex-start;font-size:13.5px;line-height:1.65}
+.brow .k{flex:none;width:44px;color:var(--gold);font-size:12.5px;font-weight:700;padding-top:2px}
+.brow .v{color:#dde4f5}
+.brow .v.pending{color:var(--sub);font-style:italic}
+.gobtn{display:block;width:100%;margin-top:18px;padding:13px;border:0;border-radius:13px;
+  background:linear-gradient(100deg,#ffb347,#ffd9a0);color:#0d1322;font-size:16px;font-weight:800;
+  letter-spacing:.12em;cursor:pointer}
+.gobtn:hover{filter:brightness(1.06)}
+.gobtn:active{transform:scale(.985)}
+.skip{display:block;margin:10px auto 0;background:none;border:0;color:var(--sub);font-size:12px;
+  cursor:pointer;padding:6px 10px}
+.skip:hover{color:var(--txt)}
+/* 错误/加载态 */
+.errbar{position:absolute;left:0;right:0;bottom:0;z-index:6;display:none;padding:10px 14px;
+  background:rgba(64,20,28,.95);color:#ffd7d7;font-size:13px;line-height:1.5;align-items:center;gap:10px}
+.errbar.show{display:flex}
+.errbar button{flex:none;padding:7px 14px;border-radius:10px;border:1px solid rgba(255,215,215,.5);
+  background:transparent;color:#ffd7d7;font-size:13px;cursor:pointer}
+.loadtip{position:absolute;inset:auto 0 50% 0 auto 0;z-index:4;display:none;align-items:center;justify-content:center;
+  color:var(--sub);font-size:13px;letter-spacing:.1em}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+  <div class="bar">
+    <a class="back" href="./index.html" aria-label="返回游戏库">
+      <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7z"/></svg>游戏库</a>
+    <div class="gname" id="gname">…</div>
+    <button class="bbtn" id="bfav" title="收藏" aria-label="收藏">
+      <svg viewBox="0 0 24 24"><path class="fillstar" d="M12 3.6l2.5 5.1 5.6.8-4 4 .9 5.6-5-2.6-5 2.6.9-5.6-4-4 5.6-.8z" stroke-width="1.6"/></svg>
+    </button>
+    <button class="bbtn" id="bhow" title="玩法说明" aria-label="玩法说明">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.3c-.7.3-1 .8-1 1.6"/><circle cx="12" cy="16.6" r=".4"/></svg>
+    </button>
+    <button class="bbtn" id="breload" title="重新开始" aria-label="重新开始">
+      <svg viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 1 1 2.2 5.3"/><path d="M4.2 17.6v-4.4h4.4"/></svg>
+    </button>
+    <button class="bbtn" id="bfull" title="全屏" aria-label="全屏">
+      <svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+    </button>
+  </div>
+  <div class="stage">
+    <div class="frame" id="frame">
+      <div class="loadtip" id="loadtip">正在载入游戏…</div>
+      <div class="brief" id="brief">
+        <div class="bcard">
+          <h2 id="bname">…</h2>
+          <div class="meta" id="bmeta"></div>
+          <div class="brow"><div class="k">目标</div><div class="v" id="bgoal"></div></div>
+          <div class="brow"><div class="k">操作</div><div class="v" id="bhow2"></div></div>
+          <div class="brow"><div class="k">胜负</div><div class="v" id="blose"></div></div>
+          <div class="brow"><div class="k">时长</div><div class="v" id="bdur"></div></div>
+          <button class="gobtn" id="go">开 始</button>
+          <button class="skip" id="skip">跳过说明，直接进入</button>
+        </div>
+      </div>
+      <div class="errbar" id="errbar"><span id="errmsg"></span><button id="errgo">重开游戏</button></div>
+      <iframe id="gv" title="游戏画面" allow="autoplay"></iframe>
+    </div>
+  </div>
+<script>
+(function () {
+  'use strict';
+  var m = location.hash.match(/#g=(\d+)/);
+  var gid = m ? parseInt(m[1], 10) : 0;
+  var dir = 'game' + (gid < 10 ? '0' + gid : gid);
+  var LSK = function (k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } };
+  var LSS = function (k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+  var favs = LSK('hubFavs') || [];
+  var recents = LSK('hubRecent') || [];
+  var $ = function (id) { return document.getElementById(id); };
+
+  document.title = '载入中 · 口袋游戏机';
+  $('gv').src = './' + dir + '/index.html';
+  var loadTimer = setTimeout(function () {
+    $('errmsg').textContent = '游戏加载超时（8 秒未见画面）。可能是网络受限或缓存不完整——重开一次，或回游戏库再进。';
+    $('errbar').classList.add('show');
+  }, 8000);
+  $('gv').addEventListener('load', function () { clearTimeout(loadTimer); $('loadtip').style.display = 'none'; });
+
+  window.addEventListener('message', function (e) {
+    if (e.data && e.data.type === 'pg-shell-error') {
+      $('errmsg').textContent = '游戏运行异常：' + (e.data.msg || '') + '——可重开；若反复出现请回游戏库反馈。';
+      $('errbar').classList.add('show');
+    }
+  });
+  $('errgo').onclick = function () {
+    $('errbar').classList.remove('show');
+    $('gv').src = './' + dir + '/index.html';
+    clearTimeout(loadTimer);
+    loadTimer = setTimeout(function () {
+      $('errmsg').textContent = '重开后仍加载超时。';
+      $('errbar').classList.add('show');
+    }, 8000);
+  };
+
+  // 最近游玩记录（与 hub 共键）
+  recents = [gid].concat(recents.filter(function (x) { return x !== gid; })).slice(0, 12);
+  LSS('hubRecent', recents);
+
+  // 收藏
+  function paintFav() { $('bfav').classList.toggle('on', favs.indexOf(gid) >= 0); }
+  $('bfav').onclick = function () {
+    var i = favs.indexOf(gid);
+    if (i >= 0) favs.splice(i, 1); else favs.push(gid);
+    LSS('hubFavs', favs); paintFav();
+  };
+  paintFav();
+
+  $('breload').onclick = function () {
+    $('errbar').classList.remove('show');
+    $('gv').src = './' + dir + '/index.html';
+  };
+  $('bfull').onclick = function () {
+    var st = $('frame');
+    if (document.fullscreenElement) { document.exitFullscreen && document.exitFullscreen(); }
+    else if (st.requestFullscreen) { st.requestFullscreen(); }
+  };
+  $('bhow').onclick = function () { $('brief').classList.remove('hide'); };
+
+  // 说明数据
+  var seen = false;
+  try { seen = !!localStorage.getItem('pg_played_' + gid); } catch (e) {}
+  function fill(b) {
+    document.title = (b.name || '游戏') + ' · 口袋游戏机';
+    $('gname').textContent = b.name || dir;
+    $('bname').textContent = b.name || '';
+    $('bmeta').innerHTML = (b.cat ? '<b>' + b.cat + '</b>' + (b.sub ? ' / ' + b.sub : '') : '') +
+      (b.ctrl ? ' · <b>' + ({ kb: '键盘', touch: '点触', 'kb+touch': '键盘 + 点触' }[b.ctrl] || b.ctrl) + '</b>' : '');
+    var put = function (id, v) {
+      var el = $(id);
+      if (v) { el.textContent = v; el.classList.remove('pending'); }
+      else { el.textContent = '待补充'; el.classList.add('pending'); }
+    };
+    put('bgoal', b.goal || b.desc || '');
+    put('bhow2', b.how || '');
+    put('blose', b.lose || '');
+    put('bdur', b.dur || '');
+  }
+  fetch('./briefs.json').then(function (r) { return r.json(); }).then(function (all) {
+    var b = all[gid] || all[String(gid)] || {};
+    fill(b);
+  }).catch(function () {
+    fill({ name: dir, goal: '离线小游戏（说明数据未载入）' });
+  });
+
+  function start() {
+    $('brief').classList.add('hide');
+    try { localStorage.setItem('pg_played_' + gid, '1'); } catch (e) {}
+    $('gv').focus && $('gv').focus();
+  }
+  $('go').onclick = start;
+  $('skip').onclick = start;
+  if (seen) $('brief').classList.add('hide');
+})();
+</script>
+</body>
+</html>

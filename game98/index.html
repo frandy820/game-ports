@@ -43,6 +43,18 @@ function rating(m) { return m === 0 ? 'S' : (m <= 1 ? 'A' : (m <= 3 ? 'B' : 'C')
 var TOP_Y = 78, BOT_Y = 740, LH = (BOT_Y - TOP_Y) / FLOORS;   /* 层高 73.5 */
 function floorY(L) { return BOT_Y - L * LH; }                 /* 层 L 带顶 y（层带 [floorY, floorY+LH)） */
 
+/* ===== UI 常量（polish 等值搬移：结算面板/flash 带/统计行原值 + 引导面板参数） ===== */
+var UI = {
+  panel: { x: 40, y: 200, w: 310, h: 340, statY: 500 },   /* dayend/dayfail/weekend 结算面板 */
+  flash: { x: 95, y: 716, w: 200, h: 32 },                /* flash 提示带（y716-748 避开按钮带 y756+） */
+  stat: { color: '#6a6458', font: '13px sans-serif' },    /* 面板底部统计行（原 #8a8478 加深，可读性微调） */
+  tut: {                                                  /* 首局引导面板（polish 新增） */
+    box: { x: 30, y: 180, w: 330, h: 380 },
+    title: 'bold 22px sans-serif', body: '15px sans-serif', hint: '13px sans-serif',
+    lineGap: 24, btn: { x: 120, y: 440, w: 150, h: 50 }
+  }
+};
+
 /* ===== 状态 ===== */
 var S = {
   phase: 'dayrun',                       /* dayrun|dayend|dayfail|weekend */
@@ -51,7 +63,8 @@ var S = {
   guests: [], load: [],
   elevL: 1, elevP: 0, dir: 0, doorT: 0, intent: 0,   /* intent=玩家意图：1/-1/0（层边界生效） */
   ratings: '', high: 0,
-  snd: 0, flashT: 0, flashTxt: '', gen: 0
+  snd: 0, flashT: 0, flashTxt: '', gen: 0,
+  tut: 0                                   /* 首局引导独立 flag（polish：1=引导中，输入拦截+step 暂停；不污染 phase 枚举） */
 };
 var RS = (1 + Math.floor(Math.random() * 1e9)) % 2147483647;
 function rnd() { RS = (RS * 48271) % 2147483647; return (RS - 1) / 2147483646; }
@@ -232,8 +245,9 @@ function step() {
   if (S.t >= DAY_F) dayEndNow();
 }
 function loop() {
-  step();
+  if (!S.tut) step();                      /* 引导期不推进对局（polish：暂停语义，物理/rAF 零推进） */
   draw();
+  if (S.tut) drawTut();                    /* 引导 overlay 顶层绘制 */
   updHud();                                /* 每帧刷（step 在面板期早退——updHud 必须挂 loop） */
   requestAnimationFrame(loop);
 }
@@ -320,7 +334,7 @@ function draw() {
   /* 面板（dayend/dayfail/weekend） */
   if (S.phase !== 'dayrun') {
     fg.fillStyle = 'rgba(40,46,40,.5)'; fg.fillRect(0, 0, 390, 844);
-    fg.fillStyle = '#f5f2e8'; rr(40, 200, 310, 340, 14); fg.fill();
+    fg.fillStyle = '#f5f2e8'; rr(UI.panel.x, UI.panel.y, UI.panel.w, UI.panel.h, 14); fg.fill();
     fg.strokeStyle = '#b0783a'; fg.lineWidth = 3; fg.stroke();
     fg.textAlign = 'center';
     if (S.phase === 'dayend') {
@@ -330,6 +344,8 @@ function draw() {
       fg.fillText(r, 195, 300);
       fg.fillStyle = '#5a4a33'; fg.font = 'bold 17px sans-serif';
       fg.fillText(S.miss === 0 ? '完美日！+50' : '今日评级 ' + r, 195, 350);
+      fg.fillStyle = '#6a6458'; fg.font = '14px sans-serif';   /* 为何结算：营业时段结束（polish） */
+      fg.fillText('本日 75 秒营业结束', 195, 400);
     } else if (S.phase === 'dayfail') {
       fg.fillStyle = '#b03a2a'; fg.font = 'bold 30px sans-serif';
       fg.fillText('客人流失过多', 195, 290);
@@ -343,17 +359,53 @@ function draw() {
       fg.font = 'bold 16px sans-serif';
       fg.fillText(S.ratings + '（最高 ' + S.high + '）', 195, 365);
     }
-    fg.fillStyle = '#8a8478'; fg.font = '13px sans-serif';
-    fg.fillText('送达 ' + S.delivered + ' · 错过 ' + S.miss + ' · 分 ' + S.score, 195, 500);
+    fg.fillStyle = UI.stat.color; fg.font = UI.stat.font;
+    fg.fillText('送达 ' + S.delivered + ' · 错过 ' + S.miss + ' · 分 ' + S.score, 195, UI.panel.statY);
   }
   /* flash（y716-748——避开按钮带 y756+） */
   if (S.flashT > 0) {
     var fa = Math.min(1, S.flashT / 30);
     fg.fillStyle = 'rgba(90,74,51,' + (0.9 * fa) + ')';
-    rr(95, 716, 200, 32, 8); fg.fill();
+    rr(UI.flash.x, UI.flash.y, UI.flash.w, UI.flash.h, 8); fg.fill();
     fg.fillStyle = '#faf6ec'; fg.font = '14px sans-serif'; fg.textAlign = 'center'; fg.textBaseline = 'middle';
     fg.fillText(S.flashTxt, 195, 732);
   }
+}
+
+/* ===== 首局引导 overlay（polish 新增：措辞逐条对应 SPEC——目标/三钮操作/耐心与 FAIL 线） ===== */
+function closeTut() {
+  S.tut = 0;
+  try { localStorage.setItem('pg_tut_98', '1'); } catch (e) { }
+}
+function drawTut() {
+  fg.fillStyle = 'rgba(40,46,40,.55)'; fg.fillRect(0, 0, 390, 844);
+  fg.fillStyle = '#f5f2e8'; rr(UI.tut.box.x, UI.tut.box.y, UI.tut.box.w, UI.tut.box.h, 14); fg.fill();
+  fg.strokeStyle = '#b0783a'; fg.lineWidth = 3; fg.stroke();
+  fg.textAlign = 'center'; fg.textBaseline = 'middle';
+  fg.fillStyle = '#5a4a33'; fg.font = UI.tut.title;
+  fg.fillText('电梯调度 · 开局指南', 195, UI.tut.box.y + 46);
+  fg.font = UI.tut.body; fg.textAlign = 'left';
+  var tx = UI.tut.box.x + 26, ty = UI.tut.box.y + 92, g = UI.tut.lineGap;
+  fg.fillStyle = '#b0783a'; fg.fillText('目标', tx, ty);
+  fg.fillStyle = '#5a4a33';
+  fg.fillText('送客人到徽标楼层，连撑 7 日', tx + 46, ty);
+  fg.fillText('零错过 = 完美日 S 级 +50', tx + 46, ty + g * 0.72);
+  ty += g * 2;
+  fg.fillStyle = '#b0783a'; fg.fillText('操作', tx, ty);
+  fg.fillStyle = '#5a4a33';
+  fg.fillText('点 ▲ / ⏸ / ▼ 设定 上行 / 驻停 / 下行', tx + 46, ty);
+  fg.fillText('电梯途经有客之层自动停靠上下客', tx + 46, ty + g * 0.72);
+  ty += g * 2;
+  fg.fillStyle = '#b03a2a'; fg.fillText('失败', tx, ty);
+  fg.fillStyle = '#5a4a33';
+  fg.fillText('客人耐心环耗尽即离开（miss+1）', tx + 46, ty);
+  fg.fillText('错过 5 位，本日失败从头再开', tx + 46, ty + g * 0.72);
+  fg.fillStyle = '#b0783a'; rr(UI.tut.btn.x, UI.tut.btn.y, UI.tut.btn.w, UI.tut.btn.h, 10); fg.fill();
+  fg.strokeStyle = '#7d5222'; fg.lineWidth = 2; fg.stroke();
+  fg.fillStyle = '#faf6ec'; fg.font = 'bold 17px sans-serif'; fg.textAlign = 'center';
+  fg.fillText('开 始', 195, UI.tut.btn.y + UI.tut.btn.h / 2);
+  fg.fillStyle = '#8a8478'; fg.font = UI.tut.hint;
+  fg.fillText('点屏幕任意处开始', 195, UI.tut.btn.y + UI.tut.btn.h + 26);
 }
 function updHud() {
   var run = S.phase === 'dayrun';
@@ -384,9 +436,12 @@ onBtn('btn-snd', function () {
   try { localStorage.setItem('g98_snd', S.snd ? '1' : '0'); } catch (e) { }
   if (S.snd) { ensureAC(); } else if (AC) { try { AC.suspend(); } catch (e) { } }
 });
-onBtn('btn-up', function () { if (S.phase === 'dayrun') { S.intent = 1; } });
-onBtn('btn-stop', function () { if (S.phase === 'dayrun') { S.intent = 0; } });
-onBtn('btn-down', function () { if (S.phase === 'dayrun') { S.intent = -1; } });
+onBtn('btn-up', function () { if (S.tut) { closeTut(); return; } if (S.phase === 'dayrun') { S.intent = 1; } });
+onBtn('btn-stop', function () { if (S.tut) { closeTut(); return; } if (S.phase === 'dayrun') { S.intent = 0; } });
+onBtn('btn-down', function () { if (S.tut) { closeTut(); return; } if (S.phase === 'dayrun') { S.intent = -1; } });
+document.addEventListener('pointerdown', function (e) {   /* 引导期任意点可关（按钮点击走各自 handler 一并关闭） */
+  if (S.tut && e.target && e.target.tagName !== 'BUTTON') closeTut();
+});
 onBtn('btn-next', function () {
   if (S.phase === 'dayend') nextDay();
   else if (S.phase === 'weekend') restartWeek();
@@ -403,6 +458,7 @@ document.addEventListener('visibilitychange', function () {
 loadAll();
 S.dayScore0 = S.score;
 startDay();                                /* 刷新=重开本日（日初快照语义） */
+try { if (!localStorage.getItem('pg_tut_98')) S.tut = 1; } catch (e) { S.tut = 1; }   /* 首局引导：仅首次弹，记忆不再弹 */
 sndOnRestore();
 updHud();
 requestAnimationFrame(loop);
