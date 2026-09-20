@@ -439,7 +439,7 @@ function render(t){
   ctx.fillRect(sx(CFG.BX-8),sy(CFG.BY+CFG.ROWS*CFG.CELL),sx(CFG.COLS*CFG.CELL+16),1.5);
   /* 棋盘块 */
   for(i=0;i<CFG.ROWS;i++)for(j=0;j<CFG.COLS;j++){
-    var v=S.board[i][j];
+    var v=S.board[i]&&S.board[i][j]; /* menu 态空盘 guard（每帧 TypeError 隐患修复） */
     if(!v)continue;
     drawTile(sx(CFG.BX+j*CFG.CELL+23),sy(CFG.BY+i*CFG.CELL+23),v,sx(19),sy(19));
   }
