@@ -4,6 +4,7 @@
 用法: python tools/platform/integrate_game.py 132 [期望md5前8位]
 """
 import io, glob, os, subprocess, sys
+sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))

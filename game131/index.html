@@ -15,7 +15,7 @@
   #hud .hl{width:44px;height:40px;display:flex;align-items:center;justify-content:center;color:#8fb4bc;
     font-size:20px;cursor:pointer}
   #hud .hc{flex:1;text-align:center;color:#d8e6e4;font-size:15px;letter-spacing:2px}
-  #hud .hc small{display:block;font-size:10px;color:#6d8a8e;letter-spacing:1px;margin-top:1px}
+  #hud .hc small{display:block;font-size:10px;color:#7c9aa0;letter-spacing:1px;margin-top:1px}
   #btnrow{position:absolute;bottom:0;left:0;width:390px;height:64px;box-sizing:border-box;z-index:5;
     display:flex;gap:8px;align-items:center;justify-content:center;
     background:linear-gradient(0deg,#141c22,#0e1418);border-top:1px solid rgba(150,180,190,.25)}
@@ -97,11 +97,23 @@ var S = {
   camY: 0, dir: 0,
   r1x: 1, r2x: 1,
   winT: 0, loseT: 0, parts: [], flashT: 0, shake: 0, cause: '',
-  pd: null, testSeed: 0
+  pd: null, testSeed: 0, tut: 0
 };
 var GOAL = function (lv) { return 30 + 3 * (lv - 1); };
 var WX0 = 36, WX1 = 354, ROWDY = 90, G_ = 0.4, VYMAX = 11, VXMAX = 5.5;
 var PHALF = 11, PH = 26;
+
+/* ===== UI 层参数（CFG 抽离：等值搬移 + 新引导/反馈布局，行为零变化）===== */
+var UI = {
+  FLASH_TOP: 300,                       /* flash() 原硬编码 300px 等值搬移 */
+  DIRBAR: { x0: 4, x1: 30, h: 716, a: 0.12 },   /* 按压方向指示光带（井壁内缘） */
+  TUT: {
+    key: 'pg_tut_131',
+    bgA: 0.88, titleY: 210, subY: 244,
+    rowY0: 306, rowDy: 64, tipY: 510,
+    btnW: 150, btnH: 44, btnY: 572, footY: 612
+  }
+};
 
 /* ===== LCG（48271 双流；取值即推进）===== */
 function r1next() { S.r1x = S.r1x * 48271 % M214; return S.r1x; }
@@ -393,6 +405,7 @@ function newGame(lv) {
   S.crushY = -50; S.slowLeft = 0; S.hints = 0; S.trs = 0; S.frames = 0;
   S.camY = 0; S.dir = 0;
   S.winT = 0; S.loseT = 0; S.parts = []; S.flashT = 0; S.shake = 0; S.cause = '';
+  S.tut = tutSeen() ? 0 : 1;   /* 首局引导：未见过的玩家在对局前弹 overlay（物理冻结） */
   acc = 0;
   BOT.mode = null; BOT.c = null; BOT.flee = null; BOT.tgt = null; BOT.randDir = 0;
   $('over').classList.add('hide'); $('pause').classList.add('hide');
@@ -427,7 +440,7 @@ function showOverPanel() { $('over').classList.remove('hide'); }
 
 /* ===== 援手（支架：塌速减半 5s）===== */
 function doHint() {
-  if (S.ph !== 'play') return;
+  if (S.ph !== 'play' || S.tut) return;   /* 引导期不消耗援手 */
   S.hints++;
   S.slowLeft = 300;
   flash('支 架 稳 壁 · 塌 落 渐 缓');
@@ -444,7 +457,57 @@ function updHUD() {
   $('btnHint').classList.toggle('dis', S.ph !== 'play');
   $('btnReset').classList.toggle('dis', S.ph !== 'play');
 }
-function flash(msg) { S.flashT = 1.4; var fe = $('flash'); fe.textContent = msg; fe.style.top = '300px'; }
+function flash(msg) { S.flashT = 1.4; var fe = $('flash'); fe.textContent = msg; fe.style.top = UI.FLASH_TOP + 'px'; }
+
+/* ===== 首局引导 overlay（独立 flag S.tut，不污染 ph 枚举；物理/输入均拦截）===== */
+function tutSeen() { try { return !!localStorage.getItem(UI.TUT.key); } catch (e) { return true; } }
+function closeTut() {
+  if (!S.tut) return;
+  S.tut = 0; S.dir = 0; acc = 0;
+  try { localStorage.setItem(UI.TUT.key, '1'); } catch (e) {}
+  updHUD();
+}
+function drawTut() {
+  var T = UI.TUT, gl = GOAL(S.lv);
+  ctx.fillStyle = 'rgba(8,12,14,' + T.bgA + ')';
+  ctx.fillRect(0, 0, 390, 780);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#cfe4de';
+  ctx.font = '24px "Songti SC","STSong","SimSun",serif';
+  ctx.fillText('初 探 须 知', 195, T.titleY);
+  ctx.fillStyle = '#7a949a';
+  ctx.font = '12px "Songti SC","STSong","SimSun",serif';
+  ctx.fillText('淘 井 · 下 井 清 淤', 195, T.subY);
+  var rows = [
+    ['目 标', '踩凸台层层下坠 · 站上第 ' + gl + ' 行即功成'],
+    ['挪 身', '按住井壁左/右半侧（或键盘 ← →）横移'],
+    ['殁 途', '头顶危石塌落被追上即殁 · 触尖石坠深泉亦殁']
+  ];
+  var i, y;
+  for (i = 0; i < rows.length; i++) {
+    y = T.rowY0 + i * T.rowDy;
+    ctx.fillStyle = '#8fb4bc';
+    ctx.font = '13px "Songti SC","STSong","SimSun",serif';
+    ctx.fillText(rows[i][0], 195, y);
+    ctx.fillStyle = '#d8e6e4';
+    ctx.font = '14px "Songti SC","STSong","SimSun",serif';
+    ctx.fillText(rows[i][1], 195, y + 24);
+  }
+  ctx.fillStyle = '#7a949a';
+  ctx.font = '11px "Songti SC","STSong","SimSun",serif';
+  ctx.fillText('走出凸台边便坠向下层 · 脆台踩上即裂莫久留 · 木台左右滑移', 195, T.tipY);
+  ctx.fillText('支架可缓塌一时（星级从严）', 195, T.tipY + 18);
+  ctx.fillStyle = 'rgba(150,180,190,.3)';
+  rr(195 - T.btnW / 2, T.btnY, T.btnW, T.btnH, 8); ctx.fill();
+  ctx.strokeStyle = '#8fb4bc'; ctx.stroke();
+  ctx.fillStyle = '#d8e6e4';
+  ctx.font = '15px "Songti SC","STSong","SimSun",serif';
+  ctx.fillText('开 始', 195, T.btnY + 28);
+  ctx.fillStyle = '#6d8a8e';
+  ctx.font = '10px "Songti SC","STSong","SimSun",serif';
+  ctx.fillText('点按任意处即可入井', 195, T.footY);
+  ctx.textAlign = 'left';
+}
 
 /* ===== 绘制 ===== */
 function draw(t) {
@@ -491,6 +554,11 @@ function draw(t) {
   drawTreasures(topRow, botRow);
   /* 塌方层 */
   drawCrush();
+  /* 按压方向指示光带（触屏手指遮角色时确认输入生效；纯绘制） */
+  if (S.ph === 'play' && !S.tut && S.dir) {
+    ctx.fillStyle = 'rgba(143,180,188,' + UI.DIRBAR.a + ')';
+    ctx.fillRect(S.dir > 0 ? 390 - UI.DIRBAR.x1 : UI.DIRBAR.x0, 0, UI.DIRBAR.x1 - UI.DIRBAR.x0, UI.DIRBAR.h);
+  }
   /* 玩家 */
   if (S.ph === 'play' || S.ph === 'pause' || S.winT > 0) drawPlayer();
   /* 粒子 */
@@ -524,6 +592,7 @@ function draw(t) {
   /* 深度暗化（盖上） */
   if (dk > 0.01) { ctx.fillStyle = 'rgba(4,8,10,' + dk + ')'; ctx.fillRect(0, 0, 390, 780); }
   ctx.restore();
+  if (S.tut) drawTut();   /* 引导 overlay 顶层（restore 后：不受震屏/暗化影响） */
 }
 function drawWalls() {
   var x, y, bh = 34, bw = 34, k;
@@ -728,6 +797,7 @@ function onDown(e) {
   S.pd = e.pointerId;
   if (cv.setPointerCapture) { try { cv.setPointerCapture(e.pointerId); } catch (e2) {} }  // 桌面鼠标画布外释放也回 cv（G3-M1）
   ensureAC();
+  if (S.tut) { closeTut(); return; }   /* 引导 overlay：任意点即关，本次按下不产生移动输入 */
   if (S.ph !== 'play') return;
   var r = cv.getBoundingClientRect();
   var x = e.clientX - r.left;
@@ -736,7 +806,7 @@ function onDown(e) {
 function onUp(e) { if (e.pointerId === S.pd || S.pd === null) { S.pd = null; S.dir = 0; } }
 function onMove(e) {
   if (S.pd !== e.pointerId) return;
-  if (S.ph !== 'play') return;
+  if (S.ph !== 'play' || S.tut) return;
   var r = cv.getBoundingClientRect();
   var x = e.clientX - r.left;
   S.dir = x < 195 ? -1 : 1;
@@ -746,7 +816,7 @@ function onMove(e) {
 var lastT = 0, gDt = 16, acc = 0;
 function loop(t) {
   var dt = lastT ? Math.min(50, t - lastT) : 16; lastT = t; gDt = dt;
-  if (S.ph === 'play') {
+  if (S.ph === 'play' && !S.tut) {   /* 引导期物理不推进（acc 不累计，关闭后无追帧） */
     acc += dt;
     while (acc >= 16 && S.ph === 'play') { tick(); acc -= 16; }
     if (S.frames % 6 === 0 || S.ph !== 'play') updHUD();
@@ -788,6 +858,10 @@ function buildMenu() {
   document.addEventListener('pointerup', onUp);        // 画布外释放兜底（G3-M1）
   document.addEventListener('pointercancel', onUp);
   document.addEventListener('keydown', function (e) {
+    if (S.tut) {   // 引导期：确认键可开始，且不产生移动输入
+      if (e.key === 'Enter' || e.key === ' ' || e.key.indexOf('Arrow') === 0) closeTut();
+      return;
+    }
     if (S.ph !== 'play') return;   // 非 play 拒（G3-M3）；keyup 保持无条件兜底清向
     if (e.key === 'ArrowLeft') S.dir = -1;
     else if (e.key === 'ArrowRight') S.dir = 1;
