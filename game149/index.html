@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>权衡辨伪</title>
+<style>
+  html,body{margin:0;padding:0;background:#10161f;height:100%;overflow:hidden}
+  #app{position:relative;width:390px;height:844px;margin:0 auto;background:#20283a;
+       font-family:"Microsoft YaHei","PingFang SC",sans-serif;overflow:hidden;user-select:none;
+       -webkit-user-select:none;touch-action:none}
+  #hud{position:absolute;top:0;left:0;width:390px;height:64px;z-index:5;
+       background:linear-gradient(#2b3548,#242c3c);display:flex;align-items:center;
+       gap:10px;padding:0 12px;box-sizing:border-box;color:#d5d9e2;font-size:14px}
+  #hud .hot{color:#e8c96a;font-weight:bold}
+  #hud .dim{color:#8a94a8;font-size:12px}
+  #btnMute{margin-left:auto;background:none;border:1px solid #55617a;color:#d5d9e2;
+           border-radius:6px;width:40px;height:32px;font-size:15px;cursor:pointer}
+  #cv{position:absolute;top:64px;left:0}
+  #btnrow{position:absolute;bottom:0;left:0;width:390px;height:44px;z-index:6;
+          display:flex;gap:8px;align-items:center;justify-content:center;
+          background:linear-gradient(#242c3c,#1a2230)}
+  #btnrow button{background:#333d52;border:1px solid #5a6883;color:#d5d9e2;border-radius:8px;
+          padding:6px 14px;font-size:14px;cursor:pointer}
+  #btnrow button:active{background:#414e6a}
+  #btnrow button:disabled{opacity:.4;cursor:default}
+  .lay{position:absolute;inset:0;z-index:9;background:rgba(14,19,28,.88);
+       display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+  .lay.hide{display:none}
+  #menu h1{color:#e8c96a;font-size:30px;letter-spacing:8px;margin:0 0 6px}
+  #menu p{color:#aab4c8;font-size:13px;margin:0 24px;line-height:1.8;text-align:center}
+  #menu button.big{background:#4a5a7a;color:#eef1f6;border:1px solid #8a9cc0;border-radius:10px;
+       padding:12px 44px;font-size:18px;letter-spacing:6px;cursor:pointer}
+  #lvGrid{display:grid;grid-template-columns:repeat(6,44px);gap:8px;margin-top:6px}
+  #lvGrid .cell{width:44px;height:44px;border-radius:8px;background:#333d52;border:1px solid #5a6883;
+       color:#d5d9e2;display:flex;flex-direction:column;align-items:center;justify-content:center;
+       font-size:15px;cursor:pointer}
+  #lvGrid .cell .st{font-size:9px;color:#e8c96a;letter-spacing:-1px}
+  #lvGrid .cell.lock{background:#252b38;color:#4a5568;border-color:#333d52;cursor:default}
+  #panel h2{color:#e8c96a;font-size:26px;letter-spacing:6px;margin:0}
+  #panel .stars{color:#e8c96a;font-size:26px;letter-spacing:6px}
+  #panel .info{color:#aab4c8;font-size:14px}
+  #panel .row{display:flex;gap:12px}
+  #panel .row button{background:#333d52;border:1px solid #5a6883;color:#d5d9e2;border-radius:8px;
+       padding:9px 20px;font-size:14px;cursor:pointer}
+  #dirPick h2{color:#e8c96a;font-size:22px;letter-spacing:4px;margin:0}
+  #dirPick p{color:#aab4c8;font-size:13px;margin:0}
+  #dirPick .row{display:flex;gap:20px}
+  #dirPick .row button{background:#4a5a7a;border:1px solid #8a9cc0;color:#eef1f6;border-radius:10px;
+       padding:14px 30px;font-size:18px;letter-spacing:4px;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <span id="hLv" class="hot">第1关</span>
+    <span>嫌疑 <b id="hSus">8</b> 种</span>
+    <span class="dim">称次 <b id="hUsed">0</b>/<b id="hK">4</b></span>
+    <span class="dim">分 <b id="hScore">0</b></span>
+    <button id="btnMute">♪</button>
+  </div>
+  <canvas id="cv" width="390" height="780"></canvas>
+  <div id="btnrow">
+    <button id="btnL">置左盘</button>
+    <button id="btnR">置右盘</button>
+    <button id="btnWeigh">称 量</button>
+    <button id="btnHint">验一枚</button>
+    <button id="btnAcc">指 认</button>
+  </div>
+  <div id="menu" class="lay">
+    <h1>权衡辨伪</h1>
+    <p>汴京铸钱监，官炉新钱里混进一枚劣钱。<br>
+       点钱入选，再点左盘右盘放置——两盘等数方可称量。<br>
+       左沉、右沉、持平，一称三态皆是线索。<br>
+       悬案收窄便指认真凶：浅监劣钱恒轻，中深两向不明，深监指认还须断轻重。</p>
+    <button id="btnStart" class="big">开 局</button>
+    <div id="lvGrid"></div>
+  </div>
+  <div id="panel" class="lay hide">
+    <h2 id="pTitle">辨伪有功</h2>
+    <div class="stars" id="pStars">★★★</div>
+    <div class="info" id="pInfo">称 3 次 / 参考 3</div>
+    <div class="row">
+      <button id="pNext">下一关</button>
+      <button id="pAgain">重 玩</button>
+      <button id="pHome">选 关</button>
+    </div>
+  </div>
+  <div id="dirPick" class="lay hide">
+    <h2>断其轻重</h2>
+    <p id="dpInfo">这枚钱是轻是重？</p>
+    <div class="row">
+      <button id="dpL">偏 轻</button>
+      <button id="dpH">偏 重</button>
+    </div>
+  </div>
+</div>
+<script>
+'use strict';
+/* ================= 核心纯函数（与 sim149.py 逐位同构；SPEC v1.1） ================= */
+var MOD = 2147483647;
+function LCG(seed){ this.x = ((seed % MOD) + MOD) % MOD; if (this.x === 0) this.x = MOD - 1; }
+LCG.prototype.n = function(){ this.x = (this.x * 48271) % MOD; return this.x; };
+LCG.prototype.u = function(k){ return this.n() % k; };
+
+var N_TAB = [
+  [8, 8, 9, 9, 10, 10, 11, 12],
+  [8, 8, 9, 10, 10, 11, 12, 13],
+  [8, 8, 9, 10, 11, 11, 12, 12]
+];
+var ERR = [12, 18, 25];
+var KTOL = [2, 1, 1];
+function bandOf(lv){ return lv <= 8 ? 0 : (lv <= 16 ? 1 : 2); }
+function clog3(x){ var k = 0, v = 1; while (v < x) { v *= 3; k++; } return k; }
+function mkBd(lvSeed, lv){
+  var band = bandOf(lv);
+  var n = N_TAB[band][(lv - 1) % 8];
+  var g = new LCG(lvSeed);
+  var bad = g.u(n);
+  var d2 = g.u(2);
+  var dir = band === 0 ? -1 : (d2 === 1 ? 1 : -1);
+  var known = band === 0 ? 1 : 0;
+  var judge = band === 2 ? 1 : 0;
+  var par = clog3(known ? n : 2 * n);
+  var k = par + KTOL[band];
+  return { n: n, bad: bad, dir: dir, known: known, judge: judge, par: par, k: k, band: band };
+}
+function coinW(bd, i){ return i === bd.bad ? (bd.dir === 1 ? 11 : 9) : 10; }
+/* 单源三态物理核（SPEC §2：weigh 唯一真值源，UI 文案与横梁方向均从其派生） */
+function weigh(bd, L, R){
+  var wL = 0, wR = 0, i;
+  for (i = 0; i < L.length; i++) wL += coinW(bd, L[i]);
+  for (i = 0; i < R.length; i++) wR += coinW(bd, R[i]);
+  var d = wL - wR;
+  return d > 0 ? 0 : (d < 0 ? 1 : 2);
+}
+function initH(bd){
+  var H = [], i;
+  if (bd.known) { for (i = 0; i < bd.n; i++) H.push([i, -1]); return H; }
+  for (i = 0; i < bd.n; i++) { H.push([i, -1]); H.push([i, 1]); }
+  return H;
+}
+function predict(h, Ls, Rs){
+  var i = h[0], s = h[1], j;
+  for (j = 0; j < Ls.length; j++) if (Ls[j] === i) return s === 1 ? 0 : 1;
+  for (j = 0; j < Rs.length; j++) if (Rs[j] === i) return s === 1 ? 1 : 0;
+  return 2;
+}
+function splitH(H, L, R){
+  var b = [[], [], []], i;
+  for (i = 0; i < H.length; i++) b[predict(H[i], L, R)].push(H[i]);
+  return b;
+}
+/* ---- 达界称量搜索（与 sim149.py 同构：规范形 memo/容量判据/枚举字典序） ---- */
+var CANMEMO = {};
+var POW3 = [1, 3, 9, 27, 81];
+function capOf(bx, judge){
+  if (judge) return bx.length;
+  var s = [], i;
+  for (i = 0; i < bx.length; i++) if (s.indexOf(bx[i][0]) < 0) s.push(bx[i][0]);
+  return s.length;
+}
+function canKey(n, H, r, judge){
+  var m = new Array(n).fill(0), i, key = r + '|' + (judge ? 1 : 0) + '|';
+  for (i = 0; i < H.length; i++) m[H[i][0]] |= (H[i][1] === -1 ? 1 : 2);
+  m.sort(function(a, b){ return a - b; });
+  return key + m.join(',');
+}
+function canSolve(n, H, r, judge){
+  if (H.length === 0) return true;
+  var key = canKey(n, H, r, judge);
+  if (CANMEMO[key] !== undefined) return CANMEMO[key];
+  CANMEMO[key] = false;
+  var ans = canSolveCore(n, H, r, judge);
+  CANMEMO[key] = ans;
+  return ans;
+}
+function canSolveCore(n, H, r, judge){
+  var i, coins = [];
+  for (i = 0; i < H.length; i++) if (coins.indexOf(H[i][0]) < 0) coins.push(H[i][0]);
+  if (coins.length === 1) {
+    if (H.length === 1) return true;
+    if (!judge) return true;
+    if (r <= 0 || n < 2) return false;
+    return goodWeigh(n, H, r, 1, judge).length > 0;
+  }
+  if (r <= 0) return false;
+  return goodWeigh(n, H, r, 1, judge).length > 0;
+}
+/* 组合索引字典序生成器（与 python itertools.combinations 同序） */
+function combIdx(total, k){
+  var out = [], c = [], i;
+  for (i = 0; i < k; i++) c.push(i);
+  while (true) {
+    out.push(c.slice());
+    var p = k - 1;
+    while (p >= 0 && c[p] === p + total - k) p--;
+    if (p < 0) break;
+    c[p]++;
+    for (i = p + 1; i < k; i++) c[i] = c[i - 1] + 1;
+  }
+  return out;
+}
+function goodWeigh(n, H, r, limit, judge){
+  var res = [], i, j, t;
+  if (r <= 0 || H.length === 0) return res;
+  var cap = POW3[r - 1];
+  var kmax = Math.floor(n / 2);
+  var b, okB, L, R;
+  function tryLR(L2, R2){
+    var bx = splitH(H, L2, R2), m = 0, q;
+    for (q = 0; q < 3; q++) { var c2 = capOf(bx[q], judge); if (c2 > m) m = c2; }
+    if (m > cap) return false;
+    for (q = 0; q < 3; q++) if (!canSolve(n, bx[q], r - 1, judge)) return false;
+    return true;
+  }
+  for (t = 1; t <= kmax; t++) {
+    L = []; R = [];
+    for (j = 0; j < t; j++) { L.push(j); R.push(t + j); }
+    if (tryLR(L, R)) { res.push([L, R]); if (res.length >= limit) return res; }
+  }
+  var hcoins = [];
+  for (i = 0; i < H.length; i++) if (hcoins.indexOf(H[i][0]) < 0) hcoins.push(H[i][0]);
+  hcoins.sort(function(a, b2){ return a - b2; });
+  if (hcoins.length === 1 && n >= 2) {
+    for (i = 0; i < n; i++) {
+      if (i !== hcoins[0]) {
+        if (tryLR([hcoins[0]], [i])) { res.push([[hcoins[0]], [i]]); if (res.length >= limit) return res; }
+        break;
+      }
+    }
+  }
+  for (t = 1; t <= kmax; t++) {
+    var Ls_all = combIdx(n, t);
+    for (i = 0; i < Ls_all.length; i++) {
+      L = Ls_all[i];
+      var inL = new Array(n).fill(false);
+      for (j = 0; j < L.length; j++) inL[L[j]] = true;
+      var rest = [];
+      for (j = 0; j < n; j++) if (!inL[j]) rest.push(j);
+      var Ridx = combIdx(rest.length, t);
+      for (j = 0; j < Ridx.length; j++) {
+        R = [];
+        for (var q2 = 0; q2 < t; q2++) R.push(rest[Ridx[j][q2]]);
+        if (tryLR(L, R)) { res.push([L.slice(), R]); if (res.length >= limit) return res; }
+      }
+    }
+  }
+  return res;
+}
+/* ---- 三 bot（对拍域；与 sim149.py 同构） ---- */
+function botWeighChoose(bd, H, r, rBudget, mode, bs){
+  var jg = bd.judge, g;
+  if (mode === 'optimal') {
+    g = goodWeigh(bd.n, H, r, 1, jg);
+    if (g.length === 0 && r < rBudget) g = goodWeigh(bd.n, H, rBudget, 1, jg);
+    return g.length ? g[0] : null;
+  }
+  if (mode === 'human1') {
+    if (bs.u(100) < ERR[bd.band]) return [[0], [1]];
+    g = goodWeigh(bd.n, H, r, 3, jg);
+    if (g.length === 0 && r < rBudget) g = goodWeigh(bd.n, H, rBudget, 3, jg);
+    if (g.length === 0) return null;
+    return g[bs.u(Math.min(3, g.length))];
+  }
+  var k = bs.u(Math.floor(bd.n / 2)) + 1;
+  var perm = [], j2;
+  for (j2 = 0; j2 < bd.n; j2++) perm.push(j2);
+  for (j2 = bd.n - 1; j2 > 0; j2--) {
+    var t2 = bs.u(j2 + 1), tmp = perm[j2];
+    perm[j2] = perm[t2]; perm[t2] = tmp;
+  }
+  var L3 = perm.slice(0, k).sort(function(a, b2){ return a - b2; });
+  var R3 = perm.slice(k, 2 * k).sort(function(a, b2){ return a - b2; });
+  return [L3, R3];
+}
+function runBot(mode, lv, seed, lvSeed, bdOver){
+  var bd = bdOver ? bdOver : mkBd(lvSeed, lv);
+  var H = initH(bd);
+  var used = 0, over = 0, accIdx = -1, accDir = 0;
+  var bs = new LCG(seed);
+  function canAccuse(){
+    var coins = [], i;
+    for (i = 0; i < H.length; i++) if (coins.indexOf(H[i][0]) < 0) coins.push(H[i][0]);
+    if (coins.length !== 1) return false;
+    if (bd.judge && H.length !== 1) return false;
+    return true;
+  }
+  while (true) {
+    if (canAccuse()) break;
+    if (used >= bd.k) break;
+    var rUse;
+    if (mode === 'random') rUse = bd.k - used;
+    else {
+      rUse = bd.par - used;
+      if (rUse <= 0) rUse = bd.k - used;
+    }
+    var w = botWeighChoose(bd, H, rUse, bd.k - used, mode, bs);
+    if (w === null) break;
+    var res = weigh(bd, w[0], w[1]);
+    var b3 = splitH(H, w[0], w[1]);
+    H = b3[res];
+    used++;
+  }
+  var hFinal = H.length;
+  var coins2 = [], i2;
+  for (i2 = 0; i2 < H.length; i2++) if (coins2.indexOf(H[i2][0]) < 0) coins2.push(H[i2][0]);
+  coins2.sort(function(a, b2){ return a - b2; });
+  if (mode !== 'random' && coins2.length === 1 && (!bd.judge || H.length === 1)) {
+    accIdx = coins2[0];
+    if (bd.judge) accDir = H[0][1];
+  } else if (mode === 'random') {
+    accIdx = bs.u(bd.n);
+    if (bd.judge) accDir = bs.u(2) === 0 ? -1 : 1;
+  } else {
+    accIdx = coins2[bs.u(coins2.length)];
+    if (bd.judge) {
+      var hs = [], i3;
+      for (i3 = 0; i3 < H.length; i3++) if (H[i3][0] === accIdx) hs.push(H[i3][1]);
+      if (hs.length === 1) accDir = hs[0];
+      else accDir = bs.u(2) === 0 ? -1 : 1;
+    }
+  }
+  var okAcc = accIdx === bd.bad && (!bd.judge || accDir === bd.dir);
+  var score;
+  if (okAcc) {
+    over = 1;
+    score = 200 + lv * 25 + (bd.k - used) * 50;
+  } else {
+    over = 2; score = 0;
+  }
+  return [over, score, used, hFinal, accIdx, accDir];
+}
+
+/* ================= 关卡表（lvdata149.json 冻结谱内嵌） ================= */
+var LVLRAW = [[1,156919,8,2,4,1,0],[2,269567,8,2,4,1,0],[3,172757,9,2,4,1,0],[4,494863,9,2,4,1,0],[5,188595,10,3,5,1,0],[6,196514,10,3,5,1,0],[7,204433,11,3,5,1,0],[8,212352,12,3,5,1,0],[9,325000,8,3,4,0,0],[10,228190,8,3,4,0,0],[11,236109,9,3,4,0,0],[12,244028,10,3,4,0,0],[13,251947,10,3,4,0,0],[14,259866,11,3,4,0,0],[15,267785,12,3,4,0,0],[16,380433,13,3,4,0,0],[17,283623,8,3,4,0,1],[18,396271,8,3,4,0,1],[19,299461,9,3,4,0,1],[20,412109,10,3,4,0,1],[21,420028,11,3,4,0,1],[22,323218,11,3,4,0,1],[23,331137,12,3,4,0,1],[24,339056,12,3,4,0,1]];
+var LVL = LVLRAW.map(function(r){
+  return { lv: r[0], seed: r[1], n: r[2], par: r[3], k: r[4], known: r[5], judge: r[6] };
+});
+
+/* ================= 计分（SPEC §1.8/1.9） ================= */
+function starsOf(used, par, hints){
+  if (hints !== 0) return 1;
+  if (used === par) return 3;
+  if (used === par + 1) return 2;
+  return 1;
+}
+function scoreOf(lv, used, k, hints){
+  var s = 200 + lv * 25 + (k - used) * 50 - hints * 80;
+  return s < 50 ? 50 : s;
+}
+
+/* ================= 游戏状态与 UI ================= */
+var cv = document.getElementById('cv');
+var ctx = cv.getContext('2d');
+var FR = 0;
+var S = {
+  ph: 'menu', lv: 1, bd: null, H: null, used: 0, hints: 0,
+  sel: [], panL: [], panR: [], marks: {}, prov: [], hist: [],
+  lastRes: -1, tiltT: 0, tiltFrom: 0, tiltTo: 0, resFloat: 0,
+  over: 0, score: 0, stars: 0, accIdx: -1, accDir: 0,
+  winT: 0, loseT: 0, flashT: 0, flashMsg: '', dirAsk: -1,
+  unlocked: 1, best: {}, mute: 0
+};
+
+/* ---------- 存档（SPEC §4：毒丸拒坏档） ---------- */
+function validSave(o){
+  if (o === null || typeof o !== 'object' || Array.isArray(o)) return null;
+  var b = o.best, u = o.unlocked, m = o.mute, k;
+  if (b === undefined || u === undefined || m === undefined) return null;
+  if (typeof b !== 'object' || b === null || Array.isArray(b)) return null;
+  for (k in b) {
+    if (!Object.prototype.hasOwnProperty.call(b, k)) continue;
+    var lv = k | 0;
+    if (!(lv >= 1 && lv <= 24) || String(lv) !== k) return null;
+    var e = b[k];
+    if (!e || typeof e !== 'object' || Array.isArray(e)) return null;
+    if (!Number.isInteger(e.score) || e.score < 50 || e.score > 200 + 24 * 25 + 5 * 50) return null;
+    if (!Number.isInteger(e.stars) || e.stars < 1 || e.stars > 3) return null;
+  }
+  if (!Number.isInteger(u) || u < 1 || u > 24) return null;
+  if (m !== 0 && m !== 1) return null;
+  return o;
+}
+function loadSave(){
+  var o = null;
+  try {
+    var t = localStorage.getItem('g149_save');
+    if (t) o = validSave(JSON.parse(t));
+  } catch (e) { o = null; }
+  if (o) { S.best = o.best; S.unlocked = o.unlocked; S.mute = o.mute; }
+  else { S.best = {}; S.unlocked = 1; S.mute = 0; }
+}
+function saveMain(){
+  try {
+    localStorage.setItem('g149_save', JSON.stringify(
+      { best: S.best, unlocked: S.unlocked, mute: S.mute }));
+  } catch (e) {}
+}
+
+/* ---------- 音效（随机走 Math.random 独立流，不碰游戏 LCG） ---------- */
+var AC = null;
+function ensureAC(){
+  if (S.mute) return;
+  try {
+    if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+    if (AC.state === 'suspended') AC.resume();
+  } catch (e) { AC = null; }
+}
+function tone(fq, ms, vol, dly){
+  if (S.mute || !AC) return;
+  try {
+    var t0 = AC.currentTime + (dly || 0);
+    var o = AC.createOscillator(), g = AC.createGain();
+    o.type = 'sine'; o.frequency.value = fq;
+    g.gain.setValueAtTime(vol || 0.08, t0);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + ms / 1000);
+    o.connect(g); g.connect(AC.destination);
+    o.start(t0); o.stop(t0 + ms / 1000 + 0.02);
+  } catch (e) {}
+}
+function snd(kind){
+  if (kind === 'coin') tone(520, 50, 0.05);
+  else if (kind === 'creek') { tone(160, 200, 0.05); tone(120, 260, 0.05, 0.12); }
+  else if (kind === 'left') tone(196, 240, 0.09);
+  else if (kind === 'right') tone(392, 240, 0.09);
+  else if (kind === 'even') tone(294, 240, 0.09);
+  else if (kind === 'ding') tone(880, 120, 0.06);
+  else if (kind === 'win') { tone(262, 260, 0.09); tone(392, 300, 0.09, 0.26); tone(523, 420, 0.09, 0.56); }
+  else if (kind === 'lose') tone(98, 500, 0.1);
+}
+
+/* ---------- 布局几何 ---------- */
+var PIVOT_X = 195, PIVOT_Y = 168, BEAM_HALF = 108;
+var PAN_LX = 87, PAN_RX = 303, PAN_CY = 236;
+var GRID_X0 = 35, GRID_Y0 = 424, CELL_W = 82, CELL_H = 58, COIN_R = 19;
+var HIST_Y = 372;
+function coinPos(i){ return { x: GRID_X0 + (i % 4) * CELL_W + CELL_W / 2, y: GRID_Y0 + Math.floor(i / 4) * CELL_H + CELL_H / 2 }; }
+function onPan(coinIdx, side){ return side === 0 ? S.panL.indexOf(coinIdx) >= 0 : S.panR.indexOf(coinIdx) >= 0; }
+
+/* ---------- 嫌疑计数（单源：initH+predict 按全部历史过滤） ---------- */
+function suspCount(){
+  var H = initH(S.bd), i, j;
+  for (i = 0; i < S.hist.length; i++) {
+    var h = S.hist[i];
+    var b = splitH(H, h[0], h[1]);
+    H = b[h[2]];
+  }
+  return H.length;
+}
+
+/* ---------- 流程 ---------- */
+function newGame(lv, seedOpt){
+  var L = LVL[lv - 1];
+  var seed = seedOpt === undefined ? (Date.now() % MOD) : seedOpt;
+  S.lv = lv;
+  S.bd = mkBd(seed, lv);
+  S.used = 0; S.hints = 0;
+  S.sel = []; S.panL = []; S.panR = [];
+  S.marks = {}; S.prov = []; S.hist = [];
+  S.lastRes = -1; S.tiltT = 0; S.tiltFrom = 0; S.tiltTo = 0; S.resFloat = 0;
+  S.over = 0; S.score = 0; S.stars = 0; S.accIdx = -1; S.accDir = 0;
+  S.winT = 0; S.loseT = 0; S.flashT = 0; S.flashMsg = ''; S.dirAsk = -1;
+  S.ph = 'play';
+  document.getElementById('menu').classList.add('hide');
+  document.getElementById('panel').classList.add('hide');
+  document.getElementById('dirPick').classList.add('hide');
+  updHUD();
+}
+function home(){
+  S.ph = 'menu';
+  document.getElementById('menu').classList.remove('hide');
+  document.getElementById('panel').classList.add('hide');
+  document.getElementById('dirPick').classList.add('hide');
+  buildGrid();
+}
+function flash(msg){
+  S.flashT = 96;
+  S.flashMsg = msg;
+}
+function updHUD(){
+  document.getElementById('hLv').textContent = '第' + S.lv + '关';
+  document.getElementById('hSus').textContent = S.bd ? suspCount() : 0;
+  document.getElementById('hUsed').textContent = S.used;
+  document.getElementById('hK').textContent = S.bd ? S.bd.k : 4;
+  document.getElementById('hScore').textContent = S.score;
+  var bw = document.getElementById('btnWeigh');
+  bw.disabled = !!(S.ph !== 'play' || S.over || S.used >= (S.bd ? S.bd.k : 0) ||
+                   S.panL.length === 0 || S.panL.length !== S.panR.length);
+  document.getElementById('btnAcc').disabled = !!(S.ph !== 'play' || S.over || S.sel.length !== 1);
+  document.getElementById('btnHint').disabled = !!(S.ph !== 'play' || S.over);
+}
+function canWeigh(){
+  if (S.ph !== 'play' || S.over) return false;
+  if (S.used >= S.bd.k) return false;
+  if (S.panL.length === 0 || S.panL.length !== S.panR.length) return false;
+  var i, j;
+  for (i = 0; i < S.panL.length; i++)
+    for (j = 0; j < S.panR.length; j++)
+      if (S.panL[i] === S.panR[j]) return false;
+  return true;
+}
+function doWeigh(){
+  if (!canWeigh()) {
+    if (S.used >= S.bd.k) flash('称次已用尽，只能指认');
+    else if (S.panL.length === 0) flash('两盘都空，先放钱');
+    else if (S.panL.length !== S.panR.length) flash('两盘钱数须相等');
+    return false;
+  }
+  var L = S.panL.slice().sort(function(a, b){ return a - b; });
+  var R = S.panR.slice().sort(function(a, b){ return a - b; });
+  var res = weigh(S.bd, L, R);
+  S.hist.push([L, R, res]);
+  S.lastRes = res;
+  S.tiltFrom = S.tiltTo;
+  S.tiltTo = res === 0 ? -1 : (res === 1 ? 1 : 0);
+  S.tiltT = 21;
+  S.resFloat = 78;
+  S.used++;
+  S.panL = []; S.panR = [];
+  snd('creek');
+  if (res === 0) { tone(196, 240, 0.09, 0.26); }
+  else if (res === 1) { tone(392, 240, 0.09, 0.26); }
+  else { tone(294, 240, 0.09, 0.26); }
+  updHUD();
+  return true;
+}
+function accuseGo(idx, dirPick){
+  if (S.ph !== 'play' || S.over) return;
+  if (S.bd.judge && dirPick === undefined) {
+    S.dirAsk = idx;
+    document.getElementById('dpInfo').textContent = '第' + (idx + 1) + '枚钱，偏轻还是偏重？';
+    document.getElementById('dirPick').classList.remove('hide');
+    return;
+  }
+  var d = dirPick === undefined ? 0 : dirPick;
+  S.accIdx = idx; S.accDir = d;
+  var okAcc = idx === S.bd.bad && (!S.bd.judge || d === S.bd.dir);
+  if (okAcc) {
+    S.over = 1;
+    S.score = scoreOf(S.lv, S.used, S.bd.k, S.hints);
+    S.stars = starsOf(S.used, S.bd.par, S.hints);
+    S.winT = 1;
+    snd('win');
+    var key = String(S.lv);
+    if (!S.best[key] || S.score > S.best[key].score) {
+      S.best[key] = { score: S.score, stars: S.stars };
+    }
+    if (S.unlocked < Math.min(24, S.lv + 1)) S.unlocked = Math.min(24, S.lv + 1);
+    saveMain();
+  } else {
+    S.over = 2;
+    S.score = 0;
+    S.loseT = 1;
+    snd('lose');
+  }
+  updHUD();
+}
+function hintGo(){
+  if (S.ph !== 'play' || S.over) return;
+  var i;
+  for (i = 0; i < S.bd.n; i++) {
+    if (i === S.bd.bad) continue;
+    if (S.prov.indexOf(i) >= 0) continue;
+    if (S.marks[i] === 2) continue;
+    S.prov.push(i);
+    S.hints++;
+    snd('ding');
+    flash('第' + (i + 1) + '枚保真（官钱）');
+    updHUD();
+    return;
+  }
+  flash('其余已都验明');
+}
+
+/* ---------- 输入 ---------- */
+function tapCoin(i){
+  if (S.ph !== 'play' || S.over || S.winT || S.loseT) return;
+  var inL = S.panL.indexOf(i), inR = S.panR.indexOf(i);
+  if (inL >= 0) { S.panL.splice(inL, 1); snd('coin'); updHUD(); return; }
+  if (inR >= 0) { S.panR.splice(inR, 1); snd('coin'); updHUD(); return; }
+  var s = S.sel.indexOf(i);
+  if (s >= 0) S.sel.splice(s, 1);
+  else if (S.sel.length < 8) S.sel.push(i);
+  snd('coin');
+  updHUD();
+}
+function panGo(side){
+  if (S.ph !== 'play' || S.over || S.winT || S.loseT) return;
+  if (S.sel.length === 0) { flash('先点钱选中'); return; }
+  var i;
+  for (i = 0; i < S.sel.length; i++) {
+    var inL = S.panL.indexOf(S.sel[i]), inR = S.panR.indexOf(S.sel[i]);
+    if (inL >= 0) S.panL.splice(inL, 1);
+    if (inR >= 0) S.panR.splice(inR, 1);
+    if (side === 0) S.panL.push(S.sel[i]);
+    else S.panR.push(S.sel[i]);
+  }
+  S.sel = [];
+  snd('coin');
+  updHUD();
+}
+function clearPans(){
+  if (S.ph !== 'play' || S.over) return;
+  S.panL = []; S.panR = [];
+  updHUD();
+}
+function tapPan(side){
+  if (S.sel.length > 0) { panGo(side); return; }
+  if (side === 0 && S.panL.length > 0) { S.panL = []; updHUD(); }
+  else if (side === 1 && S.panR.length > 0) { S.panR = []; updHUD(); }
+}
+function accBtn(){
+  if (S.sel.length !== 1) { flash('指认须恰选一枚'); return; }
+  var i = S.sel[0];
+  S.sel = [];
+  accuseGo(i);
+}
+function keyAct(code){
+  if (S.ph !== 'play') return;
+  if (code === 'ArrowLeft') { tapPan(0); return; }
+  if (code === 'ArrowRight') { tapPan(1); return; }
+  if (code === 'Enter') { doWeigh(); return; }
+  if (code === 'Space') { accBtn(); return; }
+  if (code === 'Backspace') { clearPans(); return; }
+  if (code === 'KeyH') { hintGo(); return; }
+  var m = code.match(/^Digit([1-9])$/);
+  if (m) {
+    var i = parseInt(m[1], 10) - 1;
+    if (i < S.bd.n) tapCoin(i);
+  }
+}
+
+/* ---------- 绘制 ---------- */
+function coinFace(x, y, r, fillC, strokeC, label, badge){
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fillStyle = fillC;
+  ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = strokeC;
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(30,26,20,.55)';
+  ctx.fillRect(x - 4, y - 4, 8, 8);
+  if (label) {
+    ctx.fillStyle = '#f2e8d0';
+    ctx.font = 'bold 11px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText(label, x, y + r + 12);
+  }
+  if (badge) {
+    ctx.fillStyle = badge;
+    ctx.beginPath();
+    ctx.arc(x + r - 4, y - r + 4, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 8px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText(badge === '#3a7d5c' ? '左' : '右', x + r - 4, y - r + 7);
+  }
+}
+function tiltPix(){
+  var t = S.tiltT > 0 ? 21 - S.tiltT : 0;
+  var f = S.tiltT > 0 ? Math.floor(Math.min(1, t / 12) * 8) / 8 : 1;
+  return Math.round((S.tiltFrom + (S.tiltTo - S.tiltFrom) * f) * 22);
+}
+function draw(){
+  var i, p;
+  ctx.clearRect(0, 0, 390, 780);
+  /* 底色暖灯青灰 */
+  ctx.fillStyle = '#262e3f';
+  ctx.fillRect(0, 0, 390, 780);
+  var grd = ctx.createLinearGradient(0, 0, 0, 780);
+  grd.addColorStop(0, 'rgba(232,201,106,.06)');
+  grd.addColorStop(1, 'rgba(0,0,0,.18)');
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, 0, 390, 780);
+
+  if (S.ph === 'menu') { FR++; return; }
+
+  /* 天平 */
+  var tilt = tiltPix();
+  ctx.strokeStyle = '#4a5368';
+  ctx.lineWidth = 7;
+  ctx.beginPath();
+  ctx.moveTo(PIVOT_X, PIVOT_Y - 6);
+  ctx.lineTo(PIVOT_X, 336);
+  ctx.stroke();
+  ctx.fillStyle = '#3a4256';
+  ctx.fillRect(PIVOT_X - 34, 332, 68, 8);
+  ctx.save();
+  ctx.translate(PIVOT_X, PIVOT_Y);
+  var ang = tilt * 0.009;
+  ctx.rotate(ang);
+  ctx.strokeStyle = '#8a94a8';
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.moveTo(-BEAM_HALF, 0);
+  ctx.lineTo(BEAM_HALF, 0);
+  ctx.stroke();
+  for (i = -1; i <= 1; i += 2) {
+    var px = i * BEAM_HALF;
+    ctx.strokeStyle = '#5a6478';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(px, 0);
+    ctx.lineTo(px - 20, 62);
+    ctx.moveTo(px, 0);
+    ctx.lineTo(px + 20, 62);
+    ctx.stroke();
+  }
+  ctx.restore();
+  /* 两盘 */
+  var panY = PAN_CY + Math.round(tilt * -1.1);
+  function drawPan(cx, cy, coins, badgeC, sideName){
+    ctx.strokeStyle = '#8a94a8';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 34, 0, Math.PI);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(138,148,168,.14)';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 34, 0, Math.PI);
+    ctx.fill();
+    for (i = 0; i < coins.length; i++) {
+      var ang2 = Math.PI * (0.25 + 0.5 * (coins.length === 1 ? 0.5 : i / (coins.length - 1)));
+      coinFace(cx + Math.round(Math.cos(ang2) * 22), cy + 6 + Math.round(Math.sin(ang2) * 8), 11,
+        '#c9a86a', '#6a5638', '', '');
+    }
+    ctx.fillStyle = '#aab4c8';
+    ctx.font = '11px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText(sideName + ' ' + coins.length + ' 枚', cx, cy + 22);
+  }
+  drawPan(PAN_LX, panY, S.panL, '#3a7d5c', '左盘');
+  drawPan(PAN_RX, 2 * PAN_CY - panY, S.panR, '#b06a3a', '右盘');
+
+  /* 三态字浮出 */
+  if (S.resFloat > 0 && S.lastRes >= 0) {
+    var names = ['左 沉', '右 沉', '持 平'];
+    ctx.globalAlpha = Math.min(1, S.resFloat / 26);
+    ctx.fillStyle = S.lastRes === 0 ? '#e8c96a' : (S.lastRes === 1 ? '#7ab0d8' : '#9dc98a');
+    ctx.font = 'bold 24px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText(names[S.lastRes], PIVOT_X, 118 - (78 - S.resFloat) / 4);
+    ctx.globalAlpha = 1;
+    S.resFloat--;
+  }
+
+  /* 历史条 */
+  ctx.fillStyle = 'rgba(20,26,38,.72)';
+  ctx.fillRect(14, HIST_Y - 14, 362, 44);
+  ctx.fillStyle = '#8a94a8';
+  ctx.font = '11px system-ui';
+  ctx.textAlign = 'left';
+  var h0 = Math.max(0, S.hist.length - 3);
+  for (i = h0; i < S.hist.length; i++) {
+    var h = S.hist[i];
+    var rn = ['左沉', '右沉', '持平'][h[2]];
+    ctx.fillText('第' + (i + 1) + '称 ' + h[0].length + '↔' + h[1].length + ' ' + rn, 22, HIST_Y + (i - h0) * 13 - 1);
+  }
+  if (S.hist.length === 0) ctx.fillText('尚无称量——两盘等数方可称', 22, HIST_Y - 1);
+
+  /* 币阵 */
+  for (i = 0; i < S.bd.n; i++) {
+    p = coinPos(i);
+    var sel = S.sel.indexOf(i) >= 0;
+    var inL = S.panL.indexOf(i) >= 0, inR = S.panR.indexOf(i) >= 0;
+    var provd = S.prov.indexOf(i) >= 0;
+    var mk = S.marks[i] || 0;
+    var base = provd ? '#8d99ad' : '#c9a86a';
+    var strk = sel ? '#f0d98a' : '#6a5638';
+    coinFace(p.x, p.y, COIN_R, base, strk, String(i + 1), inL ? '#3a7d5c' : (inR ? '#b06a3a' : ''));
+    if (sel) {
+      ctx.strokeStyle = 'rgba(240,217,138,.8)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, COIN_R + 4, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    if (mk === 1) {
+      ctx.fillStyle = '#c85a4a';
+      ctx.beginPath();
+      ctx.arc(p.x - COIN_R + 4, y0(p), 4, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (mk === 2 || provd) {
+      ctx.strokeStyle = '#9dc98a';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(p.x - 6, y0(p));
+      ctx.lineTo(p.x - 2, y0(p) + 4);
+      ctx.lineTo(p.x + 6, y0(p) - 5);
+      ctx.stroke();
+    }
+  }
+  function y0(p){ return p.y + COIN_R - 2; }
+
+  /* 带提示 */
+  ctx.fillStyle = '#8a94a8';
+  ctx.font = '12px system-ui';
+  ctx.textAlign = 'center';
+  var tip = S.bd.known ? '监谕：劣钱偏轻' : (S.bd.judge ? '指认须断轻重' : '劣钱轻重不明');
+  ctx.fillText(tip + ' · 嫌疑 ' + suspCount() + ' 种 · 剩余称次 ' + (S.bd.k - S.used), 195, 742);
+
+  /* flash */
+  if (S.flashT > 0) {
+    ctx.globalAlpha = Math.min(1, S.flashT / 30);
+    ctx.fillStyle = 'rgba(14,19,28,.85)';
+    ctx.fillRect(60, 690, 270, 34);
+    ctx.fillStyle = '#e8c96a';
+    ctx.font = '13px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText(S.flashMsg, 195, 712);
+    ctx.globalAlpha = 1;
+    S.flashT--;
+  }
+  /* 胜负演出 */
+  if (S.winT > 0) {
+    S.winT++;
+    if (S.winT === 42) showPanel(true);
+  }
+  if (S.loseT > 0) {
+    S.loseT++;
+    if (S.loseT === 42) showPanel(false);
+  }
+  if (S.tiltT > 0) S.tiltT--;
+  FR++;
+}
+function showPanel(winP){
+  var el = document.getElementById('panel');
+  document.getElementById('pTitle').textContent = winP ? '辨伪有功' : '错拿了官钱';
+  document.getElementById('pStars').textContent = winP ? '★★★'.slice(0, S.stars) : '—';
+  document.getElementById('pInfo').textContent = winP
+    ? ('称 ' + S.used + ' 次（参考 ' + S.bd.par + '）/ 提示 ' + S.hints + ' 回 / ' + S.score + ' 分')
+    : ('真凶是第 ' + (S.bd.bad + 1) + ' 枚' + (S.bd.dir === -1 ? '（偏轻）' : '（偏重）'));
+  document.getElementById('pNext').style.display = winP && S.lv < 24 ? '' : 'none';
+  el.classList.remove('hide');
+}
+
+/* ---------- 60Hz 主循环（帧率归一制式 16.6667ms） ---------- */
+function loop(){
+  draw();
+  requestAnimationFrame(loop);
+}
+
+/* ---------- 关卡网格 ---------- */
+function buildGrid(){
+  var g = document.getElementById('lvGrid');
+  g.innerHTML = '';
+  var i;
+  for (i = 1; i <= 24; i++) {
+    var c = document.createElement('div');
+    c.className = 'cell' + (i <= S.unlocked ? '' : ' lock');
+    var st = S.best[String(i)];
+    c.innerHTML = String(i) + (st ? '<div class="st">' + '★'.repeat(st.stars) + '</div>' : '');
+    if (i <= S.unlocked) {
+      (function(lv){
+        c.addEventListener('pointerdown', function(){ ensureAC(); newGame(lv); });
+      })(i);
+    }
+    g.appendChild(c);
+  }
+}
+
+/* ---------- 接线 ---------- */
+function posToCoin(x, y){
+  var i;
+  for (i = 0; i < (S.bd ? S.bd.n : 0); i++) {
+    var p = coinPos(i);
+    if ((x - p.x) * (x - p.x) + (y - p.y) * (y - p.y) <= (COIN_R + 8) * (COIN_R + 8)) return i;
+  }
+  return -1;
+}
+function posToPan(x, y){
+  var panY = PAN_CY + Math.round(tiltPix() * -1.1);
+  if ((x - PAN_LX) * (x - PAN_LX) + (y - panY) * (y - panY) <= 38 * 38) return 0;
+  var panY2 = 2 * PAN_CY - panY;
+  if ((x - PAN_RX) * (x - PAN_RX) + (y - panY2) * (y - panY2) <= 38 * 38) return 1;
+  return -1;
+}
+function boot(){
+  loadSave();
+  buildGrid();
+  cv.addEventListener('pointerdown', function(ev){
+    ensureAC();
+    if (S.ph !== 'play' || S.over || S.winT || S.loseT) return;
+    var r = cv.getBoundingClientRect();
+    var x = ev.clientX - r.left, y = ev.clientY - r.top;
+    var i = posToCoin(x, y);
+    if (i >= 0) { tapCoin(i); return; }
+    var ps = posToPan(x, y);
+    if (ps >= 0) { tapPan(ps); return; }
+  });
+  document.getElementById('btnL').addEventListener('pointerdown', function(){ ensureAC(); panGo(0); });
+  document.getElementById('btnR').addEventListener('pointerdown', function(){ ensureAC(); panGo(1); });
+  document.getElementById('btnWeigh').addEventListener('pointerdown', function(){ ensureAC(); doWeigh(); });
+  document.getElementById('btnHint').addEventListener('pointerdown', function(){ ensureAC(); hintGo(); });
+  document.getElementById('btnAcc').addEventListener('pointerdown', function(){ ensureAC(); accBtn(); });
+  document.getElementById('btnStart').addEventListener('pointerdown', function(){ ensureAC(); newGame(Math.min(24, S.unlocked)); });
+  document.getElementById('pAgain').addEventListener('pointerdown', function(){ ensureAC(); newGame(S.lv); });
+  document.getElementById('pNext').addEventListener('pointerdown', function(){ ensureAC(); newGame(Math.min(24, S.lv + 1)); });
+  document.getElementById('pHome').addEventListener('pointerdown', function(){ ensureAC(); home(); });
+  document.getElementById('dpL').addEventListener('pointerdown', function(){
+    document.getElementById('dirPick').classList.add('hide');
+    var a = S.dirAsk; S.dirAsk = -1; accuseGo(a, -1);
+  });
+  document.getElementById('dpH').addEventListener('pointerdown', function(){
+    document.getElementById('dirPick').classList.add('hide');
+    var a = S.dirAsk; S.dirAsk = -1; accuseGo(a, 1);
+  });
+  document.getElementById('btnMute').addEventListener('pointerdown', function(){
+    S.mute = S.mute ? 0 : 1;
+    document.getElementById('btnMute').textContent = S.mute ? '✕' : '♪';
+    saveMain();
+  });
+  document.addEventListener('keydown', function(ev){
+    if (S.ph === 'play') { ev.preventDefault(); keyAct(ev.code); }
+  });
+  document.getElementById('btnMute').textContent = S.mute ? '✕' : '♪';
+  updHUD();
+  requestAnimationFrame(loop);
+}
+document.addEventListener('DOMContentLoaded', boot);
+
+
+</script>
+</body>
+</html>
