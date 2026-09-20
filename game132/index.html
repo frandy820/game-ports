@@ -67,6 +67,17 @@
     <div class="row"><div class="mbtn gold" id="mGo">出 战</div><div class="mbtn" id="mLvs">选 关</div></div>
     <div class="sub" id="mBest" style="margin-top:6px"></div>
   </div>
+  <div class="lay hide" id="tut">
+    <div class="lg" style="font-size:24px">出 征 须 知</div>
+    <div class="sub" style="max-width:300px;text-align:center;line-height:1.9">
+      驾霹雳炮车穿巷歼敌 · 清空攻城敌波即过关<br>
+      <span style="color:#c9d4ee">键盘：方向键 / WASD 移动 · 空格发射</span><br>
+      <span style="color:#c9d4ee">触屏：左下十字键移动 · 右下「发」钮发射</span><br>
+      <span style="color:#d8a08a">门楼城防归零（冲车撞击或自家误射）或三命耗尽即城破</span>
+    </div>
+    <div class="sub" style="font-size:11.5px;color:#6d7a99">砖垒两发可炸开 · 石垒轰不动 · 草丛可藏身</div>
+    <div class="row"><div class="mbtn gold" id="tutGo">开 战</div></div>
+  </div>
   <div class="lay hide" id="over">
     <div class="lg" id="oTitle">城 破</div>
     <div class="sub" id="oSub"></div>
@@ -91,6 +102,9 @@ var INVULN = 90, SPAWNFLASH = 40, COOL0 = 150, COOL1 = 100;
 var ITEM_T = 600, GATE_HP0 = 3, LIVES0 = 3, CAP = 18000;
 var M214 = 2147483647;
 var KSAVE = 'g132_siege';
+/* UI 层绘制参数（polish 抽离，等值搬移）+ 首局引导记忆键 */
+var UI = { flashFont: 'bold 15px sans-serif', flashX: 195, flashYoff: 28 };
+var KTUT = 'pg_tut_132';
 
 function lcg(x) { this.x = x; }
 lcg.prototype.u = function (m) { this.x = (this.x * 48271) % M214; return (this.x * m / M214) | 0; };
@@ -118,7 +132,7 @@ var KINDSCORE = [100, 200, 300];
 
 var cv = document.getElementById('cv'), ctx = cv.getContext('2d');
 var els = {};
-['hTitle', 'hSub', 'hInfo', 'menu', 'over', 'pause', 'mGo', 'mLvs', 'mBest', 'oTitle', 'oSub',
+['hTitle', 'hSub', 'hInfo', 'menu', 'over', 'pause', 'tut', 'tutGo', 'mGo', 'mLvs', 'mBest', 'oTitle', 'oSub',
  'oAgain', 'oHome', 'pRes', 'pHome', 'lvbar', 'bL', 'bR', 'bU', 'bD', 'bF', 'bH'].forEach(function (id) { els[id] = document.getElementById(id); });
 
 var S = null, r1 = null, r2 = null, g = null;
@@ -319,6 +333,7 @@ document.addEventListener('pointercancel', function (e) {
   if (e.pointerId === pd) { pd = null; vDir = -1; fireHeld = false; }
 });
 document.addEventListener('keydown', function (e) {
+  if (S && S.tut) return;   /* 引导期键盘拦截 */
   if (S && S.ph !== 'play') return;
   if (e.key === 'ArrowLeft' || e.key === 'a') keyDir = 3;
   else if (e.key === 'ArrowRight' || e.key === 'd') keyDir = 1;
@@ -335,7 +350,7 @@ document.addEventListener('keyup', function (e) {
   if (kd >= 0 && keyDir === kd) keyDir = -1;
 });
 function doFire() {
-  if (!S || S.ph !== 'play') return;
+  if (!S || S.ph !== 'play' || S.tut) return;   /* 引导期拦输入（独立 flag，不触 ph 枚举） */
   var cap = S.star ? 2 : 1;
   if (S.pb.length >= cap) return;
   var p = S.player;
@@ -775,8 +790,8 @@ function draw() {
   ctx.restore();
   if (S.flashT > 0) {
     ctx.globalAlpha = Math.min(1, S.flashT / 20);
-    ctx.fillStyle = '#e8c96a'; ctx.font = 'bold 15px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText(S.flashTxt, 195, FOY + 28);
+    ctx.fillStyle = '#e8c96a'; ctx.font = UI.flashFont; ctx.textAlign = 'center';
+    ctx.fillText(S.flashTxt, UI.flashX, FOY + UI.flashYoff);
     ctx.globalAlpha = 1;
   }
   if (S.ph === 'win' || S.ph === 'lose') drawEnd();
@@ -912,7 +927,7 @@ function drawEnd() {
     ctx.fillRect(FOX, FOY, FW, FH);
     if (t < 1.0) {
       els.oTitle.textContent = '巷 战 告 捷';
-      els.oSub.textContent = '第 ' + S.lv + ' 关清空 · 得分 ' + S.score + ' · 城防 ' + S.gateHp + '/' + GATE_HP0;
+      els.oSub.textContent = '敌波清空守汴门 · 第 ' + S.lv + ' 关 · 得分 ' + S.score + ' · 城防 ' + S.gateHp + '/' + GATE_HP0;
       els.over.classList.remove('hide');
     }
   } else {
@@ -920,7 +935,7 @@ function drawEnd() {
     ctx.fillRect(FOX, FOY, FW, FH);
     if (t < 0.8) {
       els.oTitle.textContent = S.loseWhy === 'gate' ? '门 楼 陷 落' : '炮 车 尽 毁';
-      els.oSub.textContent = '第 ' + S.lv + ' 关 · 歼敌 ' + S.killed + '/' + S.total;
+      els.oSub.textContent = (S.loseWhy === 'gate' ? '门楼城防耗尽' : '三命尽数折损') + ' · 第 ' + S.lv + ' 关 · 歼敌 ' + S.killed + '/' + S.total;
       els.over.classList.remove('hide');
     }
   }
@@ -934,7 +949,7 @@ function loop(ts) {
   acc += dt;
   var gDt = dt / 1000;
   while (acc >= 16) {
-    if (S && S.ph === 'play') step();
+    if (S && S.ph === 'play' && !S.tut) step();   /* 引导期物理冻结（暂停语义） */
     acc -= 16;
   }
   if (S && S.ph === 'win') { S.winT -= gDt; if (S.winT < 0) S.winT = 0; }
@@ -944,6 +959,21 @@ function loop(ts) {
 }
 
 /* ---- UI 接线 ---- */
+/* 首局引导（polish：独立 flag S.tut，不触 ph 枚举；loop 内已冻结物理=暂停语义） */
+function maybeTut() {
+  var seen = 0;
+  try { seen = localStorage.getItem(KTUT); } catch (e) {}
+  if (!seen) { S.tut = 1; els.tut.classList.remove('hide'); }
+}
+function closeTut() {
+  if (!S || !S.tut) return;
+  S.tut = 0;
+  els.tut.classList.add('hide');
+  try { localStorage.setItem(KTUT, '1'); } catch (e) {}
+  vDir = -1; keyDir = -1; fireHeld = false; heldDirs = {};   /* 沿 pRes 先例清残留输入 */
+}
+els.tut.addEventListener('pointerdown', function () { closeTut(); });   /* overlay 任意点可关 */
+els.tutGo.addEventListener('click', function (e) { e.stopPropagation(); closeTut(); });
 els.mGo.addEventListener('click', function () {
   ensureAC(); if (AC && AC.state === 'suspended') AC.resume();
   BOT.mode = null;
@@ -951,6 +981,7 @@ els.mGo.addEventListener('click', function () {
   els.menu.classList.add('hide');
   var st = loadSave();
   newGame(Math.min(st.unlocked, 24));
+  maybeTut();
 });
 els.mLvs.addEventListener('click', function () {
   buildLvbar();
@@ -974,6 +1005,7 @@ function buildLvbar() {
         els.menu.classList.add('hide');
         if (S) S.testSeed = 0;
         newGame(lv);
+        maybeTut();
       });
     })(i);
     els.lvbar.appendChild(d);
@@ -981,6 +1013,7 @@ function buildLvbar() {
 }
 els.oAgain.addEventListener('click', function () {
   els.over.classList.add('hide'); BOT.mode = null; S.testSeed = 0; newGame(S.lv);
+  maybeTut();
 });
 els.oHome.addEventListener('click', function () {
   els.over.classList.add('hide'); els.menu.classList.remove('hide');
@@ -1024,7 +1057,7 @@ document.getElementById('hud').addEventListener('pointerdown', function () {
   requestAnimationFrame(loop);
 })();
 document.addEventListener('visibilitychange', function () {
-  if (document.hidden && S && S.ph === 'play') { S.ph = 'pause'; els.pause.classList.remove('hide'); }
+  if (document.hidden && S && S.ph === 'play' && !S.tut) { S.ph = 'pause'; els.pause.classList.remove('hide'); }
 });
 window.addEventListener('pagehide', function () { if (S && S.g) saveMain(); });
 </script>
