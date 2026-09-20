@@ -14,7 +14,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#0b1220;overflow:
 #hLayer{color:#9ab8a8;margin-top:2px}
 #hHam{color:#c8d8e8;margin-top:2px}
 #cv{position:absolute;top:64px;left:0}
-.btnrow{position:absolute;bottom:0;left:0;width:100%;height:64px;display:flex;gap:8px;align-items:center;justify-content:center;z-index:5}
+.btnrow{position:absolute;bottom:0;left:0;width:100%;height:64px;display:flex;gap:4px;align-items:center;justify-content:center;z-index:5}
 .hbtn{min-width:62px;padding:10px 0;border:1px solid #4a5a55;border-radius:10px;background:#1a2420;color:#d8d2be;font-size:15px;text-align:center;cursor:pointer;letter-spacing:1px}
 .hbtn.on{background:#2e4038;border-color:#7a9a8c}
 .lay{position:absolute;inset:0;background:rgba(6,10,10,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:20}
@@ -89,6 +89,12 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#0b1220;overflow:
     <div class="lvwrap"><div class="lvrow" id="lvrow"></div></div>
     <div class="mbtn" id="lBack">回</div>
   </div>
+  <div class="lay hide" id="tut">
+    <div class="otitle">初 登 栈 道</div>
+    <div class="ostat" style="font-size:13px;line-height:2.2;text-align:left;max-width:290px">目标：沿栈攀行七层，登顶灯楼取回火种<br>操作：◀▶ 行走 · 跳 跃石<br>▲▼ 攀梯（梯口按住）<br>触屏按底部按钮 · 键盘方向键+空格<br>顽石火苗触之损一灯 · 三灯皆熄即败</div>
+    <div class="mbtn" id="tGo">上 栈</div>
+    <div class="mnote">任意点按即可开始</div>
+  </div>
 </div>
 <script>
 'use strict';
@@ -158,7 +164,7 @@ function mkLevel(lv,seed){
 var S={ph:'menu',lv:1,x:0,y:0,vx:0,vy:0,climb:null,ground:true,invuln:0,ham:0,
        lives:3,score:0,frames:0,over:0,dead_n:0,minY:670,
        stones:[],stone_t:90,fire:null,hamTaken:false,
-       inL:0,inR:0,inU:0,inD:0,inJ:0,shake:0,winT:0,parts:[],face:1};
+       inL:0,inR:0,inU:0,inD:0,inJ:0,shake:0,winT:0,parts:[],face:1,tut:0};
 var unlocked=1,best={},sndOn=1,L=null,rnd=new LCG(1),bgStars=[],bgMts=null;
 var SK='g140_rock';
 function saveMain(){
@@ -241,7 +247,10 @@ function newGame(lv){
   document.getElementById('pause').classList.add('hide');
   document.getElementById('lvbar').classList.add('hide');
   document.getElementById('help').classList.add('hide');
+  document.getElementById('tut').classList.add('hide');
+  S.tut=0;
   updHUD();
+  if(!tutSeen()){S.tut=1;document.getElementById('tut').classList.remove('hide')}
 }
 function step(inL,inR,inU,inD,inJ){
   if(S.over)return S.over;
@@ -728,7 +737,8 @@ function mainLoop(t){
   _acc+=t-_lastT;_lastT=t;
   if(_acc>200)_acc=200;   /* 后台回来防暴冲 */
   while(_acc>=16.6667){
-    if(S.ph==='play'){
+    /* 引导期（S.tut=1）不调 step=物理冻结；累加器 _lastT/_acc 语义不变（时间照常消费，引导关闭后不补跑） */
+    if(S.ph==='play'&&!S.tut){
       step(S.inL?1:0,S.inR?1:0,S.inU?1:0,S.inD?1:0,S.inJ?1:0);
       updHUD();
     }
@@ -802,6 +812,20 @@ document.getElementById('pRes').onclick=function(){S.ph='play';document.getEleme
 document.getElementById('pRestart').onclick=function(){newGame(S.lv)};
 document.getElementById('pSnd').onclick=function(){sndOn=sndOn?0:1;this.textContent=sndOn?'音 效':'静 音';saveMain()};
 document.getElementById('pHome').onclick=home;
+
+/* ============ 首局引导（打磨层：独立 flag S.tut，不污染 ph 枚举；零 rnd/三角/random——不触 V7 冻结计数） ============ */
+var TUTKEY='pg_tut_140';
+function tutSeen(){
+  try{return localStorage.getItem(TUTKEY)==='1'}catch(e){return true}
+}
+function closeTut(){
+  S.tut=0;
+  S.inL=0;S.inR=0;S.inU=0;S.inD=0;S.inJ=0;
+  try{localStorage.setItem(TUTKEY,'1')}catch(e){}
+  document.getElementById('tut').classList.add('hide');
+  tone(440,.05);
+}
+document.getElementById('tut').addEventListener('pointerdown',function(e){e.preventDefault();closeTut()});
 
 /* ============ DEV 段（build 剥离） ============ */
 
