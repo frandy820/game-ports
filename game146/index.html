@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>雁塔归经</title>
+<style>
+  html,body{margin:0;padding:0;background:#141018;height:100%;overflow:hidden}
+  #app{position:relative;width:390px;height:844px;margin:0 auto;background:#1e1628;
+       font-family:"Microsoft YaHei","PingFang SC",sans-serif;overflow:hidden;user-select:none;
+       -webkit-user-select:none;touch-action:none}
+  #hud{position:absolute;top:0;left:0;width:390px;height:64px;z-index:5;
+       background:linear-gradient(#2c2340,#241c33);display:flex;align-items:center;
+       gap:10px;padding:0 12px;box-sizing:border-box;color:#d8cdb8;font-size:14px}
+  #hud .hot{color:#e8b96a;font-weight:bold}
+  #hud .dim{color:#8a7f70;font-size:12px}
+  #hCap.warn{color:#e86a5a;font-weight:bold}
+  #btnMute{margin-left:auto;background:none;border:1px solid #5a4a38;color:#d8cdb8;
+           border-radius:6px;width:40px;height:32px;font-size:15px;cursor:pointer}
+  #cv{position:absolute;top:64px;left:0}
+  #btnrow{position:absolute;bottom:0;left:0;width:390px;height:64px;z-index:6;
+          display:flex;gap:10px;align-items:center;justify-content:center;
+          background:linear-gradient(#241c33,#1a1424)}
+  #btnrow button{background:#3a2d24;border:1px solid #6a5642;color:#d8cdb8;border-radius:8px;
+          padding:8px 16px;font-size:14px;cursor:pointer}
+  #btnrow button:active{background:#4a3a2e}
+  .lay{position:absolute;inset:0;z-index:9;background:rgba(20,14,28,.86);
+       display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+  .lay.hide{display:none}
+  #menu h1{color:#e8c96a;font-size:30px;letter-spacing:8px;margin:0 0 6px}
+  #menu p{color:#b8a888;font-size:13px;margin:0 24px;line-height:1.8;text-align:center}
+  #menu button.big{background:#6a4f2e;color:#f0dcae;border:1px solid #a8895e;border-radius:10px;
+       padding:12px 44px;font-size:18px;letter-spacing:6px;cursor:pointer}
+  #lvGrid{display:grid;grid-template-columns:repeat(6,44px);gap:8px;margin-top:6px}
+  #lvGrid .cell{width:44px;height:44px;border-radius:8px;background:#3a2d24;border:1px solid #6a5642;
+       color:#d8cdb8;display:flex;flex-direction:column;align-items:center;justify-content:center;
+       font-size:15px;cursor:pointer}
+  #lvGrid .cell .st{font-size:9px;color:#e8c96a;letter-spacing:-1px}
+  #lvGrid .cell.lock{background:#241c2a;color:#5a4a58;border-color:#3a2d44;cursor:default}
+  #panel h2{color:#e8c96a;font-size:26px;letter-spacing:6px;margin:0}
+  #panel .stars{color:#e8c96a;font-size:26px;letter-spacing:6px}
+  #panel .info{color:#b8a888;font-size:14px}
+  #panel .row{display:flex;gap:12px}
+  #panel .row button{background:#3a2d24;border:1px solid #6a5642;color:#d8cdb8;border-radius:8px;
+       padding:9px 20px;font-size:14px;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <span id="hLv" class="hot">第1关</span>
+    <span id="hSteps">步数 <b id="hStV">0</b></span>
+    <span id="hPar" class="dim">参考 7</span>
+    <span id="hCap" class="dim">余 81</span>
+    <button id="btnMute">♪</button>
+  </div>
+  <canvas id="cv" width="390" height="780"></canvas>
+  <div id="btnrow">
+    <button id="btnLvs">▦ 关卡</button>
+    <button id="btnRe">⟲ 重开</button>
+    <button id="btnHelp">？ 帮助</button>
+  </div>
+  <div id="menu" class="lay">
+    <h1>雁塔归经</h1>
+    <p>暮色长安，大雁塔下搬匣归经。<br>
+       点一座经架拾起顶上经匣，再点一座放下——<br>
+       大匣稳重垫底，小匣轻巧在上，大匣不得压小匣。<br>
+       把经匣按大小稳稳归到挂幡的藏经架上。</p>
+    <button id="btnStart" class="big">开 局</button>
+    <div id="lvGrid"></div>
+  </div>
+  <div id="panel" class="lay hide">
+    <h2 id="pTitle">归经功成</h2>
+    <div class="stars" id="pStars">★★★</div>
+    <div class="info" id="pInfo">步数 7 / 参考 7</div>
+    <div class="row">
+      <button id="pNext">下一关</button>
+      <button id="pAgain">重 玩</button>
+      <button id="pHome">选 关</button>
+    </div>
+  </div>
+</div>
+<script>
+'use strict';
+/* ================= 核心纯函数（与 sim146.py 逐位同构） ================= */
+var MOD = 2147483647;
+function LCG(seed){ this.x = ((seed % MOD) + MOD) % MOD || (MOD - 1); }
+LCG.prototype.next = function(){ this.x = (this.x * 48271) % MOD; return this.x; };
+LCG.prototype.u = function(n){ return this.next() % n; };
+
+function vAdj(v){ return v === 'ADJ' || v === 'BIA'; }
+function targetOf(d, v, pegs){
+  if (v === 'BI' || v === 'BIA') return (d % 2 === 1) ? (pegs - 1) : 1;
+  return pegs - 1;
+}
+function isWin(P, v, disks){
+  var d;
+  if (v === 'BI' || v === 'BIA') {
+    var last = P[P.length - 1], mid = P[1];
+    for (d = 1; d <= disks; d++) {
+      if (d % 2 === 1 && last.indexOf(d) < 0) return false;
+      if (d % 2 === 0 && mid.indexOf(d) < 0) return false;
+    }
+    return true;
+  }
+  return P[P.length - 1].length === disks;
+}
+function canMove(P, s, d, v){
+  if (s === d || P[s].length === 0) return false;
+  if (vAdj(v) && Math.abs(s - d) !== 1) return false;
+  var pt = P[d].length ? P[d][P[d].length - 1] : null;
+  if (pt !== null && pt < P[s][P[s].length - 1]) return false;
+  return true;
+}
+function doMove(P, s, d){
+  /* 单源搬移函数：演出层与机器人通道共用（SPEC §2.1） */
+  var Q = [], i;
+  for (i = 0; i < P.length; i++) Q.push(P[i].slice());
+  Q[d].push(Q[s].pop());
+  return Q;
+}
+function legalMoves(P, v){
+  var r = [], n = P.length, s, d;
+  for (s = 0; s < n; s++) {
+    if (!P[s].length) continue;
+    for (d = 0; d < n; d++) if (canMove(P, s, d, v)) r.push([s, d]);
+  }
+  return r;
+}
+function starsOf(steps, par){
+  if (steps <= par) return 3;
+  if (steps <= Math.floor(par * 3 / 2)) return 2;
+  return 1;
+}
+function scoreOf(steps, par, disks, over){
+  if (over !== 1) return 0;
+  return 100 + disks * 20 + Math.max(0, par * 2 - steps) * 2;
+}
+function capOf(par){ return par * 3 + 60; }
+function stKey(P){
+  var s = '', i;
+  for (i = 0; i < P.length; i++) s += (i ? ',' : '') + '[' + P[i].join(',') + ']';
+  return '(' + s + ')';
+}
+/* BFS 最优：转移枚举序=src 升序、dst 升序（字典序首最短路，SPEC §9.5） */
+function bfs(start, v, disks){
+  var st0 = [], i;
+  for (i = 0; i < start.length; i++) st0.push(start[i].slice());
+  if (isWin(st0, v, disks)) return { par: 0, path: [] };
+  var prev = new Map();
+  prev.set(stKey(st0), null);
+  var q = [st0], qi = 0, n = st0.length;
+  while (qi < q.length) {
+    var st = q[qi++];
+    for (var s = 0; s < n; s++) {
+      if (!st[s].length) continue;
+      for (var d = 0; d < n; d++) {
+        if (!canMove(st, s, d, v)) continue;
+        var ns = doMove(st, s, d);
+        var k = stKey(ns);
+        if (prev.has(k)) continue;
+        prev.set(k, { st: st, s: s, d: d });
+        if (isWin(ns, v, disks)) {
+          var path = [], cur = ns;
+          var e = prev.get(stKey(cur));
+          while (e) { path.push([e.s, e.d]); cur = e.st; e = prev.get(stKey(cur)); }
+          path.reverse();
+          return { par: path.length, path: path };
+        }
+        q.push(ns);
+      }
+    }
+  }
+  return { par: -1, path: null };
+}
+function pickSpare(P, v, sp, dest){
+  var cand = [], k;
+  for (k = 0; k < P.length; k++) if (k !== sp && k !== dest) cand.push(k);
+  if (!cand.length) return -1;
+  if (vAdj(v)) cand.sort(function(a, b){
+    return (Math.abs(a - sp) - Math.abs(b - sp)) || (a - b);
+  });
+  return cand[0];
+}
+function want(P, v, b, dest, depth){
+  /* human1 子目标贪心递归（SPEC §3，与 sim146.py 同构） */
+  if (depth > 40) return null;
+  var sp = -1, k;
+  for (k = 0; k < P.length; k++) if (P[k].indexOf(b) >= 0) { sp = k; break; }
+  if (sp === dest) return null;
+  if (P[sp][P[sp].length - 1] === b) {
+    if (canMove(P, sp, dest, v)) return [sp, dest];
+    if (vAdj(v)) {
+      var mid = sp + (dest > sp ? 1 : -1);
+      if (mid >= 0 && mid < P.length && canMove(P, sp, mid, v)) return [sp, mid];
+    }
+    var bt = (!vAdj(v) && P[dest].length) ? P[dest][P[dest].length - 1] : null;
+    if (bt !== null) {
+      var sp2 = pickSpare(P, v, sp, dest);
+      if (sp2 !== -1) {
+        var r = want(P, v, bt, sp2, depth + 1);
+        if (r) return r;
+      }
+    }
+    return null;
+  }
+  var i = P[sp].indexOf(b), nb = P[sp][i + 1];
+  var sp3 = pickSpare(P, v, sp, dest);
+  if (sp3 === -1) return null;
+  return want(P, v, nb, sp3, depth + 1);
+}
+function botH1(P, v, disks, rnd){
+  var ms = legalMoves(P, v);
+  if (!ms.length) return null;
+  if (rnd.u(100) < 12) return ms[rnd.u(ms.length)];
+  var pegs = P.length, m = -1, d, k, found;
+  for (d = disks; d >= 1; d--) {
+    found = false;
+    for (k = 0; k < pegs; k++) {
+      if (P[k].indexOf(d) >= 0) {
+        if (k === targetOf(d, v, pegs)) continue;
+        m = d; found = true; break;
+      }
+    }
+    if (found) break;
+  }
+  if (m < 0) return null;
+  var r = want(P, v, m, targetOf(m, v, pegs), 0);
+  if (r) return r;
+  return ms[rnd.u(ms.length)];
+}
+/* 对局回放（机器人通道；与 sim146.play 同构：判胜先于判负） */
+function playBot(L, P0, mode, seed){
+  var v = L.v, disks = L.disks;
+  var P = [], i;
+  for (i = 0; i < P0.length; i++) P.push(P0[i].slice());
+  var steps = 0, cap = capOf(L.par);
+  var rnd = new LCG(seed);
+  var path = null, over = 0;
+  if (mode === 'optimal') path = bfs(P0, v, disks).path;
+  while (true) {
+    if (isWin(P, v, disks)) { over = 1; break; }
+    if (steps >= cap) { over = 2; break; }
+    var mv;
+    if (mode === 'optimal') {
+      mv = (steps < path.length) ? path[steps] : legalMoves(P, v)[0];
+    } else if (mode === 'human1') {
+      mv = botH1(P, v, disks, rnd);
+    } else {
+      var ms2 = legalMoves(P, v);
+      if (!ms2.length) break;
+      mv = ms2[rnd.u(ms2.length)];
+    }
+    if (!mv) break;
+    P = doMove(P, mv[0], mv[1]);
+    steps++;
+  }
+  var stars = 0, score = 0;
+  if (over === 1) {
+    stars = starsOf(steps, L.par);
+    score = scoreOf(steps, L.par, disks, 1);
+  }
+  return [over, score, steps, stars, cap - steps];
+}
+
+/* ================= 关卡表（lvdata146.json 冻结谱内嵌） ================= */
+var LVLRAW = [[1,"CL",3,3,[[3,2,1],[],[]],7,81],[2,"CL",3,4,[[4,3,2,1],[],[]],15,105],[3,"CL",3,4,[[3],[4,2,1],[]],11,93],[4,"CL",3,5,[[4,3,1],[5],[2]],19,117],[5,"CL",3,5,[[],[4,3,2,1],[5]],15,105],[6,"CL",3,6,[[5,4],[2,1],[6,3]],27,141],[7,"CL",3,6,[[6,2],[5,4,3,1],[]],35,165],[8,"CL",3,6,[[6,2,1],[5,4,3],[]],35,165],[9,"CL",4,4,[[4,3,2,1],[],[],[]],9,87],[10,"CL",4,6,[[5],[],[4,1],[6,3,2]],10,90],[11,"CL",3,7,[[6,5,3],[4,1],[7,2]],58,234],[12,"CL",3,7,[[7,5,1],[6,4,2],[3]],93,339],[13,"CL",3,7,[[7,6,3],[5,2],[4,1]],127,441],[14,"CL",3,8,[[6,4,1],[7,3,2],[8,5]],95,345],[15,"CL",3,8,[[7],[5,2],[8,6,4,3,1]],115,405],[16,"CL",3,8,[[7,4,1],[5,3],[8,6,2]],122,426],[17,"ADJ",3,3,[[3,2,1],[],[]],26,138],[18,"ADJ",3,4,[[4,3,2,1],[],[]],80,300],[19,"BI",3,4,[[4,3,2,1],[],[]],11,93],[20,"BI",3,6,[[6,5,4,3,2,1],[],[]],45,195],[21,"ADJ",4,5,[[5,4,3,2,1],[],[],[]],57,231],[22,"BI",3,7,[[7,6,5,4,3,2,1],[],[]],91,333],[23,"ADJ",4,6,[[6,5,4,3,2,1],[],[],[]],88,324],[24,"BIA",4,8,[[8,7,6,5,4,3,2,1],[],[],[]],108,384]];
+var LVL = LVLRAW.map(function(r){
+  return { lv: r[0], v: r[1], pegs: r[2], disks: r[3], init: r[4], par: r[5], cap: r[6] };
+});
+
+/* ================= 游戏状态与 UI ================= */
+var PEG_X3 = [75, 195, 315];
+var PEG_X4 = [58, 148, 238, 328];
+var BASE_Y = 690, DISK_H = 24, POST_H = 216;
+var DISK_COLS = ['#d8b87e', '#cfa871', '#c69964', '#bd8a57', '#b47b4a', '#a86a44', '#9c5c3e', '#8f4f38'];
+var SHAKE_T = [0, 3, 0, -3, 0, 2, 0, -2];
+var KUNAME = ['一', '二', '三', '四'];
+
+var cv = document.getElementById('cv');
+var ctx = cv.getContext('2d');
+var FR = 0;   /* 全局帧计数（装饰动画确定性驱动） */
+var S = {
+  ph: 'menu', lv: 1, P: null, sel: -1, steps: 0, over: 0, score: 0, stars: 0,
+  winT: 0, loseT: 0, anim: null, shakeT: 0, shakePeg: -1, flashT: 0, flashMsg: '',
+  cur: 0, unlocked: 1, best: {}, mute: 0
+};
+function pegXs(){ return LVL[S.lv - 1].pegs === 3 ? PEG_X3 : PEG_X4; }
+function diskW(d){ return LVL[S.lv - 1].pegs === 3 ? 34 + 10 * d : 26 + 7 * d; }
+
+/* ---------- 存档（SPEC §4：毒丸拒坏档） ---------- */
+function validBest(b){
+  if (b === null) return null;
+  if (typeof b !== 'object' || b === null || Array.isArray(b)) return null;
+  var k;
+  for (k in b) {
+    if (!Object.prototype.hasOwnProperty.call(b, k)) continue;
+    var lv = k | 0;
+    if (!(lv >= 1 && lv <= 24) || String(lv) !== k) return null;
+    var e = b[k];
+    if (!e || typeof e !== 'object' || Array.isArray(e)) return null;
+    if (!Number.isInteger(e.steps) || e.steps < 1) return null;
+    if (!Number.isInteger(e.stars) || e.stars < 0 || e.stars > 3) return null;
+    if (e.stars !== starsOf(e.steps, LVL[lv - 1].par)) return null;
+  }
+  return b;
+}
+function loadSave(){
+  var b = null, u = 1, m = 0;
+  try {
+    var t = localStorage.getItem('g146_best');
+    if (t) b = validBest(JSON.parse(t));
+  } catch (e) { b = null; }
+  try {
+    var tu = parseInt(localStorage.getItem('g146_unlocked'), 10);
+    if (Number.isInteger(tu) && tu >= 1 && tu <= 24) u = tu;
+  } catch (e) { u = 1; }
+  try {
+    var tm = parseInt(localStorage.getItem('g146_mute'), 10);
+    if (tm === 0 || tm === 1) m = tm;
+  } catch (e) { m = 0; }
+  S.best = b || {};
+  S.unlocked = u;
+  S.mute = m;
+}
+function saveMain(){
+  try {
+    localStorage.setItem('g146_best', JSON.stringify(S.best));
+    localStorage.setItem('g146_unlocked', String(S.unlocked));
+    localStorage.setItem('g146_mute', String(S.mute));
+  } catch (e) {}
+}
+
+/* ---------- 音效 ---------- */
+var AC = null;
+function ensureAC(){
+  if (S.mute) return;
+  try {
+    if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+    if (AC.state === 'suspended') AC.resume();
+  } catch (e) { AC = null; }
+}
+function tone(fq, ms, vol, dly){
+  if (S.mute || !AC) return;
+  try {
+    var t0 = AC.currentTime + (dly || 0);
+    var o = AC.createOscillator(), g = AC.createGain();
+    o.type = 'sine'; o.frequency.value = fq;
+    g.gain.setValueAtTime(vol || 0.08, t0);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + ms / 1000);
+    o.connect(g); g.connect(AC.destination);
+    o.start(t0); o.stop(t0 + ms / 1000 + 0.02);
+  } catch (e) {}
+}
+function snd(kind){
+  if (kind === 'pick') tone(440, 60, 0.06);
+  else if (kind === 'drop') tone(220, 70, 0.07);
+  else if (kind === 'bad') tone(110, 140, 0.09);
+  else if (kind === 'win') { tone(262, 260, 0.09); tone(196, 300, 0.09, 0.28); tone(330, 420, 0.09, 0.6); }
+  else if (kind === 'lose') tone(98, 500, 0.1);
+}
+
+/* ---------- 流程 ---------- */
+function deepInit(L){
+  var r = [], i;
+  for (i = 0; i < L.init.length; i++) r.push(L.init[i].slice());
+  return r;
+}
+function newGame(lv){
+  var L = LVL[lv - 1];
+  S.lv = lv; S.P = deepInit(L);
+  S.sel = -1; S.steps = 0; S.over = 0; S.score = 0; S.stars = 0;
+  S.winT = 0; S.loseT = 0; S.anim = null; S.shakeT = 0; S.flashT = 0;
+  S.cur = L.pegs - 1;
+  S.ph = 'play';
+  document.getElementById('menu').classList.add('hide');
+  document.getElementById('panel').classList.add('hide');
+  updHUD();
+}
+function home(){
+  S.ph = 'menu';
+  var g = document.getElementById('lvGrid');
+  g.innerHTML = '';
+  var i;
+  for (i = 1; i <= 24; i++) {
+    (function(lv){
+      var c = document.createElement('div');
+      c.className = 'cell' + (lv > S.unlocked ? ' lock' : '');
+      var st = '';
+      if (S.best[lv]) {
+        var n = S.best[lv].stars;
+        st = '<span class="st">' + (n >= 3 ? '★★★' : n === 2 ? '★★' : '★') + '</span>';
+      } else if (lv <= S.unlocked) {
+        st = '<span class="st">☆</span>';
+      } else {
+        st = '<span class="st">锁</span>';
+      }
+      c.innerHTML = String(lv) + st;
+      if (lv <= S.unlocked) c.addEventListener('click', function(){ newGame(lv); });
+      g.appendChild(c);
+    })(i);
+  }
+  document.getElementById('menu').classList.remove('hide');
+  document.getElementById('panel').classList.add('hide');
+  updHUD();
+}
+function updHUD(){
+  var L = LVL[S.lv - 1];
+  document.getElementById('hLv').textContent = '第' + S.lv + '关' + (L.v === 'ADJ' || L.v === 'BIA' ? '·邻' : '') + (L.v === 'BI' || L.v === 'BIA' ? '·双' : '');
+  document.getElementById('hStV').textContent = String(S.steps);
+  document.getElementById('hPar').textContent = '参考 ' + L.par;
+  var left = L.cap - S.steps;
+  var hc = document.getElementById('hCap');
+  hc.textContent = '余 ' + left;
+  hc.className = left < 30 ? 'warn' : 'dim';
+}
+function flash(msg){
+  S.flashMsg = msg; S.flashT = 180;
+}
+function startAnim(s, d, disk){
+  var xs = pegXs();
+  var L = LVL[S.lv - 1];
+  var y0 = BASE_Y - DISK_H * S.P[d].length;      /* 落点（已含本匣） */
+  var y1 = BASE_Y - DISK_H * (S.P[d].length - 1);
+  S.anim = { d: d, disk: disk, x0: xs[s], y0: y1, x1: xs[d], y1: y0, t: 0, T: 9 };
+}
+function doWin(){
+  var L = LVL[S.lv - 1];
+  S.over = 1; S.winT = 72;
+  S.stars = starsOf(S.steps, L.par);
+  S.score = scoreOf(S.steps, L.par, L.disks, 1);
+  if (!S.best[S.lv] || S.steps < S.best[S.lv].steps) {
+    S.best[S.lv] = { steps: S.steps, stars: S.stars };
+  }
+  if (S.lv < 24 && S.unlocked < S.lv + 1) S.unlocked = S.lv + 1;
+  saveMain();
+  snd('win');
+  updHUD();
+}
+function doLose(){
+  var L = LVL[S.lv - 1];
+  S.over = 2; S.loseT = 60;
+  S.stars = 0; S.score = 0;
+  snd('lose');
+  updHUD();
+}
+function showPanel(){
+  var L = LVL[S.lv - 1];
+  document.getElementById('pTitle').textContent = S.over === 1 ? '归经功成' : '暮鼓催归';
+  document.getElementById('pStars').textContent = S.over === 1
+    ? (S.stars >= 3 ? '★★★' : S.stars === 2 ? '★★☆' : '★☆☆') : '—';
+  document.getElementById('pInfo').textContent = '步数 ' + S.steps + ' / 参考 ' + L.par +
+    (S.over === 1 ? ' · 得 ' + S.score + ' 分' : ' · 步数已尽');
+  document.getElementById('pNext').style.display = (S.over === 1 && S.lv < 24) ? '' : 'none';
+  document.getElementById('panel').classList.remove('hide');
+}
+function shake(k, msg){
+  S.shakeT = 8; S.shakePeg = k;
+  flash(msg);
+  snd('bad');
+}
+function tapPeg(k){
+  if (S.ph !== 'play' || S.over) return;
+  var L = LVL[S.lv - 1];
+  if (S.sel < 0) {
+    if (S.P[k].length) { S.sel = k; snd('pick'); }
+    else shake(k, '此架无匣');
+    return;
+  }
+  if (S.sel === k) { S.sel = -1; return; }
+  if (canMove(S.P, S.sel, k, L.v)) {
+    var disk = S.P[S.sel][S.P[S.sel].length - 1];
+    S.P = doMove(S.P, S.sel, k);       /* 单源 doMove（演出与机器人同一函数） */
+    S.steps++;
+    startAnim(S.sel, k, disk);
+    S.sel = -1;
+    snd('drop');
+    if (isWin(S.P, L.v, L.disks)) doWin();       /* 判胜先于判负（SPEC §9.1） */
+    else if (S.steps >= L.cap) doLose();
+    updHUD();
+  } else {
+    var big = S.P[S.sel][S.P[S.sel].length - 1];
+    var small = S.P[k].length ? S.P[k][S.P[k].length - 1] : null;
+    shake(k, vAdj(L.v) && Math.abs(S.sel - k) !== 1 ? '只挪邻架' :
+      (small !== null && small < big ? '大匣不压小匣' : '不可如此挪'));
+  }
+}
+function keyAct(code){
+  if (S.ph !== 'play') return;
+  var L = LVL[S.lv - 1];
+  if (code === 'ArrowLeft' || code === 'ArrowUp') {
+    S.cur = (S.cur + L.pegs - 1) % L.pegs;
+  } else if (code === 'ArrowRight' || code === 'ArrowDown') {
+    S.cur = (S.cur + 1) % L.pegs;
+  } else if (code === 'KeyA' || code === 'Space' || code === 'Enter') {
+    tapPeg(S.cur);
+  } else if (code === 'Digit1' || code === 'Digit2' || code === 'Digit3' || code === 'Digit4') {
+    var k = code.charCodeAt(code.length - 1) - 49;
+    if (k < L.pegs) tapPeg(k);
+  }
+}
+
+/* ---------- 主循环（rAF 时间戳累加器 60Hz 归一，g140-M4 制式） ---------- */
+var lastTs = 0, acc = 0;
+function step(){
+  FR++;
+  if (S.anim) { S.anim.t++; if (S.anim.t >= S.anim.T) S.anim = null; }
+  if (S.shakeT > 0) S.shakeT--;
+  if (S.flashT > 0) S.flashT--;
+  if (S.over === 1 && S.winT > 0) { S.winT--; if (!S.winT) showPanel(); }
+  if (S.over === 2 && S.loseT > 0) { S.loseT--; if (!S.loseT) showPanel(); }
+}
+function mainLoop(ts){
+  requestAnimationFrame(mainLoop);
+  if (!lastTs) lastTs = ts;
+  var dt = ts - lastTs; lastTs = ts;
+  if (dt > 200) dt = 200;
+  acc += dt;
+  while (acc >= 16.6667) { step(); acc -= 16.6667; }
+  draw();
+}
+
+/* ---------- 渲染 ---------- */
+function rrect(x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.lineTo(x + w, y + r);
+  ctx.lineTo(x + w, y + h);
+  ctx.lineTo(x, y + h);
+  ctx.lineTo(x, y + r);
+  ctx.closePath();
+}
+function drawDisk(x, y, d, bi){
+  var w = diskW(d);
+  var body, edge;
+  if (bi === 1) { body = '#3d2e26'; edge = '#241a14'; }
+  else if (bi === 2) { body = '#e4d6b8'; edge = '#c9b995'; }
+  else { body = DISK_COLS[d - 1]; edge = '#5a4230'; }
+  ctx.fillStyle = body;
+  rrect(x - w / 2, y, w, DISK_H - 3, 4); ctx.fill();
+  ctx.strokeStyle = edge; ctx.lineWidth = 1.5;
+  rrect(x - w / 2, y, w, DISK_H - 3, 4); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,244,214,0.22)';
+  ctx.fillRect(x - w / 2 + 4, y + 3, w - 8, 3);
+  if (bi === 1) {
+    ctx.fillStyle = '#c9a86a';
+    ctx.fillRect(x - 3, y + 4, 6, DISK_H - 11);
+  } else if (bi === 2) {
+    ctx.strokeStyle = 'rgba(90,66,48,0.55)'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x - w / 2 + 8, y + DISK_H - 9);
+    ctx.lineTo(x + w / 2 - 8, y + DISK_H - 9);
+    ctx.stroke();
+  }
+}
+function drawPegs(){
+  var xs = pegXs(), L = LVL[S.lv - 1], i;
+  for (i = 0; i < xs.length; i++) {
+    var x = xs[i];
+    ctx.fillStyle = '#4a3226';
+    ctx.fillRect(x - 4, BASE_Y - POST_H, 8, POST_H);
+    ctx.fillStyle = '#5a4230';
+    var hw = L.pegs === 3 ? 56 : 41;
+    ctx.fillRect(x - hw, BASE_Y, hw * 2, 10);
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.fillRect(x - hw, BASE_Y + 8, hw * 2, 3);
+    /* 幡：目标架金幡「藏」；BI 系 1 号架素幡「素」 */
+    var fy = BASE_Y - POST_H - 26;
+    if (i === xs.length - 1) {
+      ctx.strokeStyle = '#8a7455'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x, fy + 22); ctx.lineTo(x, fy); ctx.stroke();
+      ctx.fillStyle = '#d8b87e';
+      ctx.beginPath();
+      ctx.moveTo(x, fy);
+      ctx.lineTo(x + 26, fy + 5);
+      ctx.lineTo(x, fy + 14);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#4a3226'; ctx.font = 'bold 10px sans-serif';
+      ctx.fillText('藏', x + 6, fy + 11);
+    } else if ((L.v === 'BI' || L.v === 'BIA') && i === 1) {
+      ctx.strokeStyle = '#8a7455'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x, fy + 22); ctx.lineTo(x, fy); ctx.stroke();
+      ctx.fillStyle = '#e4d6b8';
+      ctx.beginPath();
+      ctx.moveTo(x, fy);
+      ctx.lineTo(x + 24, fy + 5);
+      ctx.lineTo(x, fy + 13);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#4a3226'; ctx.font = 'bold 10px sans-serif';
+      ctx.fillText('素', x + 5, fy + 10);
+    }
+  }
+  /* 键盘光标三角 */
+  if (S.ph === 'play' && !S.over) {
+    var cx = xs[Math.min(S.cur, xs.length - 1)];
+    ctx.fillStyle = '#e8b96a';
+    ctx.beginPath();
+    ctx.moveTo(cx - 7, BASE_Y + 22);
+    ctx.lineTo(cx + 7, BASE_Y + 22);
+    ctx.lineTo(cx, BASE_Y + 13);
+    ctx.closePath(); ctx.fill();
+  }
+}
+function drawStacks(){
+  if (!S.P) return;   /* 菜单态无局面（真 Chrome 冒烟抓出：rAF 在菜单期即跑 draw） */
+  var L = LVL[S.lv - 1], xs = pegXs(), i, j;
+  var isBI = (L.v === 'BI' || L.v === 'BIA');
+  for (i = 0; i < xs.length; i++) {
+    var off = (S.shakeT > 0 && S.shakePeg === i) ? SHAKE_T[(8 - S.shakeT) % 8] : 0;
+    var peg = S.P[i];
+    for (j = 0; j < peg.length; j++) {
+      var d = peg[j];
+      /* 飞行中的匣（动画目标架顶）暂不画在栈内 */
+      if (S.anim && S.anim.d === i && j === peg.length - 1) continue;
+      var isPick = (S.sel === i && j === peg.length - 1);
+      var y = BASE_Y - DISK_H * (j + 1) - (isPick ? 6 : 0);
+      drawDisk(xs[i] + off, y, d, isBI ? (d % 2 === 1 ? 1 : 2) : 0);
+      if (isPick) {
+        ctx.strokeStyle = '#f0d9a0'; ctx.lineWidth = 2;
+        var w = diskW(d);
+        rrect(xs[i] + off - w / 2, y, w, DISK_H - 3, 4); ctx.stroke();
+      }
+    }
+  }
+  if (S.anim) {
+    var a = S.anim, t = a.t / a.T;
+    var x = a.x0 + (a.x1 - a.x0) * t;
+    var ypeak = -52 * (1 - Math.abs(2 * t - 1));
+    var y = a.y0 + (a.y1 - a.y0) * t + ypeak;
+    drawDisk(x, y, a.disk, isBI ? (a.disk % 2 === 1 ? 1 : 2) : 0);
+  }
+}
+function drawBG(){
+  var g = ctx.createLinearGradient(0, 0, 0, 780);
+  g.addColorStop(0, '#2c2340');
+  g.addColorStop(0.45, '#6b4a3a');
+  g.addColorStop(1, '#1e1628');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 390, 780);
+  /* 远景雁塔剪影（右侧七层） */
+  ctx.fillStyle = 'rgba(30,20,40,0.55)';
+  var tw = [86, 74, 62, 50, 40, 30, 20], ty = 190, i;
+  var tx = 330;
+  for (i = 0; i < 7; i++) {
+    ctx.fillRect(tx - tw[i] / 2, ty + i * 38, tw[i], 30);
+    ctx.fillStyle = 'rgba(30,20,40,0.5)';
+    ctx.fillRect(tx - tw[i] / 2 - 4, ty + i * 38 + 28, tw[i] + 8, 4);
+    ctx.fillStyle = 'rgba(30,20,40,0.55)';
+  }
+  ctx.fillRect(tx - 2, ty - 34, 4, 34);
+  /* 地面 */
+  ctx.fillStyle = 'rgba(18,12,24,0.65)';
+  ctx.fillRect(0, 700, 390, 80);
+  /* 飞雁三两（确定性横移装饰） */
+  ctx.strokeStyle = 'rgba(40,28,48,0.8)'; ctx.lineWidth = 2;
+  var gs = [[120, 0.3, 0], [156, 0.22, 170], [204, 0.35, 90]], k;
+  for (k = 0; k < 3; k++) {
+    var gx = 420 - ((FR * gs[k][1] + gs[k][2]) % 520);
+    var gy = gs[k][0];
+    var flap = (FR % 40 < 20) ? 3 : 6;
+    ctx.beginPath();
+    ctx.moveTo(gx - 7, gy);
+    ctx.lineTo(gx, gy - flap);
+    ctx.lineTo(gx + 7, gy);
+    ctx.stroke();
+  }
+}
+function drawFlash(){
+  if (S.flashT <= 0) return;
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, S.flashT / 40);
+  ctx.fillStyle = 'rgba(30,20,30,0.82)';
+  var msg = S.flashMsg;
+  ctx.font = '13px "Microsoft YaHei",sans-serif';
+  var w = ctx.measureText(msg).width + 28;
+  rrect(195 - w / 2, 640, w, 30, 8); ctx.fill();
+  ctx.fillStyle = '#e8d9b0';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(msg, 195, 655);
+  ctx.restore();
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+}
+function drawWinFx(){
+  if (S.over === 1 && S.winT > 0) {
+    var p = (72 - S.winT) / 72;
+    ctx.strokeStyle = 'rgba(232,201,106,' + (0.55 * (1 - p)) + ')';
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(195, 690, 40 + p * 160, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(195, 690, 20 + p * 90, 0, Math.PI * 2); ctx.stroke();
+  }
+  if (S.over === 2 && S.loseT > 0) {
+    var q = (60 - S.loseT) / 60;
+    ctx.fillStyle = 'rgba(120,40,30,' + (0.28 * (1 - q)) + ')';
+    ctx.fillRect(0, 0, 390, 780);
+  }
+}
+function draw(){
+  ctx.clearRect(0, 0, 390, 780);
+  drawBG();
+  drawPegs();
+  drawStacks();
+  drawWinFx();
+  drawFlash();
+}
+
+/* ---------- 接线 ---------- */
+function boot(){
+  loadSave();
+  document.getElementById('btnStart').addEventListener('click', function(){
+    ensureAC();
+    newGame(Math.min(S.unlocked, 24));
+  });
+  document.getElementById('btnLvs').addEventListener('click', function(){
+    if (S.over === 1 && S.winT > 0) return;
+    if (S.over === 2 && S.loseT > 0) return;
+    home();
+  });
+  document.getElementById('btnRe').addEventListener('click', function(){
+    if (S.over === 1 && S.winT > 0) return;
+    if (S.over === 2 && S.loseT > 0) return;
+    newGame(S.lv);
+  });
+  document.getElementById('btnHelp').addEventListener('click', function(){
+    var L = LVL[S.lv - 1];
+    flash((L.v === 'BI' || L.v === 'BIA') ? '玄匣归藏经架·素匣归素笈架，大匣不压小匣' :
+      (vAdj(L.v) ? '只能在相邻两架间挪匣，大匣不压小匣' : '点架拾起顶匣，再点架放下；大匣不压小匣'));
+  });
+  document.getElementById('btnMute').addEventListener('click', function(){
+    S.mute = S.mute ? 0 : 1;
+    this.textContent = S.mute ? '×' : '♪';
+    saveMain();
+    if (!S.mute) { ensureAC(); tone(440, 60, 0.06); }
+  });
+  document.getElementById('btnMute').textContent = S.mute ? '×' : '♪';
+  document.getElementById('pNext').addEventListener('click', function(){
+    if (S.lv < 24) newGame(S.lv + 1);
+  });
+  document.getElementById('pAgain').addEventListener('click', function(){ newGame(S.lv); });
+  document.getElementById('pHome').addEventListener('click', function(){ home(); });
+  document.getElementById('menu').addEventListener('pointerdown', function(e){ e.stopPropagation(); });
+  document.getElementById('panel').addEventListener('pointerdown', function(e){ e.stopPropagation(); });
+  cv.addEventListener('pointerdown', function(e){
+    ensureAC();
+    if (S.ph !== 'play') return;
+    var r = cv.getBoundingClientRect();
+    var x = (e.clientX - r.left) * 390 / r.width;
+    var y = (e.clientY - r.top) * 780 / r.height;
+    var xs = pegXs(), i, hit = -1;
+    for (i = 0; i < xs.length; i++) {
+      var hw = LVL[S.lv - 1].pegs === 3 ? 60 : 45;
+      if (Math.abs(x - xs[i]) <= hw && y >= BASE_Y - POST_H - 40 && y <= BASE_Y + 24) { hit = i; break; }
+    }
+    if (hit >= 0) tapPeg(hit);
+  });
+  document.addEventListener('keydown', function(e){
+    ensureAC();
+    keyAct(e.code);
+    if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space'].indexOf(e.code) >= 0) e.preventDefault();
+  });
+  home();
+  requestAnimationFrame(mainLoop);
+}
+document.addEventListener('DOMContentLoaded', boot);
+
+
+</script>
+</body>
+</html>
