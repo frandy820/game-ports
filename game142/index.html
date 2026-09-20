@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>竹枧引泉</title>
+<style>
+html,body{margin:0;padding:0;width:100%;height:100%;background:#efe6d0;overflow:hidden;font-family:"Songti SC","STSong","SimSun",serif;user-select:none;-webkit-user-select:none}
+#app{position:relative;width:390px;height:844px;margin:0 auto;background:linear-gradient(180deg,#f2ead8 0%,#ece0c6 55%,#e6d8ba 100%)}
+#hud{position:absolute;top:0;left:0;width:100%;height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;color:#5a4a32;z-index:5;box-sizing:border-box}
+#hInfo{font-size:15px;letter-spacing:1px}
+#hRight{text-align:right;font-size:12px;letter-spacing:1px}
+#hVv{color:#2a7a6a;font-size:14px}
+#hSub{color:#8a7a5a;margin-top:2px}
+#cv{position:absolute;top:64px;left:0}
+.btnrow{position:absolute;bottom:0;left:0;width:100%;height:64px;display:flex;gap:8px;align-items:center;justify-content:center;z-index:5}
+.hbtn{min-width:62px;padding:10px 0;border:1px solid #b09a6a;border-radius:10px;background:#f6efdc;color:#5a4a32;font-size:15px;text-align:center;cursor:pointer;letter-spacing:1px}
+.hbtn.on{background:#dcead8;border-color:#5a8a5a}
+.lay{position:absolute;inset:0;background:rgba(240,232,210,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:20}
+.mtitle{font-size:34px;color:#4a3a22;letter-spacing:12px;margin:6px 0 2px;text-indent:12px}
+.msub{font-size:12px;color:#8a7a5a;letter-spacing:3px;margin-bottom:26px}
+.mbtn{min-width:200px;padding:11px 0;margin:7px;border:1px solid #b09a6a;border-radius:10px;background:#f6efdc;color:#5a4a32;font-size:16px;text-align:center;cursor:pointer;letter-spacing:6px;text-indent:6px}
+.mbtn:active{background:#e2d6b8}
+.mbtn.hide{display:none}
+.mnote{font-size:10px;color:#a89878;margin-top:14px;letter-spacing:1px}
+.otitle{font-size:26px;color:#2a6a5a;margin-bottom:8px;letter-spacing:8px;text-indent:8px}
+.otitle.bad{color:#b85a3a}
+.ostat{font-size:14px;color:#5a4a32;margin:4px;letter-spacing:2px}
+.stars{font-size:26px;color:#c89a3a;letter-spacing:6px;margin:8px 0}
+.lvwrap{width:330px;max-height:430px;overflow-y:auto}
+.lvrow{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.lvcell{width:58px;height:46px;border:1px solid #b09a6a;border-radius:8px;background:#f6efdc;color:#5a4a32;font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.lvcell.lock{opacity:.35}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud"><div id="hInfo">竹枧引泉</div>
+    <div id="hRight"><div id="hVv">水 21</div><div id="hSub">漏 0 · 步 0</div></div>
+  </div>
+  <canvas id="cv" width="390" height="780"></canvas>
+  <div class="btnrow">
+    <div class="hbtn" id="bO">开 闸</div>
+    <div class="hbtn" id="bP" style="min-width:48px">憩</div>
+  </div>
+  <div class="lay hide" id="menu">
+    <div class="mtitle">竹 枧 引 泉</div>
+    <div class="msub">山家引泉 · 架枧接水注梯田</div>
+    <div class="mbtn" id="mGo">引 泉</div>
+    <div class="mbtn" id="mLvs">选 关</div>
+    <div class="mbtn" id="mHelp">枧 法</div>
+    <div class="mnote">转竹接槽 · 断口漏洒 · 泉注田口</div>
+  </div>
+  <div class="lay hide" id="over">
+    <div class="otitle">泉 注 田 口</div>
+    <div class="stars" id="oStars"></div>
+    <div class="ostat" id="oScore"></div>
+    <div class="ostat" id="oBest"></div>
+    <div class="mbtn" id="bNext">下一关</div>
+    <div class="mbtn" id="bAgain">再引此泉</div>
+    <div class="mbtn" id="bHome">回 山 门</div>
+  </div>
+  <div class="lay hide" id="dead">
+    <div class="otitle bad">泉 脉 断 竭</div>
+    <div class="ostat" id="dInfo"></div>
+    <div class="mbtn" id="dAgain">再引此泉</div>
+    <div class="mbtn" id="dHome">回 山 门</div>
+  </div>
+  <div class="lay hide" id="pause">
+    <div class="otitle">枧 间 小 憩</div>
+    <div class="mbtn" id="pRes">续 引</div>
+    <div class="mbtn" id="pRestart">重 引</div>
+    <div class="mbtn" id="pSnd">音 效</div>
+    <div class="mbtn" id="pHome">回 山 门</div>
+  </div>
+  <div class="lay hide" id="help">
+    <div class="otitle">枧 法</div>
+    <div class="ostat" style="font-size:12px;line-height:2.1;text-align:left;max-width:290px">点竹枧顺转一档 · 对口相接<br>岩缝泉眼未开闸前水不流 · 点泉眼放水<br>断口漏洒耗水 · 水尽泉竭则败<br>竹节闭槽灌满即止 · 不漏<br>泉水漫入田口即过关 · 零漏且步数省得三星</div>
+    <div class="mbtn" id="hBack">回</div>
+  </div>
+  <div class="lay hide" id="lvbar">
+    <div class="otitle">选 关</div>
+    <div class="lvwrap"><div class="lvrow" id="lvrow"></div></div>
+    <div class="mbtn" id="lBack">回</div>
+  </div>
+</div>
+<script>
+'use strict';
+/* ============ g142 竹枧引泉 · 旋转管道接通（Pipes 族；与 sim142.py 逐位同构） ============ */
+var LVDATA=[{"lv":1,"seed":149919,"par":12,"V":21,"used":13,"hw":4,"att":0},{"lv":2,"seed":157838,"par":11,"V":26,"used":16,"hw":4,"att":0},{"lv":3,"seed":165757,"par":18,"V":26,"used":16,"hw":4,"att":0},{"lv":4,"seed":278405,"par":16,"V":23,"used":14,"hw":4,"att":1},{"lv":5,"seed":181595,"par":17,"V":26,"used":16,"hw":4,"att":0},{"lv":6,"seed":189514,"par":12,"V":23,"used":14,"hw":4,"att":0},{"lv":7,"seed":197433,"par":8,"V":21,"used":13,"hw":4,"att":0},{"lv":8,"seed":205352,"par":4,"V":24,"used":15,"hw":4,"att":0},{"lv":9,"seed":318000,"par":39,"V":39,"used":30,"hw":4,"att":1},{"lv":10,"seed":221190,"par":17,"V":36,"used":27,"hw":4,"att":0},{"lv":11,"seed":229109,"par":27,"V":39,"used":30,"hw":4,"att":0},{"lv":12,"seed":237028,"par":33,"V":43,"used":33,"hw":4,"att":0},{"lv":13,"seed":244947,"par":35,"V":43,"used":33,"hw":4,"att":0},{"lv":14,"seed":357595,"par":34,"V":42,"used":32,"hw":4,"att":1},{"lv":15,"seed":365514,"par":37,"V":39,"used":30,"hw":4,"att":1},{"lv":16,"seed":687620,"par":38,"V":37,"used":28,"hw":4,"att":4},{"lv":17,"seed":695539,"par":42,"V":51,"used":44,"hw":4,"att":4},{"lv":18,"seed":284542,"par":37,"V":51,"used":44,"hw":4,"att":0},{"lv":19,"seed":292461,"par":54,"V":65,"used":56,"hw":4,"att":0},{"lv":20,"seed":1242941,"par":56,"V":56,"used":48,"hw":4,"att":9},{"lv":21,"seed":413028,"par":52,"V":55,"used":47,"hw":4,"att":1},{"lv":22,"seed":839863,"par":50,"V":53,"used":46,"hw":4,"att":5},{"lv":23,"seed":428866,"par":51,"V":55,"used":47,"hw":4,"att":1},{"lv":24,"seed":332056,"par":36,"V":52,"used":45,"hw":4,"att":0}];
+var W=390,H=780;
+var M214=2147483647,LCGX=48271;
+function LCG(x){this.x=((x%M214)+M214)%M214||M214-1}   /* 种子归一与 py 同构（含 0/负种子域） */
+LCG.prototype.n=function(){this.x=this.x*LCGX%M214;return this.x};
+LCG.prototype.u=function(m){return this.n()%m};
+
+/* 方向位 N=1 E=2 S=4 W=8；顺时针 rot1 */
+var BITS=[1,2,4,8];
+var DX={1:0,2:1,4:0,8:-1},DY={1:-1,2:0,4:1,8:0};
+function opp(d){return d===1?4:d===4?1:d===2?8:2}
+function rot1(m){return((m<<1)|(m>>3))&15}
+function rotm(m,r){r=r%4;while(r-->0)m=rot1(m);return m}
+var BASE=[5,3,11,1];          /* I 竖 / L NE / T 缺S / CAP N 单口 */
+var PERIOD=[2,4,4,4];
+var MASK2TR={};
+(function(){for(var t=0;t<3;t++)for(var r=0;r<4;r++){var m=rotm(BASE[t],r);if(!(m in MASK2TR))MASK2TR[m]=[t,r];}})();
+var BANDS=[ /* NC,NR,T,路径长段,假支段,V裕量%,每层横步段 */
+  [8,10,54,[11,18],[0,0],60,[0,1]],
+  [9,11,42,[20,28],[2,4],30,[0,2]],
+  [9,12,30,[31,44],[4,6],15,[1,4]]
+];
+function bandOf(lv){return lv<=8?0:(lv<=16?1:2)}
+var K_ROCK=1,K_SRC=2,K_SNK=3,K_PIPE=0;
+
+/* ============ 谱面生成 mk（与 sim142.mk 逐位同构：LCG 消费序逐一对应） ============ */
+function mk(lvSeed,band){
+  var B=BANDS[band],NC=B[0],NR=B[1],T=B[2],plen=B[3],nfakes=B[4],vmarg=B[5],parrange=B[6];
+  var g=new LCG(lvSeed);
+  var src_y=0,snk_y=NR-1;
+  var sx=2+g.u(NC-4),skx=2+g.u(NC-4);
+  /* 解路径：逐层蛇形（600 重掷） */
+  var TLO=parrange[0],THI=parrange[1];
+  var path=null,visited=null;
+  for(var _att=0;_att<600;_att++){
+    path=[[sx,src_y]];visited=new Map();visited.set(sx+','+src_y,1);
+    var cur_x=sx,cur_y=src_y;
+    var hdir=skx>=sx?1:-1;
+    var ok=true;
+    while(cur_y<snk_y){
+      if(cur_y<snk_y-1){
+        var take=TLO+g.u(THI-TLO+1);
+        var moved=0;
+        while(moved<take){
+          var nx2=cur_x+hdir;
+          if(!(0<=nx2&&nx2<NC)||visited.has(nx2+','+cur_y))break;
+          cur_x=nx2;visited.set(cur_x+','+cur_y,1);path.push([cur_x,cur_y]);moved++;
+        }
+        if(moved<take&&g.u(2)){
+          hdir=-hdir;
+          while(moved<take){
+            var nx3=cur_x+hdir;
+            if(!(0<=nx3&&nx3<NC)||visited.has(nx3+','+cur_y))break;
+            cur_x=nx3;visited.set(cur_x+','+cur_y,1);path.push([cur_x,cur_y]);moved++;
+          }
+        }
+      }else{
+        while(cur_x!==skx){
+          var nx4=cur_x+(skx>cur_x?1:-1);
+          if(!(0<=nx4&&nx4<NC)||visited.has(nx4+','+cur_y))break;
+          cur_x=nx4;visited.set(cur_x+','+cur_y,1);path.push([cur_x,cur_y]);
+        }
+      }
+      var ny=cur_y+1;
+      if(visited.has(cur_x+','+ny)){ok=false;break}
+      cur_y=ny;visited.set(cur_x+','+cur_y,1);path.push([cur_x,cur_y]);
+    }
+    if(ok&&cur_x===skx&&plen[0]<=path.length&&path.length<=plen[1]&&path[path.length-1][0]===skx&&path[path.length-1][1]===snk_y)break;
+  }
+  if(!path)throw new Error('path gen fail');
+  /* 沿途管型（need=Map 保插入序） */
+  var need=new Map();
+  var pv=path;
+  for(var i=1;i<pv.length-1;i++){
+    var fx=pv[i-1][0],fy=pv[i-1][1],cx=pv[i][0],cy=pv[i][1],nx=pv[i+1][0],ny2=pv[i+1][1];
+    var din=[cx-fx,cy-fy],dout=[nx-cx,ny2-cy];
+    var bd2=0;
+    for(var di=0;di<4;di++){var d=BITS[di];
+      if(DX[d]===-din[0]&&DY[d]===-din[1])bd2|=d;
+      if(DX[d]===dout[0]&&DY[d]===dout[1])bd2|=d;
+    }
+    need.set(cx+','+cy,bd2);
+  }
+  /* 假支锚点 */
+  var nfk=nfakes[1]>nfakes[0]?nfakes[0]+g.u(nfakes[1]-nfakes[0]+1):0;
+  var anchors=[];
+  var cand=[];for(var c0=2;c0<pv.length-2;c0++)cand.push(c0);
+  for(var a0=0;a0<nfk;a0++){
+    if(!cand.length)break;
+    var i2=cand[g.u(cand.length)];
+    var nc=[];for(var c1=0;c1<cand.length;c1++)if(Math.abs(cand[c1]-i2)>1)nc.push(cand[c1]);
+    cand=nc;
+    anchors.push(i2);
+  }
+  var branches=[];   /* [i,[格...]] */
+  var caps=new Map();
+  for(var a1=0;a1<anchors.length;a1++){
+    var i3=anchors[a1];
+    var cx2=pv[i3][0],cy2=pv[i3][1];
+    var pin=pv[i3-1],pout=pv[i3+1];
+    var d1=[cx2-pin[0],cy2-pin[1]],d2=[pout[0]-cx2,pout[1]-cy2];
+    var sdir=null;
+    for(var di2=0;di2<4;di2++){var d3=BITS[di2];
+      var v=[DX[d3],DY[d3]];
+      if(v[0]===d1[0]&&v[1]===d1[1])continue;
+      if(v[0]===d2[0]&&v[1]===d2[1])continue;
+      if(visited.has((cx2+DX[d3])+','+(cy2+DY[d3])))continue;
+      sdir=d3;break;
+    }
+    if(sdir===null)continue;
+    need.set(cx2+','+cy2,need.get(cx2+','+cy2)|sdir);
+    var L=2+g.u(3);
+    var bx=cx2,by=cy2,br=sdir;
+    var chain=[];
+    for(var s0=0;s0<L;s0++){
+      bx+=DX[br];by+=DY[br];
+      if(!(0<=bx&&bx<NC&&0<=by&&by<NR)||visited.has(bx+','+by))break;
+      chain.push([bx,by]);visited.set(bx+','+by,1);
+    }
+    if(chain.length<2){        /* 支太短舍去：回滚锚点支口 */
+      for(var s1=0;s1<chain.length;s1++)visited.delete(chain[s1][0]+','+chain[s1][1]);
+      chain=[];
+      need.set(cx2+','+cy2,need.get(cx2+','+cy2)&~sdir);
+    }else{
+      if(g.u(2)){              /* 末端改向一次 */
+        var td=BITS[g.u(4)];
+        while(td===br||td===opp(br))td=BITS[g.u(4)];
+        var ex=chain[chain.length-1][0]+DX[td],ey=chain[chain.length-1][1]+DY[td];
+        if(0<=ex&&ex<NC&&0<=ey&&ey<NR&&!visited.has(ex+','+ey)){
+          chain.push([ex,ey]);visited.set(ex+','+ey,1);
+        }
+      }
+      branches.push([i3,chain]);
+      var prev_d=sdir;
+      var DIRV={'0,-1':1,'1,0':2,'0,1':4,'-1,0':8};
+      for(var j2=0;j2<chain.length;j2++){
+        var bx2=chain[j2][0],by2=chain[j2][1];
+        var nd=null;
+        if(j2+1<chain.length){var dv=(chain[j2+1][0]-bx2)+','+(chain[j2+1][1]-by2);nd=DIRV[dv]||null}
+        if(nd===null){
+          var capd=prev_d;
+          var r_cap={1:0,2:1,4:2,8:3}[opp(capd)];
+          caps.set(bx2+','+by2,[3,r_cap]);
+        }else{
+          need.set(bx2+','+by2,opp(prev_d)|nd);
+          prev_d=nd;
+        }
+      }
+    }
+  }
+  /* 定 (t,r) */
+  var sol=new Map();
+  need.forEach(function(m,k){sol.set(k,MASK2TR[m].slice())});
+  caps.forEach(function(v,k){sol.set(k,v.slice())});
+  /* 岩：余格随机 */
+  var rocksSet=new Map();
+  var free=[];
+  for(var x0=0;x0<NC;x0++)for(var y0=0;y0<NR;y0++){
+    var kk=x0+','+y0;
+    if(!visited.has(kk)&&!(x0===skx&&y0===snk_y)
+      &&!(Math.abs(x0-sx)+Math.abs(y0-src_y)<=1)&&!(Math.abs(x0-skx)+Math.abs(y0-snk_y)<=1))free.push([x0,y0]);
+  }
+  var ntgt=Math.trunc(NC*NR*(0.08+g.u(8)/100));
+  var nrocks=Math.min(ntgt,free.length);
+  for(var r0=0;r0<nrocks;r0++){
+    var pick=free[g.u(free.length)];
+    if(!visited.has(pick[0]+','+pick[1])&&!(pick[0]===skx&&pick[1]===snk_y))rocksSet.set(pick[0]+','+pick[1],1);
+  }
+  /* 其余空格随机管（setdefault：求值序=先 u10 后 u4，已存在则弃值但消费已发生） */
+  for(var f0=0;f0<free.length;f0++){
+    var fk=free[f0][0]+','+free[f0][1];
+    if(rocksSet.has(fk))continue;
+    var u=g.u(10);
+    var t2=u<5?0:(u<8?1:2);
+    var rr=g.u(4);
+    if(!sol.has(fk))sol.set(fk,[t2,rr]);
+  }
+  var DIRV2={'0,-1':1,'1,0':2,'0,1':4,'-1,0':8};
+  var sd=DIRV2[(path[1][0]-sx)+','+(path[1][1]-src_y)];
+  var skd=opp(DIRV2[(path[path.length-1][0]-path[path.length-2][0])+','+(path[path.length-1][1]-path[path.length-2][1])]);
+  /* 打乱（need/caps 格；par 记账 (PERIOD-add)%PERIOD / I 记 add） */
+  var par=0;
+  var state=new Map();
+  sol.forEach(function(tr,k){
+    var t3=tr[0],r0b=tr[1];
+    if(need.has(k)||caps.has(k)){
+      var add=g.u(PERIOD[t3]);
+      par+=PERIOD[t3]===4?(PERIOD[t3]-add)%PERIOD[t3]:add;
+      state.set(k,[t3,(r0b+add)%4]);
+    }else{
+      state.set(k,[t3,r0b]);
+    }
+  });
+  /* used/V */
+  var used=path.length;
+  for(var b0=0;b0<branches.length;b0++)used+=branches[b0][1].length;
+  var V=Math.trunc(used*(1+vmarg/100)+0.999999);
+  /* 输出（键排序与 py sorted 一致：x 优先） */
+  var st=[],sl=[],rk=[],pp=[],bb=[];
+  state.forEach(function(v,k){var p=k.split(',');st.push([+p[0],+p[1],v[0],v[1]])});
+  sol.forEach(function(v,k){var p=k.split(',');sl.push([+p[0],+p[1],v[0],v[1]])});
+  rocksSet.forEach(function(v,k){var p=k.split(',');rk.push([+p[0],+p[1]])});
+  for(var p0=0;p0<path.length;p0++)pp.push(path[p0].slice());
+  for(var b1=0;b1<branches.length;b1++){var ch=[];for(var c2=0;c2<branches[b1][1].length;c2++)ch.push(branches[b1][1][c2].slice());bb.push([branches[b1][0],ch])}
+  st.sort(function(a,b){return a[0]-b[0]||a[1]-b[1]});
+  sl.sort(function(a,b){return a[0]-b[0]||a[1]-b[1]});
+  rk.sort(function(a,b){return a[0]-b[0]||a[1]-b[1]});
+  return {NC:NC,NR:NR,T:T,V:V,par:par,sx:sx,sy:src_y,skx:skx,sky:snk_y,sd:sd,skd:skd,
+    rocks:rk,state:st,sol:sl,path:pp,branches:bb,used:used};
+}
+
+/* ============ 引擎（与 sim142 逐位同构） ============ */
+function gridOf(bd){
+  var g=new Map();
+  for(var i=0;i<bd.state.length;i++){var s=bd.state[i];g.set(s[0]+','+s[1],[K_PIPE,s[2],s[3]])}
+  for(var j=0;j<bd.rocks.length;j++)g.set(bd.rocks[j][0]+','+bd.rocks[j][1],[K_ROCK,0,0]);
+  g.set(bd.sx+','+bd.sy,[K_SRC,bd.sd,0]);
+  g.set(bd.skx+','+bd.sky,[K_SNK,bd.skd,0]);
+  return g;
+}
+function eff(g,x,y){
+  var c=g.get(x+','+y);
+  if(c[0]===K_PIPE)return rotm(BASE[c[1]],c[2]);
+  return c[1];
+}
+function newGame(bd){
+  var g=gridOf(bd);
+  return {NC:bd.NC,NR:bd.NR,T:bd.T,V0:bd.V,V:bd.V,grid:g,skx:bd.skx,sky:bd.sky,sx:bd.sx,sy:bd.sy,
+    sd:bd.sd,skd:bd.skd,
+    wet:new Map().set(bd.sx+','+bd.sy,1),
+    heads:[[bd.sx,bd.sy,0,0]],
+    leaks:0,steps:0,over:0,frames:0,tick:bd.T,
+    src_dead:false,opened:false};
+}
+function waterTick(S){
+  if(S.over||!S.opened)return;
+  var new_heads=[];
+  var snap=S.heads.slice();
+  for(var hi=0;hi<snap.length;hi++){
+    var h=snap[hi];
+    var cx=h[0],cy=h[1],entry=h[2];
+    var exits=(eff(S.grid,cx,cy)&~entry&~h[3])&15;
+    for(var di=0;di<4;di++){
+      var d=BITS[di];
+      if(!(exits&d))continue;
+      var nx=cx+DX[d],ny=cy+DY[d];
+      var tgt=S.grid.get(nx+','+ny);
+      if(tgt===undefined||tgt[0]===K_ROCK){
+        S.leaks++;S.V--;h[3]|=d;
+        if(cx===S.sx&&cy===S.sy)S.src_dead=true;
+        continue;
+      }
+      if(tgt[0]===K_SNK){
+        if(tgt[1]&opp(d)){S.V--;S.over=1;return}
+        continue;
+      }
+      if(S.wet.has(nx+','+ny)){
+        if(cx===S.sx&&cy===S.sy){h[3]|=d;continue}
+        S.leaks++;S.V--;h[3]|=d;
+        continue;
+      }
+      if(eff(S.grid,nx,ny)&opp(d)){
+        S.wet.set(nx+','+ny,1);S.V--;h[3]|=d;
+        new_heads.push([nx,ny,opp(d),0]);
+      }
+    }
+    var rem=(eff(S.grid,cx,cy)&~entry&~h[3])&15;
+    if(rem===0&&!(cx===S.sx&&cy===S.sy)){
+      var ix=S.heads.indexOf(h);
+      if(ix>=0)S.heads.splice(ix,1);
+    }
+  }
+  for(var n0=0;n0<new_heads.length;n0++)S.heads.push(new_heads[n0]);
+  /* 软锁判定（G3-M2）：所有水头无可用出口=泉路全断，当 tick 判负（与 sim 同构） */
+  for(var q0=0;q0<S.heads.length;q0++){
+    var hq=S.heads[q0];
+    if((eff(S.grid,hq[0],hq[1])&~hq[2]&~hq[3])&15)return;
+  }
+  if(S.over===0)S.over=2;
+}
+function doRot(S,x,y){
+  if(S.over)return false;
+  var c=S.grid.get(x+','+y);
+  if(c===undefined||c[0]!==K_PIPE)return false;
+  if(S.wet.has(x+','+y))return false;
+  c[2]=(c[2]+1)%4;
+  S.steps++;
+  return true;
+}
+function stepFrame(S,act){
+  if(S.over){S.frames++;return}
+  if(act!==null&&act!==undefined){
+    if(act[0]==='open'){
+      if(act[1]===S.sx&&act[2]===S.sy)S.opened=true;
+    }else{
+      doRot(S,act[0],act[1]);
+    }
+  }
+  S.frames++;
+  S.tick--;
+  if(S.tick<=0){
+    S.tick=S.T;
+    waterTick(S);
+    if(S.over)return;
+    if(S.V<=0&&S.over===0)S.over=2;
+  }
+}
+
+/* ============ 三 bot（对拍域；与 sim142 逐位同构） ============ */
+function solMap(bd){
+  var m=new Map();
+  for(var i=0;i<bd.sol.length;i++){var s=bd.sol[i];m.set(s[0]+','+s[1],[s[2],s[3]])}
+  return m;
+}
+function botAct(S,mode,bd,bs){
+  if(mode==='random'){
+    if(!S.opened&&bs.rnd.u(100)<3)return['open',S.sx,S.sy];
+    if(bs.rnd.u(100)<12){
+      var ii=bs.rnd.u(S.NC*S.NR);
+      return[ii%S.NC,Math.floor(ii/S.NC)];
+    }
+    return null;
+  }
+  var sol=bs.sol,per=bs.per;
+  if(mode==='optimal'){
+    if(!S.opened){
+      for(var o0=0;o0<bs.order.length;o0++){
+        var xy=bs.order[o0],c=S.grid.get(xy[0]+','+xy[1]);
+        if(c&&c[0]===K_PIPE&&!S.wet.has(xy[0]+','+xy[1])){
+          var tr=sol.get(xy[0]+','+xy[1]);
+          if(c[2]%per[tr[0]]!==tr[1]%per[tr[0]])return[xy[0],xy[1]];
+        }
+      }
+      return['open',S.sx,S.sy];
+    }
+    for(var o1=0;o1<bs.order.length;o1++){
+      var xy2=bs.order[o1],c2=S.grid.get(xy2[0]+','+xy2[1]);
+      if(c2&&c2[0]===K_PIPE&&!S.wet.has(xy2[0]+','+xy2[1])){
+        var tr2=sol.get(xy2[0]+','+xy2[1]);
+        if(c2[2]%per[tr2[0]]!==tr2[1]%per[tr2[0]])return[xy2[0],xy2[1]];
+      }
+    }
+    return null;
+  }
+  /* human1：5 帧采样 + 执行期水头后3格窗口 + 12% 过冲；开闸=前缀就绪率按带 */
+  var OPENTH=[80,62,50][bs.band];
+  if(!S.opened){
+    var ready=0;
+    for(var o2=0;o2<bs.order.length;o2++){
+      var xy3=bs.order[o2],c3=S.grid.get(xy3[0]+','+xy3[1]);
+      if(c3&&c3[0]===K_PIPE&&!S.wet.has(xy3[0]+','+xy3[1])){
+        var tr3=sol.get(xy3[0]+','+xy3[1]);
+        if(c3[2]%per[tr3[0]]!==tr3[1]%per[tr3[0]])break;
+      }
+      ready++;
+    }
+    if(ready*100>=bs.order.length*OPENTH)return['open',S.sx,S.sy];
+  }
+  if(S.frames%5!==0)return null;
+  if(S.opened){
+    var hi2=-1;
+    for(var o3=0;o3<bs.order.length;o3++){
+      if(S.wet.has(bs.order[o3][0]+','+bs.order[o3][1]))hi2=o3;
+    }
+    var win=bs.order.slice(hi2+1,hi2+4);
+    for(var w0=0;w0<win.length;w0++){
+      var xy4=win[w0],c4=S.grid.get(xy4[0]+','+xy4[1]);
+      if(c4&&c4[0]===K_PIPE&&!S.wet.has(xy4[0]+','+xy4[1])){
+        var tr4=sol.get(xy4[0]+','+xy4[1]);
+        if(c4[2]%per[tr4[0]]!==tr4[1]%per[tr4[0]]){
+          if(bs.rnd.u(100)<12)return['BAD',xy4[0],xy4[1]];
+          return[xy4[0],xy4[1]];
+        }
+      }
+    }
+    return null;
+  }
+  for(var o4=0;o4<bs.order.length;o4++){
+    var xy5=bs.order[o4],c5=S.grid.get(xy5[0]+','+xy5[1]);
+    if(c5&&c5[0]===K_PIPE&&!S.wet.has(xy5[0]+','+xy5[1])){
+      var tr5=sol.get(xy5[0]+','+xy5[1]);
+      if(c5[2]%per[tr5[0]]!==tr5[1]%per[tr5[0]]){
+        if(bs.rnd.u(100)<12)return['BAD',xy5[0],xy5[1]];
+        return[xy5[0],xy5[1]];
+      }
+    }
+  }
+  return null;
+}
+function runBot(mode,lv,seed,bd){
+  var S=newGame(bd);
+  var sol=solMap(bd);
+  var order=[];
+  var brs=bd.branches.slice().sort(function(a,b){return a[0]-b[0]});
+  for(var i=0;i<bd.path.length;i++){
+    order.push([bd.path[i][0],bd.path[i][1]]);
+    while(brs.length&&brs[0][0]===i){
+      var ch=brs.shift()[1];
+      for(var c=0;c<ch.length;c++)order.push([ch[c][0],ch[c][1]]);
+    }
+  }
+  var order2=[];
+  for(var o=0;o<order.length;o++){
+    var p=order[o];
+    if(sol.has(p[0]+','+p[1])&&!(p[0]===bd.sx&&p[1]===bd.sy)&&!(p[0]===bd.skx&&p[1]===bd.sky))order2.push(p);
+  }
+  var bs={rnd:new LCG(seed),sol:sol,per:PERIOD,band:bandOf(lv),order:order2,again:null};
+  while(!S.over&&S.frames<24000){
+    var act=botAct(S,mode,bd,bs);
+    if(bs.again){
+      var ag=bs.again;bs.again=null;
+      stepFrame(S,ag);continue;
+    }
+    if(act===null||act===undefined){
+      stepFrame(S,null);
+    }else if(act[0]==='BAD'){
+      stepFrame(S,[act[1],act[2]]);
+      bs.again=[act[1],act[2]];
+    }else if(act[0]==='open'){
+      stepFrame(S,act);
+    }else{
+      stepFrame(S,act);
+    }
+  }
+  if(S.over===0)S.over=2;
+  var score=0;
+  if(S.over===1){
+    var stars=(S.leaks===0&&S.steps<=bd.par)?3:((S.leaks<=2&&S.steps<=bd.par+8)?2:1);
+    score=100+lv*10+Math.max(0,S.V)*5+(stars===3?300:(stars===2?100:0));
+  }
+  return[S.over,score,Math.max(0,S.V),S.leaks,S.steps,S.frames];
+}
+
+/* ============ UI 层（渲染/输入/存档/音效；不影响对拍域） ============ */
+var cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+var els={};['hud','hInfo','hVv','hSub','menu','over','dead','pause','help','lvbar','lvrow',
+ 'mGo','mLvs','mHelp','bNext','bAgain','bHome','dAgain','dHome','dInfo','oStars','oScore','oBest',
+ 'pRes','pRestart','pSnd','pHome','hBack','lBack','bO','bP'].forEach(function(id){els[id]=document.getElementById(id)});
+var KEY='g142_bamboo';
+var save={unlocked:1,best:{}};
+try{var _sv=JSON.parse(localStorage.getItem(KEY));if(_sv&&typeof _sv==='object'&&_iv(_sv.unlocked)&&_sv.unlocked>=1){save.unlocked=_sv.unlocked;save.best=_sv.best&&typeof _sv.best==='object'?_sv.best:{}}}catch(e){}
+function _iv(v){return typeof v==='number'&&isFinite(v)&&v%1===0&&v>0}
+function saveMain(){try{localStorage.setItem(KEY,JSON.stringify({unlocked:save.unlocked,best:save.best}))}catch(e){}}
+var ph='menu',curLv=1,G=null,winT=0,loseT=0,cursor=[0,0],sndOn=true;
+var C=38,GX=0,GY=0;   /* 格径与盘面原点（canvas 内） */
+function bandOf2(lv){return bandOf(lv)}
+function startLv(lv){
+  curLv=lv;
+  var info=null;for(var i=0;i<LVDATA.length;i++)if(LVDATA[i].lv===lv){info=LVDATA[i];break}
+  var bd=mk(info.seed,bandOf(lv));
+  G=newGame(bd);
+  G.par=info.par;G.lv=lv;
+  GX=Math.floor((W-bd.NC*C)/2);GY=140;
+  cursor=[bd.sx,bd.sy];
+  winT=0;loseT=0;ph='play';
+  els.menu.classList.add('hide');els.over.classList.add('hide');els.dead.classList.add('hide');
+  els.lvbar.classList.add('hide');els.pause.classList.add('hide');els.help.classList.add('hide');
+  updHUD();
+}
+function updHUD(){
+  if(!G)return;
+  els.hInfo.textContent='竹枧引泉 · 第'+G.lv+'关';
+  els.hVv.textContent='水 '+Math.max(0,G.V);
+  els.hSub.textContent='漏 '+G.leaks+' · 步 '+G.steps+(G.opened?'':' · 未开闸');
+}
+function starsOf(){
+  if(G.leaks===0&&G.steps<=G.par)return 3;
+  if(G.leaks<=2&&G.steps<=G.par+8)return 2;
+  return 1;
+}
+function scoreOf(){
+  var st=starsOf();
+  return 100+G.lv*10+Math.max(0,G.V)*5+(st===3?300:(st===2?100:0));
+}
+function endWin(){
+  ph='overanim';winT=72;
+  var sc=scoreOf(),st=starsOf();
+  if(!save.best[G.lv]||sc>save.best[G.lv].score)save.best[G.lv]={score:sc,stars:st};
+  if(G.lv+1>save.unlocked&&G.lv<24)save.unlocked=G.lv+1;
+  saveMain();
+}
+function endLose(){
+  ph='loseanim';loseT=60;
+}
+/* ---- 音效（WebAudio 简振） ---- */
+var AC=null;
+function ensureAC(){if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}if(AC&&AC.state==='suspended')AC.resume()}
+function tone(f,dur,type,vol){
+  if(!sndOn||!AC)return;
+  try{
+    var o=AC.createOscillator(),gn=AC.createGain();
+    o.type=type||'sine';o.frequency.value=f;
+    gn.gain.setValueAtTime(vol||0.12,AC.currentTime);
+    gn.gain.exponentialRampToValueAtTime(0.001,AC.currentTime+dur);
+    o.connect(gn);gn.connect(AC.destination);
+    o.start();o.stop(AC.currentTime+dur);
+  }catch(e){}
+}
+var SND={rot:function(){tone(520,0.07,'triangle',0.10)},
+  flow:function(){tone(660,0.10,'sine',0.08)},
+  leak:function(){tone(180,0.15,'sawtooth',0.06)},
+  open:function(){tone(392,0.18,'sine',0.12)},
+  win:function(){tone(523,0.14,'sine',0.12);setTimeout(function(){tone(659,0.14,'sine',0.12)},140);setTimeout(function(){tone(784,0.22,'sine',0.12)},280)},
+  lose:function(){tone(140,0.4,'sine',0.14)}};
+/* ---- 输入 ---- */
+var prevV=0,prevL=0,prevOpen=false;
+function tapCell(x,y){
+  if(ph!=='play'||!G||G.over)return;
+  if(x===G.sx&&y===G.sy&&!G.opened){
+    G.opened=true;SND.open();updHUD();return;
+  }
+  if(doRot(G,x,y)){SND.rot();updHUD()}
+}
+function evPos(e){
+  var r=cv.getBoundingClientRect();
+  var px=(e.clientX-r.left)*W/r.width,py=(e.clientY-r.top)*H/r.height;
+  return [Math.floor((px-GX)/C),Math.floor((py-GY)/C)];
+}
+cv.addEventListener('pointerdown',function(e){
+  ensureAC();
+  if(ph!=='play')return;
+  var c=evPos(e);
+  tapCell(c[0],c[1]);
+});
+document.addEventListener('keydown',function(e){
+  ensureAC();
+  if(ph!=='play'||!G)return;
+  var NC=G.NC,NR=G.NR;
+  if(e.key==='ArrowLeft')cursor[0]=Math.max(0,cursor[0]-1);
+  else if(e.key==='ArrowRight')cursor[0]=Math.min(NC-1,cursor[0]+1);
+  else if(e.key==='ArrowUp')cursor[1]=Math.max(0,cursor[1]-1);
+  else if(e.key==='ArrowDown')cursor[1]=Math.min(NR-1,cursor[1]+1);
+  else if(e.key===' '||e.key==='z'||e.key==='Z'){tapCell(cursor[0],cursor[1]);e.preventDefault();return}
+  else if(e.key==='Enter'){tapCell(G.sx,G.sy);e.preventDefault();return}
+  else return;
+  e.preventDefault();
+});
+els.bO.addEventListener('pointerdown',function(e){e.stopPropagation();ensureAC();if(ph==='play'&&G&&!G.opened){G.opened=true;SND.open();updHUD()}});
+els.bP.addEventListener('pointerdown',function(e){e.stopPropagation();if(ph==='play'){ph='pause';els.pause.classList.remove('hide')}});
+els.pRes.addEventListener('pointerdown',function(){ph='play';els.pause.classList.add('hide')});
+els.pRestart.addEventListener('pointerdown',function(){els.pause.classList.add('hide');startLv(curLv)});
+els.pSnd.addEventListener('pointerdown',function(){sndOn=!sndOn;els.pSnd.classList.toggle('on',sndOn)});
+els.pHome.addEventListener('pointerdown',function(){ph='menu';els.pause.classList.add('hide');els.menu.classList.remove('hide')});
+els.mGo.addEventListener('pointerdown',function(){ensureAC();startLv(Math.min(save.unlocked,24))});
+els.mLvs.addEventListener('pointerdown',function(){buildLvs();els.menu.classList.add('hide');els.lvbar.classList.remove('hide')});
+els.mHelp.addEventListener('pointerdown',function(){els.menu.classList.add('hide');els.help.classList.remove('hide')});
+els.hBack.addEventListener('pointerdown',function(){els.help.classList.add('hide');els.menu.classList.remove('hide')});
+els.lBack.addEventListener('pointerdown',function(){els.lvbar.classList.add('hide');els.menu.classList.remove('hide')});
+els.bNext.addEventListener('pointerdown',function(){if(curLv<24)startLv(curLv+1);else{ph='menu';els.over.classList.add('hide');els.menu.classList.remove('hide')}});
+els.bAgain.addEventListener('pointerdown',function(){startLv(curLv)});
+els.bHome.addEventListener('pointerdown',function(){ph='menu';els.over.classList.add('hide');els.dead.classList.add('hide');els.menu.classList.remove('hide')});
+els.dAgain.addEventListener('pointerdown',function(){startLv(curLv)});
+function buildLvs(){
+  els.lvrow.innerHTML='';
+  for(var i=1;i<=24;i++){
+    (function(lv){
+      var d=document.createElement('div');
+      d.className='lvcell'+(lv<=save.unlocked?'':' lock');
+      var b=save.best[lv];
+      d.textContent=lv+(b?' '+['','☆','☆☆','☆☆☆'][b.stars]:'');
+      if(lv<=save.unlocked)d.addEventListener('pointerdown',function(){startLv(lv)});
+      els.lvrow.appendChild(d);
+    })(i);
+  }
+}
+/* ---- 渲染 ---- */
+function hash2(x,y){var h=(x*374761393+y*668265263)|0;h=(h^(h>>13))*1274126177|0;return((h^(h>>16))>>>0)/4294967295}
+function drawPipeArm(x,y,d,t,wet){
+  var cx=GX+x*C+C/2,cy=GY+y*C+C/2;
+  var ax=DX[d]*C/2,ay=DY[d]*C/2;
+  ctx.beginPath();
+  ctx.moveTo(cx,cy);
+  ctx.lineTo(cx+ax,cy+ay);
+  ctx.lineWidth=wet?20:17;
+  ctx.strokeStyle=wet?'#5aa892':'#c8a05a';
+  ctx.lineCap='round';
+  ctx.stroke();
+  ctx.lineWidth=wet?12:10;
+  ctx.strokeStyle=wet?'#7cc2ae':'#dbb878';
+  ctx.stroke();
+  /* 竹节纹（半程横线） */
+  ctx.save();
+  ctx.strokeStyle=wet?'#4a9280':'#a8854a';
+  ctx.lineWidth=2;
+  ctx.beginPath();
+  var mx=cx+ax*0.45,my=cy+ay*0.45;
+  var px=-DY[d]*6,py=DX[d]*6;
+  ctx.moveTo(mx+px,my+py);ctx.lineTo(mx-px,my-py);
+  ctx.stroke();
+  ctx.restore();
+  /* 端口深圈（非中心端） */
+  if(t!==3){
+    ctx.beginPath();
+    ctx.arc(cx+ax*0.92,cy+ay*0.92,4.5,0,7);
+    ctx.fillStyle=wet?'#3a7a68':'#8a6a3a';
+    ctx.fill();
+  }
+}
+function drawCell(x,y){
+  var c=G.grid.get(x+','+y);
+  if(c===undefined)return;
+  var k=c[0],t=c[1],r=c[2];
+  var px=GX+x*C,py=GY+y*C;
+  if(k===K_ROCK){
+    ctx.fillStyle='#9a9a80';
+    ctx.beginPath();ctx.arc(px+C/2,py+C/2,15,0,7);ctx.fill();
+    ctx.fillStyle='#7a8a6a';
+    for(var s=0;s<4;s++){
+      var h1=hash2(x*7+s,y*13);
+      ctx.beginPath();ctx.arc(px+8+h1*22,py+8+hash2(x,y*5+s)*22,3+h1*2,0,7);ctx.fill();
+    }
+    return;
+  }
+  if(k===K_SRC){
+    ctx.fillStyle='#6a5a42';
+    ctx.beginPath();ctx.arc(px+C/2,py+C/2,16,0,7);ctx.fill();
+    ctx.fillStyle='#4a3e2c';
+    ctx.beginPath();ctx.arc(px+C/2-4,py+C/2-3,6,0,7);ctx.fill();
+    /* 滴水动画（未开闸） */
+    if(!G.opened&&!G.over){
+      var fr=(G.frames%50)/50;
+      ctx.fillStyle='rgba(90,170,200,.85)';
+      ctx.beginPath();
+      ctx.arc(px+C/2+DX[G.sd]*6,py+C/2+DY[G.sd]*6+fr*10-4,2.6,0,7);
+      ctx.fill();
+    }
+    return;
+  }
+  if(k===K_SNK){
+    ctx.fillStyle='#8a7a4a';
+    ctx.fillRect(px+5,py+5,C-10,C-10);
+    ctx.fillStyle='#3a8a7a';
+    ctx.fillRect(px+9,py+9,C-18,C-18);
+    var w=(G.frames%60)/60;
+    ctx.strokeStyle='rgba(240,250,245,'+(0.7-w*0.6)+')';
+    ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(px+C/2,py+C/2,4+w*9,0,7);ctx.stroke();
+    return;
+  }
+  /* 管 */
+  var m=rotm(BASE[t],r);
+  var wet=G.wet.has(x+','+y);
+  ctx.fillStyle=wet?'rgba(120,190,170,.25)':'rgba(240,228,196,.5)';
+  ctx.fillRect(px+1,py+1,C-2,C-2);
+  for(var di=0;di<4;di++){
+    var d=BITS[di];
+    if(m&d)drawPipeArm(x,y,d,t,wet);
+  }
+  if(t===3){ /* CAP 端帽 */
+    var cd=0;for(var dj=0;dj<4;dj++)if(m&BITS[dj])cd=BITS[dj];
+    var cx=GX+x*C+C/2+DX[cd]*C/2,cy2=GY+y*C+C/2+DY[cd]*C/2;
+    ctx.beginPath();ctx.arc(cx,cy2,8,0,7);
+    ctx.fillStyle=wet?'#4a9280':'#b08a4a';
+    ctx.fill();
+    ctx.beginPath();ctx.arc(cx,cy2,4,0,7);
+    ctx.fillStyle=wet?'#6ab8a0':'#d8b878';
+    ctx.fill();
+  }
+}
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  /* 山壁底 */
+  ctx.fillStyle='#ece0c2';
+  ctx.fillRect(0,0,W,H);
+  for(var i=0;i<40;i++){
+    var h=hash2(i*3,7);
+    ctx.fillStyle='rgba(180,168,136,'+(0.15+h*0.15)+')';
+    ctx.beginPath();ctx.arc(h*390,hash2(i,11)*780,20+h*40,0,7);ctx.fill();
+  }
+  if(!G){return}
+  var NC=G.NC,NR=G.NR;
+  /* 盘底 */
+  ctx.fillStyle='rgba(178,164,130,.35)';
+  ctx.fillRect(GX-6,GY-6,NC*C+12,NR*C+12);
+  for(var y=0;y<NR;y++)for(var x=0;x<NC;x++)drawCell(x,y);
+  /* 键盘光标 */
+  if(ph==='play'){
+    ctx.strokeStyle='#5a8a5a';
+    ctx.lineWidth=2;
+    ctx.setLineDash([4,3]);
+    ctx.strokeRect(GX+cursor[0]*C+2,GY+cursor[1]*C+2,C-4,C-4);
+    ctx.setLineDash([]);
+  }
+  /* 漏口水渍粒子 */
+  if(ph==='overanim'){
+    ctx.fillStyle='rgba(58,138,122,.12)';
+    ctx.fillRect(0,0,W,H);
+  }
+  if(ph==='loseanim'){
+    ctx.fillStyle='rgba(160,90,50,'+(loseT/60*0.25)+')';
+    ctx.fillRect(0,0,W,H);
+  }
+  updHUD();
+}
+/* ---- 主循环（60Hz 累加器帧率归一：g140-G3/M4 制式） ---- */
+var last=null,acc=0;
+function loop(ts){
+  requestAnimationFrame(loop);
+  if(last===null){last=ts;return}
+  var dt=ts-last;last=ts;
+  if(dt>200)dt=200;
+  acc+=dt;
+  while(acc>=16.6667){
+    acc-=16.6667;
+    tick();
+  }
+  draw();
+}
+function tick(){
+  if(ph==='play'&&G&&!G.over){
+    var v0=G.V,l0=G.leaks;
+    stepFrame(G,null);
+    if(G.leaks>l0)SND.leak();
+    else if(G.wet.size>0&&G.V<v0)SND.flow();
+    if(G.over===1){SND.win();endWin()}
+    else if(G.over===2){SND.lose();endLose()}
+  }else if(ph==='overanim'){
+    winT--;
+    if(winT<=0){
+      ph='over';
+      els.oStars.textContent=['','☆','☆☆','☆☆☆'][starsOf()];
+      els.oScore.textContent='得分 '+scoreOf()+' · 步 '+G.steps+' · 漏 '+G.leaks;
+      var b=save.best[G.lv];
+      els.oBest.textContent=b?('此泉最佳 '+b.score):'';
+      els.over.classList.remove('hide');
+    }
+  }else if(ph==='loseanim'){
+    loseT--;
+    if(loseT<=0){
+      ph='dead';
+      els.dInfo.textContent=G.V<=0?'水尽泉竭':'泉路断绝';
+      els.dead.classList.remove('hide');
+    }
+  }
+}
+/* ---- boot ---- */
+els.menu.classList.remove('hide');
+requestAnimationFrame(loop);
+
+
+</script>
+</body>
+</html>
