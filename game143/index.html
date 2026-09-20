@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>独钓寒江</title>
+<style>
+html,body{margin:0;padding:0;width:100%;height:100%;background:#0a0f1a;overflow:hidden;font-family:"Songti SC","STSong","SimSun",serif;user-select:none;-webkit-user-select:none}
+#app{position:relative;width:390px;height:844px;margin:0 auto;background:linear-gradient(180deg,#0a0f1a 0%,#101826 50%,#0e1a20 100%)}
+#hud{position:absolute;top:0;left:0;width:100%;height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;color:#d8d2be;z-index:5;box-sizing:border-box}
+#hInfo{font-size:15px;letter-spacing:1px}
+#hRight{text-align:right;font-size:12px;letter-spacing:1px}
+#hTask{color:#a8c0b8}
+#hBait{color:#e8a05a;margin-top:2px}
+#hSub{color:#9ab0c8;margin-top:2px}
+#cv{position:absolute;top:64px;left:0}
+.btnrow{position:absolute;bottom:0;left:0;width:100%;height:64px;display:flex;gap:8px;align-items:center;justify-content:center;z-index:5}
+.hbtn{min-width:58px;padding:10px 0;border:1px solid #44525e;border-radius:10px;background:#161f28;color:#d8d2be;font-size:15px;text-align:center;cursor:pointer;letter-spacing:1px}
+.hbtn.on{background:#28394a;border-color:#6a8aa0}
+.lay{position:absolute;inset:0;background:rgba(5,9,14,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:20}
+.mtitle{font-size:34px;color:#e2dcc8;letter-spacing:12px;margin:6px 0 2px;text-indent:12px}
+.msub{font-size:12px;color:#7a8a96;letter-spacing:3px;margin-bottom:26px}
+.mbtn{min-width:200px;padding:11px 0;margin:7px;border:1px solid #4a6a7a;border-radius:10px;background:#182430;color:#d8d2be;font-size:16px;text-align:center;cursor:pointer;letter-spacing:6px;text-indent:6px}
+.mbtn:active{background:#243648}
+.mbtn.hide{display:none}
+.mnote{font-size:10px;color:#566470;margin-top:14px;letter-spacing:1px}
+.otitle{font-size:26px;color:#c8d8e8;margin-bottom:8px;letter-spacing:8px;text-indent:8px}
+.otitle.bad{color:#e88a7a}
+.ostat{font-size:14px;color:#d8d2be;margin:4px;letter-spacing:2px}
+.stars{font-size:26px;color:#ffd97a;letter-spacing:6px;margin:8px 0}
+.lvwrap{width:330px;max-height:430px;overflow-y:auto}
+.lvrow{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.lvcell{width:58px;height:46px;border:1px solid #44525e;border-radius:8px;background:#161f28;color:#d8d2be;font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.lvcell.lock{opacity:.35}
+.galwrap{width:330px;max-height:460px;overflow-y:auto}
+.galrow{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.galcell{width:72px;height:86px;border:1px solid #3a4a56;border-radius:8px;background:#141d26;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#8a9aa6;font-size:11px;letter-spacing:1px}
+.galcell.got{border-color:#6a8aa0;color:#d8d2be}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud"><div id="hInfo">独钓寒江</div>
+    <div id="hRight"><div id="hTask">候鱼</div><div id="hBait">饵 六</div><div id="hSub"></div></div>
+  </div>
+  <canvas id="cv" width="390" height="780"></canvas>
+  <div class="btnrow">
+    <div class="hbtn" id="bL">◀</div>
+    <div class="hbtn" id="bR">▶</div>
+    <div class="hbtn" id="bU">▲ 饵</div>
+    <div class="hbtn" id="bD">▼ 饵</div>
+    <div class="hbtn" id="bJ" style="min-width:76px">竿</div>
+    <div class="hbtn" id="bP" style="min-width:44px">憩</div>
+  </div>
+  <div class="lay hide" id="menu">
+    <div class="mtitle">独 钓 寒 江</div>
+    <div class="msub">千山鸟飞绝 · 万径人踪灭</div>
+    <div class="mbtn" id="mGo">下 竿</div>
+    <div class="mbtn" id="mLvs">选 潭</div>
+    <div class="mbtn" id="mHelp">钓 法</div>
+    <div class="mbtn" id="mGal">鱼 谱</div>
+    <div class="mnote">潭分三带 · 鱼潜三层 · 读漂识讯 · 张弛收放</div>
+  </div>
+  <div class="lay hide" id="over">
+    <div class="otitle">满 护 而 归</div>
+    <div class="stars" id="oStars"></div>
+    <div class="ostat" id="oScore"></div>
+    <div class="ostat" id="oBest"></div>
+    <div class="mbtn" id="bNext">下一潭</div>
+    <div class="mbtn" id="bAgain">再钓此潭</div>
+    <div class="mbtn" id="bHome">回 岸</div>
+  </div>
+  <div class="lay hide" id="dead">
+    <div class="otitle bad">饵 尽 江 寒</div>
+    <div class="ostat" id="dInfo"></div>
+    <div class="mbtn" id="dAgain">再钓此潭</div>
+    <div class="mbtn" id="dHome">回 岸</div>
+  </div>
+  <div class="lay hide" id="pause">
+    <div class="otitle">苇 丛 小 憩</div>
+    <div class="mbtn" id="pRes">续 钓</div>
+    <div class="mbtn" id="pRestart">重 钓</div>
+    <div class="mbtn" id="pSnd">音 效</div>
+    <div class="mbtn" id="pHome">回 岸</div>
+  </div>
+  <div class="lay hide" id="help">
+    <div class="otitle">钓 法</div>
+    <div class="ostat" style="font-size:12px;line-height:2.1;text-align:left;max-width:300px">◀▶选钓点（潭三区×水三层）· ▲▼换饵<br>「竿」一键抛竿——去瞄去算，凭漂而动<br>漂轻点数下是真鱼试探 · 密而急多半杂鱼<br>漂大幅下沉那一刻提竿中鱼 · 提早落空损一饵<br>中鱼后按住「竿」收线：张力条红透即断线<br>松手放线卸力 · 松过了头鱼儿脱钩<br>挂底沉漂匀而缓——莫硬拉，等它自己脱<br>集齐渔护任务即满护而归 · 零损三星</div>
+    <div class="mbtn" id="hBack">回</div>
+  </div>
+  <div class="lay hide" id="lvbar">
+    <div class="otitle">选 潭</div>
+    <div class="lvwrap"><div class="lvrow" id="lvrow"></div></div>
+    <div class="mbtn" id="lBack">回</div>
+  </div>
+  <div class="lay hide" id="galbar">
+    <div class="otitle">鱼 谱</div>
+    <div class="galwrap"><div class="galrow" id="galrow"></div></div>
+    <div class="mbtn" id="gBack">回</div>
+  </div>
+</div>
+<script>
+'use strict';
+/* ============ g143 独钓寒江 · 钓鱼时机族（雪夜寒潭意象；与 sim143.py 逐位同构） ============ */
+var LVDATA=[{"lv":1,"seed":150919,"par":404,"hw":2},{"lv":2,"seed":158838,"par":388,"hw":1},{"lv":3,"seed":166757,"par":433,"hw":3},{"lv":4,"seed":174676,"par":1352,"hw":3},{"lv":5,"seed":182595,"par":433,"hw":3},{"lv":6,"seed":190514,"par":641,"hw":2},{"lv":7,"seed":198433,"par":935,"hw":1},{"lv":8,"seed":206354,"par":447,"hw":4},{"lv":9,"seed":214278,"par":478,"hw":2},{"lv":10,"seed":222197,"par":1027,"hw":1},{"lv":11,"seed":230109,"par":1487,"hw":3},{"lv":12,"seed":238028,"par":487,"hw":3},{"lv":13,"seed":245951,"par":579,"hw":2},{"lv":14,"seed":253868,"par":635,"hw":2},{"lv":15,"seed":261789,"par":810,"hw":3},{"lv":16,"seed":269705,"par":1711,"hw":2},{"lv":17,"seed":277629,"par":1532,"hw":2},{"lv":18,"seed":285547,"par":1891,"hw":2},{"lv":19,"seed":293461,"par":1133,"hw":2},{"lv":20,"seed":301380,"par":2104,"hw":2},{"lv":21,"seed":309303,"par":2907,"hw":2},{"lv":22,"seed":317222,"par":1958,"hw":4},{"lv":23,"seed":325141,"par":896,"hw":3},{"lv":24,"seed":333056,"par":1958,"hw":2}];
+var W=390,H=780,WATER=300;
+var CAST_F=40,INTER_F=30,HANG_LIMIT=7200,STEP_F=6,T_BREAK=100,SNAG_P=35,SLACK_T=8,SLACK_F=80,MAXRND=3;
+var M214=2147483647,LCGX=48271;
+function LCG(x){this.x=((x%M214)+M214)%M214||M214-1}
+LCG.prototype.n=function(){this.x=this.x*LCGX%M214;return this.x};
+LCG.prototype.u=function(m){return this.n()%m};
+/* 鱼种表（与 sim143.FISH 同构：ly 层 bitmask/pref[3] 饵偏好/win 窗宽/md 挣扎/sc 分/d baseD/w0w1 重量域） */
+var FISH=[
+ {nm:'白条',ly:1,pref:[1,1,2],win:44,md:0,sc:50, d:70, w0:1,w1:3},
+ {nm:'鱊',  ly:1,pref:[2,1,1],win:40,md:0,sc:60, d:80, w0:1,w1:4},
+ {nm:'鲫鱼',ly:3,pref:[2,2,1],win:36,md:1,sc:120,d:120,w0:2,w1:8},
+ {nm:'鳊鱼',ly:2,pref:[1,2,1],win:30,md:1,sc:160,d:140,w0:3,w1:10},
+ {nm:'鲤鱼',ly:2,pref:[2,1,1],win:26,md:2,sc:240,d:200,w0:5,w1:20},
+ {nm:'草鱼',ly:2,pref:[1,2,1],win:28,md:1,sc:200,d:160,w0:4,w1:15},
+ {nm:'翘嘴',ly:3,pref:[1,1,2],win:30,md:3,sc:220,d:200,w0:3,w1:12},
+ {nm:'青鱼',ly:4,pref:[1,1,2],win:18,md:3,sc:320,d:240,w0:10,w1:40},
+ {nm:'鳜鱼',ly:4,pref:[2,1,1],win:20,md:2,sc:300,d:220,w0:8,w1:30},
+ {nm:'鲶鱼',ly:4,pref:[2,1,1],win:16,md:3,sc:280,d:260,w0:10,w1:50},
+ {nm:'锦鲤',ly:2,pref:[2,2,2],win:22,md:2,sc:400,d:220,w0:5,w1:25},
+ {nm:'龙睛',ly:4,pref:[1,1,2],win:12,md:3,sc:800,d:300,w0:20,w1:80}];
+var MODES=[
+ [[1,30],[0,40]],
+ [[3,25],[0,35],[2,20]],
+ [[5,30],[0,40],[3,20]],
+ [[7,25],[0,30],[8,20],[0,25]]];
+var BAITS=['蚯蚓','米粒','拟饵'];
+
+/* ============ 版面生成（与 sim143.mk_level 同构：rnd 消费序逐一对应） ============ */
+function mkLevel(lv,seed){
+  var r=new LCG(seed);
+  var band=Math.min(2,Math.floor(lv/8));
+  var pool=band===0?[0,1,2]:(band===1?[2,3,4,5,6,10]:[7,8,9,11]);
+  var tset=band===0?[0,1,2]:(band===1?[3,4,5,6]:[7,8,9]);
+  var task;
+  if(band===0){task=[[tset[r.u(tset.length)],2]]}
+  else{
+    var t1=tset[r.u(tset.length)],t2=tset[r.u(tset.length)];
+    task=(t2===t1)?[[t1,2]]:[[t1,1],[t2,1]];
+    if(band===2&&r.u(100)<40){
+      var t3=tset[r.u(tset.length)],has=false;
+      for(var ti=0;ti<task.length;ti++)if(task[ti][0]===t3)has=true;
+      if(!has)task=task.concat([[t3,1]]);
+    }
+  }
+  var tsp=[];for(var tj=0;tj<task.length;tj++)tsp.push(task[tj][0]);
+  var grids=[];
+  for(var g=0;g<9;g++){
+    var lay=g%3,lybit=1<<lay;
+    var cand=[];
+    for(var pi=0;pi<pool.length;pi++)if(FISH[pool[pi]].ly&lybit)cand.push(pool[pi]);
+    if(!cand.length)cand=[2];
+    var kk=Math.min(cand.length,2+(r.u(100)<40?1:0));
+    var ct=[];
+    for(var ci=0;ci<cand.length;ci++)if(tsp.indexOf(cand[ci])>=0)ct.push(cand[ci]);
+    var picked=[];
+    if(ct.length)picked.push(ct[r.u(ct.length)]);
+    while(picked.length<kk){
+      var c=cand[r.u(cand.length)];
+      if(picked.indexOf(c)<0)picked.push(c);
+    }
+    picked.sort(function(a,b){return a-b});
+    var fish=[];
+    for(var fi=0;fi<picked.length;fi++)fish.push([picked[fi],30+r.u(70)]);
+    var snag=false;
+    if(band>0){
+      var sv=r.u(100);
+      snag=sv<(band===1?22:33)&&(g===2||g===5||g===8);
+    }
+    grids.push({fish:fish,trashP:[0,20,30][band],snag:snag,d2:[60,90,120][band]});
+  }
+  return {lv:lv,seed:seed,band:band,grid:grids,task:task,bait_n:[6,7,8][band],wsc:[0,-8,-14][band]};
+}
+
+/* ============ 状态 ============ */
+var S={ph:'menu',lv:1,sub:'',frames:0,over:0,score:0,baits:6,taskLeft:{},deadN:0,
+       pos:0,bait:0,posT:0,baitT:0,jPrev:0,
+       wsub:'',wround:0,wt:0,wnk:0,fishSp:-1,snagT:0,
+       T:30,D:0,slack:0,fph:0,wgt:0,catchN:0,lost:0,par:0,stars:0,winT:0,
+       inL:0,inR:0,inU:0,inD:0,inJ:0};
+var unlocked=1,best={},gallery=[],sndOn=1,L=null,rnd=new LCG(1);
+var SK='g143_icefish';
+function saveMain(){
+  try{localStorage.setItem(SK,JSON.stringify({unlocked:unlocked,best:best,gal:gallery,snd:sndOn}))}catch(e){}
+}
+function loadSave(){
+  unlocked=1;best={};gallery=[];sndOn=1;
+  try{
+    var d=JSON.parse(localStorage.getItem(SK));
+    if(d&&typeof d==='object'&&!Array.isArray(d)){
+      if(typeof d.unlocked==='number'&&isFinite(d.unlocked)&&d.unlocked%1===0)unlocked=Math.min(24,Math.max(1,d.unlocked));
+      if(d.best&&typeof d.best==='object'&&!Array.isArray(d.best)){
+        for(var k in d.best){
+          var v=d.best[k],kk=parseInt(k,10);
+          if(kk>=1&&kk<=24&&v&&typeof v==='object'&&!Array.isArray(v)&&
+             typeof v.score==='number'&&isFinite(v.score)&&v.score%1===0&&
+             typeof v.stars==='number'&&isFinite(v.stars)&&v.stars%1===0&&v.stars>=1&&v.stars<=3)
+            best[kk]={score:v.score,stars:v.stars};
+        }
+      }
+      if(Array.isArray(d.gal)){
+        gallery=[];
+        for(var gi=0;gi<d.gal.length;gi++){
+          var q=d.gal[gi];
+          if(typeof q==='number'&&isFinite(q)&&q%1===0&&q>=0&&q<=11&&gallery.indexOf(q)<0)gallery.push(q);
+        }
+      }
+      if(d.snd===0)sndOn=0;
+    }
+  }catch(e){}
+}
+
+/* ============ 内核（与 sim143.step 逐行同构） ============ */
+function curF(md,ph){
+  var m=MODES[md],per=0;
+  for(var i=0;i<m.length;i++)per+=m[i][1];
+  var t=ph%per;
+  for(var j=0;j<m.length;j++){
+    t-=m[j][1];
+    if(t<0)return m[j][0];
+  }
+  return m[0][0];
+}
+function pickWeighted(pos,bait){
+  var tot=0,f=L.grid[pos].fish;
+  for(var i=0;i<f.length;i++)tot+=f[i][1]*FISH[f[i][0]].pref[bait];
+  if(tot<=0)return -1;
+  var v=rnd.u(tot),acc=0;
+  for(var j=0;j<f.length;j++){
+    acc+=f[j][1]*FISH[f[j][0]].pref[bait];
+    if(v<acc)return f[j][0];
+  }
+  return f[f.length-1][0];
+}
+function doInter(kind,sp,wgt){
+  S.ph='inter';S.sub=kind;S.wt=INTER_F;
+  if(kind==='catch'){
+    S.score+=FISH[sp].sc+wgt*2;
+    S.catchN++;
+    if(S.taskLeft[sp]!==undefined)S.taskLeft[sp]--;
+    if(gallery.indexOf(sp)<0)gallery.push(sp);
+  }else if(kind==='snap'||kind==='slip'||kind==='empty'){
+    S.lost++;S.deadN++;
+  }
+}
+function loseBait(){
+  S.baits--;
+  if(S.baits<=0){S.over=2;S.ph='dead';doLose('饵 尽 江 寒');return true}
+  return false;
+}
+function step(inL,inR,inU,inD,inJ){
+  if(S.over)return S.over;
+  S.frames++;
+  if(S.frames>HANG_LIMIT){S.over=2;S.ph='dead';doLose('雪 夜 收 竿');return 2}
+  var jE=(inJ&&!S.jPrev)?1:0;
+  var ret=0;
+  if(S.ph==='pick'){
+    S.posT++;S.baitT++;
+    if(S.posT>=STEP_F){
+      S.posT=0;
+      if(inL&&S.pos>0)S.pos--;
+      else if(inR&&S.pos<8)S.pos++;
+    }
+    if(S.baitT>=STEP_F){
+      S.baitT=0;
+      if(inU)S.bait=(S.bait+1)%3;
+      else if(inD)S.bait=(S.bait+2)%3;
+    }
+    if(jE){S.ph='cast';S.wt=CAST_F;tone(660,.06)}
+  }else if(S.ph==='cast'){
+    S.wt--;
+    if(S.wt<=0){
+      S.ph='wait';
+      S.wsub='idle';S.wround=0;S.fishSp=-1;S.snagT=0;
+      var g0=L.grid[S.pos];
+      if(g0.snag&&rnd.u(100)<SNAG_P){S.wsub='snag';tone(180,.08)}
+      else S.wt=30+rnd.u(g0.d2);
+    }
+  }else if(S.ph==='wait'){
+    var g=L.grid[S.pos];
+    if(S.wsub==='snag'){
+      S.snagT++;
+      if(jE){doInter('snap');if(loseBait())ret=2;tone(120,.25)}
+      else if(S.snagT>160)doInter('auto');
+    }else if(S.wsub==='idle'){
+      S.wt--;
+      if(S.wt<=0){
+        var trash=(g.trashP>0&&rnd.u(100)<g.trashP);
+        S.fishSp=trash?-1:pickWeighted(S.pos,S.bait);
+        S.wsub='nibble';S.wnk=1+rnd.u(2);
+        S.wt=trash?(12+rnd.u(20)):(20+rnd.u(40));
+      }else if(jE){doInter('empty');if(loseBait())ret=2}
+    }else if(S.wsub==='nibble'){
+      if(jE){doInter('empty');if(loseBait())ret=2}
+      else{
+        S.wt--;
+        if(S.wt<=0){
+          S.wnk--;
+          if(S.wnk>0)S.wt=(S.fishSp<0)?(8+rnd.u(20)):(20+rnd.u(40));
+          else if(S.fishSp<0){S.wsub='swimoff';S.wt=20}
+          else{S.wsub='pause';S.wt=10+rnd.u(30)}
+          tone(880,.03);
+        }
+      }
+    }else if(S.wsub==='pause'){
+      if(jE){doInter('empty');if(loseBait())ret=2}
+      else{
+        S.wt--;
+        if(S.wt<=0){
+          S.wsub='bite';
+          S.wt=Math.max(8,FISH[S.fishSp].win+L.wsc);
+          tone(220,.12);
+        }
+      }
+    }else if(S.wsub==='bite'){
+      if(jE){
+        var sp=S.fishSp,f=FISH[sp],per=0,mp=MODES[f.md];
+        for(var mi=0;mi<mp.length;mi++)per+=mp[mi][1];
+        S.fph=rnd.u(per);
+        S.wgt=f.w0+rnd.u(f.w1-f.w0+1);
+        S.T=30;S.D=f.d;S.slack=0;
+        S.ph='reel';
+        tone(440,.08);setTimeout(function(){tone(523,.06)},60);
+      }else{
+        S.wt--;
+        if(S.wt<=0){S.wsub='swimoff';S.wt=20}
+      }
+    }else if(S.wsub==='swimoff'){
+      S.wt--;
+      if(S.wt<=0){
+        S.wround++;
+        if(S.wround>=MAXRND)doInter('auto');
+        else{S.wsub='idle';S.wt=30+rnd.u(60)}
+      }
+    }
+  }else if(S.ph==='reel'){
+    var f=curF(FISH[S.fishSp].md,S.fph);
+    S.fph++;
+    if(inJ){
+      S.T+=3+f;
+      S.D-=6-Math.min(2,Math.floor(f/3));
+      S.slack=0;
+    }else{
+      S.T-=6-f;
+      S.D+=Math.floor(f/3);
+      if(S.T<SLACK_T)S.slack++;
+      else S.slack=0;
+    }
+    if(S.T>=T_BREAK){doInter('snap');if(loseBait())ret=2;tone(110,.3)}
+    else if(S.slack>SLACK_F){doInter('slip');if(loseBait())ret=2;tone(160,.2)}
+    else if(S.D<=0){
+      doInter('catch',S.fishSp,S.wgt);
+      var done=true;
+      for(var tk in S.taskLeft)if(S.taskLeft[tk]>0)done=false;
+      if(done){
+        S.score+=S.baits*100+Math.max(0,Math.floor((Math.floor(S.par*1.6)-S.frames)/60))*10;
+        S.over=1;S.ph='win';ret=1;
+        doWin();
+      }
+      tone(523,.08);setTimeout(function(){tone(659,.1)},90);
+    }
+  }else if(S.ph==='inter'){
+    S.wt--;
+    if(S.wt<=0)S.ph='pick';
+  }
+  S.jPrev=inJ;
+  return ret;
+}
+
+/* ============ bot（与 sim143.decide/human1/bot_play 同构） ============ */
+function needList(){
+  var out=[];
+  for(var k in S.taskLeft)if(S.taskLeft[k]>0)out.push(parseInt(k,10));
+  return out;
+}
+function bestPick(bait,avoidSnag){
+  var need=needList(),best=S.pos,bv=-1073741824;
+  for(var pos=0;pos<9;pos++){
+    var tot=0,mine=0,f=L.grid[pos].fish;
+    for(var i=0;i<f.length;i++){
+      var w=f[i][1]*FISH[f[i][0]].pref[bait];
+      tot+=w;
+      if(need.indexOf(f[i][0])>=0)mine+=w;
+    }
+    if(tot<=0||mine===0)continue;
+    var v=Math.floor(mine*1000/tot)-(avoidSnag&&L.grid[pos].snag?200:0);
+    if(v>bv){bv=v;best=pos}
+  }
+  return best;
+}
+function decide(h1){
+  if(S.ph==='pick'){
+    var tp,tb;
+    if(h1){tp=bestPick(S.bait,false);tb=S.bait}
+    else{
+      var bv=-1;tb=S.bait;
+      for(var bait=0;bait<3;bait++){
+        var p=bestPick(bait,true),tot=0,mine=0,f=L.grid[p].fish,need=needList();
+        for(var i=0;i<f.length;i++){
+          var w=f[i][1]*FISH[f[i][0]].pref[bait];
+          tot+=w;
+          if(need.indexOf(f[i][0])>=0)mine+=w;
+        }
+        var v=tot>0?Math.floor(mine*1000/tot):-1;
+        if(v>bv){bv=v;tb=bait}
+      }
+      tp=bestPick(tb,true);
+    }
+    var inL=(S.pos>tp&&S.posT===STEP_F-1)?1:0;
+    var inR=(S.pos<tp&&S.posT===STEP_F-1)?1:0;
+    var inU=(tb!==S.bait&&(tb-S.bait+3)%3===1&&S.baitT===STEP_F-1)?1:0;
+    var inD=(tb!==S.bait&&(tb-S.bait+3)%3===2&&S.baitT===STEP_F-1)?1:0;
+    if(S.pos===tp&&S.bait===tb)return [0,0,0,0,1];
+    return [inL,inR,inU,inD,0];
+  }
+  if(S.ph==='wait'){
+    if(h1)return [0,0,0,0,0];
+    return S.wsub==='bite'?[0,0,0,0,1]:[0,0,0,0,0];
+  }
+  if(S.ph==='reel'){
+    if(h1)return S.T<30?[0,0,0,0,1]:[0,0,0,0,0];
+    var md=FISH[S.fishSp].md;
+    var fNow=curF(md,S.fph),tot=0;
+    for(var i2=0;i2<8;i2++)tot+=curF(md,S.fph+i2);
+    if(S.T<=12)return [0,0,0,0,1];
+    if(S.T>=20&&(fNow>=6||S.T+3+tot>=95))return [0,0,0,0,0];
+    return [0,0,0,0,1];
+  }
+  return [0,0,0,0,0];
+}
+var h1mem={h1j:0};
+function human1(){
+  var misP=[10,6,3][L.band];
+  if(S.ph==='wait'){
+    if(S.wsub==='bite'){
+      if(rnd.u(100)<60)h1mem.h1j=1;
+      return [0,0,0,0,h1mem.h1j];
+    }
+    if((S.wsub==='nibble'||S.wsub==='pause')&&rnd.u(100)<misP)return [0,0,0,0,1];
+    if(S.wsub==='snag'&&S.snagT>50&&rnd.u(100)<40)return [0,0,0,0,1];
+    h1mem.h1j=0;
+    return [0,0,0,0,0];
+  }
+  if(S.ph==='pick'){
+    if(rnd.u(100)<6)return [0,0,0,0,0];
+  }
+  return decide(true);
+}
+
+/* ============ 音效 ============ */
+var AC=null;
+function ensureAC(){
+  if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}
+  if(AC&&AC.state==='suspended')AC.resume();
+}
+function tone(f,d){
+  if(!sndOn)return;
+  ensureAC();
+  if(!AC)return;
+  try{
+    var o=AC.createOscillator(),g=AC.createGain();
+    o.frequency.value=f;o.type='sine';
+    g.gain.setValueAtTime(.09,AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(.0001,AC.currentTime+d);
+    o.connect(g);g.connect(AC.destination);
+    o.start();o.stop(AC.currentTime+d);
+  }catch(e){}
+}
+document.addEventListener('pointerdown',function wake(){ensureAC()},{once:true});
+
+/* ============ 渲染 ============ */
+var cv,ctx;
+var snow=[],bgMts=null,weeds=null;
+function makeBg(seed){
+  snow=[];
+  var r=new LCG(seed*7+5);
+  for(var i=0;i<70;i++)snow.push({x:r.n()%390,y:r.n()%780,v:0.25+(r.n()%20)/40,sz:(r.n()%2)+1,ph:r.n()%628});
+  bgMts=[];
+  for(var m=0;m<2;m++){
+    var pts=[[0,WATER]],x=0;
+    while(x<390){
+      var h=(m===0?120:70)+r.n()%80;
+      var w=60+r.n()%80;
+      pts.push([Math.min(385,x+w),WATER-h]);
+      x+=w;
+    }
+    pts.push([390,WATER]);
+    bgMts.push(pts);
+  }
+  weeds=[];
+  for(var wi=0;wi<9;wi++)weeds.push({x:20+r.n()%350,y:340+r.n()%360,h:16+r.n()%26,k:r.n()%2});
+}
+function rr(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();
+}
+function draw(){
+  ctx.clearRect(0,0,390,780);
+  var g=ctx.createLinearGradient(0,0,0,780);
+  g.addColorStop(0,'#0a0f1a');g.addColorStop(.38,'#101826');g.addColorStop(1,'#0b141c');
+  ctx.fillStyle=g;ctx.fillRect(0,0,390,780);
+  /* 雪（渲染层动画） */
+  ctx.fillStyle='rgba(225,232,242,.8)';
+  for(var i=0;i<snow.length;i++){
+    var sf=snow[i];
+    sf.y+=sf.v;sf.x+=0.18;
+    if(sf.y>780)sf.y=-4;
+    if(sf.x>392)sf.x=-2;
+    ctx.globalAlpha=0.35+0.3*(sf.sz-1);
+    ctx.fillRect(sf.x,sf.y,sf.sz,sf.sz);
+  }
+  ctx.globalAlpha=1;
+  /* 远山两叠 */
+  if(bgMts.length){
+    ctx.fillStyle='#0d1620';
+    ctx.beginPath();ctx.moveTo(bgMts[1][0][0],bgMts[1][0][1]);
+    for(var p=1;p<bgMts[1].length;p++)ctx.lineTo(bgMts[1][p][0],bgMts[1][p][1]);
+    ctx.closePath();ctx.fill();
+    ctx.fillStyle='#111c26';
+    ctx.beginPath();ctx.moveTo(bgMts[0][0][0],bgMts[0][0][1]);
+    for(p=1;p<bgMts[0].length;p++)ctx.lineTo(bgMts[0][p][0],bgMts[0][p][1]);
+    ctx.closePath();ctx.fill();
+    /* 山顶积雪 */
+    ctx.fillStyle='rgba(215,224,236,.14)';
+    var cap=Math.min(7,bgMts[0].length);
+    ctx.beginPath();ctx.moveTo(bgMts[0][0][0],WATER);
+    for(p=1;p<cap;p++)ctx.lineTo(bgMts[0][p][0],bgMts[0][p][1]);
+    ctx.lineTo(bgMts[0][cap-1][0],WATER);ctx.closePath();ctx.fill();
+  }
+  if(S.ph!=='play'&&S.ph!=='pause'&&S.ph!=='win'&&S.ph!=='dead'&&S.ph!=='inter'&&S.ph!=='reel'&&S.ph!=='wait'&&S.ph!=='cast'&&S.ph!=='pick')return;
+  if(!L)return;
+  drawWater();
+  drawGrids();
+  drawFishShadows();
+  drawWeeds();
+  drawAngler();
+  drawBobber();
+  if(S.ph==='reel')drawTension();
+  ctx.globalAlpha=1;
+}
+function drawWater(){
+  var g=ctx.createLinearGradient(0,WATER,0,780);
+  g.addColorStop(0,'rgba(30,52,66,.55)');
+  g.addColorStop(.5,'rgba(16,30,42,.72)');
+  g.addColorStop(1,'rgba(8,16,24,.9)');
+  ctx.fillStyle=g;ctx.fillRect(0,WATER,390,480);
+  ctx.strokeStyle='rgba(160,190,210,.35)';ctx.lineWidth=1.2;
+  ctx.beginPath();ctx.moveTo(0,WATER);ctx.lineTo(390,WATER);ctx.stroke();
+  /* 微光带涟漪 */
+  var t=Date.now()/1000;
+  ctx.strokeStyle='rgba(140,170,195,.14)';
+  ctx.beginPath();
+  for(var i=0;i<3;i++){
+    var y=WATER+6+i*9+2*(t%2);
+    ctx.moveTo(20+i*30,y);
+    ctx.quadraticCurveTo(195,y-3,370-i*30,y);
+  }
+  ctx.stroke();
+  /* 层光界 */
+  ctx.strokeStyle='rgba(90,120,150,.12)';
+  ctx.setLineDash([3,7]);
+  ctx.beginPath();
+  ctx.moveTo(0,420);ctx.lineTo(390,420);
+  ctx.moveTo(0,540);ctx.lineTo(390,540);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+function gridXY(pos){
+  return [100+Math.floor(pos/3)*95,336+(pos%3)*120];
+}
+function drawGrids(){
+  for(var i=0;i<9;i++){
+    var xy=gridXY(i);
+    var cur=(i===S.pos);
+    var gd=L.grid[i];
+    ctx.strokeStyle=cur?'rgba(230,200,130,.85)':'rgba(110,140,165,.22)';
+    ctx.lineWidth=cur?1.8:1;
+    rr(xy[0]-36,xy[1]-18,72,36,7);ctx.stroke();
+    if(cur){
+      ctx.fillStyle='rgba(230,200,130,.07)';
+      rr(xy[0]-36,xy[1]-18,72,36,7);ctx.fill();
+    }
+    if(gd.snag){
+      ctx.strokeStyle='rgba(96,76,52,.75)';ctx.lineWidth=2.4;
+      ctx.beginPath();
+      ctx.moveTo(xy[0]-22,xy[1]+8);ctx.lineTo(xy[0]+18,xy[1]-12);
+      ctx.moveTo(xy[0]-14,xy[1]-14);ctx.lineTo(xy[0]+22,xy[1]+10);
+      ctx.stroke();
+    }
+    /* 鱼影数量点 */
+    ctx.fillStyle='rgba(150,180,200,.4)';
+    for(var d=0;d<gd.fish.length;d++)ctx.fillRect(xy[0]-14+d*12,xy[1]+24,6,2);
+  }
+}
+function drawFishShadows(){
+  var t=Date.now()/16;
+  for(var i=0;i<9;i++){
+    var gd=L.grid[i];
+    if(!gd.fish.length)continue;
+    var xy=gridXY(i);
+    for(var d=0;d<gd.fish.length;d++){
+      var sp=gd.fish[d][0];
+      var ph=(t*0.6+d*210+i*97)%1400;
+      var fx=xy[0]-26+ph%52;
+      var fy=xy[1]-6+d*7+(sp%2?4:0);
+      var dir=(Math.floor(ph/700)%2)?1:-1;
+      ctx.fillStyle='rgba(120,150,175,'+(0.22+0.1*(sp%3))+')';
+      ctx.beginPath();
+      ctx.ellipse(fx,fy,8,2.6,0,0,6.283);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(fx+dir*8,fy);
+      ctx.lineTo(fx+dir*12,fy-3);
+      ctx.lineTo(fx+dir*12,fy+3);
+      ctx.closePath();ctx.fill();
+    }
+  }
+}
+function drawWeeds(){
+  ctx.strokeStyle='rgba(40,66,58,.5)';
+  for(var i=0;i<weeds.length;i++){
+    var wd=weeds[i];
+    var sw=2*(Date.now()/900+wd.x)%4-2;
+    ctx.lineWidth=1.6;
+    ctx.beginPath();
+    ctx.moveTo(wd.x,wd.y+wd.h);
+    ctx.quadraticCurveTo(wd.x+sw,wd.y+wd.h/2,wd.x+sw*1.5,wd.y);
+    ctx.stroke();
+  }
+}
+function bobberXY(){
+  var xy=gridXY(S.pos);
+  return [xy[0],WATER-4];
+}
+function drawAngler(){
+  /* 岸石 */
+  ctx.fillStyle='#141d22';
+  ctx.beginPath();
+  ctx.moveTo(0,264);ctx.quadraticCurveTo(34,240,64,262);ctx.quadraticCurveTo(96,282,110,300);
+  ctx.lineTo(0,300);ctx.closePath();ctx.fill();
+  ctx.fillStyle='rgba(220,228,238,.16)';
+  ctx.beginPath();ctx.moveTo(0,264);ctx.quadraticCurveTo(30,246,52,260);ctx.lineTo(0,268);ctx.closePath();ctx.fill();
+  /* 蓑笠翁剪影 */
+  var ax=52,ay=262;
+  ctx.fillStyle='#06090e';
+  ctx.beginPath();                       /* 蓑衣身 */
+  ctx.moveTo(ax-11,ay+2);
+  ctx.quadraticCurveTo(ax-13,ay-18,ax-6,ay-22);
+  ctx.lineTo(ax+6,ay-22);
+  ctx.quadraticCurveTo(ax+12,ay-16,ax+9,ay+2);
+  ctx.closePath();ctx.fill();
+  ctx.beginPath();                       /* 斗笠 */
+  ctx.moveTo(ax-12,ay-22);
+  ctx.lineTo(ax,ay-34);
+  ctx.lineTo(ax+12,ay-22);
+  ctx.closePath();ctx.fill();
+  ctx.strokeStyle='#06090e';ctx.lineWidth=2;   /* 竿 */
+  var bx=bobberXY();
+  ctx.beginPath();ctx.moveTo(ax+8,ay-16);ctx.lineTo(ax+42,ay-44);ctx.stroke();
+  /* 钓线弧到漂 */
+  ctx.strokeStyle='rgba(200,214,226,.5)';ctx.lineWidth=1;
+  ctx.beginPath();
+  ctx.moveTo(ax+42,ay-44);
+  ctx.quadraticCurveTo((ax+42+bx[0])/2,ay-30,bx[0],bx[1]-8);
+  ctx.stroke();
+}
+function drawBobber(){
+  if(S.ph!=='wait'&&S.ph!=='cast'&&S.ph!=='reel')return;
+  var b=bobberXY();
+  var dip=0;
+  if(S.ph==='wait'){
+    if(S.wsub==='nibble')dip=2+2*((S.wt%12)<6?1:0);
+    else if(S.wsub==='pause')dip=1;
+    else if(S.wsub==='bite')dip=6;
+    else if(S.wsub==='snag')dip=Math.min(14,S.snagT/12);
+  }
+  b[1]+=dip;
+  /* 涟漪 */
+  if(dip>3){
+    ctx.strokeStyle='rgba(170,200,220,.3)';
+    ctx.beginPath();ctx.ellipse(b[0],WATER+2,10+dip,3+dip/3,0,0,6.283);ctx.stroke();
+  }
+  ctx.strokeStyle='rgba(200,214,226,.5)';ctx.lineWidth=1;
+  ctx.fillStyle='#b0392e';
+  rr(b[0]-2,b[1]-14,4,14,2);ctx.fill();
+  ctx.fillStyle='#e8e2d0';
+  rr(b[0]-1.5,b[1]-7,3,7,1.5);ctx.fill();
+  ctx.fillStyle='#101820';
+  ctx.fillRect(b[0]-2,b[1]-14,4,3);
+}
+function drawTension(){
+  var x=352,y=WATER+40,h=300;
+  ctx.fillStyle='rgba(10,16,22,.6)';
+  rr(x-8,y-14,26,h+28,6);ctx.fill();
+  ctx.strokeStyle='rgba(120,150,175,.3)';ctx.lineWidth=1;
+  ctx.strokeRect(x,y,10,h);
+  var th=Math.floor(h*S.T/100);
+  var col=S.T<50?'#5a9a6a':(S.T<80?'#c8a04a':'#c05a4a');
+  ctx.fillStyle=col;
+  ctx.fillRect(x,y+h-th,10,th);
+  ctx.strokeStyle='rgba(230,200,130,.8)';
+  ctx.beginPath();ctx.moveTo(x-3,y+h-Math.floor(h*8/100));ctx.lineTo(x+13,y+h-Math.floor(h*8/100));ctx.stroke();
+  ctx.fillStyle='#9ab0c8';ctx.font='10px serif';
+  ctx.fillText('力',x-2,y-4);
+  /* 鱼距 */
+  var fh=Math.min(h,Math.floor(h*S.D/300));
+  ctx.strokeStyle='rgba(140,170,195,.5)';
+  ctx.strokeRect(x+13,y,7,h);
+  ctx.fillStyle='rgba(140,180,210,.6)';
+  ctx.fillRect(x+13,y+h-fh,7,fh);
+  ctx.fillStyle='#9ab0c8';
+  ctx.fillText('距',x+11,y+h+12);
+}
+function updHUD(){
+  document.getElementById('hInfo').textContent='第 '+S.lv+' 关 · '+S.score+' 分';
+  var tl='';
+  for(var i=0;i<L.task.length;i++){
+    var t=L.task[i],left=S.taskLeft[t[0]];
+    tl+=FISH[t[0]].nm+(t[1]-Math.max(0,left))+'/'+t[1]+' ';
+  }
+  document.getElementById('hTask').textContent=tl||'候鱼';
+  document.getElementById('hBait').textContent='饵 '+S.baits+' · '+BAITS[S.bait];
+  var sub='';
+  if(S.ph==='reel')sub='张力 '+S.T+' · 鱼距 '+S.D;
+  else if(S.ph==='wait'){
+    if(S.wsub==='nibble')sub='漂轻点…';
+    else if(S.wsub==='pause')sub='漂静…';
+    else if(S.wsub==='bite')sub='漂沉！提！';
+    else if(S.wsub==='snag')sub='沉漂匀缓…挂底？';
+    else sub='静候…';
+  }else if(S.ph==='cast')sub='抛竿…';
+  else if(S.ph==='inter')sub={catch:'起鱼入护！',snap:'线断鱼走',slip:'脱钩而去',empty:'空竿惊鱼',auto:'收竿换点'}[S.sub]||'';
+  else if(S.ph==='pick')sub='选点换饵';
+  document.getElementById('hSub').textContent=sub;
+}
+function newGame(lv){
+  var d=LVDATA[lv-1];
+  if(!d)return;
+  L=mkLevel(lv,d.seed);
+  rnd=new LCG((Date.now()%M214)||1);
+  S.lv=lv;S.sub='';S.frames=0;S.over=0;S.score=0;
+  S.baits=L.bait_n;
+  S.taskLeft={};
+  for(var i=0;i<L.task.length;i++)S.taskLeft[L.task[i][0]]=L.task[i][1];
+  S.deadN=0;S.lost=0;S.catchN=0;
+  S.pos=0;S.bait=0;S.posT=0;S.baitT=0;S.jPrev=0;
+  S.wsub='';S.wround=0;S.wt=0;S.wnk=0;
+  S.fishSp=-1;S.snagT=0;
+  S.T=30;S.D=0;S.slack=0;S.fph=0;S.wgt=0;
+  S.par=d.par;S.ph='pick';S.stars=0;S.winT=0;
+  S.inL=0;S.inR=0;S.inU=0;S.inD=0;S.inJ=0;
+  h1mem.h1j=0;
+  makeBg(d.seed);
+  document.getElementById('menu').classList.add('hide');
+  document.getElementById('over').classList.add('hide');
+  document.getElementById('dead').classList.add('hide');
+  document.getElementById('pause').classList.add('hide');
+  document.getElementById('lvbar').classList.add('hide');
+  document.getElementById('help').classList.add('hide');
+  document.getElementById('galbar').classList.add('hide');
+  updHUD();
+}
+function doWin(){
+  S.ph='over';S.over=1;
+  S.stars=S.deadN===0&&S.frames<=S.par+300?3:(S.deadN<=1?2:1);
+  if(S.lv+1>unlocked&&S.lv<24)unlocked=S.lv+1;
+  var pb=best[S.lv];
+  if(!pb||S.score>pb.score||(S.score===pb.score&&S.stars>pb.stars))best[S.lv]={score:S.score,stars:S.stars};
+  saveMain();
+  S.winT=1;
+  document.getElementById('oStars').textContent='★'.repeat(S.stars)+'☆'.repeat(3-S.stars);
+  document.getElementById('oScore').textContent='满护而归 · '+S.score+' 分 · 得鱼 '+S.catchN+' · 损 '+S.deadN+' 竿';
+  var b=best[S.lv];
+  document.getElementById('oBest').textContent='此潭最好：'+b.score+' 分';
+  document.getElementById('bNext').classList.toggle('hide',S.lv>=24);
+  document.getElementById('over').classList.remove('hide');
+  tone(523,.1);setTimeout(function(){tone(659,.1)},120);setTimeout(function(){tone(784,.22)},240);
+}
+function doLose(why){
+  S.ph='dead';
+  document.getElementById('dInfo').textContent=why+' · '+S.frames+' 息';
+  document.getElementById('dead').classList.remove('hide');
+  tone(140,.3);setTimeout(function(){tone(96,.35)},140);
+}
+
+/* ============ 输入 ============ */
+function bindHold(id,fn){
+  var el=document.getElementById(id);
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.classList.add('on');fn(1);ensureAC()});
+  var off=function(){el.classList.remove('on');fn(0)};
+  el.addEventListener('pointerup',off);
+  el.addEventListener('pointercancel',off);
+  el.addEventListener('pointerleave',off);
+}
+/* 帧率归一（G3-M4 同款）：固定 60Hz 逻辑步（rAF 时间戳累加器），高刷设备不加速 */
+var _lastT=0,_acc=0;
+function mainLoop(t){
+  if(!_lastT)_lastT=t;
+  _acc+=t-_lastT;_lastT=t;
+  if(_acc>200)_acc=200;
+  while(_acc>=16.6667){
+    if(S.ph==='play'||S.ph==='pick'||S.ph==='cast'||S.ph==='wait'||S.ph==='reel'||S.ph==='inter'){
+      step(S.inL?1:0,S.inR?1:0,S.inU?1:0,S.inD?1:0,S.inJ?1:0);
+      updHUD();
+    }
+    if(S.winT>0)S.winT=Math.max(0,S.winT-0.012);
+    _acc-=16.6667;
+  }
+  draw();
+  requestAnimationFrame(mainLoop);
+}
+bindHold('bL',function(v){S.inL=v});
+bindHold('bR',function(v){S.inR=v});
+bindHold('bU',function(v){S.inU=v});
+bindHold('bD',function(v){S.inD=v});
+bindHold('bJ',function(v){S.inJ=v});
+window.addEventListener('keydown',function(e){
+  if(e.key==='ArrowLeft')S.inL=1;
+  else if(e.key==='ArrowRight')S.inR=1;
+  else if(e.key==='ArrowUp')S.inU=1;
+  else if(e.key==='ArrowDown')S.inD=1;
+  else if(e.key===' '){S.inJ=1;e.preventDefault()}
+});
+window.addEventListener('keyup',function(e){
+  if(e.key==='ArrowLeft')S.inL=0;
+  else if(e.key==='ArrowRight')S.inR=0;
+  else if(e.key==='ArrowUp')S.inU=0;
+  else if(e.key==='ArrowDown')S.inD=0;
+  else if(e.key===' ')S.inJ=0;
+});
+
+/* ============ 面板接线 ============ */
+function home(){
+  S.ph='menu';saveMain();
+  document.getElementById('menu').classList.remove('hide');
+  document.getElementById('over').classList.add('hide');
+  document.getElementById('dead').classList.add('hide');
+  document.getElementById('pause').classList.add('hide');
+  document.getElementById('help').classList.add('hide');
+  document.getElementById('lvbar').classList.add('hide');
+  document.getElementById('galbar').classList.add('hide');
+}
+document.getElementById('mGo').onclick=function(){newGame(Math.min(unlocked,24));tone(440,.05)};
+document.getElementById('mLvs').onclick=function(){
+  var row=document.getElementById('lvrow');
+  row.innerHTML='';
+  for(var i=1;i<=24;i++){
+    (function(i){
+      var d=document.createElement('div');
+      d.className='lvcell'+(i>unlocked?' lock':'');
+      d.textContent=i;
+      d.onclick=function(){if(i<=unlocked){newGame(i);tone(440,.05)}};
+      row.appendChild(d);
+    })(i);
+  }
+  document.getElementById('lvbar').classList.remove('hide');
+};
+document.getElementById('lBack').onclick=function(){document.getElementById('lvbar').classList.add('hide')};
+document.getElementById('mHelp').onclick=function(){document.getElementById('help').classList.remove('hide')};
+document.getElementById('hBack').onclick=function(){document.getElementById('help').classList.add('hide')};
+document.getElementById('mGal').onclick=function(){
+  var row=document.getElementById('galrow');
+  row.innerHTML='';
+  for(var i=0;i<12;i++){
+    var d=document.createElement('div');
+    d.className='galcell'+(gallery.indexOf(i)>=0?' got':'');
+    d.textContent=gallery.indexOf(i)>=0?FISH[i].nm:'？';
+    row.appendChild(d);
+  }
+  document.getElementById('galbar').classList.remove('hide');
+};
+document.getElementById('gBack').onclick=function(){document.getElementById('galbar').classList.add('hide')};
+document.getElementById('bNext').onclick=function(){newGame(Math.min(S.lv+1,24))};
+document.getElementById('bAgain').onclick=function(){newGame(S.lv)};
+document.getElementById('bHome').onclick=home;
+document.getElementById('dAgain').onclick=function(){newGame(S.lv)};
+document.getElementById('dHome').onclick=home;
+document.getElementById('bP').onclick=function(){
+  if(S.ph==='menu')return;
+  S.prevPh=S.ph;S.ph='pause';
+  S.inL=0;S.inR=0;S.inU=0;S.inD=0;S.inJ=0;
+  document.getElementById('pause').classList.remove('hide');
+};
+document.getElementById('pRes').onclick=function(){S.ph=S.prevPh||'pick';document.getElementById('pause').classList.add('hide')};
+document.getElementById('pRestart').onclick=function(){newGame(S.lv)};
+document.getElementById('pSnd').onclick=function(){sndOn=sndOn?0:1;this.textContent=sndOn?'音 效':'静 音';saveMain()};
+document.getElementById('pHome').onclick=home;
+
+/* ============ DEV 段（build 剥离） ============ */
+
+
+/* ============ boot ============ */
+cv=document.getElementById('cv');ctx=cv.getContext('2d');
+loadSave();
+document.getElementById('pSnd').textContent=sndOn?'音 效':'静 音';
+makeBg(LVDATA[0].seed);
+home();
+requestAnimationFrame(mainLoop);
+</script>
+</body>
+</html>
