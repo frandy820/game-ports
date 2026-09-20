@@ -98,9 +98,9 @@ var W=390,H=780;
 var LAYERS=[670,590,510,430,350,270,190],TOP_Y=110,LH=80;
 var SPD=2.6,CLIMB=2.0,GRAV=0.34,JV=-6.5;
 var PW=24,PH=28,PR=9;
-var ROCKV0=1.5,INVULN_F=120,HAMMER_F=720,HANG_LIMIT=3600;
+var ROCKV0=1.5,INVULN_F=120,HAMMER_F=720,HANG_LIMIT=7200;
 var M214=2147483647,LCGX=48271;
-function LCG(x){this.x=x%M214||1}
+function LCG(x){this.x=((x%M214)+M214)%M214||M214-1}   /* 种子归一与 py 同构（含 0/负种子域） */
 LCG.prototype.n=function(){this.x=this.x*LCGX%M214;return this.x};
 LCG.prototype.u=function(m){return this.n()%m};
 
@@ -228,7 +228,7 @@ function newGame(lv){
   S.lv=lv;S.x=L.start[0];S.y=L.start[1];
   S.vx=0;S.vy=0;S.climb=null;S.ground=true;
   S.invuln=0;S.ham=0;S.lives=3;S.score=0;
-  S.frames=0;S.over=0;S.dead_n=0;S.minY=S.y;S.ph='play';
+  S.frames=0;S.over=0;S.dead_n=0;S.minY=S.y;S.ph='play';S.stars=0;
   S.stones=[];S.stone_t=90;
   S.fire=L.fire?{x:(L.fire.x0+L.fire.x1)/2,x0:L.fire.x0,x1:L.fire.x1,y:L.fire.y,d:L.fire.d}:null;
   S.hamTaken=false;
@@ -721,13 +721,21 @@ function bindHold(id,fn){
   el.addEventListener('pointercancel',off);
   el.addEventListener('pointerleave',off);
 }
-function mainLoop(){
-  if(S.ph==='play'){
-    step(S.inL?1:0,S.inR?1:0,S.inU?1:0,S.inD?1:0,S.inJ?1:0);
-    updHUD();
+/* 帧率归一（G3-M4）：固定 60Hz 逻辑步（rAF 时间戳累加器），高刷设备不加速；60Hz 下每 rAF 恰一步、行为与旧版逐位一致 */
+var _lastT=0,_acc=0;
+function mainLoop(t){
+  if(!_lastT)_lastT=t;
+  _acc+=t-_lastT;_lastT=t;
+  if(_acc>200)_acc=200;   /* 后台回来防暴冲 */
+  while(_acc>=16.6667){
+    if(S.ph==='play'){
+      step(S.inL?1:0,S.inR?1:0,S.inU?1:0,S.inD?1:0,S.inJ?1:0);
+      updHUD();
+    }
+    if(S.shake>0)S.shake--;
+    if(S.winT>0)S.winT=Math.max(0,S.winT-0.012);
+    _acc-=16.6667;
   }
-  if(S.shake>0)S.shake--;
-  if(S.winT>0)S.winT=Math.max(0,S.winT-0.012);
   draw();
   requestAnimationFrame(mainLoop);
 }
