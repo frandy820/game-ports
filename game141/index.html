@@ -270,7 +270,7 @@ function settleShot(whiff,kind,bx,by){
     else if(kind===0){var edx=bx-g.pcx,edy=by-g.pcy;edm=dmgOfE(edx*edx+edy*edy);}
     S.hp-=edm;
     craterAt(S.Y,bx,by,kind);
-    snd(edm===40?'hit':(edm===20?'half':'boom'));
+    snd(edm===20?'hit':(edm===10?'half':'boom'));
     S.proj=null;S.boomT=45;S.sub='eboom';
   }
   updHUD();
