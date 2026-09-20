@@ -27,6 +27,12 @@ def main():
                     e[k] = b[k]
             e['curated'] = True
             curated += 1
+        else:
+            # 非人工款：操作说明按输入形态兜底（诚实、有用的下限，不编造细节）
+            e['how'] = {'kb': '键盘操作，具体按键见游戏内菜单/说明',
+                        'touch': '点触操作，具体点法见游戏内菜单/说明',
+                        'kb+touch': '键盘或点触均可，具体见游戏内菜单/说明',
+                        '': '见游戏内菜单/说明'}[e['ctrl']]
         out[str(g['id'])] = e
     dst = os.path.join(ROOT, 'briefs.json')
     with io.open(dst, 'w', encoding='utf-8') as f:
