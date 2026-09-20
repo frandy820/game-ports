@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>震天雷</title>
+<style>
+html,body{margin:0;padding:0;background:#07090f;height:100%;overflow:hidden;
+  font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  -webkit-user-select:none;user-select:none;touch-action:none}
+#app{position:relative;width:390px;height:844px;margin:0 auto;background:#0a0f1c}
+#hud{position:absolute;left:0;top:0;width:390px;height:64px;z-index:5;
+  background:linear-gradient(180deg,#131a2a 0%,#0d1320 100%);
+  border-bottom:1px solid #2a3448;box-sizing:border-box;padding:6px 10px 0}
+#hTop{display:flex;justify-content:space-between;align-items:center;height:26px}
+.hpwrap{width:120px;height:14px;background:#1a2233;border:1px solid #33405c;border-radius:3px;position:relative;overflow:hidden}
+.hpbar{height:100%;width:100%;border-radius:2px;transition:width .3s}
+#hMy .hpbar{background:linear-gradient(90deg,#3f7d5a,#6db387)}
+#hEn .hpbar{background:linear-gradient(90deg,#8a4038,#c76b5a)}
+.hplab{font-size:9px;color:#8fa0bd;letter-spacing:1px;margin-bottom:2px}
+#hMid{display:flex;align-items:center;gap:6px;color:#c8d4ea;font-size:11px}
+#windArrow{display:inline-block;width:0;height:0;border-top:4px solid transparent;border-bottom:4px solid transparent}
+#hSub{display:flex;justify-content:space-between;align-items:center;height:22px;margin-top:3px;color:#9fb0cf;font-size:11px}
+#hParam{color:#e8d5a0;font-weight:600;font-size:12px;letter-spacing:1px}
+#hAmmoa{color:#d8b070}
+#cv{position:absolute;left:0;top:64px;width:390px;height:780px;touch-action:none}
+.lay{position:absolute;inset:0;z-index:9;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:rgba(7,10,16,.86);color:#e8e2d0}
+.lay.hide{display:none}
+#mTitle{font-size:38px;letter-spacing:10px;color:#f0e6cc;text-shadow:0 0 18px rgba(216,168,96,.45);margin:0 0 4px;font-weight:700}
+#mSub{font-size:12px;color:#8fa0bd;letter-spacing:4px;margin-bottom:34px}
+.mbtn{width:200px;padding:12px 0;margin:7px;text-align:center;font-size:16px;letter-spacing:6px;
+  color:#e8d5a0;background:rgba(216,168,96,.10);border:1px solid rgba(216,168,96,.55);border-radius:6px;cursor:pointer}
+.mbtn:active{background:rgba(216,168,96,.28)}
+#mLvs{display:none;flex-wrap:wrap;width:330px;max-height:300px;overflow-y:auto;margin-top:6px}
+.lvbtn{width:52px;height:40px;margin:3px;border:1px solid #33405c;border-radius:5px;color:#c8d4ea;
+  display:flex;align-items:center;justify-content:center;font-size:14px;background:#141b2c;cursor:pointer}
+.lvbtn.lock{color:#3d4a63;border-color:#222c40}
+.lvbtn.cur{border-color:#d8a860;color:#f0e0b8}
+#ovT{font-size:26px;letter-spacing:6px;margin:0 0 6px}
+#ovS{font-size:14px;color:#c8d4ea;margin-bottom:2px}
+#ovStars{font-size:26px;letter-spacing:6px;color:#e8c96a;margin:8px 0 16px}
+.pbtn{width:170px;padding:10px 0;margin:5px;text-align:center;font-size:15px;letter-spacing:4px;
+  color:#e8d5a0;background:rgba(216,168,96,.10);border:1px solid rgba(216,168,96,.5);border-radius:6px;cursor:pointer}
+#pMute{position:absolute;right:8px;top:70px;z-index:6;width:30px;height:22px;line-height:20px;text-align:center;
+  font-size:11px;color:#8fa0bd;border:1px solid #33405c;border-radius:4px;background:rgba(13,19,32,.7);cursor:pointer}
+#pQ{position:absolute;right:8px;top:96px;z-index:6;width:30px;height:22px;line-height:20px;text-align:center;
+  font-size:11px;color:#8fa0bd;border:1px solid #33405c;border-radius:4px;background:rgba(13,19,32,.7);cursor:pointer}
+#flash{position:absolute;left:50%;top:120px;transform:translateX(-50%);z-index:7;color:#f0e0b8;
+  font-size:13px;letter-spacing:2px;opacity:0;transition:opacity .3s;pointer-events:none;text-shadow:0 0 8px rgba(0,0,0,.8)}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div id="hTop">
+      <div><div class="hplab">我砲</div><div class="hpwrap" id="hMy"><div class="hpbar"></div></div></div>
+      <div id="hMid"><span id="windArrow"></span><span id="windVal">风 0</span></div>
+      <div><div class="hplab" style="text-align:right">敌砲</div><div class="hpwrap" id="hEn"><div class="hpbar"></div></div></div>
+    </div>
+    <div id="hSub"><span id="hRound">回合 1</span><span id="hParam">∠ 55°　力 16</span><span id="hAmmoa">雷 10</span></div>
+  </div>
+  <canvas id="cv" width="390" height="780"></canvas>
+  <div id="pMute">♪</div>
+  <div id="pQ">▣</div>
+  <div id="flash"></div>
+  <div id="menu" class="lay">
+    <h1 id="mTitle">震天雷</h1>
+    <div id="mSub">宋金对垒 · 夜砲校射</div>
+    <div class="mbtn" id="mGo">启 程</div>
+    <div class="mbtn" id="mPick">选 关</div>
+    <div class="mbtn" id="mHelp">砲 谱</div>
+    <div id="mLvs"></div>
+  </div>
+  <div id="over" class="lay hide">
+    <div id="ovT">敌砲尽毁</div>
+    <div id="ovS"></div>
+    <div id="ovStars"></div>
+    <div class="pbtn" id="ovN">下一关</div>
+    <div class="pbtn" id="ovR">再战此关</div>
+    <div class="pbtn" id="ovH">回砲阵</div>
+  </div>
+  <div id="pause" class="lay hide">
+    <div style="font-size:20px;letter-spacing:8px;margin-bottom:24px;color:#e8d5a0">暂 歇</div>
+    <div class="pbtn" id="pRes">续 战</div>
+    <div class="pbtn" id="pHome">回砲阵</div>
+  </div>
+</div>
+<script>
+"use strict";
+/* ============ 常量（与 sim141.py 同源字面量） ============ */
+var W=390,H=780,COLW=30,NCOL=13,G_=0.30;
+var R_HIT2=256,R_HALF2=1156,R_AIR2=324,DMG_F=40,DMG_H=20,DMG_EF=20,DMG_EH=10,CRATER=26,Y_FLOOR=750;
+var NA_=15,NV_=17,ROUND_CAP=30,HP0=100;
+function bandWb(lv){return lv<=8?5:(lv<=16?10:15);}   /* 风带半宽（0.002 档）：浅5/中10/深15——SPEC v1.1 §1 */
+var COS=[0.984807753,0.965925826,0.939692621,0.906307787,0.866025404,0.819152044,0.766044443,0.707106781,0.642787610,0.573576436,0.500000000,0.422618262,0.342020143,0.258819045,0.173648178];
+var SIN=[0.173648178,0.258819045,0.342020143,0.422618262,0.500000000,0.573576436,0.642787610,0.707106781,0.766044443,0.819152044,0.866025404,0.906307787,0.939692621,0.965925826,0.984807753];
+/* 谱（lvdata141.json 精简嵌印） */
+var LVDATA=[{"Y":[595,630,560,595,595,595,560,630,630,560,595,630,630],"p":2,"e":11,"err":30,"hp":80,"am":10,"par":2},{"Y":[560,630,595,560,595,595,595,595,560,560,630,630,560],"p":1,"e":12,"err":30,"hp":80,"am":10,"par":2},{"Y":[595,630,560,630,595,560,630,595,595,560,630,630,630],"p":0,"e":11,"err":30,"hp":80,"am":10,"par":2},{"Y":[560,595,630,595,595,630,560,630,595,560,595,595,560],"p":1,"e":11,"err":30,"hp":80,"am":10,"par":2},{"Y":[630,630,560,560,560,595,630,595,595,630,595,560,560],"p":0,"e":10,"err":30,"hp":80,"am":10,"par":2},{"Y":[595,560,630,595,560,560,630,595,560,595,560,630,595],"p":2,"e":10,"err":30,"hp":80,"am":10,"par":2},{"Y":[560,595,595,560,560,560,560,560,595,595,560,630,630],"p":1,"e":11,"err":30,"hp":80,"am":10,"par":2},{"Y":[630,595,560,630,560,630,595,630,630,630,595,630,595],"p":0,"e":10,"err":30,"hp":80,"am":10,"par":2},{"Y":[665,630,665,630,595,560,560,665,595,665,665,630,630],"p":2,"e":12,"err":45,"hp":100,"am":8,"par":3},{"Y":[665,595,560,595,630,665,665,560,665,630,665,560,560],"p":1,"e":10,"err":45,"hp":100,"am":8,"par":3},{"Y":[665,595,560,560,665,630,630,560,595,560,630,630,665],"p":2,"e":12,"err":45,"hp":100,"am":8,"par":3},{"Y":[560,595,560,560,560,595,595,595,665,665,630,560,595],"p":1,"e":10,"err":45,"hp":100,"am":8,"par":3},{"Y":[560,560,560,665,595,665,560,630,595,630,630,630,665],"p":0,"e":12,"err":45,"hp":100,"am":8,"par":3},{"Y":[560,560,595,630,630,630,665,665,560,595,595,560,630],"p":2,"e":11,"err":45,"hp":100,"am":8,"par":3},{"Y":[560,560,595,595,665,595,630,560,630,665,595,630,560],"p":1,"e":12,"err":45,"hp":100,"am":8,"par":3},{"Y":[560,665,595,560,595,560,595,595,560,630,595,560,665],"p":2,"e":11,"err":45,"hp":100,"am":8,"par":3},{"Y":[700,595,595,595,630,630,665,560,630,595,700,630,665],"p":1,"e":10,"err":60,"hp":130,"am":7,"par":5},{"Y":[560,595,630,735,560,560,560,560,560,700,700,630,735],"p":0,"e":11,"err":60,"hp":130,"am":7,"par":4},{"Y":[630,630,700,700,630,595,595,595,560,630,700,630,560],"p":2,"e":10,"err":60,"hp":130,"am":7,"par":4},{"Y":[595,595,630,700,595,595,630,630,630,665,665,560,560],"p":0,"e":10,"err":60,"hp":130,"am":7,"par":4},{"Y":[630,630,700,665,630,560,630,595,560,560,700,560,595],"p":2,"e":12,"err":60,"hp":130,"am":7,"par":4},{"Y":[595,665,665,595,630,630,665,630,665,560,735,665,735],"p":1,"e":12,"err":60,"hp":130,"am":7,"par":4},{"Y":[665,665,735,560,630,595,595,595,595,665,560,665,595],"p":0,"e":10,"err":60,"hp":130,"am":7,"par":4},{"Y":[735,665,595,735,560,560,560,560,595,560,560,665,630],"p":2,"e":12,"err":60,"hp":130,"am":7,"par":4}];
+
+/* ============ LCG 48271（与 py 同构：x 恒正，u(k)=x%k） ============ */
+function Rc(seed){this.x=seed%2147483647;if(this.x===0)this.x=1;}
+Rc.prototype.u=function(k){this.x=this.x*48271%2147483647;return this.x%k;};
+
+/* ============ 弹道/解算/伤害（与 sim141.py 逐位同构） ============ */
+function muzV(ti,vi,dir){return{vx:dir*(8+vi)*COS[ti],vy:-(8+vi)*SIN[ti]};}   /* 砲口初速单源：dir=+1 我右射 / -1 敌左射（裁决 11） */
+function fire(x0,y0,ti,vi,wind,Y,tx,ty,dir){
+  var mv=muzV(ti,vi,dir||1),vx=mv.vx,vy=mv.vy,x=x0,y=y0,dx,dy,col,bx,by;
+  for(var t=0;t<3000;t++){
+    vx+=wind;vy+=G_;x+=vx;y+=vy;
+    dx=x-tx;dy=y-ty;
+    if(dx*dx+dy*dy<=R_AIR2)return{d2:0,k:1,bx:x,by:y};
+    col=Math.floor(x/COLW);
+    if(col>=0&&col<NCOL&&y+4>=Y[col]){
+      bx=x;by=Y[col];dx=bx-tx;dy=by-ty;
+      return{d2:dx*dx+dy*dy,k:0,bx:bx,by:by};
+    }
+    if(x<-40||x>430||y>800||y<-2400)return{d2:1e18,k:-1,bx:x,by:y};
+  }
+  return{d2:1e18,k:-1,bx:x,by:y};
+}
+function solve(x0,y0,wind,Y,tx,ty,dir){
+  var bti=0,bvi=0,bd2=1e18,r;
+  for(var ti=0;ti<NA_;ti++)for(var vi=0;vi<NV_;vi++){
+    r=fire(x0,y0,ti,vi,wind,Y,tx,ty,dir||1);
+    if(r.d2<bd2){bd2=r.d2;bti=ti;bvi=vi;}
+  }
+  return{ti:bti,vi:bvi,d2:bd2};
+}
+function dmgOf(d2){if(d2<=R_HIT2)return 40;if(d2<=R_HALF2)return 20;return 0;}
+function dmgOfE(d2){if(d2<=R_HIT2)return DMG_EF;if(d2<=R_HALF2)return DMG_EH;return 0;}   /* 敌弹对我伤（胸墙减半——裁决 12） */
+function craterAt(Y,bx,by,kind){
+  if(kind!==0)return;
+  var col=Math.floor(bx/COLW);
+  if(col>=0&&col<NCOL){var ny=Y[col]+CRATER;Y[col]=ny<Y_FLOOR?ny:Y_FLOOR;}
+}
+function clampi(i,lo,hi){return i<lo?lo:(i>hi?hi:i);}
+
+/* ============ 全局状态 ============ */
+var cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+var S={ph:'menu',sub:'aim',lv:1,Y:[],YG:[],pcol:1,ecol:11,hp:80,ehp:80,ammo:10,err:45,
+  ti:9,vi:8,wind:0,rounds:0,fulls:0,par:2,rng:null,
+  proj:null,trail:[],booms:[],parts:[],boomT:0,windT:0,ovtT:0,win:false,
+  shakeT:0,flagA:0,testSeed:0,paus:0};
+var SAVE_KEY='g141_thunder';
+var STARS=[];
+
+/* ============ 存档 ============ */
+function loadSave(){
+  try{
+    var d=JSON.parse(localStorage.getItem(SAVE_KEY));
+    if(!d||typeof d!=='object')return{unlocked:1,best:{}};
+    var u=d.unlocked,b=d.best;
+    if(!isFinite(u)||u%1!==0||u<1||u>24)return{unlocked:1,best:{}};
+    if(!b||typeof b!=='object')return{unlocked:u,best:{}};
+    for(var k in b){var o=b[k];
+      if(!o||!isFinite(o.score)||o.score%1!==0||o.score<0||!isFinite(o.stars)||o.stars%1!==0||o.stars<0||o.stars>3)
+        {delete b[k];continue}}
+    return{unlocked:u,best:b};
+  }catch(e){return{unlocked:1,best:{}};}
+}
+function saveMain(){
+  try{localStorage.setItem(SAVE_KEY,JSON.stringify({unlocked:saveU,best:saveB}));}catch(e){}
+}
+var saveU=1,saveB={};
+
+/* ============ 音效（惰性 AC，手势内 ensure——家族 J2 范式） ============ */
+var AC=null;
+function ensureAC(){
+  if(AC)return;
+  try{AC=new(window.AudioContext||window.webkitAudioContext)();}catch(e){AC=null;}
+}
+document.addEventListener('pointerdown',function w(){ensureAC();if(AC&&AC.state==='suspended')AC.resume();
+  document.removeEventListener('pointerdown',w);});
+var sndOn=1;
+try{sndOn=localStorage.getItem('g141_snd')!=='0';}catch(e){}
+function snd(type){
+  if(!sndOn||!AC)return;
+  var t=AC.currentTime,fs=null;
+  if(type==='shot')fs=[[110,.12,'square',.10],[74,.2,'sine',.12]];
+  else if(type==='boom')fs=[[64,.5,'sine',.22],[180,.1,'square',.06]];
+  else if(type==='hit')fs=[[520,.08,'square',.09],[390,.14,'sine',.08]];
+  else if(type==='half')fs=[[260,.12,'sine',.08]];
+  else if(type==='win')fs=[[523,.12,'sine',.1],[659,.12,'sine',.1],[784,.2,'sine',.12]];
+  else if(type==='lose')fs=[[196,.3,'sine',.12],[131,.4,'sine',.12]];
+  else if(type==='tick')fs=[[880,.03,'square',.04]];
+  if(!fs)return;
+  for(var i=0;i<fs.length;i++){
+    var o=AC.createOscillator(),g=AC.createGain();
+    o.type=fs[i][2];o.frequency.value=fs[i][0];
+    g.gain.setValueAtTime(fs[i][3],t);g.gain.exponentialRampToValueAtTime(.0001,t+fs[i][1]);
+    o.connect(g);g.connect(AC.destination);o.start(t+i*.02);o.stop(t+i*.02+fs[i][1]);
+  }
+}
+
+/* ============ 对局几何 ============ */
+function geo(){
+  /* 砲位锚定开局列高（SPEC 裁决 1：炸坑只改碰撞面 S.Y，不改砲位 S.YG） */
+  var Y0=S.YG;
+  return{pcx:S.pcol*COLW+15,pcy:Y0[S.pcol]-22,ecx:S.ecol*COLW+15,ecy:Y0[S.ecol]-22,
+    mx:S.pcol*COLW+25,my:Y0[S.pcol]-36,ex:S.ecol*COLW+5,ey:Y0[S.ecol]-36};
+}
+function gameSeed(){return S.testSeed>0?S.testSeed:((Date.now()%2147483647)||1);}
+
+/* ============ 开局 ============ */
+function newGame(lv){
+  var d=LVDATA[lv-1];
+  S.lv=lv;S.Y=d.Y.slice();S.YG=d.Y.slice();S.pcol=d.p;S.ecol=d.e;S.hp=HP0;S.ehp=d.hp;S.ammo=d.am;
+  S.err=d.err;S.par=d.par;S.rounds=0;S.fulls=0;S.ti=9;S.vi=8;
+  S.rng=new Rc(gameSeed());
+  S.wb=bandWb(lv);
+  S.wind=(S.rng.u(2*S.wb+1)-S.wb)*0.002;
+  S.sub='aim';S.proj=null;S.trail=[];S.booms=[];S.parts=[];S.boomT=0;S.windT=0;S.ovtT=0;S.paus=0;
+  S.ph='play';
+  document.getElementById('menu').classList.add('hide');
+  document.getElementById('over').classList.add('hide');
+  document.getElementById('pause').classList.add('hide');
+  updHUD();
+}
+function starsOf(){
+  if(!S.win)return 0;
+  if(S.rounds<=S.par)return 3;
+  if(S.hp>=75)return 2;
+  return 1;
+}
+function scoreOf(){return 200+S.ammo*30+S.hp*2+S.fulls*50;}
+
+/* ============ 回合逻辑（演出态机；物理/伤害/炸坑与 py 同构） ============ */
+function launchPlayer(){
+  if(S.ph!=='play'||S.sub!=='aim')return;
+  if(S.ammo<=0||S.rounds>=ROUND_CAP){endGame(false);return;}
+  S.rounds++;S.ammo--;
+  var g=geo();
+  var pm=muzV(S.ti,S.vi,1);
+  S.proj={x:g.mx,y:g.my,vx:pm.vx,vy:pm.vy,foe:false};
+  S.trail=[];
+  S.sub='fly';
+  updHUD();snd('shot');
+}
+function stepFly(){
+  var g=geo(),p=S.proj;
+  p.vx+=S.wind;p.vy+=G_;p.x+=p.vx;p.y+=p.vy;
+  S.trail.push({x:p.x,y:p.y,a:1});
+  if(S.trail.length>90)S.trail.shift();
+  var tx=p.foe?g.pcx:g.ecx,ty=p.foe?g.pcy:g.ecy;
+  var dx=p.x-tx,dy=p.y-ty;
+  if(dx*dx+dy*dy<=R_AIR2){settleShot(0,1,p.x,p.y);return;}
+  var col=Math.floor(p.x/COLW);
+  if(col>=0&&col<NCOL&&p.y+4>=S.Y[col]){settleShot(0,0,p.x,S.Y[col]);return;}
+  if(p.x<-40||p.x>430||p.y>800||p.y<-2400){settleShot(1,-1,p.x,p.y);return;}
+}
+function settleShot(whiff,kind,bx,by){
+  /* whiff=1 出界不爆；伤害=爆点 d² 同构 py fire/dmgOf（SPEC 裁决 2/3/8） */
+  var g=geo(),dm=0,edm=0;
+  if(!whiff){
+    S.booms.push({x:bx,y:by,t:0});
+    S.shakeT=14;
+    for(var i=0;i<14;i++)S.parts.push({x:bx,y:by,vx:(Math.random()-.5)*4,vy:-Math.random()*3-1,l:30+Math.random()*20,c:Math.random()<.5?'#e8a050':'#888070'});
+  }
+  if(S.proj&&!S.proj.foe){
+    if(kind===1)dm=40;
+    else if(kind===0){var ddx=bx-g.ecx,ddy=by-g.ecy;dm=dmgOf(ddx*ddx+ddy*ddy);}
+    if(dm===40)S.fulls++;
+    S.ehp-=dm;
+    craterAt(S.Y,bx,by,kind);
+    snd(dm===40?'hit':(dm===20?'half':'boom'));
+    S.proj=null;S.boomT=45;S.sub='boom';
+  }else{
+    if(kind===1)edm=DMG_EF;
+    else if(kind===0){var edx=bx-g.pcx,edy=by-g.pcy;edm=dmgOfE(edx*edx+edy*edy);}
+    S.hp-=edm;
+    craterAt(S.Y,bx,by,kind);
+    snd(edm===40?'hit':(edm===20?'half':'boom'));
+    S.proj=null;S.boomT=45;S.sub='eboom';
+  }
+  updHUD();
+}
+function afterMyBoom(){
+  if(S.ehp<=0){S.win=true;endGame(true);return;}
+  /* 敌方解算+扰动（LCG 消费序与 py 同构；左射镜像解算——裁决 11） */
+  var g=geo();
+  var sol=solve(g.ex,g.ey,S.wind,S.Y,g.pcx,g.pcy,-1);
+  var eti=sol.ti,evi=sol.vi;
+  if(S.rng.u(100)<S.err){
+    if(S.rng.u(2))eti=clampi(eti+(S.rng.u(2)?1:-1),0,14);
+    else evi=clampi(evi+(S.rng.u(2)?1:-1),0,16);
+  }
+  var em=muzV(eti,evi,-1);
+  S.proj={x:g.ex,y:g.ey,vx:em.vx,vy:em.vy,foe:true};
+  S.trail=[];
+  S.sub='efly';
+  snd('shot');
+}
+function afterEnemyBoom(){
+  if(S.hp<=0){S.win=false;endGame(false);return;}
+  S.wind=(S.rng.u(2*S.wb+1)-S.wb)*0.002;
+  if(S.ammo<=0||S.rounds>=ROUND_CAP){S.win=false;endGame(false);return;}
+  S.sub='wind';S.windT=30;
+}
+function endGame(win){
+  S.win=win;S.ph='over';S.sub='ovt';S.ovtT=win?72:60;
+  if(win){
+    var sc=scoreOf(),st=starsOf();
+    var b=saveB[S.lv];
+    if(!b||sc>b.score)saveB[S.lv]={score:sc,stars:st};
+    else if(st>b.stars)saveB[S.lv]={score:b.score,stars:st};
+    if(S.lv>=saveU&&saveU<24)saveU=S.lv+1;
+    saveMain();
+  }
+  snd(win?'win':'lose');
+}
+
+/* ============ 逻辑步（60Hz 固定步，rAF 累加器驱动——g140-M4 制式） ============ */
+function step(){
+  S.flagA+=0.06+S.wind*4;
+  for(var i=S.parts.length-1;i>=0;i--){var p=S.parts[i];p.x+=p.vx;p.y+=p.vy;p.vy+=0.08;p.l--;if(p.l<=0)S.parts.splice(i,1);}
+  if(S.shakeT>0)S.shakeT--;
+  for(var j=S.booms.length-1;j>=0;j--){S.booms[j].t++;if(S.booms[j].t>50)S.booms.splice(j,1);}
+  if(S.ph==='over'&&S.sub==='ovt'){if(S.ovtT>0){S.ovtT--;if(S.ovtT===0)showOver();}return;}   /* 结算演出仅 over 相位跑且只弹一次（M1：防菜单期面板复活） */
+  if(S.ph!=='play'||S.paus)return;
+  if(S.sub==='fly'||S.sub==='efly'){stepFly();return;}
+  if(S.sub==='boom'){S.boomT--;if(S.boomT<=0)afterMyBoom();return;}
+  if(S.sub==='eboom'){S.boomT--;if(S.boomT<=0)afterEnemyBoom();return;}
+  if(S.sub==='wind'){S.windT--;if(S.windT<=0){S.sub='aim';updHUD();}return;}
+}
+
+/* ============ HUD/面板 ============ */
+var els={};
+function E(id){if(!els[id])els[id]=document.getElementById(id);return els[id];}
+function updHUD(){
+  E('hMy').firstElementChild.style.width=Math.max(0,S.hp/HP0*100)+'%';
+  E('hEn').firstElementChild.style.width=Math.max(0,S.ehp/(LVDATA[S.lv-1].hp)*100)+'%';
+  var wv=Math.round(S.wind/0.002);
+  E('windVal').textContent='风 '+(wv===0?'0':(wv>0?'→':'←')+Math.abs(wv));
+  var ar=E('windArrow');
+  if(wv>0){ar.style.borderLeft='7px solid #d8a860';ar.style.borderRight='none';}
+  else if(wv<0){ar.style.borderRight='7px solid #d8a860';ar.style.borderLeft='none';}
+  else{ar.style.borderLeft='4px solid transparent';ar.style.borderRight='4px solid transparent';}
+  E('hRound').textContent='回合 '+Math.max(1,S.rounds+(S.sub==='aim'?1:0))+'/30';
+  E('hParam').textContent='∠ '+(10+5*S.ti)+'°　力 '+(8+S.vi);
+  E('hAmmoa').textContent='雷 '+S.ammo;
+}
+function showOver(){
+  E('ovT').textContent=S.win?'敌砲尽毁':'我砲折损';
+  E('ovT').style.color=S.win?'#e8c96a':'#c76b5a';
+  E('ovS').textContent=S.win?('得分 '+scoreOf()+' · '+S.rounds+' 发 · 余雷 '+S.ammo):('耗 '+S.rounds+' 发 · 敌砲余 '+Math.max(0,S.ehp));
+  var st=starsOf(),s='';
+  for(var i=0;i<3;i++)s+=i<st?'★':'☆';
+  E('ovStars').textContent=s;
+  E('ovN').style.display=(S.win&&S.lv<24)?'':'none';
+  E('over').classList.remove('hide');
+  updHUD();
+}
+function home(){
+  S.ph='menu';
+  S.sub='aim';   /* M1：清结算残留态（防 ovt 挂菜单） */
+  E('menu').classList.remove('hide');
+  E('over').classList.add('hide');
+  E('pause').classList.add('hide');
+  E('mLvs').style.display='none';
+}
+function flashMsg(t){
+  var f=E('flash');f.textContent=t;f.style.opacity=1;
+  clearTimeout(flashMsg._t);flashMsg._t=setTimeout(function(){f.style.opacity=0;},1400);
+}
+
+/* ============ 渲染 ============ */
+function initStars(){
+  var r=new Rc(77005);
+  for(var i=0;i<70;i++)STARS.push({x:r.u(390),y:r.u(430),a:.3+r.u(70)/100,r:r.u(2)?1:1.5});
+}
+function draw(){
+  ctx.save();
+  if(S.shakeT>0)ctx.translate((Math.random()-.5)*4,(Math.random()-.5)*3);
+  /* 夜空 */
+  var grd=ctx.createLinearGradient(0,0,0,H);
+  grd.addColorStop(0,'#0a1020');grd.addColorStop(.6,'#131c30');grd.addColorStop(1,'#1a2438');
+  ctx.fillStyle=grd;ctx.fillRect(0,0,W,H);
+  /* 月 */
+  ctx.fillStyle='#e8e2c8';ctx.globalAlpha=.9;
+  ctx.beginPath();ctx.arc(320,70,17,0,7);ctx.fill();
+  ctx.globalAlpha=.14;ctx.beginPath();ctx.arc(320,70,30,0,7);ctx.fill();
+  ctx.globalAlpha=1;
+  /* 星 */
+  ctx.fillStyle='#cdd8ea';
+  for(var i=0;i<STARS.length;i++){var st=STARS[i];ctx.globalAlpha=st.a*(0.7+0.3*Math.sin(S.flagA+i));ctx.fillRect(st.x,st.y,st.r,st.r);}
+  ctx.globalAlpha=1;
+  /* 远山两层 */
+  ctx.fillStyle='#101a26';
+  ctx.beginPath();ctx.moveTo(0,300);
+  for(var x=0;x<=390;x+=30)ctx.lineTo(x,268+((x*7)%3)*14);
+  ctx.lineTo(390,430);ctx.lineTo(0,430);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#15202e';
+  ctx.beginPath();ctx.moveTo(0,380);
+  for(var x2=0;x2<=390;x2+=30)ctx.lineTo(x2,340+((x2*13)%4)*12);
+  ctx.lineTo(390,470);ctx.lineTo(0,470);ctx.closePath();ctx.fill();
+  /* 地形 */
+  for(var c=0;c<NCOL;c++){
+    var y0=S.Y[c];
+    var tg=ctx.createLinearGradient(0,y0,0,780);
+    tg.addColorStop(0,'#4a3b2c');tg.addColorStop(.25,'#3a2f24');tg.addColorStop(1,'#241d16');
+    ctx.fillStyle=tg;ctx.fillRect(c*COLW,y0,COLW,780-y0);
+    ctx.fillStyle='#5c6b48';ctx.fillRect(c*COLW,y0,COLW,4);
+    ctx.fillStyle='rgba(0,0,0,.18)';
+    ctx.fillRect(c*COLW+8,y0+18,COLW-16,3);
+    ctx.fillRect(c*COLW+4,y0+52,COLW-8,2);
+    if(y0>=Y_FLOOR){ctx.fillStyle='rgba(20,16,10,.55)';ctx.fillRect(c*COLW,y0,COLW,780-y0);}
+  }
+  drawGun(S.pcol,false);
+  drawGun(S.ecol,true);
+  /* 风旗（我砲侧） */
+  drawFlag();
+  /* 尾迹 */
+  for(var t2=0;t2<S.trail.length;t2++){
+    var tr=S.trail[t2];
+    ctx.globalAlpha=tr.a*(t2/S.trail.length)*.8;
+    ctx.fillStyle='#e8a050';
+    ctx.fillRect(tr.x-1.5,tr.y-1.5,3,3);
+  }
+  ctx.globalAlpha=1;
+  /* 弹 */
+  if(S.proj){
+    ctx.fillStyle='rgba(250,220,140,.25)';
+    ctx.beginPath();ctx.arc(S.proj.x,S.proj.y,8,0,7);ctx.fill();
+    ctx.fillStyle='#fce8b0';
+    ctx.beginPath();ctx.arc(S.proj.x,S.proj.y,3.5,0,7);ctx.fill();
+  }
+  /* 爆炸 */
+  for(var b2=0;b2<S.booms.length;b2++){
+    var bo=S.booms[b2],pr=bo.t/50;
+    if(bo.t<8){ctx.fillStyle='rgba(255,250,230,'+(1-bo.t/8)+')';
+      ctx.beginPath();ctx.arc(bo.x,bo.y,30*(1+bo.t/8),0,7);ctx.fill();}
+    ctx.strokeStyle='rgba(232,160,80,'+(1-pr)+')';ctx.lineWidth=3;
+    ctx.beginPath();ctx.arc(bo.x,bo.y,8+pr*30,0,7);ctx.stroke();
+  }
+  /* 粒子 */
+  for(var p2=0;p2<S.parts.length;p2++){var pa=S.parts[p2];
+    ctx.globalAlpha=Math.min(1,pa.l/30);ctx.fillStyle=pa.c;
+    ctx.fillRect(pa.x-1.5,pa.y-1.5,3,3);}
+  ctx.globalAlpha=1;
+  /* 底部操作带（canvas 内 y>=712） */
+  drawBtns();
+  ctx.restore();
+}
+function drawGun(col,foe){
+  var y=(S.YG&&S.YG.length)?S.YG[col]:S.Y[col],x=col*COLW+15;
+  ctx.save();ctx.translate(x,y);
+  /* 岩台：地表被炸沉后锚定砲位下补柱（裁决 1 视觉抽象） */
+  if(S.Y[col]>y){
+    ctx.fillStyle='#241d16';ctx.fillRect(-12,0,24,S.Y[col]-y);
+    ctx.fillStyle='#4a3b2c';ctx.fillRect(-12,0,24,5);
+    ctx.fillStyle='rgba(0,0,0,.25)';ctx.fillRect(-2,6,4,Math.max(0,S.Y[col]-y-6));
+  }
+  if(foe)ctx.scale(-1,1);
+  /* 底架 */
+  ctx.strokeStyle=foe?'#6a3830':'#6a5636';ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(-12,0);ctx.lineTo(0,-20);ctx.lineTo(12,0);ctx.stroke();
+  ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(-12,-12);ctx.lineTo(12,-12);ctx.stroke();
+  /* 立柱+配重臂（臂随当前仰角——我方随 S.ti，敌方固定 45°） */
+  var ang=foe?-0.9:-(0.28+(S.ti/14)*0.62);
+  ctx.strokeStyle=foe?'#8a4840':'#8a7048';ctx.lineWidth=4;
+  ctx.beginPath();ctx.moveTo(0,-14);
+  ctx.lineTo(Math.sin(ang)*24,-14-Math.cos(ang)*24);ctx.stroke();
+  /* 皮兜/砲弹位 */
+  var hx=Math.sin(ang)*24,hy=-14-Math.cos(ang)*24;
+  ctx.fillStyle=foe?'#c76b5a':'#e8d5a0';
+  ctx.beginPath();ctx.arc(hx,hy-3,4,0,7);ctx.fill();
+  /* 配重 */
+  ctx.fillStyle=foe?'#5a3028':'#5a4a30';
+  ctx.fillRect(-Math.sin(ang)*14-5,-14+Math.cos(ang)*14-5,10,10);
+  /* 灯（区分敌我） */
+  ctx.fillStyle=foe?'rgba(200,90,70,.2)':'rgba(250,220,140,.2)';
+  ctx.beginPath();ctx.arc(0,-24,14,0,7);ctx.fill();
+  ctx.restore();
+  /* 血尽焚毁 */
+  var dead=foe?S.ehp<=0:S.hp<=0;
+  if(dead){
+    ctx.fillStyle='rgba(30,20,14,.75)';
+    ctx.fillRect(x-16,y-34,32,34);
+    ctx.fillStyle='#e8893a';
+    for(var f=0;f<3;f++)ctx.fillRect(x-6+f*6,y-10-((S.flagA*3+f*7)%20),2,6);
+  }
+}
+function drawFlag(){
+  var x=S.pcol*COLW+15,y=(S.YG&&S.YG.length)?S.YG[S.pcol]:S.Y[S.pcol];
+  ctx.strokeStyle='#5a6478';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(x-20,y);ctx.lineTo(x-20,y-42);ctx.stroke();
+  var wv=S.wind/0.002,fw=Math.abs(wv)/15;
+  var dir=wv>=0?1:-1;
+  var sway=Math.sin(S.flagA*2)*2*fw;
+  ctx.fillStyle='#d8a860';
+  ctx.beginPath();ctx.moveTo(x-20,y-42);
+  ctx.lineTo(x-20+dir*(16+fw*8),y-38+sway);
+  ctx.lineTo(x-20,y-32);ctx.closePath();ctx.fill();
+}
+/* 按钮几何（canvas 内，页面 y-64 偏移） */
+var BTNS=[
+  {id:'am',x:8,y:724,w:62,h:46,lab:'∠-'},
+  {id:'ap',x:78,y:724,w:62,h:46,lab:'∠+'},
+  {id:'fm',x:148,y:724,w:62,h:46,lab:'力-'},
+  {id:'fp',x:218,y:724,w:62,h:46,lab:'力+'},
+  {id:'go',x:288,y:724,w:94,h:46,lab:'发 震天雷'}];
+function drawBtns(){
+  ctx.fillStyle='rgba(10,14,22,.72)';
+  ctx.fillRect(0,712,W,68);
+  ctx.strokeStyle='#2a3448';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(0,712);ctx.lineTo(W,712);ctx.stroke();
+  var can=S.ph==='play'&&S.sub==='aim';
+  for(var i=0;i<BTNS.length;i++){
+    var b=BTNS[i];
+    var hot=can&&b.id===HOT;
+    ctx.fillStyle=hot?'rgba(216,168,96,.32)':(b.id==='go'?'rgba(200,90,70,'+(can?'.24':'.08')+')':'rgba(30,40,58,.85)');
+    ctx.fillRect(b.x,b.y,b.w,b.h);
+    ctx.strokeStyle=can?(b.id==='go'?'rgba(232,140,100,.8)':'rgba(216,168,96,.5)'):'#28324a';
+    if(hot)ctx.lineWidth=2;else ctx.lineWidth=1;
+    ctx.strokeRect(b.x,b.y,b.w,b.h);
+    ctx.fillStyle=can?(b.id==='go'?'#f0d0b0':'#e8d5a0'):'#4a5670';
+    ctx.font=(b.id==='go'?'700 14px':'600 15px')+' system-ui';
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(b.lab,b.x+b.w/2,b.y+b.h/2+1);
+  }
+}
+var HOT=null;
+
+/* ============ 输入 ============ */
+document.addEventListener('keydown',function(e){
+  if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' ','Spacebar'].indexOf(e.key)>=0)e.preventDefault();
+  if(S.ph!=='play'||S.paus||S.sub!=='aim')return;
+  if(e.key==='ArrowLeft'){adj(-1,0);}
+  else if(e.key==='ArrowRight'){adj(1,0);}
+  else if(e.key==='ArrowUp'){adj(0,1);}
+  else if(e.key==='ArrowDown'){adj(0,-1);}
+  else if(e.key===' '||e.key==='Spacebar'||e.key==='Enter'){launchPlayer();}
+});
+document.addEventListener('keyup',function(){HOT=null;});
+function adj(da,dv){
+  if(S.ph!=='play'||S.paus||S.sub!=='aim')return;
+  S.ti=clampi(S.ti+da,0,14);S.vi=clampi(S.vi+dv,0,16);
+  snd('tick');updHUD();
+}
+var HOLD=null;
+cv.addEventListener('pointerdown',function(e){
+  if(S.ph!=='play'||S.paus)return;
+  var r=cv.getBoundingClientRect();
+  var x=(e.clientX-r.left)*390/r.width,y=(e.clientY-r.top)*780/r.height;
+  if(y<712)return;
+  for(var i=0;i<BTNS.length;i++){
+    var b=BTNS[i];
+    if(x>=b.x&&x<=b.x+b.w&&y>=b.y&&y<=b.y+b.h){
+      if(S.sub!=='aim')return;
+      HOT=b.id;
+      if(b.id==='am')adj(-1,0);else if(b.id==='ap')adj(1,0);
+      else if(b.id==='fm')adj(0,-1);else if(b.id==='fp')adj(0,1);
+      else{launchPlayer();return;}
+      if(!HOLD)HOLD={id:b.id,t:0};
+      break;
+    }
+  }
+});
+function endHold(){HOLD=null;HOT=null;}
+cv.addEventListener('pointerup',endHold);
+cv.addEventListener('pointercancel',endHold);
+window.addEventListener('blur',endHold);
+function stepHold(){
+  if(!HOLD)return;
+  HOLD.t++;
+  if(HOLD.t>14&&HOLD.t%6===0){
+    if(HOLD.id==='am')adj(-1,0);else if(HOLD.id==='ap')adj(1,0);
+    else if(HOLD.id==='fm')adj(0,-1);else if(HOLD.id==='fp')adj(0,1);
+  }
+}
+/* 暂停（ HUD 双击区域顶部无效——用 DOM 钮） */
+E('pMute').onclick=function(){
+  sndOn=sndOn?0:1;
+  try{localStorage.setItem('g141_snd',sndOn?'1':'0');}catch(e){}
+  E('pMute').textContent=sndOn?'♪':'×';
+  E('pMute').style.color=sndOn?'#8fa0bd':'#5a6478';
+};
+/* 菜单/结算接线 */
+E('mGo').onclick=function(){newGame(Math.min(saveU,24));};
+E('mPick').onclick=function(){
+  var box=E('mLvs');
+  if(box.style.display==='flex'){box.style.display='none';return;}
+  var h='';
+  for(var i=1;i<=24;i++){
+    var lk=i>saveU;
+    var st=(saveB[i]&&saveB[i].stars)||0;
+    h+='<div class="lvbtn'+(lk?' lock':'')+'" data-lv="'+i+'">'+(lk?'🔒':i+(st?'★'.repeat(st):''))+'</div>';
+  }
+  box.innerHTML=h;box.style.display='flex';
+  box.querySelectorAll('.lvbtn').forEach(function(b2){
+    b2.onclick=function(){
+      var lv=+b2.getAttribute('data-lv');
+      if(lv>saveU)return;
+      newGame(lv);
+    };
+  });
+};
+E('mHelp').onclick=function(){flashMsg('调角度力度 · 看风旗 · 落点修正');};
+E('ovN').onclick=function(){if(S.lv<24)newGame(S.lv+1);};
+E('ovR').onclick=function(){newGame(S.lv);};
+E('ovH').onclick=function(){home();};
+E('pQ').onclick=function(){
+  if(S.ph!=='play')return;
+  S.paus=1;endHold();
+  E('pause').classList.remove('hide');
+};
+E('pRes').onclick=function(){S.paus=0;E('pause').classList.add('hide');};
+E('pHome').onclick=function(){S.paus=0;home();};
+
+/* ============ mainLoop（60Hz 累加器——g140-M4 制式） ============ */
+var last=0,acc=0;
+function mainLoop(t){
+  requestAnimationFrame(mainLoop);
+  if(!last)last=t;
+  var dt=t-last;last=t;
+  if(dt>200)dt=200;
+  acc+=dt;
+  var n=0;
+  while(acc>=16.6667&&n<20){acc-=16.6667;step();stepHold();n++;}
+  draw();
+}
+
+/* ============ boot ============ */
+(function boot(){
+  var sv=loadSave();saveU=sv.unlocked;saveB=sv.best;
+  E('pMute').textContent=sndOn?'♪':'×';
+  S.Y=LVDATA[0].Y.slice();S.YG=LVDATA[0].Y.slice();   /* 菜单态地形预置（防空数组 NaN 渐变） */
+  initStars();
+  home();
+  requestAnimationFrame(mainLoop);
+})();
+
+
+</script>
+</body>
+</html>

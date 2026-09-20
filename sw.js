@@ -1,5 +1,5 @@
 /* 口袋游戏机 ServiceWorker · stale-while-revalidate：离线立开，改动后台更新 */
-const VERSION = 'v1.0.144';
+const VERSION = 'v1.0.145';
 const CACHE = 'pocket-games-' + VERSION;
 const PRECACHE = [
   './',
@@ -178,6 +178,7 @@ const PRECACHE = [
     './game138/index.html',
     './game139/index.html',
     './game140/index.html',
+    './game141/index.html',
 ];
 
 self.addEventListener('install', (e) => {
