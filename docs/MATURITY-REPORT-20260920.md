@@ -12,8 +12,8 @@
 
 - 仓库：`F:\claudecode\output\games\game-ports-pwa`（本地 git）
 - 分支：`maturity-20260920`（基线 e24d1844 = 远端 master 当时 HEAD）
-- 提交：**13 个语义化 commit**，170 文件变更（+11253 / −229），工作树干净
-- HEAD：见下方第 7 节命令输出（以 `git log -1` 实查为准）
+- 提交：**15 个语义化 commit**（726123a 审计工具 → 9cd87e9 平台 → 473dfe9 基线 → aae24a1 g98/g132 → 2f6dfc2 冒烟 → ff4ee43 门禁文档 → 9d00afa g131 → daa5b71 g133 → c126b2d g145+hashchange → a9fa4be g63/g138 → cf5632f g18/g39 → c07985d g140 → 6d17d91 g137 → e9f1a1e sw v1.1.1 → 8c1eca8 报告），170 文件变更（+11253 / −229），工作树干净
+- HEAD：**8c1eca8**（`git log -1` 实查；报告入库 commit 之前的最后内容 commit）
 
 ## 3. 游戏数量与红线遵守
 
