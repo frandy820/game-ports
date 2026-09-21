@@ -1,0 +1,6098 @@
+{
+ "base": "http://127.0.0.1:8931",
+ "wait": 2400,
+ "startedAt": "2026-09-21T01:18:56.618Z",
+ "finishedAt": "2026-09-21T01:31:24.670Z",
+ "total": 151,
+ "results": [
+  {
+   "id": 1,
+   "url": "http://127.0.0.1:8931/game01/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "引力合星 · 离线版",
+     "bodyText": 159,
+     "appChildren": 11,
+     "canvas": [
+      "390x520"
+     ],
+     "canvasDiversity": 15,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": true,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "引力合星 · 离线版",
+     "bodyText": 159,
+     "appChildren": 11,
+     "canvas": [
+      "480x640"
+     ],
+     "canvasDiversity": 14,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": true,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 2,
+   "url": "http://127.0.0.1:8931/game02/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "元素方阵 · 离线版",
+     "bodyText": 121,
+     "appChildren": 10,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": true,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "元素方阵 · 离线版",
+     "bodyText": 121,
+     "appChildren": 10,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": true,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 3,
+   "url": "http://127.0.0.1:8931/game03/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "几何狂奔 · 离线版",
+     "bodyText": 119,
+     "appChildren": 9,
+     "canvas": [
+      "367x214"
+     ],
+     "canvasDiversity": 8,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": true,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "几何狂奔 · 离线版",
+     "bodyText": 119,
+     "appChildren": 9,
+     "canvas": [
+      "648x378"
+     ],
+     "canvasDiversity": 10,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": true,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 4,
+   "url": "http://127.0.0.1:8931/game04/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "霓虹贪吃蛇 · 离线版",
+     "bodyText": 89,
+     "appChildren": 7,
+     "canvas": [
+      "374x374"
+     ],
+     "canvasDiversity": 14,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": true,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "霓虹贪吃蛇 · 离线版",
+     "bodyText": 89,
+     "appChildren": 7,
+     "canvas": [
+      "560x560"
+     ],
+     "canvasDiversity": 19,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": true,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 5,
+   "url": "http://127.0.0.1:8931/game05/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "炼丹炉 · 离线版",
+     "bodyText": 258,
+     "appChildren": 12,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": true,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "炼丹炉 · 离线版",
+     "bodyText": 229,
+     "appChildren": 12,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": true,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 6,
+   "url": "http://127.0.0.1:8931/game06/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "满格消除 · 离线版",
+     "bodyText": 86,
+     "appChildren": 8,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": true,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "满格消除 · 离线版",
+     "bodyText": 76,
+     "appChildren": 8,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": true,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 7,
+   "url": "http://127.0.0.1:8931/game07/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "雷区排爆 · 离线版",
+     "bodyText": 178,
+     "appChildren": 12,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": true,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "雷区排爆 · 离线版",
+     "bodyText": 178,
+     "appChildren": 12,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": true,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 8,
+   "url": "http://127.0.0.1:8931/game08/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "宝石连星 · 离线版",
+     "bodyText": 118,
+     "appChildren": 7,
+     "canvas": [
+      "340x340"
+     ],
+     "canvasDiversity": 115,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "宝石连星 · 离线版",
+     "bodyText": 118,
+     "appChildren": 7,
+     "canvas": [
+      "444x444"
+     ],
+     "canvasDiversity": 149,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 9,
+   "url": "http://127.0.0.1:8931/game09/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "成语六猜 · 离线版",
+     "bodyText": 281,
+     "appChildren": 8,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "成语六猜 · 离线版",
+     "bodyText": 281,
+     "appChildren": 8,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 10,
+   "url": "http://127.0.0.1:8931/game10/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "圈地对抗 · 离线版",
+     "bodyText": 173,
+     "appChildren": 10,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 28,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "圈地对抗 · 离线版",
+     "bodyText": 173,
+     "appChildren": 10,
+     "canvas": [
+      "1440x900"
+     ],
+     "canvasDiversity": 30,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 11,
+   "url": "http://127.0.0.1:8931/game11/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "记忆翻牌 · 离线版",
+     "bodyText": 222,
+     "appChildren": 9,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "记忆翻牌 · 离线版",
+     "bodyText": 222,
+     "appChildren": 9,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 12,
+   "url": "http://127.0.0.1:8931/game12/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "气泡膜 · 离线版",
+     "bodyText": 134,
+     "appChildren": 6,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 91,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "气泡膜 · 离线版",
+     "bodyText": 134,
+     "appChildren": 6,
+     "canvas": [
+      "1440x900"
+     ],
+     "canvasDiversity": 107,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 13,
+   "url": "http://127.0.0.1:8931/game13/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "数字华容道 · 离线版",
+     "bodyText": 258,
+     "appChildren": 8,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "数字华容道 · 离线版",
+     "bodyText": 258,
+     "appChildren": 8,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 14,
+   "url": "http://127.0.0.1:8931/game14/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "开关灯谜题 · 离线版",
+     "bodyText": 184,
+     "appChildren": 8,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "开关灯谜题 · 离线版",
+     "bodyText": 184,
+     "appChildren": 8,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 15,
+   "url": "http://127.0.0.1:8931/game15/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "打地鼠急停 · 离线版",
+     "bodyText": 153,
+     "appChildren": 7,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "打地鼠急停 · 离线版",
+     "bodyText": 153,
+     "appChildren": 7,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 16,
+   "url": "http://127.0.0.1:8931/game16/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "悠然垂钓 · 离线版",
+     "bodyText": 55,
+     "appChildren": 9,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "悠然垂钓 · 离线版",
+     "bodyText": 55,
+     "appChildren": 9,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 17,
+   "url": "http://127.0.0.1:8931/game17/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "成语接龙闯关 · 离线版",
+     "bodyText": 148,
+     "appChildren": 9,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "成语接龙闯关 · 离线版",
+     "bodyText": 148,
+     "appChildren": 9,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 18,
+   "url": "http://127.0.0.1:8931/game18/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "纸鸢渡云 · 离线版",
+     "bodyText": 158,
+     "appChildren": 7,
+     "canvas": [
+      "375x812"
+     ],
+     "canvasDiversity": 1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "纸鸢渡云 · 离线版",
+     "bodyText": 158,
+     "appChildren": 7,
+     "canvas": [
+      "375x812"
+     ],
+     "canvasDiversity": 1,
+     "docW": 1584,
+     "overflowPx": 144,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 19,
+   "url": "http://127.0.0.1:8931/game19/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "小院推箱 · 离线版",
+     "bodyText": 139,
+     "appChildren": 8,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "小院推箱 · 离线版",
+     "bodyText": 139,
+     "appChildren": 8,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 20,
+   "url": "http://127.0.0.1:8931/game20/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "花灯巷 · 离线版",
+     "bodyText": 147,
+     "appChildren": 9,
+     "canvas": [
+      "375x812"
+     ],
+     "canvasDiversity": 57,
+     "docW": 413,
+     "overflowPx": 23,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "花灯巷 · 离线版",
+     "bodyText": 147,
+     "appChildren": 9,
+     "canvas": [
+      "375x812"
+     ],
+     "canvasDiversity": 57,
+     "docW": 1526,
+     "overflowPx": 86,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 21,
+   "url": "http://127.0.0.1:8931/game21/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "穿云雀 · 离线版",
+     "bodyText": 89,
+     "appChildren": 8,
+     "canvas": [
+      "375x812"
+     ],
+     "canvasDiversity": 66,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "穿云雀 · 离线版",
+     "bodyText": 89,
+     "appChildren": 8,
+     "canvas": [
+      "375x812"
+     ],
+     "canvasDiversity": 66,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 22,
+   "url": "http://127.0.0.1:8931/game22/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "叠翠楼 · 离线版",
+     "bodyText": 101,
+     "appChildren": 9,
+     "canvas": [
+      "375x812"
+     ],
+     "canvasDiversity": 19,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "叠翠楼 · 离线版",
+     "bodyText": 101,
+     "appChildren": 9,
+     "canvas": [
+      "375x812"
+     ],
+     "canvasDiversity": 19,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 23,
+   "url": "http://127.0.0.1:8931/game23/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "梅花针 · 离线版",
+     "bodyText": 107,
+     "appChildren": 10,
+     "canvas": [
+      "375x812"
+     ],
+     "canvasDiversity": 34,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "梅花针 · 离线版",
+     "bodyText": 107,
+     "appChildren": 10,
+     "canvas": [
+      "375x812"
+     ],
+     "canvasDiversity": 34,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 24,
+   "url": "http://127.0.0.1:8931/game24/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "跳跳灯 · 离线版",
+     "bodyText": 110,
+     "appChildren": 10,
+     "canvas": [
+      "375x812"
+     ],
+     "canvasDiversity": 30,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "跳跳灯 · 离线版",
+     "bodyText": 110,
+     "appChildren": 10,
+     "canvas": [
+      "375x812"
+     ],
+     "canvasDiversity": 30,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 25,
+   "url": "http://127.0.0.1:8931/game25/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "琴键雨 · 离线版",
+     "bodyText": 119,
+     "appChildren": 9,
+     "canvas": [
+      "375x812"
+     ],
+     "canvasDiversity": 14,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "琴键雨 · 离线版",
+     "bodyText": 119,
+     "appChildren": 9,
+     "canvas": [
+      "375x812"
+     ],
+     "canvasDiversity": 14,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 26,
+   "url": "http://127.0.0.1:8931/game26/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "停针 · 离线版",
+     "bodyText": 130,
+     "appChildren": 9,
+     "canvas": [
+      "375x812"
+     ],
+     "canvasDiversity": 38,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "停针 · 离线版",
+     "bodyText": 130,
+     "appChildren": 9,
+     "canvas": [
+      "375x812"
+     ],
+     "canvasDiversity": 38,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 27,
+   "url": "http://127.0.0.1:8931/game27/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "果果斩 · 离线版",
+     "bodyText": 126,
+     "appChildren": 9,
+     "canvas": [
+      "375x812"
+     ],
+     "canvasDiversity": 14,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "果果斩 · 离线版",
+     "bodyText": 126,
+     "appChildren": 9,
+     "canvas": [
+      "375x812"
+     ],
+     "canvasDiversity": 14,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 28,
+   "url": "http://127.0.0.1:8931/game28/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "街灯投篮 · 离线版",
+     "bodyText": 139,
+     "appChildren": 9,
+     "canvas": [
+      "375x812"
+     ],
+     "canvasDiversity": 48,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "街灯投篮 · 离线版",
+     "bodyText": 139,
+     "appChildren": 9,
+     "canvas": [
+      "375x812"
+     ],
+     "canvasDiversity": 48,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 29,
+   "url": "http://127.0.0.1:8931/game29/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "夜路穿行 · 离线版",
+     "bodyText": 130,
+     "appChildren": 10,
+     "canvas": [
+      "375x812"
+     ],
+     "canvasDiversity": 54,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "夜路穿行 · 离线版",
+     "bodyText": 130,
+     "appChildren": 10,
+     "canvas": [
+      "375x812"
+     ],
+     "canvasDiversity": 54,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 30,
+   "url": "http://127.0.0.1:8931/game30/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "满筐接果 · 离线版",
+     "bodyText": 152,
+     "appChildren": 9,
+     "canvas": [
+      "375x812"
+     ],
+     "canvasDiversity": 68,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "满筐接果 · 离线版",
+     "bodyText": 152,
+     "appChildren": 9,
+     "canvas": [
+      "375x812"
+     ],
+     "canvasDiversity": 68,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 31,
+   "url": "http://127.0.0.1:8931/game31/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "珠落玉盘 · 离线版",
+     "bodyText": 148,
+     "appChildren": 8,
+     "canvas": [
+      "375x812"
+     ],
+     "canvasDiversity": 94,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "珠落玉盘 · 离线版",
+     "bodyText": 148,
+     "appChildren": 8,
+     "canvas": [
+      "375x812"
+     ],
+     "canvasDiversity": 94,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 32,
+   "url": "http://127.0.0.1:8931/game32/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "回声色 · 离线版",
+     "bodyText": 140,
+     "appChildren": 8,
+     "canvas": [
+      "375x812"
+     ],
+     "canvasDiversity": 56,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "回声色 · 离线版",
+     "bodyText": 140,
+     "appChildren": 8,
+     "canvas": [
+      "375x812"
+     ],
+     "canvasDiversity": 56,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 33,
+   "url": "http://127.0.0.1:8931/game33/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "色不迷眼 · 离线版",
+     "bodyText": 147,
+     "appChildren": 8,
+     "canvas": [
+      "375x812"
+     ],
+     "canvasDiversity": 13,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "色不迷眼 · 离线版",
+     "bodyText": 147,
+     "appChildren": 8,
+     "canvas": [
+      "375x812"
+     ],
+     "canvasDiversity": 13,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 34,
+   "url": "http://127.0.0.1:8931/game34/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "九宫墨阵 · 离线版",
+     "bodyText": 172,
+     "appChildren": 12,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "九宫墨阵 · 离线版",
+     "bodyText": 172,
+     "appChildren": 12,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 35,
+   "url": "http://127.0.0.1:8931/game35/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "夜渠流灯 · 离线版",
+     "bodyText": 168,
+     "appChildren": 11,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "夜渠流灯 · 离线版",
+     "bodyText": 168,
+     "appChildren": 11,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 36,
+   "url": "http://127.0.0.1:8931/game36/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "绣样 · 离线版",
+     "bodyText": 176,
+     "appChildren": 13,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "绣样 · 离线版",
+     "bodyText": 176,
+     "appChildren": 13,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 37,
+   "url": "http://127.0.0.1:8931/game37/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "妙算 · 离线版",
+     "bodyText": 222,
+     "appChildren": 11,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "妙算 · 离线版",
+     "bodyText": 222,
+     "appChildren": 11,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 38,
+   "url": "http://127.0.0.1:8931/game38/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "移塔 · 离线版",
+     "bodyText": 196,
+     "appChildren": 11,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "移塔 · 离线版",
+     "bodyText": 196,
+     "appChildren": 11,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 39,
+   "url": "http://127.0.0.1:8931/game39/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "五彩连珠 · 离线版",
+     "bodyText": 137,
+     "appChildren": 10,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "五彩连珠 · 离线版",
+     "bodyText": 137,
+     "appChildren": 10,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 40,
+   "url": "http://127.0.0.1:8931/game40/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "泡影 · 离线版",
+     "bodyText": 124,
+     "appChildren": 19,
+     "canvas": [
+      "375x812",
+      "375x524"
+     ],
+     "canvasDiversity": 45,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "泡影 · 离线版",
+     "bodyText": 124,
+     "appChildren": 19,
+     "canvas": [
+      "375x812",
+      "375x524"
+     ],
+     "canvasDiversity": 45,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 41,
+   "url": "http://127.0.0.1:8931/game41/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "灶糖 · 离线版",
+     "bodyText": 125,
+     "appChildren": 21,
+     "canvas": [
+      "375x812",
+      "375x620"
+     ],
+     "canvasDiversity": 48,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "灶糖 · 离线版",
+     "bodyText": 125,
+     "appChildren": 21,
+     "canvas": [
+      "375x812",
+      "375x620"
+     ],
+     "canvasDiversity": 48,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 42,
+   "url": "http://127.0.0.1:8931/game42/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "博古斋 · 离线版",
+     "bodyText": 152,
+     "appChildren": 15,
+     "canvas": [
+      "375x812"
+     ],
+     "canvasDiversity": 34,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "博古斋 · 离线版",
+     "bodyText": 152,
+     "appChildren": 15,
+     "canvas": [
+      "375x812"
+     ],
+     "canvasDiversity": 34,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 43,
+   "url": "http://127.0.0.1:8931/game43/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "琉璃雨 · 口袋游戏机",
+     "bodyText": 61,
+     "appChildren": 3,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "琉璃雨 · 口袋游戏机",
+     "bodyText": 61,
+     "appChildren": 3,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 44,
+   "url": "http://127.0.0.1:8931/game44/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "四子连星 · 口袋游戏机",
+     "bodyText": 87,
+     "appChildren": 3,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "四子连星 · 口袋游戏机",
+     "bodyText": 87,
+     "appChildren": 3,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 45,
+   "url": "http://127.0.0.1:8931/game45/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "弈枰翻转 · 口袋游戏机",
+     "bodyText": 84,
+     "appChildren": 3,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "弈枰翻转 · 口袋游戏机",
+     "bodyText": 84,
+     "appChildren": 3,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 46,
+   "url": "http://127.0.0.1:8931/game46/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "骰子快车 · 口袋游戏机",
+     "bodyText": 60,
+     "appChildren": 3,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "骰子快车 · 口袋游戏机",
+     "bodyText": 60,
+     "appChildren": 3,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 47,
+   "url": "http://127.0.0.1:8931/game47/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "鎏金廿一 · 口袋游戏机",
+     "bodyText": 85,
+     "appChildren": 3,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "鎏金廿一 · 口袋游戏机",
+     "bodyText": 85,
+     "appChildren": 3,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 48,
+   "url": "http://127.0.0.1:8931/game48/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "跳珠 · 口袋游戏机",
+     "bodyText": 84,
+     "appChildren": 3,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "跳珠 · 口袋游戏机",
+     "bodyText": 84,
+     "appChildren": 3,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 49,
+   "url": "http://127.0.0.1:8931/game49/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "密电破译 · 口袋游戏机",
+     "bodyText": 103,
+     "appChildren": 3,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "密电破译 · 口袋游戏机",
+     "bodyText": 103,
+     "appChildren": 3,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 50,
+   "url": "http://127.0.0.1:8931/game50/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "金库转转 · 口袋游戏机",
+     "bodyText": 87,
+     "appChildren": 3,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "金库转转 · 口袋游戏机",
+     "bodyText": 87,
+     "appChildren": 3,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 51,
+   "url": "http://127.0.0.1:8931/game51/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "市集连连看 · 口袋游戏机",
+     "bodyText": 70,
+     "appChildren": 4,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "市集连连看 · 口袋游戏机",
+     "bodyText": 70,
+     "appChildren": 4,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 52,
+   "url": "http://127.0.0.1:8931/game52/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "天女散花",
+     "bodyText": 106,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 15,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "天女散花",
+     "bodyText": 106,
+     "appChildren": 3,
+     "canvas": [
+      "520x836"
+     ],
+     "canvasDiversity": 7,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 53,
+   "url": "http://127.0.0.1:8931/game53/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "百炼锤",
+     "bodyText": 143,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 62,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "百炼锤",
+     "bodyText": 143,
+     "appChildren": 3,
+     "canvas": [
+      "520x836"
+     ],
+     "canvasDiversity": 71,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 54,
+   "url": "http://127.0.0.1:8931/game54/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "满堂彩",
+     "bodyText": 187,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 25,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "满堂彩",
+     "bodyText": 187,
+     "appChildren": 3,
+     "canvas": [
+      "520x836"
+     ],
+     "canvasDiversity": 25,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 55,
+   "url": "http://127.0.0.1:8931/game55/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "百步穿杨",
+     "bodyText": 167,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 32,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "百步穿杨",
+     "bodyText": 167,
+     "appChildren": 3,
+     "canvas": [
+      "520x836"
+     ],
+     "canvasDiversity": 43,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 56,
+   "url": "http://127.0.0.1:8931/game56/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "沙里淘金",
+     "bodyText": 170,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 16,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "沙里淘金",
+     "bodyText": 170,
+     "appChildren": 3,
+     "canvas": [
+      "520x836"
+     ],
+     "canvasDiversity": 15,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 57,
+   "url": "http://127.0.0.1:8931/game57/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "惊弓之鸟",
+     "bodyText": 158,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 13,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "惊弓之鸟",
+     "bodyText": 158,
+     "appChildren": 3,
+     "canvas": [
+      "520x836"
+     ],
+     "canvasDiversity": 20,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 58,
+   "url": "http://127.0.0.1:8931/game58/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "一杆清台",
+     "bodyText": 158,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 36,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "一杆清台",
+     "bodyText": 158,
+     "appChildren": 3,
+     "canvas": [
+      "520x836"
+     ],
+     "canvasDiversity": 40,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 59,
+   "url": "http://127.0.0.1:8931/game59/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "九曲穿珠",
+     "bodyText": 181,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 42,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "九曲穿珠",
+     "bodyText": 181,
+     "appChildren": 3,
+     "canvas": [
+      "520x836"
+     ],
+     "canvasDiversity": 48,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 60,
+   "url": "http://127.0.0.1:8931/game60/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "夜巷弹珠",
+     "bodyText": 189,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 28,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "夜巷弹珠",
+     "bodyText": 189,
+     "appChildren": 3,
+     "canvas": [
+      "520x836"
+     ],
+     "canvasDiversity": 31,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 61,
+   "url": "http://127.0.0.1:8931/game61/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "雪夜滚球",
+     "bodyText": 202,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 22,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "雪夜滚球",
+     "bodyText": 202,
+     "appChildren": 3,
+     "canvas": [
+      "520x836"
+     ],
+     "canvasDiversity": 29,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 62,
+   "url": "http://127.0.0.1:8931/game62/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "夜塔倒转",
+     "bodyText": 217,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 23,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "夜塔倒转",
+     "bodyText": 217,
+     "appChildren": 3,
+     "canvas": [
+      "520x836"
+     ],
+     "canvasDiversity": 26,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 63,
+   "url": "http://127.0.0.1:8931/game63/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "落数合十",
+     "bodyText": 225,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 13,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "落数合十",
+     "bodyText": 225,
+     "appChildren": 3,
+     "canvas": [
+      "520x836"
+     ],
+     "canvasDiversity": 14,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 64,
+   "url": "http://127.0.0.1:8931/game64/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "糖砂数串",
+     "bodyText": 224,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 13,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "糖砂数串",
+     "bodyText": 224,
+     "appChildren": 3,
+     "canvas": [
+      "520x836"
+     ],
+     "canvasDiversity": 20,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 65,
+   "url": "http://127.0.0.1:8931/game65/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "戥秤百草",
+     "bodyText": 218,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 27,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "戥秤百草",
+     "bodyText": 218,
+     "appChildren": 3,
+     "canvas": [
+      "520x836"
+     ],
+     "canvasDiversity": 34,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 66,
+   "url": "http://127.0.0.1:8931/game66/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "纵横算经",
+     "bodyText": 184,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 24,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "纵横算经",
+     "bodyText": 184,
+     "appChildren": 3,
+     "canvas": [
+      "520x836"
+     ],
+     "canvasDiversity": 22,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 67,
+   "url": "http://127.0.0.1:8931/game67/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "灯火楼阵",
+     "bodyText": 160,
+     "appChildren": 3,
+     "canvas": [
+      "390x496"
+     ],
+     "canvasDiversity": 2,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "灯火楼阵",
+     "bodyText": 160,
+     "appChildren": 3,
+     "canvas": [
+      "390x496"
+     ],
+     "canvasDiversity": 2,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 68,
+   "url": "http://127.0.0.1:8931/game68/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "灯影迷宫",
+     "bodyText": 149,
+     "appChildren": 3,
+     "canvas": [
+      "390x496"
+     ],
+     "canvasDiversity": 1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "灯影迷宫",
+     "bodyText": 149,
+     "appChildren": 3,
+     "canvas": [
+      "390x496"
+     ],
+     "canvasDiversity": 1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 69,
+   "url": "http://127.0.0.1:8931/game69/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "光路折射",
+     "bodyText": 68,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 42,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "光路折射",
+     "bodyText": 68,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 47,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 70,
+   "url": "http://127.0.0.1:8931/game70/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "星宿一笔",
+     "bodyText": 70,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 9,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "星宿一笔",
+     "bodyText": 70,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 9,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 71,
+   "url": "http://127.0.0.1:8931/game71/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "电路连通",
+     "bodyText": 68,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 17,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "电路连通",
+     "bodyText": 68,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 19,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 72,
+   "url": "http://127.0.0.1:8931/game72/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "廿四点 · 夜市算摊",
+     "bodyText": 74,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 14,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "廿四点 · 夜市算摊",
+     "bodyText": 74,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 14,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 73,
+   "url": "http://127.0.0.1:8931/game73/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "飞花令 · 曲水诗笺",
+     "bodyText": 69,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 10,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "飞花令 · 曲水诗笺",
+     "bodyText": 69,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 10,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 74,
+   "url": "http://127.0.0.1:8931/game74/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "灯谜会 · 满堂彩",
+     "bodyText": 73,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 21,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "灯谜会 · 满堂彩",
+     "bodyText": 73,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 21,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 75,
+   "url": "http://127.0.0.1:8931/game75/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "拆字大师 · 活字工坊",
+     "bodyText": 78,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 8,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "拆字大师 · 活字工坊",
+     "bodyText": 78,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 8,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 76,
+   "url": "http://127.0.0.1:8931/game76/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "错字捕快",
+     "bodyText": 113,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 7,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "错字捕快",
+     "bodyText": 113,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 7,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 77,
+   "url": "http://127.0.0.1:8931/game77/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "歇后语茶馆",
+     "bodyText": 43,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 5,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "歇后语茶馆",
+     "bodyText": 43,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 5,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 78,
+   "url": "http://127.0.0.1:8931/game78/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "火眼金睛",
+     "bodyText": 43,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 6,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "火眼金睛",
+     "bodyText": 43,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 6,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 79,
+   "url": "http://127.0.0.1:8931/game79/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "诗序复原",
+     "bodyText": 43,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 6,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "诗序复原",
+     "bodyText": 43,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 6,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 80,
+   "url": "http://127.0.0.1:8931/game80/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "成语填字",
+     "bodyText": 43,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 6,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "成语填字",
+     "bodyText": 43,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 6,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 81,
+   "url": "http://127.0.0.1:8931/game81/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "星月连珠",
+     "bodyText": 106,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 3,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "星月连珠",
+     "bodyText": 106,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 3,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 82,
+   "url": "http://127.0.0.1:8931/game82/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "九宫连环",
+     "bodyText": 90,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 3,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "九宫连环",
+     "bodyText": 90,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 3,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 83,
+   "url": "http://127.0.0.1:8931/game83/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "独粒钻石",
+     "bodyText": 166,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 3,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "独粒钻石",
+     "bodyText": 166,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 3,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 84,
+   "url": "http://127.0.0.1:8931/game84/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "点格抢地",
+     "bodyText": 134,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 3,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "点格抢地",
+     "bodyText": 134,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 3,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 85,
+   "url": "http://127.0.0.1:8931/game85/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "山林兽棋",
+     "bodyText": 125,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 3,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "山林兽棋",
+     "bodyText": 125,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 3,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 86,
+   "url": "http://127.0.0.1:8931/game86/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "猜心对决",
+     "bodyText": 148,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 3,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "猜心对决",
+     "bodyText": 148,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 3,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 87,
+   "url": "http://127.0.0.1:8931/game87/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "擦镜除雾",
+     "bodyText": 119,
+     "appChildren": 3,
+     "canvas": [
+      "390x700"
+     ],
+     "canvasDiversity": 2,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "擦镜除雾",
+     "bodyText": 119,
+     "appChildren": 3,
+     "canvas": [
+      "390x700"
+     ],
+     "canvasDiversity": 2,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 88,
+   "url": "http://127.0.0.1:8931/game88/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "算盘老铺",
+     "bodyText": 77,
+     "appChildren": 3,
+     "canvas": [
+      "390x700"
+     ],
+     "canvasDiversity": 1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "算盘老铺",
+     "bodyText": 77,
+     "appChildren": 3,
+     "canvas": [
+      "390x700"
+     ],
+     "canvasDiversity": 1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 89,
+   "url": "http://127.0.0.1:8931/game89/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "沙漏细流",
+     "bodyText": 65,
+     "appChildren": 3,
+     "canvas": [
+      "390x700"
+     ],
+     "canvasDiversity": 2,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "沙漏细流",
+     "bodyText": 65,
+     "appChildren": 3,
+     "canvas": [
+      "390x700"
+     ],
+     "canvasDiversity": 2,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 90,
+   "url": "http://127.0.0.1:8931/game90/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "鱼缸物语",
+     "bodyText": 52,
+     "appChildren": 1,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 25,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "鱼缸物语",
+     "bodyText": 52,
+     "appChildren": 1,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 25,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 91,
+   "url": "http://127.0.0.1:8931/game91/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "檐下风铃",
+     "bodyText": 40,
+     "appChildren": 1,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 41,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "檐下风铃",
+     "bodyText": 40,
+     "appChildren": 1,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 41,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 92,
+   "url": "http://127.0.0.1:8931/game92/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "篆刻小匠",
+     "bodyText": 70,
+     "appChildren": 1,
+     "canvas": [
+      "390x844",
+      "180x180"
+     ],
+     "canvasDiversity": 21,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "篆刻小匠",
+     "bodyText": 70,
+     "appChildren": 1,
+     "canvas": [
+      "390x844",
+      "180x180"
+     ],
+     "canvasDiversity": 21,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 93,
+   "url": "http://127.0.0.1:8931/game93/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "蛐蛐秋鸣",
+     "bodyText": 41,
+     "appChildren": 3,
+     "canvas": [
+      "390x844",
+      "300x150"
+     ],
+     "canvasDiversity": 41,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "蛐蛐秋鸣",
+     "bodyText": 41,
+     "appChildren": 3,
+     "canvas": [
+      "390x844",
+      "300x150"
+     ],
+     "canvasDiversity": 41,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 94,
+   "url": "http://127.0.0.1:8931/game94/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "糖画师傅",
+     "bodyText": 47,
+     "appChildren": 3,
+     "canvas": [
+      "390x844",
+      "180x220"
+     ],
+     "canvasDiversity": 29,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "糖画师傅",
+     "bodyText": 47,
+     "appChildren": 3,
+     "canvas": [
+      "390x844",
+      "180x220"
+     ],
+     "canvasDiversity": 29,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 95,
+   "url": "http://127.0.0.1:8931/game95/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "高低牌楼",
+     "bodyText": 16,
+     "appChildren": 12,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 28,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "高低牌楼",
+     "bodyText": 16,
+     "appChildren": 12,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 28,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 96,
+   "url": "http://127.0.0.1:8931/game96/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "骰宝押注",
+     "bodyText": 21,
+     "appChildren": 9,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 48,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "骰宝押注",
+     "bodyText": 21,
+     "appChildren": 9,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 48,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 97,
+   "url": "http://127.0.0.1:8931/game97/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "古董开箱",
+     "bodyText": 13,
+     "appChildren": 7,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 26,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "古董开箱",
+     "bodyText": 13,
+     "appChildren": 7,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 26,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 98,
+   "url": "http://127.0.0.1:8931/game98/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "电梯调度",
+     "bodyText": 17,
+     "appChildren": 9,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 43,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "电梯调度",
+     "bodyText": 17,
+     "appChildren": 9,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 43,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 99,
+   "url": "http://127.0.0.1:8931/game99/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "围炉泡茶",
+     "bodyText": 5,
+     "appChildren": 11,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 49,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "围炉泡茶",
+     "bodyText": 5,
+     "appChildren": 11,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 49,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 100,
+   "url": "http://127.0.0.1:8931/game100/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "夜市掌柜",
+     "bodyText": 19,
+     "appChildren": 14,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 68,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "夜市掌柜",
+     "bodyText": 19,
+     "appChildren": 14,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 60,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 101,
+   "url": "http://127.0.0.1:8931/game101/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "转碟艺人",
+     "bodyText": 179,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 22,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "转碟艺人",
+     "bodyText": 179,
+     "appChildren": 3,
+     "canvas": [
+      "520x836"
+     ],
+     "canvasDiversity": 33,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 102,
+   "url": "http://127.0.0.1:8931/game102/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "活字匠",
+     "bodyText": 108,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 17,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "活字匠",
+     "bodyText": 108,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 17,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 103,
+   "url": "http://127.0.0.1:8931/game103/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "合香师",
+     "bodyText": 93,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 23,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "合香师",
+     "bodyText": 93,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 23,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 104,
+   "url": "http://127.0.0.1:8931/game104/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "雾港灯哨",
+     "bodyText": 110,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 25,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "雾港灯哨",
+     "bodyText": 110,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 25,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 105,
+   "url": "http://127.0.0.1:8931/game105/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "骨牌摊",
+     "bodyText": 110,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 8,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "骨牌摊",
+     "bodyText": 110,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 8,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 106,
+   "url": "http://127.0.0.1:8931/game106/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "匀酒坊",
+     "bodyText": 54,
+     "appChildren": 9,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "匀酒坊",
+     "bodyText": 54,
+     "appChildren": 9,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 107,
+   "url": "http://127.0.0.1:8931/game107/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "当铺归票",
+     "bodyText": 52,
+     "appChildren": 9,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "当铺归票",
+     "bodyText": 52,
+     "appChildren": 9,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 108,
+   "url": "http://127.0.0.1:8931/game108/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "窜天猴 · 年集烟花摊",
+     "bodyText": 153,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 15,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "窜天猴 · 年集烟花摊",
+     "bodyText": 153,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 15,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 109,
+   "url": "http://127.0.0.1:8931/game109/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "打铁花 · 焰火棚",
+     "bodyText": 170,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 21,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "打铁花 · 焰火棚",
+     "bodyText": 170,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 21,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 110,
+   "url": "http://127.0.0.1:8931/game110/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "盘灶 · 垒土坯",
+     "bodyText": 62,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 13,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "盘灶 · 垒土坯",
+     "bodyText": 62,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 13,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 111,
+   "url": "http://127.0.0.1:8931/game111/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "吹糖人",
+     "bodyText": 139,
+     "appChildren": 3,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 154,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "吹糖人",
+     "bodyText": 139,
+     "appChildren": 3,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 154,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 112,
+   "url": "http://127.0.0.1:8931/game112/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "射五毒",
+     "bodyText": 53,
+     "appChildren": 3,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 18,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "射五毒",
+     "bodyText": 53,
+     "appChildren": 3,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 18,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 113,
+   "url": "http://127.0.0.1:8931/game113/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "渡口货郎",
+     "bodyText": 137,
+     "appChildren": 3,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 47,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "渡口货郎",
+     "bodyText": 137,
+     "appChildren": 3,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 47,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 114,
+   "url": "http://127.0.0.1:8931/game114/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "井底捞月",
+     "bodyText": 100,
+     "appChildren": 3,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 32,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "井底捞月",
+     "bodyText": 100,
+     "appChildren": 3,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 32,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 115,
+   "url": "http://127.0.0.1:8931/game115/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "狼烟守夜",
+     "bodyText": 102,
+     "appChildren": 3,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 17,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "狼烟守夜",
+     "bodyText": 102,
+     "appChildren": 3,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 17,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 116,
+   "url": "http://127.0.0.1:8931/game116/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "守岁驱年",
+     "bodyText": 46,
+     "appChildren": 3,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 49,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "守岁驱年",
+     "bodyText": 46,
+     "appChildren": 3,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 51,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 117,
+   "url": "http://127.0.0.1:8931/game117/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "画铺寻瑕",
+     "bodyText": 34,
+     "appChildren": 3,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 76,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "画铺寻瑕",
+     "bodyText": 34,
+     "appChildren": 3,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 76,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 118,
+   "url": "http://127.0.0.1:8931/game118/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "编钟乐师",
+     "bodyText": 24,
+     "appChildren": 3,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 19,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "编钟乐师",
+     "bodyText": 24,
+     "appChildren": 3,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 19,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 119,
+   "url": "http://127.0.0.1:8931/game119/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "狮滚绣球",
+     "bodyText": 75,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 33,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "狮滚绣球",
+     "bodyText": 75,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 33,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 120,
+   "url": "http://127.0.0.1:8931/game120/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "胡同挪车",
+     "bodyText": 177,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 26,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "胡同挪车",
+     "bodyText": 177,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 25,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 121,
+   "url": "http://127.0.0.1:8931/game121/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "捶丸",
+     "bodyText": 181,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 12,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "捶丸",
+     "bodyText": 181,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 12,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 122,
+   "url": "http://127.0.0.1:8931/game122/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "乞巧板",
+     "bodyText": 46,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 35,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "乞巧板",
+     "bodyText": 46,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 35,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 123,
+   "url": "http://127.0.0.1:8931/game123/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "窑变",
+     "bodyText": 22,
+     "appChildren": 3,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 42,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "窑变",
+     "bodyText": 22,
+     "appChildren": 3,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 43,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 124,
+   "url": "http://127.0.0.1:8931/game124/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "鞠门争筹 · 口袋游戏机",
+     "bodyText": 84,
+     "appChildren": 1,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 25,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "鞠门争筹 · 口袋游戏机",
+     "bodyText": 84,
+     "appChildren": 1,
+     "canvas": [
+      "390x844"
+     ],
+     "canvasDiversity": 25,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 125,
+   "url": "http://127.0.0.1:8931/game125/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "墨蛇食字",
+     "bodyText": 53,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 16,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "墨蛇食字",
+     "bodyText": 53,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 16,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 126,
+   "url": "http://127.0.0.1:8931/game126/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "璎珞转珠",
+     "bodyText": 59,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 10,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "璎珞转珠",
+     "bodyText": 59,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 10,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 127,
+   "url": "http://127.0.0.1:8931/game127/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "冰嬉推球",
+     "bodyText": 63,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 48,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "冰嬉推球",
+     "bodyText": 63,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 48,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 128,
+   "url": "http://127.0.0.1:8931/game128/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "春圃播粟",
+     "bodyText": 65,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 64,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "春圃播粟",
+     "bodyText": 65,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 64,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 129,
+   "url": "http://127.0.0.1:8931/game129/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "锦杼挑纹 · 离线版",
+     "bodyText": 19,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 21,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "锦杼挑纹 · 离线版",
+     "bodyText": 19,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 21,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 130,
+   "url": "http://127.0.0.1:8931/game130/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "双陆渡子 · 离线版",
+     "bodyText": 187,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 17,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "双陆渡子 · 离线版",
+     "bodyText": 187,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 17,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 131,
+   "url": "http://127.0.0.1:8931/game131/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "淘井 · 离线版",
+     "bodyText": 211,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 16,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "淘井 · 离线版",
+     "bodyText": 211,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 16,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 132,
+   "url": "http://127.0.0.1:8931/game132/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "霹雳炮车",
+     "bodyText": 70,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 6,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "霹雳炮车",
+     "bodyText": 70,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 6,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 133,
+   "url": "http://127.0.0.1:8931/game133/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "翻印 · 口袋游戏机",
+     "bodyText": 64,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 9,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "翻印 · 口袋游戏机",
+     "bodyText": 64,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 9,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 134,
+   "url": "http://127.0.0.1:8931/game134/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "钱潮",
+     "bodyText": 46,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 13,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "钱潮",
+     "bodyText": 46,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 13,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 135,
+   "url": "http://127.0.0.1:8931/game135/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "打瓦",
+     "bodyText": 39,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "打瓦",
+     "bodyText": 39,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 136,
+   "url": "http://127.0.0.1:8931/game136/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "火药作",
+     "bodyText": 53,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "火药作",
+     "bodyText": 53,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 137,
+   "url": "http://127.0.0.1:8931/game137/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "叶子戏",
+     "bodyText": 51,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 1,
+     "docW": 414,
+     "overflowPx": 24,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "叶子戏",
+     "bodyText": 51,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 138,
+   "url": "http://127.0.0.1:8931/game138/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "叠匣",
+     "bodyText": 73,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 2,
+     "docW": 406,
+     "overflowPx": 16,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "叠匣",
+     "bodyText": 73,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 2,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 139,
+   "url": "http://127.0.0.1:8931/game139/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "冰轮夜泊",
+     "bodyText": 96,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 14,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "冰轮夜泊",
+     "bodyText": 96,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 14,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 140,
+   "url": "http://127.0.0.1:8931/game140/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "夜栈滚石",
+     "bodyText": 97,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 6,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "夜栈滚石",
+     "bodyText": 97,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 6,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 141,
+   "url": "http://127.0.0.1:8931/game141/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "震天雷",
+     "bodyText": 62,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 32,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "震天雷",
+     "bodyText": 62,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 32,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 142,
+   "url": "http://127.0.0.1:8931/game142/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "竹枧引泉",
+     "bodyText": 79,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 8,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "竹枧引泉",
+     "bodyText": 79,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 8,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 143,
+   "url": "http://127.0.0.1:8931/game143/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "独钓寒江",
+     "bodyText": 91,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 9,
+     "docW": 397,
+     "overflowPx": 7,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "独钓寒江",
+     "bodyText": 91,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 9,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 144,
+   "url": "http://127.0.0.1:8931/game144/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "夜驿飞传",
+     "bodyText": 172,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 50,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "夜驿飞传",
+     "bodyText": 172,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 50,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 145,
+   "url": "http://127.0.0.1:8931/game145/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "汴京夜跑马",
+     "bodyText": 86,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "汴京夜跑马",
+     "bodyText": 86,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 146,
+   "url": "http://127.0.0.1:8931/game146/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "雁塔归经",
+     "bodyText": 233,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 15,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "雁塔归经",
+     "bodyText": 233,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 15,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 147,
+   "url": "http://127.0.0.1:8931/game147/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "机关木人",
+     "bodyText": 254,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 6,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "机关木人",
+     "bodyText": 254,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 6,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 148,
+   "url": "http://127.0.0.1:8931/game148/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "汴河编纲",
+     "bodyText": 229,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "汴河编纲",
+     "bodyText": 229,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 1,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 149,
+   "url": "http://127.0.0.1:8931/game149/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "权衡辨伪",
+     "bodyText": 213,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 5,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "权衡辨伪",
+     "bodyText": 213,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 5,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": 150,
+   "url": "http://127.0.0.1:8931/game150/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "折笺引蝶",
+     "bodyText": 250,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 5,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "折笺引蝶",
+     "bodyText": 250,
+     "appChildren": 3,
+     "canvas": [
+      "390x780"
+     ],
+     "canvasDiversity": 5,
+     "docW": 1440,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  },
+  {
+   "id": "hub",
+   "url": "http://127.0.0.1:8931/index.html",
+   "views": {
+    "m390": {
+     "navOk": true,
+     "navErr": null,
+     "title": "口袋游戏机 · 一百五十合一",
+     "bodyText": 16298,
+     "appChildren": 4,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 390,
+     "overflowPx": 0,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    },
+    "d1440": {
+     "navOk": true,
+     "navErr": null,
+     "title": "口袋游戏机 · 一百五十合一",
+     "bodyText": 16298,
+     "appChildren": 4,
+     "canvas": [],
+     "canvasDiversity": -1,
+     "docW": 1425,
+     "overflowPx": -15,
+     "hasViewportMeta": true,
+     "domBack": false,
+     "errors": [],
+     "errorCount": 0
+    }
+   },
+   "ok": true
+  }
+ ]
+}
